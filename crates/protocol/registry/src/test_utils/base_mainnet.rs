@@ -1,5 +1,6 @@
 //! Base Mainnet Rollup Config.
 
+use alloy_chains::Chain;
 use alloy_eips::BlockNumHash;
 use alloy_op_hardforks::{
     BASE_MAINNET_CANYON_TIMESTAMP, BASE_MAINNET_ECOTONE_TIMESTAMP, BASE_MAINNET_FJORD_TIMESTAMP,
@@ -43,7 +44,7 @@ pub const BASE_MAINNET_CONFIG: RollupConfig = RollupConfig {
     channel_timeout: 300,
     granite_channel_timeout: 50,
     l1_chain_id: 1,
-    l2_chain_id: 8453,
+    l2_chain_id: Chain::base_mainnet(),
     hardforks: HardForkConfig {
         regolith_time: None,
         canyon_time: Some(BASE_MAINNET_CANYON_TIMESTAMP),
@@ -54,6 +55,7 @@ pub const BASE_MAINNET_CONFIG: RollupConfig = RollupConfig {
         holocene_time: Some(BASE_MAINNET_HOLOCENE_TIMESTAMP),
         pectra_blob_schedule_time: None,
         isthmus_time: Some(BASE_MAINNET_ISTHMUS_TIMESTAMP),
+        jovian_time: None,
         interop_time: None,
     },
     batch_inbox_address: address!("ff00000000000000000000000000000000008453"),

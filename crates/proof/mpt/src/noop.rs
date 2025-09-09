@@ -1,5 +1,5 @@
 //! Trait implementations for `kona-mpt` traits that are effectively a no-op.
-//! Providers trait implementations for downstream users who do not require hinting.
+//! Provides trait implementations for downstream users who do not require hinting.
 
 use crate::{TrieHinter, TrieNode, TrieProvider};
 use alloc::string::String;

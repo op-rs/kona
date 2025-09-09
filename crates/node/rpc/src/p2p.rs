@@ -6,20 +6,21 @@
 //! [op-node]: https://github.com/ethereum-optimism/optimism/blob/7a6788836984996747193b91901a824c39032bd8/op-node/p2p/rpc_api.go#L45
 
 use async_trait::async_trait;
+use backon::{ExponentialBuilder, Retryable};
 use ipnet::IpNet;
 use jsonrpsee::{
     core::RpcResult,
     types::{ErrorCode, ErrorObject},
 };
-use kona_p2p::{P2pRpcRequest, PeerCount, PeerDump, PeerInfo, PeerStats};
-use std::{net::IpAddr, str::FromStr};
+use kona_gossip::{P2pRpcRequest, PeerCount, PeerDump, PeerInfo, PeerStats};
+use std::{net::IpAddr, str::FromStr, time::Duration};
 
-use crate::{OpP2PApiServer, net::NetworkRpc};
+use crate::{OpP2PApiServer, net::P2pRpc};
 
 #[async_trait]
-impl OpP2PApiServer for NetworkRpc {
+impl OpP2PApiServer for P2pRpc {
     async fn opp2p_self(&self) -> RpcResult<PeerInfo> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_self");
+        kona_macros::inc!(gauge, kona_gossip::Metrics::RPC_CALLS, "method" => "opp2p_self");
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.sender
             .send(P2pRpcRequest::PeerInfo(tx))
@@ -30,7 +31,7 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_peer_count(&self) -> RpcResult<PeerCount> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_peerCount");
+        kona_macros::inc!(gauge, kona_gossip::Metrics::RPC_CALLS, "method" => "opp2p_peerCount");
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.sender
             .send(P2pRpcRequest::PeerCount(tx))
@@ -44,7 +45,7 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_peers(&self, connected: bool) -> RpcResult<PeerDump> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_peers");
+        kona_macros::inc!(gauge, kona_gossip::Metrics::RPC_CALLS, "method" => "opp2p_peers");
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.sender
             .send(P2pRpcRequest::Peers { out: tx, connected })
@@ -69,7 +70,7 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_discovery_table(&self) -> RpcResult<Vec<String>> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_discoveryTable");
+        kona_macros::inc!(gauge, kona_gossip::Metrics::RPC_CALLS, "method" => "opp2p_discoveryTable");
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.sender
             .send(P2pRpcRequest::DiscoveryTable(tx))
@@ -80,7 +81,7 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_block_peer(&self, peer_id: String) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_blockPeer");
+        kona_macros::inc!(gauge, kona_gossip::Metrics::RPC_CALLS, "method" => "opp2p_blockPeer");
         let id = libp2p::PeerId::from_str(&peer_id)
             .map_err(|_| ErrorObject::from(ErrorCode::InvalidParams))?;
         self.sender
@@ -90,7 +91,7 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_unblock_peer(&self, peer_id: String) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_unblockPeer");
+        kona_macros::inc!(gauge, kona_gossip::Metrics::RPC_CALLS, "method" => "opp2p_unblockPeer");
         let id = libp2p::PeerId::from_str(&peer_id)
             .map_err(|_| ErrorObject::from(ErrorCode::InvalidParams))?;
         self.sender
@@ -100,7 +101,7 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_list_blocked_peers(&self) -> RpcResult<Vec<String>> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_listBlockedPeers");
+        kona_macros::inc!(gauge, kona_gossip::Metrics::RPC_CALLS, "method" => "opp2p_listBlockedPeers");
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.sender
             .send(P2pRpcRequest::ListBlockedPeers(tx))
@@ -113,7 +114,7 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_block_addr(&self, address: IpAddr) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_blockAddr");
+        kona_macros::inc!(gauge, kona_gossip::Metrics::RPC_CALLS, "method" => "opp2p_blockAddr");
         self.sender
             .send(P2pRpcRequest::BlockAddr { address })
             .await
@@ -121,7 +122,7 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_unblock_addr(&self, address: IpAddr) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_unblockAddr");
+        kona_macros::inc!(gauge, kona_gossip::Metrics::RPC_CALLS, "method" => "opp2p_unblockAddr");
         self.sender
             .send(P2pRpcRequest::UnblockAddr { address })
             .await
@@ -129,7 +130,7 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_list_blocked_addrs(&self) -> RpcResult<Vec<IpAddr>> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_listBlockedAddrs");
+        kona_macros::inc!(gauge, kona_gossip::Metrics::RPC_CALLS, "method" => "opp2p_listBlockedAddrs");
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.sender
             .send(P2pRpcRequest::ListBlockedAddrs(tx))
@@ -140,7 +141,7 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_block_subnet(&self, subnet: IpNet) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_blockSubnet");
+        kona_macros::inc!(gauge, kona_gossip::Metrics::RPC_CALLS, "method" => "opp2p_blockSubnet");
         self.sender
             .send(P2pRpcRequest::BlockSubnet { address: subnet })
             .await
@@ -148,7 +149,7 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_unblock_subnet(&self, subnet: IpNet) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_unblockSubnet");
+        kona_macros::inc!(gauge, kona_gossip::Metrics::RPC_CALLS, "method" => "opp2p_unblockSubnet");
 
         self.sender
             .send(P2pRpcRequest::UnblockSubnet { address: subnet })
@@ -159,7 +160,7 @@ impl OpP2PApiServer for NetworkRpc {
     async fn opp2p_list_blocked_subnets(&self) -> RpcResult<Vec<IpNet>> {
         kona_macros::inc!(
             gauge,
-            kona_p2p::Metrics::RPC_CALLS,
+            kona_gossip::Metrics::RPC_CALLS,
             "method" => "opp2p_listBlockedSubnets"
         );
         let (tx, rx) = tokio::sync::oneshot::channel();
@@ -172,7 +173,7 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_protect_peer(&self, id: String) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_protectPeer");
+        kona_macros::inc!(gauge, kona_gossip::Metrics::RPC_CALLS, "method" => "opp2p_protectPeer");
         let peer_id = libp2p::PeerId::from_str(&id)
             .map_err(|_| ErrorObject::from(ErrorCode::InvalidParams))?;
         self.sender
@@ -182,7 +183,7 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_unprotect_peer(&self, id: String) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_unprotectPeer");
+        kona_macros::inc!(gauge, kona_gossip::Metrics::RPC_CALLS, "method" => "opp2p_unprotectPeer");
         let peer_id = libp2p::PeerId::from_str(&id)
             .map_err(|_| ErrorObject::from(ErrorCode::InvalidParams))?;
         self.sender
@@ -193,17 +194,66 @@ impl OpP2PApiServer for NetworkRpc {
 
     async fn opp2p_connect_peer(&self, _peer: String) -> RpcResult<()> {
         use std::str::FromStr;
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_connectPeer");
-        let ma = libp2p::Multiaddr::from_str(&_peer)
-            .map_err(|_| ErrorObject::from(ErrorCode::InvalidParams))?;
-        self.sender
-            .send(P2pRpcRequest::ConnectPeer { address: ma })
-            .await
-            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+        kona_macros::inc!(gauge, kona_gossip::Metrics::RPC_CALLS, "method" => "opp2p_connectPeer");
+        let ma = libp2p::Multiaddr::from_str(&_peer).map_err(|_| {
+            ErrorObject::borrowed(ErrorCode::InvalidParams.code(), "Invalid multiaddr", None)
+        })?;
+
+        let peer_id = ma
+            .iter()
+            .find_map(|component| match component {
+                libp2p::multiaddr::Protocol::P2p(peer_id) => Some(peer_id),
+                _ => None,
+            })
+            .ok_or_else(|| {
+                ErrorObject::borrowed(
+                    ErrorCode::InvalidParams.code(),
+                    "Impossible to extract peer ID from multiaddr",
+                    None,
+                )
+            })?;
+
+        self.sender.send(P2pRpcRequest::ConnectPeer { address: ma }).await.map_err(|_| {
+            ErrorObject::borrowed(
+                ErrorCode::InternalError.code(),
+                "Failed to send connect peer request",
+                None,
+            )
+        })?;
+
+        // We need to wait until both peers are connected to each other to return from this method.
+        // We try with an exponential backoff and return an error if we fail to connect to the peer.
+        let is_connected = async || {
+            let (tx, rx) = tokio::sync::oneshot::channel();
+
+            self.sender
+                .send(P2pRpcRequest::Peers { out: tx, connected: true })
+                .await
+                .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+            let peers = rx.await.map_err(|_| {
+                ErrorObject::borrowed(ErrorCode::InternalError.code(), "Failed to get peers", None)
+            })?;
+
+            Ok::<bool, ErrorObject<'_>>(peers.peers.contains_key(&peer_id.to_string()))
+        };
+
+        if !is_connected
+            .retry(ExponentialBuilder::default().with_total_delay(Some(Duration::from_secs(10))))
+            .await?
+        {
+            return Err(ErrorObject::borrowed(
+                ErrorCode::InvalidParams.code(),
+                "Peer not connected",
+                None,
+            ));
+        }
+
+        Ok(())
     }
 
     async fn opp2p_disconnect_peer(&self, peer_id: String) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_disconnectPeer");
+        kona_macros::inc!(gauge, kona_gossip::Metrics::RPC_CALLS, "method" => "opp2p_disconnectPeer");
         let peer_id = match peer_id.parse() {
             Ok(id) => id,
             Err(err) => {
@@ -211,10 +261,42 @@ impl OpP2PApiServer for NetworkRpc {
                 return Err(ErrorObject::from(ErrorCode::InvalidParams));
             }
         };
+
         self.sender
             .send(P2pRpcRequest::DisconnectPeer { peer_id })
             .await
-            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        // We need to wait until both peers are fully disconnected to each other to return from this
+        // method. We try with an exponential backoff and return an error if we fail to
+        // disconnect from the peer.
+        let is_not_connected = async || {
+            let (tx, rx) = tokio::sync::oneshot::channel();
+
+            self.sender
+                .send(P2pRpcRequest::Peers { out: tx, connected: true })
+                .await
+                .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+            let peers = rx.await.map_err(|_| {
+                ErrorObject::borrowed(ErrorCode::InternalError.code(), "Failed to get peers", None)
+            })?;
+
+            Ok::<bool, ErrorObject<'_>>(!peers.peers.contains_key(&peer_id.to_string()))
+        };
+
+        if !is_not_connected
+            .retry(ExponentialBuilder::default().with_total_delay(Some(Duration::from_secs(10))))
+            .await?
+        {
+            return Err(ErrorObject::borrowed(
+                ErrorCode::InvalidParams.code(),
+                "Peers are still connected",
+                None,
+            ));
+        }
+
+        Ok(())
     }
 }
 

@@ -10,6 +10,7 @@ pub use forkchoice::L2ForkchoiceState;
 mod error;
 pub use error::SyncStartError;
 use op_alloy_network::Optimism;
+use tracing::info;
 
 /// Searches for the latest [`L2ForkchoiceState`] that we can use to start the sync process with.
 ///

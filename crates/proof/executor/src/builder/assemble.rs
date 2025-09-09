@@ -59,11 +59,11 @@ where
         let logs_bloom = logs_bloom(ex_result.receipts.iter().flat_map(|r| r.logs()));
 
         // Compute Cancun fields, if active.
-        let (blob_gas_used, excess_blob_gas) = self
-            .config
-            .is_ecotone_active(timestamp)
-            .then_some((Some(0), Some(0)))
-            .unwrap_or_default();
+        let (blob_gas_used, excess_blob_gas) = if self.config.is_ecotone_active(timestamp) {
+            (Some(0), Some(0))
+        } else {
+            Default::default()
+        };
 
         // At holocene activation, the base fee parameters from the payload are placed
         // into the Header's `extra_data` field.
@@ -166,7 +166,7 @@ pub fn compute_receipts_root(
     timestamp: u64,
 ) -> B256 {
     // There is a minor bug in op-geth and op-erigon where in the Regolith hardfork,
-    // the receipt root calculation does not inclide the deposit nonce in the
+    // the receipt root calculation does not include the deposit nonce in the
     // receipt encoding. In the Regolith hardfork, we must strip the deposit nonce
     // from the receipt encoding to match the receipt root calculation.
     if config.is_regolith_active(timestamp) && !config.is_canyon_active(timestamp) {

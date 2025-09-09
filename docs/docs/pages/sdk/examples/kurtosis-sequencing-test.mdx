@@ -1,0 +1,113 @@
+import { Callout } from 'vocs/components'
+
+# Testing Kona Sequencing with Kurtosis
+
+Verify that kona-node correctly sequences blocks by running a dual-node network where kona acts as sequencer.
+
+## Prerequisites
+
+- [Kurtosis CLI](https://docs.kurtosis.com/install/) installed
+- Docker running locally  
+- Go 1.21+ for test execution
+
+## Kurtosis Configuration
+
+Create `kona-sequencer-test.yaml`:
+
+```yaml
+optimism_package:
+  chains:
+    chain0:
+      participants:
+        kona-sequencer:
+          el:
+            type: op-geth
+          cl:
+            type: kona-node
+            image: "kona-node:local"
+          sequencer: true
+        optimism-verifier:
+          el:
+            type: op-geth
+          cl:
+            type: op-node
+          sequencer: false
+      network_params:
+        network: "kurtosis"
+        network_id: "2151908"
+        seconds_per_slot: 2
+ethereum_package:
+  participants:
+  - el_type: geth
+    cl_type: teku
+  network_params:
+    preset: minimal
+```
+
+<Callout type="info">
+  The naming convention matters: nodes with "kona" and "sequencer" in their names are identified as kona sequencers.
+</Callout>
+
+## Test Implementation
+
+```go
+package sequencing_test
+
+import (
+    "testing"
+    "time"
+    
+    "github.com/ethereum-optimism/optimism/op-devstack/devtest"
+    "github.com/ethereum-optimism/optimism/op-devstack/shim"
+    "github.com/stretchr/testify/require"
+)
+
+func TestKonaSequencing(t *testing.T) {
+    preset := shim.NewSystem(t)
+    
+    // Get kona sequencer and op-node verifier
+    konaSeq := preset.L2CLKonaNodes[0]
+    opVerifier := preset.L2CLOpNodes[0]
+    
+    // Wait for initial sync
+    time.Sleep(10 * time.Second)
+    
+    // Verify kona is producing blocks
+    konaHead, err := konaSeq.L2Head()
+    require.NoError(t, err)
+    initialBlock := konaHead.Number
+    
+    // Wait for new blocks
+    time.Sleep(5 * time.Second)
+    
+    konaHead, err = konaSeq.L2Head()
+    require.NoError(t, err)
+    require.Greater(t, konaHead.Number, initialBlock, 
+        "kona should produce new blocks")
+    
+    // Verify consistency with verifier
+    verifierHead, err := opVerifier.L2Head()
+    require.NoError(t, err)
+    require.Equal(t, konaHead.Hash, verifierHead.Hash,
+        "sequencer and verifier should agree on head")
+}
+```
+
+## Running the Test
+
+```bash
+# Build local image
+just build-devnet node
+
+# Deploy network and run test
+just test-e2e kona-sequencer-test
+
+# Cleanup
+just cleanup-kurtosis
+```
+
+## Related Resources
+
+- [Kona E2E Tests](https://github.com/op-rs/kona/tree/main/tests)
+- [Optimism Package](https://github.com/ethpandaops/optimism-package)
+- [Op-Devstack Framework](https://github.com/ethereum-optimism/optimism/tree/develop/op-devstack)

@@ -1,7 +1,11 @@
 //! The [`Engine`] is a task queue that receives and executes [`EngineTask`]s.
 
-use super::{EngineTaskError, EngineTaskExt};
-use crate::{EngineClient, EngineState, EngineTask, Metrics};
+use super::EngineTaskExt;
+use crate::{
+    EngineClient, EngineState, EngineSyncStateUpdate, EngineTask, EngineTaskError,
+    EngineTaskErrorSeverity, Metrics, SynchronizeTask, SynchronizeTaskError,
+    task_queue::EngineTaskErrors,
+};
 use alloy_provider::Provider;
 use alloy_rpc_types_eth::Transaction;
 use kona_genesis::{RollupConfig, SystemConfig};
@@ -31,17 +35,20 @@ pub struct Engine {
     state: EngineState,
     /// A sender that can be used to notify the engine actor of state changes.
     state_sender: Sender<EngineState>,
+    /// A sender that can be used to notify the engine actor of task queue length changes.
+    task_queue_length: Sender<usize>,
     /// The task queue.
     tasks: BinaryHeap<EngineTask>,
 }
 
 impl Engine {
     /// Creates a new [`Engine`] with an empty task queue and the passed initial [`EngineState`].
-    ///
-    /// An initial [`EngineTask::ForkchoiceUpdate`] is added to the task queue to synchronize the
-    /// engine with the forkchoice state of the [`EngineState`].
-    pub fn new(initial_state: EngineState, state_sender: Sender<EngineState>) -> Self {
-        Self { state: initial_state, state_sender, tasks: BinaryHeap::default() }
+    pub fn new(
+        initial_state: EngineState,
+        state_sender: Sender<EngineState>,
+        task_queue_length: Sender<usize>,
+    ) -> Self {
+        Self { state: initial_state, state_sender, task_queue_length, tasks: BinaryHeap::default() }
     }
 
     /// Returns a reference to the inner [`EngineState`].
@@ -50,13 +57,20 @@ impl Engine {
     }
 
     /// Returns a receiver that can be used to listen to engine state updates.
-    pub fn subscribe(&self) -> tokio::sync::watch::Receiver<EngineState> {
+    pub fn state_subscribe(&self) -> tokio::sync::watch::Receiver<EngineState> {
         self.state_sender.subscribe()
     }
 
+    /// Returns a receiver that can be used to listen to engine queue length updates.
+    pub fn queue_length_subscribe(&self) -> tokio::sync::watch::Receiver<usize> {
+        self.task_queue_length.subscribe()
+    }
+
     /// Enqueues a new [`EngineTask`] for execution.
+    /// Updates the queue length and notifies listeners of the change.
     pub fn enqueue(&mut self, task: EngineTask) {
         self.tasks.push(task);
+        self.task_queue_length.send_replace(self.tasks.len());
     }
 
     /// Resets the engine by finding a plausible sync starting point via
@@ -65,19 +79,40 @@ impl Engine {
     pub async fn reset(
         &mut self,
         client: Arc<EngineClient>,
-        config: &RollupConfig,
+        config: Arc<RollupConfig>,
     ) -> Result<(L2BlockInfo, BlockInfo, SystemConfig), EngineResetError> {
         // Clear any outstanding tasks to prepare for the reset.
         self.clear();
 
         let start =
-            find_starting_forkchoice(config, client.l1_provider(), client.l2_provider()).await?;
+            find_starting_forkchoice(&config, client.l1_provider(), client.l2_engine()).await?;
 
-        self.state.set_unsafe_head(start.un_safe);
-        self.state.set_cross_unsafe_head(start.un_safe);
-        self.state.set_local_safe_head(start.safe);
-        self.state.set_safe_head(start.safe);
-        self.state.set_finalized_head(start.finalized);
+        // Retry to synchronize the engine until we succeeds or a critical error occurs.
+        while let Err(err) = SynchronizeTask::new(
+            client.clone(),
+            config.clone(),
+            EngineSyncStateUpdate {
+                unsafe_head: Some(start.un_safe),
+                cross_unsafe_head: Some(start.un_safe),
+                local_safe_head: Some(start.safe),
+                safe_head: Some(start.safe),
+                finalized_head: Some(start.finalized),
+            },
+        )
+        .execute(&mut self.state)
+        .await
+        {
+            match err.severity() {
+                EngineTaskErrorSeverity::Temporary |
+                EngineTaskErrorSeverity::Flush |
+                EngineTaskErrorSeverity::Reset => {
+                    debug!(target: "engine", ?err, "Forkchoice update failed during reset. Trying again...");
+                }
+                EngineTaskErrorSeverity::Critical => {
+                    return Err(EngineResetError::Forkchoice(err));
+                }
+            }
+        }
 
         // Find the new safe head's L1 origin and SystemConfig.
         let origin_block = start
@@ -94,7 +129,7 @@ impl Engine {
             .into_consensus()
             .into();
         let l2_safe_block = client
-            .l2_provider()
+            .l2_engine()
             .get_block(start.safe.block_info.hash.into())
             .full()
             .await
@@ -102,7 +137,7 @@ impl Engine {
             .ok_or(SyncStartError::BlockNotFound(origin_block.into()))?
             .into_consensus()
             .map_transactions(|t| <Transaction<OpTxEnvelope> as Clone>::clone(&t).into_inner());
-        let system_config = to_system_config(&l2_safe_block, config)?;
+        let system_config = to_system_config(&l2_safe_block, &config)?;
 
         kona_macros::inc!(counter, Metrics::ENGINE_RESET_COUNT);
 
@@ -117,7 +152,7 @@ impl Engine {
     /// Attempts to drain the queue by executing all [`EngineTask`]s in-order. If any task returns
     /// an error along the way, it is not popped from the queue (in case it must be retried) and
     /// the error is returned.
-    pub async fn drain(&mut self) -> Result<(), EngineTaskError> {
+    pub async fn drain(&mut self) -> Result<(), EngineTaskErrors> {
         // Drain tasks in order of priority, halting on errors for a retry to be attempted.
         while let Some(task) = self.tasks.peek() {
             // Execute the task
@@ -128,6 +163,8 @@ impl Engine {
 
             // Pop the task from the queue now that it's been executed.
             self.tasks.pop();
+
+            self.task_queue_length.send_replace(self.tasks.len());
         }
 
         Ok(())
@@ -137,9 +174,9 @@ impl Engine {
 /// An error occurred while attempting to reset the [`Engine`].
 #[derive(Debug, Error)]
 pub enum EngineResetError {
-    /// An error that originated from within the engine task.
+    /// An error that occurred while updating the forkchoice state.
     #[error(transparent)]
-    Task(#[from] EngineTaskError),
+    Forkchoice(#[from] SynchronizeTaskError),
     /// An error occurred while traversing the L1 for the sync starting point.
     #[error(transparent)]
     SyncStart(#[from] SyncStartError),

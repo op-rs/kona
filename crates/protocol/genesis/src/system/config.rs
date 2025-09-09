@@ -15,11 +15,13 @@ use alloy_primitives::{Address, B64, Log, U256};
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 pub struct SystemConfig {
     /// Batcher address
-    #[cfg_attr(feature = "serde", serde(rename = "batcherAddress", alias = "batcherAddr"))]
+    #[cfg_attr(feature = "serde", serde(rename = "batcherAddr"))]
     pub batcher_address: Address,
     /// Fee overhead value
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_u256_full"))]
     pub overhead: U256,
     /// Fee scalar value
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_u256_full"))]
     pub scalar: U256,
     /// Gas limit value
     pub gas_limit: u64,
@@ -187,6 +189,19 @@ impl SystemConfig {
         // Return the update type.
         Ok(update.kind())
     }
+}
+
+/// Compatibility helper function to serialize a [`U256`] as a [`B256`].
+///
+/// [`B256`]: alloy_primitives::B256
+#[cfg(feature = "serde")]
+fn serialize_u256_full<S>(ts: &U256, ser: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    use serde::Serialize;
+
+    alloy_primitives::B256::from(ts.to_be_bytes::<32>()).serialize(ser)
 }
 
 #[cfg(test)]

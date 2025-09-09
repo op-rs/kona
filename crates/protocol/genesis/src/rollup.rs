@@ -1,6 +1,7 @@
 //! Rollup Config Types
 
 use crate::{AltDAConfig, BaseFeeConfig, ChainGenesis, HardForkConfig, OP_MAINNET_BASE_FEE_CONFIG};
+use alloy_chains::Chain;
 use alloy_hardforks::{EthereumHardfork, EthereumHardforks, ForkCondition};
 use alloy_op_hardforks::{OpHardfork, OpHardforks};
 use alloy_primitives::Address;
@@ -57,7 +58,7 @@ pub struct RollupConfig {
     /// The L1 chain ID
     pub l1_chain_id: u64,
     /// The L2 chain ID
-    pub l2_chain_id: u64,
+    pub l2_chain_id: Chain,
     /// Hardfork timestamps.
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub hardforks: HardForkConfig,
@@ -142,7 +143,7 @@ impl Default for RollupConfig {
             channel_timeout: 0,
             granite_channel_timeout: GRANITE_CHANNEL_TIMEOUT,
             l1_chain_id: 0,
-            l2_chain_id: 0,
+            l2_chain_id: Chain::from_id(0),
             hardforks: HardForkConfig::default(),
             batch_inbox_address: Address::ZERO,
             deposit_contract_address: Address::ZERO,
@@ -287,13 +288,25 @@ impl RollupConfig {
     /// Returns true if Isthmus is active at the given timestamp.
     pub fn is_isthmus_active(&self, timestamp: u64) -> bool {
         self.hardforks.isthmus_time.is_some_and(|t| timestamp >= t) ||
-            self.is_interop_active(timestamp)
+            self.is_jovian_active(timestamp)
     }
 
     /// Returns true if the timestamp marks the first Isthmus block.
     pub fn is_first_isthmus_block(&self, timestamp: u64) -> bool {
         self.is_isthmus_active(timestamp) &&
             !self.is_isthmus_active(timestamp.saturating_sub(self.block_time))
+    }
+
+    /// Returns true if Jovian is active at the given timestamp.
+    pub fn is_jovian_active(&self, timestamp: u64) -> bool {
+        self.hardforks.jovian_time.is_some_and(|t| timestamp >= t) ||
+            self.is_interop_active(timestamp)
+    }
+
+    /// Returns true if the timestamp marks the first Jovian block.
+    pub fn is_first_jovian_block(&self, timestamp: u64) -> bool {
+        self.is_jovian_active(timestamp) &&
+            !self.is_jovian_active(timestamp.saturating_sub(self.block_time))
     }
 
     /// Returns true if Interop is active at the given timestamp.
@@ -441,6 +454,11 @@ impl OpHardforks for RollupConfig {
                 .isthmus_time
                 .map(ForkCondition::Timestamp)
                 .unwrap_or(self.op_fork_activation(OpHardfork::Interop)),
+            OpHardfork::Jovian => self
+                .hardforks
+                .jovian_time
+                .map(ForkCondition::Timestamp)
+                .unwrap_or(ForkCondition::Never),
             OpHardfork::Interop => self
                 .hardforks
                 .interop_time
@@ -610,6 +628,24 @@ mod tests {
     }
 
     #[test]
+    fn test_jovian_active() {
+        let mut config = RollupConfig::default();
+        assert!(!config.is_interop_active(0));
+        config.hardforks.jovian_time = Some(10);
+        assert!(config.is_regolith_active(10));
+        assert!(config.is_canyon_active(10));
+        assert!(config.is_delta_active(10));
+        assert!(config.is_ecotone_active(10));
+        assert!(config.is_fjord_active(10));
+        assert!(config.is_granite_active(10));
+        assert!(config.is_holocene_active(10));
+        assert!(!config.is_pectra_blob_schedule_active(10));
+        assert!(config.is_isthmus_active(10));
+        assert!(config.is_jovian_active(10));
+        assert!(!config.is_jovian_active(9));
+    }
+
+    #[test]
     fn test_interop_active() {
         let mut config = RollupConfig::default();
         assert!(!config.is_interop_active(0));
@@ -640,7 +676,8 @@ mod tests {
                 holocene_time: Some(70),
                 pectra_blob_schedule_time: Some(80),
                 isthmus_time: Some(90),
-                interop_time: Some(100),
+                jovian_time: Some(100),
+                interop_time: Some(110),
             },
             block_time: 2,
             ..Default::default()
@@ -690,6 +727,16 @@ mod tests {
         assert!(!cfg.is_first_isthmus_block(88));
         assert!(cfg.is_first_isthmus_block(90));
         assert!(!cfg.is_first_isthmus_block(92));
+
+        // Jovian
+        assert!(!cfg.is_first_jovian_block(98));
+        assert!(cfg.is_first_jovian_block(100));
+        assert!(!cfg.is_first_jovian_block(102));
+
+        // Interop
+        assert!(!cfg.is_first_interop_block(108));
+        assert!(cfg.is_first_interop_block(110));
+        assert!(!cfg.is_first_interop_block(112));
     }
 
     #[test]
@@ -764,9 +811,9 @@ mod tests {
           "l1_system_config_address": "0x94ee52a9d8edd72a85dea7fae3ba6d75e4bf1710",
           "protocol_versions_address": "0x0000000000000000000000000000000000000000",
           "chain_op_config": {
-            "eip1559Elasticity": "0x6",
-            "eip1559Denominator": "0x32",
-            "eip1559DenominatorCanyon": "0xfa"
+            "eip1559Elasticity": 6,
+            "eip1559Denominator": 50,
+            "eip1559DenominatorCanyon": 250
             },
           "alt_da": null
         }
@@ -802,7 +849,7 @@ mod tests {
             channel_timeout: 300,
             granite_channel_timeout: GRANITE_CHANNEL_TIMEOUT,
             l1_chain_id: 3151908,
-            l2_chain_id: 1337,
+            l2_chain_id: Chain::from_id(1337),
             hardforks: HardForkConfig {
                 regolith_time: Some(0),
                 canyon_time: Some(0),

@@ -4,7 +4,7 @@ use crate::Frame;
 use alloc::vec::Vec;
 use alloy_primitives::Bytes;
 
-/// BatchTransaction is a set of [Frame]s that can be [Into::into] [Bytes].
+/// BatchTransaction is a set of [`Frame`]s that can be [Into::into] [`Bytes`].
 /// if the size exceeds the desired threshold.
 #[derive(Debug, Clone)]
 pub struct BatchTransaction {
@@ -21,11 +21,11 @@ impl BatchTransaction {
     }
 
     /// Returns if the transaction has reached the max frame count.
-    pub fn is_full(&self, max_frames: u16) -> bool {
+    pub const fn is_full(&self, max_frames: u16) -> bool {
         self.frames.len() as u16 >= max_frames
     }
 
-    /// Returns the [BatchTransaction] as a [Bytes].
+    /// Returns the [`BatchTransaction`] as a [`Bytes`].
     pub fn to_bytes(&self) -> Bytes {
         self.frames
             .iter()

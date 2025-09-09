@@ -1,8 +1,8 @@
 //! A task to consolidate the engine state.
 
 use crate::{
-    BuildTask, ConsolidateTaskError, EngineClient, EngineState, EngineTaskError, EngineTaskExt,
-    ForkchoiceTask, Metrics,
+    BuildTask, ConsolidateTaskError, EngineClient, EngineState, EngineTaskExt, SynchronizeTask,
+    state::EngineSyncStateUpdate,
 };
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
@@ -36,18 +36,12 @@ impl ConsolidateTask {
         Self { client, cfg: config, attributes, is_attributes_derived }
     }
 
-    /// Executes the [`ForkchoiceTask`] if the attributes match the block.
-    async fn execute_forkchoice_task(
-        &self,
-        state: &mut EngineState,
-    ) -> Result<(), EngineTaskError> {
-        let task = ForkchoiceTask::new(Arc::clone(&self.client));
-        task.execute(state).await
-    }
-
     /// Executes a new [`BuildTask`].
     /// This is used when the [`ConsolidateTask`] fails to consolidate the engine state.
-    async fn execute_build_task(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
+    async fn execute_build_task(
+        &self,
+        state: &mut EngineState,
+    ) -> Result<(), ConsolidateTaskError> {
         let build_task = BuildTask::new(
             self.client.clone(),
             self.cfg.clone(),
@@ -55,11 +49,11 @@ impl ConsolidateTask {
             self.is_attributes_derived,
             None,
         );
-        build_task.execute(state).await
+        Ok(build_task.execute(state).await?)
     }
 
     /// Attempts consolidation on the engine state.
-    pub async fn consolidate(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
+    pub async fn consolidate(&self, state: &mut EngineState) -> Result<(), ConsolidateTaskError> {
         let global_start = Instant::now();
 
         // Fetch the unsafe l2 block after the attributes parent.
@@ -69,11 +63,11 @@ impl ConsolidateTask {
             Ok(Some(block)) => block,
             Ok(None) => {
                 warn!(target: "engine", "Received `None` block for {}", block_num);
-                return Err(ConsolidateTaskError::MissingUnsafeL2Block(block_num).into());
+                return Err(ConsolidateTaskError::MissingUnsafeL2Block(block_num));
             }
             Err(_) => {
                 warn!(target: "engine", "Failed to fetch unsafe l2 block for consolidation");
-                return Err(ConsolidateTaskError::FailedToFetchUnsafeL2Block.into());
+                return Err(ConsolidateTaskError::FailedToFetchUnsafeL2Block);
             }
         };
         let block_fetch_duration = fetch_start.elapsed();
@@ -91,32 +85,18 @@ impl ConsolidateTask {
             );
 
             match L2BlockInfo::from_block_and_genesis(&block.into_consensus(), &self.cfg.genesis) {
-                Ok(block_info) => {
-                    state.set_local_safe_head(block_info);
-                    state.set_safe_head(block_info);
-
-                    // Only issue a forkchoice update if the attributes are the last in the span
-                    // batch. This is an optimization to avoid sending a FCU
-                    // call for every block in the span batch.
-                    let fcu_duration = if self.attributes.is_last_in_span {
-                        let fcu_start = Instant::now();
-                        if let Err(e) = self.execute_forkchoice_task(state).await {
-                            warn!(target: "engine", ?e, "Consolidation failed");
-                            return Err(e);
-                        }
-                        Some(fcu_start.elapsed())
-                    } else {
-                        None
-                    };
-
+                // Only issue a forkchoice update if the attributes are the last in the span
+                // batch. This is an optimization to avoid sending a FCU
+                // call for every block in the span batch.
+                Ok(block_info) if !self.attributes.is_last_in_span => {
                     let total_duration = global_start.elapsed();
 
-                    // Update metrics.
-                    kona_macros::inc!(
-                        counter,
-                        Metrics::ENGINE_TASK_COUNT,
-                        Metrics::CONSOLIDATE_TASK_LABEL
-                    );
+                    // Apply a transient update to the safe head.
+                    state.sync_state = state.sync_state.apply_update(EngineSyncStateUpdate {
+                        safe_head: Some(block_info),
+                        local_safe_head: Some(block_info),
+                        ..Default::default()
+                    });
 
                     info!(
                         target: "engine",
@@ -124,7 +104,41 @@ impl ConsolidateTask {
                         number = block_info.block_info.number,
                         ?total_duration,
                         ?block_fetch_duration,
-                        fcu_duration = %fcu_duration.map(|d| format!("{d:?}")).unwrap_or("N/A".to_string()),
+                        "Updated safe head via L1 consolidation"
+                    );
+
+                    return Ok(());
+                }
+                Ok(block_info) => {
+                    let fcu_start = Instant::now();
+
+                    SynchronizeTask::new(
+                        Arc::clone(&self.client),
+                        self.cfg.clone(),
+                        EngineSyncStateUpdate {
+                            safe_head: Some(block_info),
+                            local_safe_head: Some(block_info),
+                            ..Default::default()
+                        },
+                    )
+                    .execute(state)
+                    .await
+                    .map_err(|e| {
+                        warn!(target: "engine", ?e, "Consolidation failed");
+                        e
+                    })?;
+
+                    let fcu_duration = fcu_start.elapsed();
+
+                    let total_duration = global_start.elapsed();
+
+                    info!(
+                        target: "engine",
+                        hash = %block_info.block_info.hash,
+                        number = block_info.block_info.number,
+                        ?total_duration,
+                        ?block_fetch_duration,
+                        fcu_duration = ?fcu_duration,
                         "Updated safe head via L1 consolidation"
                     );
 
@@ -150,9 +164,15 @@ impl ConsolidateTask {
 
 #[async_trait]
 impl EngineTaskExt for ConsolidateTask {
-    async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
+    type Output = ();
+
+    type Error = ConsolidateTaskError;
+
+    async fn execute(&self, state: &mut EngineState) -> Result<(), ConsolidateTaskError> {
         // Skip to building the payload attributes if consolidation is not needed.
-        if state.safe_head().block_info.number < state.unsafe_head().block_info.number {
+        if state.sync_state.safe_head().block_info.number <
+            state.sync_state.unsafe_head().block_info.number
+        {
             self.consolidate(state).await
         } else {
             self.execute_build_task(state).await

@@ -7,7 +7,7 @@ use revm::precompile::{self, PrecompileWithAddress};
 /// List of precompiles that are accelerated by the host program.
 pub(crate) const ACCELERATED_PRECOMPILES: &[PrecompileWithAddress] = &[
     precompile::secp256k1::ECRECOVER,          // ecRecover
-    precompile::bn128::pair::ISTANBUL,         // ecPairing
+    precompile::bn254::pair::ISTANBUL,         // ecPairing
     precompile::bls12_381::g1_add::PRECOMPILE, // BLS12-381 G1 Point Addition
     precompile::bls12_381::g1_msm::PRECOMPILE, /* BLS12-381 G1 Point Multi-scalar
                                                 * Multiplication */

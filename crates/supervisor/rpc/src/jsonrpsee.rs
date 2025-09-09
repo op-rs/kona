@@ -5,16 +5,15 @@ pub use jsonrpsee::{
     types::{ErrorCode, ErrorObjectOwned},
 };
 
-use crate::SupervisorSyncStatus;
+use crate::{SuperRootOutputRpc, SupervisorSyncStatus};
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{B256, BlockHash, ChainId, map::HashMap};
 use jsonrpsee::proc_macros::rpc;
 use kona_interop::{
     DependencySet, DerivedIdPair, DerivedRefPair, ExecutingDescriptor, ManagedEvent, SafetyLevel,
-    SuperRootOutput,
 };
 use kona_protocol::BlockInfo;
-use kona_supervisor_types::{BlockSeal, HexChainId, OutputV0, Receipts, SubscriptionEvent};
+use kona_supervisor_types::{BlockSeal, HexStringU64, OutputV0, Receipts, SubscriptionEvent};
 use serde::{Deserialize, Serialize};
 
 /// Supervisor API for interop.
@@ -28,7 +27,7 @@ pub trait SupervisorApi {
     #[method(name = "crossDerivedToSource")]
     async fn cross_derived_to_source(
         &self,
-        chain_id: HexChainId,
+        chain_id: HexStringU64,
         block_id: BlockNumHash,
     ) -> RpcResult<BlockInfo>;
 
@@ -38,7 +37,14 @@ pub trait SupervisorApi {
     ///
     /// [`LocalUnsafe`]: SafetyLevel::LocalUnsafe
     #[method(name = "localUnsafe")]
-    async fn local_unsafe(&self, chain_id: HexChainId) -> RpcResult<BlockNumHash>;
+    async fn local_unsafe(&self, chain_id: HexStringU64) -> RpcResult<BlockNumHash>;
+
+    /// Returns the [`LocalSafe`] block for given chain.
+    ///
+    /// [`LocalSafe`]: SafetyLevel::LocalSafe
+    // todo: link to spec after PR(https://github.com/ethereum-optimism/specs/pull/753) is merged
+    #[method(name = "localSafe")]
+    async fn local_safe(&self, chain_id: HexStringU64) -> RpcResult<DerivedIdPair>;
 
     /// Returns the [`CrossSafe`] block for given chain.
     ///
@@ -46,7 +52,7 @@ pub trait SupervisorApi {
     ///
     /// [`CrossSafe`]: SafetyLevel::CrossSafe
     #[method(name = "crossSafe")]
-    async fn cross_safe(&self, chain_id: HexChainId) -> RpcResult<DerivedIdPair>;
+    async fn cross_safe(&self, chain_id: HexStringU64) -> RpcResult<DerivedIdPair>;
 
     /// Returns the [`Finalized`] block for the given chain.
     ///
@@ -54,7 +60,7 @@ pub trait SupervisorApi {
     ///
     /// [`Finalized`]: SafetyLevel::Finalized
     #[method(name = "finalized")]
-    async fn finalized(&self, chain_id: HexChainId) -> RpcResult<BlockNumHash>;
+    async fn finalized(&self, chain_id: HexStringU64) -> RpcResult<BlockNumHash>;
 
     /// Returns the finalized L1 block that the supervisor is synced to.
     ///
@@ -75,7 +81,10 @@ pub trait SupervisorApi {
     /// [`SuperRoot`]: kona_interop::SuperRoot
     /// [`ChainRootInfo`]: kona_interop::ChainRootInfo
     #[method(name = "superRootAtTimestamp")]
-    async fn super_root_at_timestamp(&self, timestamp: u64) -> RpcResult<SuperRootOutput>;
+    async fn super_root_at_timestamp(
+        &self,
+        timestamp: HexStringU64,
+    ) -> RpcResult<SuperRootOutputRpc>;
 
     /// Verifies if an access-list references only valid messages w.r.t. locally configured minimum
     /// [`SafetyLevel`].
@@ -111,6 +120,15 @@ pub trait SupervisorApi {
     /// TODO: Replace the link above after the PR is merged.
     #[method(name = "dependencySetV1")]
     async fn dependency_set_v1(&self) -> RpcResult<DependencySet>;
+}
+
+/// Supervisor API for admin operations.
+#[cfg_attr(not(feature = "client"), rpc(server, namespace = "admin"))]
+#[cfg_attr(feature = "client", rpc(server, client, namespace = "admin"))]
+pub trait SupervisorAdminApi {
+    /// Adds L2RPC to the supervisor.
+    #[method(name = "addL2RPC")]
+    async fn add_l2_rpc(&self, url: String, jwt_secret: String) -> RpcResult<()>;
 }
 
 /// Represents the topics for subscriptions in the Managed Mode API.
@@ -170,6 +188,10 @@ pub trait ManagedModeApi {
     #[method(name = "anchorPoint")]
     async fn anchor_point(&self) -> RpcResult<DerivedRefPair>;
 
+    /// Reset the managed node to the pre-interop state
+    #[method(name = "resetPreInterop")]
+    async fn reset_pre_interop(&self) -> RpcResult<()>;
+
     /// Reset the managed node to the specified block heads
     #[method(name = "reset")]
     async fn reset(
@@ -186,9 +208,9 @@ pub trait ManagedModeApi {
     #[method(name = "fetchReceipts")]
     async fn fetch_receipts(&self, block_hash: BlockHash) -> RpcResult<Receipts>;
 
-    /// Get block infor for a given block number
-    #[method(name = "blockRefByNumber")]
-    async fn block_ref_by_number(&self, number: u64) -> RpcResult<BlockInfo>;
+    /// Get block info for a given block number
+    #[method(name = "l2BlockRefByNumber")]
+    async fn l2_block_ref_by_number(&self, number: u64) -> RpcResult<BlockInfo>;
 
     /// Get the chain id
     #[method(name = "chainID")]

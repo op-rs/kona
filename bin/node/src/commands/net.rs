@@ -4,9 +4,15 @@ use crate::flags::{GlobalArgs, P2PArgs, RpcArgs};
 use clap::Parser;
 use futures::future::OptionFuture;
 use jsonrpsee::{RpcModule, server::Server};
-use kona_p2p::{NetworkBuilder, P2pRpcRequest};
-use kona_rpc::{NetworkRpc, OpP2PApiServer, RpcBuilder};
-use tracing::{debug, info, warn};
+use kona_cli::LogConfig;
+use kona_gossip::P2pRpcRequest;
+use kona_node_service::{
+    NetworkActor, NetworkBuilder, NetworkContext, NetworkInboundData, NodeActor,
+};
+use kona_registry::scr_rollup_config_by_alloy_ident;
+use kona_rpc::{OpP2PApiServer, P2pRpc, RpcBuilder};
+use tokio_util::sync::CancellationToken;
+use tracing::{info, warn};
 use url::Url;
 
 /// The `net` Subcommand
@@ -22,7 +28,7 @@ use url::Url;
 #[command(about = "Runs the networking stack for the kona-node.")]
 pub struct NetCommand {
     /// URL of the L1 execution client RPC API.
-    /// This is used to load the unsafe block signer from runtime.
+    /// This is used to load the unsafe block signer at startup.
     /// Without this, the rollup config unsafe block signer will be used which may be outdated.
     #[arg(long, visible_alias = "l1", env = "L1_ETH_RPC")]
     pub l1_eth_rpc: Option<Url>,
@@ -43,7 +49,7 @@ impl NetCommand {
             .add_directive("bootstore=debug".parse()?);
 
         // Initialize the telemetry stack.
-        args.init_tracing(Some(filter))?;
+        LogConfig::new(args.log_args.clone()).init_tracing_subscriber(Some(filter))?;
         Ok(())
     }
 
@@ -54,52 +60,47 @@ impl NetCommand {
 
         let rpc_config = Option::<RpcBuilder>::from(self.rpc);
 
-        let (handle, tx, rx) = if let Some(config) = rpc_config {
-            info!(target: "net", socket = ?config.socket, "Starting RPC server");
-            let (tx, rx) = tokio::sync::mpsc::channel(1024);
-
-            // Setup the RPC server with the P2P RPC Module
-            let mut launcher = RpcModule::new(());
-            launcher.merge(NetworkRpc::new(tx.clone()).into_rpc())?;
-
-            let server = Server::builder().build(config.socket).await?;
-            (Some(server.start(launcher)), Some(tx), Some(rx))
-        } else {
-            info!(target: "net", "RPC server disabled");
-            (None, None, None)
-        };
-
         // Get the rollup config from the args
-        let rollup_config = args
-            .rollup_config()
+        let rollup_config = scr_rollup_config_by_alloy_ident(&args.l2_chain_id)
             .ok_or(anyhow::anyhow!("Rollup config not found for chain id: {}", args.l2_chain_id))?;
 
         // Start the Network Stack
         self.p2p.check_ports()?;
-        let p2p_config = self.p2p.config(&rollup_config, args, self.l1_eth_rpc).await?;
-        let mut network = NetworkBuilder::from(p2p_config).build()?;
-        let mut recv = network.unsafe_block_recv();
-        network.start(rx).await?;
+        let p2p_config = self.p2p.config(rollup_config, args, self.l1_eth_rpc).await?;
+
+        let (NetworkInboundData { p2p_rpc: rpc, .. }, network) =
+            NetworkActor::new(NetworkBuilder::from(p2p_config));
+
+        let (blocks, mut blocks_rx) = tokio::sync::mpsc::channel(1024);
+        network.start(NetworkContext { blocks, cancellation: CancellationToken::new() }).await?;
+
         info!(target: "net", "Network started, receiving blocks.");
 
         // On an interval, use the rpc tx to request stats about the p2p network.
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(2));
 
+        let handle = if let Some(config) = rpc_config {
+            info!(target: "net", socket = ?config.socket, "Starting RPC server");
+
+            // Setup the RPC server with the P2P RPC Module
+            let mut launcher = RpcModule::new(());
+            launcher.merge(P2pRpc::new(rpc.clone()).into_rpc())?;
+
+            let server = Server::builder().build(config.socket).await?;
+            Some(server.start(launcher))
+        } else {
+            info!(target: "net", "RPC server disabled");
+            None
+        };
+
         loop {
             tokio::select! {
-                payload = recv.recv() => {
-                    match payload {
-                        Ok(payload) => info!(target: "net", "Received unsafe payload: {:?}", payload.payload.block_hash()),
-                        Err(e) => debug!(target: "net", "Failed to receive unsafe payload: {:?}", e),
-                    }
+                Some(payload) = blocks_rx.recv() => {
+                    info!(target: "net", "Received unsafe payload: {:?}", payload.execution_payload.block_hash());
                 }
-                _ = interval.tick(), if tx.is_some() => {
-                    let Some(ref sender) = tx else {
-                        unreachable!("tx must be some (see above)");
-                    };
-
+                _ = interval.tick(), if !rpc.is_closed() => {
                     let (otx, mut orx) = tokio::sync::oneshot::channel();
-                    if let Err(e) = sender.send(P2pRpcRequest::PeerCount(otx)).await {
+                    if let Err(e) = rpc.send(P2pRpcRequest::PeerCount(otx)).await {
                         warn!(target: "net", "Failed to send network rpc request: {:?}", e);
                         continue;
                     }

@@ -1,7 +1,7 @@
 [package]
 name = "kona-engine"
 description = "An implementation of the OP Stack engine client"
-version = "0.1.0"
+version = "0.1.2"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -63,4 +63,4 @@ metrics-exporter-prometheus.workspace = true
 rstest.workspace = true
 
 [features]
-metrics = [ "dep:metrics", "kona-sources/metrics" ]
+metrics = [ "dep:metrics" ]

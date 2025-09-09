@@ -25,7 +25,7 @@ pub struct SpanBatchEip7702TransactionData {
 }
 
 impl SpanBatchEip7702TransactionData {
-    /// Converts [SpanBatchEip7702TransactionData] into a signed [`TxEip7702`].
+    /// Converts [`SpanBatchEip7702TransactionData`] into a signed [`TxEip7702`].
     pub fn to_signed_tx(
         &self,
         nonce: u64,
@@ -120,7 +120,7 @@ mod test {
 
         let decoded = SpanBatchTransactionData::decode(&mut encoded_buf.as_slice()).unwrap();
         let SpanBatchTransactionData::Eip7702(variable_fee_decoded) = decoded else {
-            panic!("Expected SpanBatchEip7702TransactionData, got {:?}", decoded);
+            panic!("Expected SpanBatchEip7702TransactionData, got {decoded:?}");
         };
 
         assert_eq!(variable_fee_tx, variable_fee_decoded);

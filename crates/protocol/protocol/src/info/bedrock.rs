@@ -50,7 +50,7 @@ impl L1BlockInfoBedrock {
     /// "setL1BlockValues(uint64,uint64,uint256,bytes32,uint64,bytes32,uint256,uint256)" function
     pub const L1_INFO_TX_SELECTOR: [u8; 4] = [0x01, 0x5d, 0x8e, 0xb9];
 
-    /// Encodes the [L1BlockInfoBedrock] object into Ethereum transaction calldata.
+    /// Encodes the [`L1BlockInfoBedrock`] object into Ethereum transaction calldata.
     pub fn encode_calldata(&self) -> Bytes {
         let mut buf = Vec::with_capacity(Self::L1_INFO_TX_LEN);
         buf.extend_from_slice(Self::L1_INFO_TX_SELECTOR.as_ref());
@@ -65,7 +65,7 @@ impl L1BlockInfoBedrock {
         buf.into()
     }
 
-    /// Decodes the [L1BlockInfoBedrock] object from ethereum transaction calldata.
+    /// Decodes the [`L1BlockInfoBedrock`] object from ethereum transaction calldata.
     pub fn decode_calldata(r: &[u8]) -> Result<Self, DecodeError> {
         if r.len() != Self::L1_INFO_TX_LEN {
             return Err(DecodeError::InvalidBedrockLength(Self::L1_INFO_TX_LEN, r.len()));

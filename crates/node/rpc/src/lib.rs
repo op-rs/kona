@@ -10,15 +10,13 @@
 extern crate tracing;
 
 mod admin;
+pub use admin::{AdminRpc, NetworkAdminQuery, SequencerAdminQuery};
 
 mod config;
 pub use config::RpcBuilder;
 
 mod net;
-pub use net::NetworkRpc;
-
-mod supervisor;
-pub use supervisor::{SupervisorRpcConfig, SupervisorRpcServer};
+pub use net::P2pRpc;
 
 mod p2p;
 
@@ -28,24 +26,14 @@ pub use response::SafeHeadResponse;
 mod output;
 pub use output::OutputResponse;
 
+mod dev;
+pub use dev::DevEngineRpc;
+
 mod jsonrpsee;
 pub use jsonrpsee::{
-    AdminApiServer, MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeApiServer,
-    SupervisorEventsServer, WsServer,
+    AdminApiServer, DevEngineApiServer, MinerApiExtServer, OpAdminApiServer, OpP2PApiServer,
+    RollupNodeApiServer, WsServer,
 };
-
-#[cfg(feature = "reqwest")]
-pub mod reqwest;
-#[cfg(feature = "reqwest")]
-pub use reqwest::SupervisorClient;
-
-#[cfg(feature = "client")]
-mod interop;
-#[cfg(feature = "client")]
-pub use interop::{CheckAccessListClient, InteropTxValidator, InteropTxValidatorError};
-
-#[cfg(feature = "client")]
-pub use kona_supervisor_rpc::SupervisorApiClient;
 
 mod rollup;
 pub use rollup::RollupRpc;

@@ -1086,7 +1086,7 @@ mod tests {
         let res = bq.next_batch(parent).await.unwrap_err();
         let logs = trace_store.get_by_level(Level::INFO);
         assert_eq!(logs.len(), 2);
-        let str = alloc::format!("Advancing batch queue origin: {:?}", origin);
+        let str = alloc::format!("Advancing batch queue origin: {origin:?}");
         assert!(logs[0].contains(&str));
         assert!(logs[1].contains("Deriving next batch for epoch: 16988980031808077784"));
         let warns = trace_store.get_by_level(Level::WARN);

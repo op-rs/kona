@@ -6,7 +6,7 @@ _docker_arch:
     echo "$PLATFORMS"
   fi
 
-# Builds the an application image from the local repository.
+# Builds an application image from the local repository.
 build-local bin_name image_tag='kona:local':
   #!/bin/bash
   export BIN_TARGET="{{bin_name}}"

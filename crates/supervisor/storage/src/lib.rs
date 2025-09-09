@@ -23,7 +23,7 @@ pub mod models;
 pub use models::SourceBlockTraversal;
 
 mod error;
-pub use error::StorageError;
+pub use error::{EntryNotFoundError, StorageError};
 
 mod providers;
 
@@ -38,7 +38,7 @@ pub use chaindb_factory::ChainDbFactory;
 
 mod traits;
 pub use traits::{
-    CrossChainSafetyProvider, DerivationStorage, DerivationStorageReader, DerivationStorageWriter,
-    FinalizedL1Storage, HeadRefStorage, HeadRefStorageReader, HeadRefStorageWriter, LogStorage,
-    LogStorageReader, LogStorageWriter,
+    CrossChainSafetyProvider, DbReader, DerivationStorage, DerivationStorageReader,
+    DerivationStorageWriter, FinalizedL1Storage, HeadRefStorage, HeadRefStorageReader,
+    HeadRefStorageWriter, LogStorage, LogStorageReader, LogStorageWriter, StorageRewinder,
 };

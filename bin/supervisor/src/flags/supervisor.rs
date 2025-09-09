@@ -1,5 +1,6 @@
 use alloy_network::Ethereum;
 use alloy_provider::{Provider, RootProvider};
+use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Context as _, Ok, Result, anyhow};
 use clap::Args;
 use glob::glob;
@@ -49,7 +50,7 @@ pub struct SupervisorArgs {
     pub dependency_set: PathBuf,
 
     /// Path pattern to op-node rollup.json configs to load as a rollup config set.
-    /// The pattern should use the glob sytax, e.g. '/configs/rollup-*.json'
+    /// The pattern should use the glob syntax, e.g. '/configs/rollup-*.json'
     /// When using this flag, the L1 timestamps are loaded from the provided L1 RPC.
     #[arg(long = "rollup-config-paths", env = "ROLLUP_CONFIG_PATHS")]
     pub rollup_config_paths: PathBuf,
@@ -61,6 +62,10 @@ pub struct SupervisorArgs {
     /// Port for the Supervisor RPC server to listen on.
     #[arg(long = "rpc.port", env = "RPC_PORT", default_value_t = 8545)]
     pub rpc_port: u16,
+
+    /// Enable the Supervisor Admin API.
+    #[arg(long = "rpc.enable-admin", env = "RPC_ENABLE_ADMIN", default_value_t = false)]
+    pub enable_admin_api: bool,
 }
 
 impl SupervisorArgs {
@@ -135,7 +140,7 @@ impl SupervisorArgs {
 
             rollup_config_set
                 .add_from_rollup_config(
-                    chain_id,
+                    chain_id.id(),
                     rollup_config,
                     BlockInfo::new(
                         l1_genesis.header.hash,
@@ -152,15 +157,34 @@ impl SupervisorArgs {
 
     /// initialise and return the managed nodes configuration.
     pub fn init_managed_nodes_config(&self) -> Result<Vec<ClientConfig>> {
-        let mut managed_nodes = Vec::new();
-        let default_secret = self
+        let nodes: Vec<String> = self
+            .l2_consensus_nodes
+            .iter()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        if nodes.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut managed_nodes = Vec::with_capacity(nodes.len());
+        let default_secret_path = self
             .l2_consensus_jwt_secret
             .first()
             .ok_or_else(|| anyhow::anyhow!("No JWT secrets provided"))?;
-        for (i, rpc_url) in self.l2_consensus_nodes.iter().enumerate() {
-            let secret = self.l2_consensus_jwt_secret.get(i).unwrap_or(default_secret);
+        for (i, rpc_url) in nodes.iter().enumerate() {
+            let secret_path = self.l2_consensus_jwt_secret.get(i).unwrap_or(default_secret_path);
 
-            managed_nodes.push(ClientConfig { url: rpc_url.clone(), jwt_path: secret.clone() });
+            let secret = std::fs::read_to_string(secret_path).map_err(|err| {
+                anyhow::anyhow!("Failed to read JWT secret from '{}': {}", secret_path, err)
+            })?;
+
+            let jwt_secret = JwtSecret::from_hex(secret).map_err(|err| {
+                anyhow::anyhow!("Failed to parse JWT secret from '{}': {}", secret_path, err)
+            })?;
+
+            managed_nodes.push(ClientConfig { url: rpc_url.clone(), jwt_secret });
         }
         Ok(managed_nodes)
     }
@@ -178,6 +202,7 @@ impl SupervisorArgs {
             l2_consensus_nodes_config: managed_nodes_config,
             datadir: self.datadir.clone(),
             rpc_addr,
+            enable_admin_api: self.enable_admin_api,
             dependency_set,
             rollup_config_set,
         })
@@ -305,6 +330,7 @@ mod tests {
             rollup_config_paths: PathBuf::from("dummy/rollup_config_*.json"),
             rpc_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
             rpc_port: 8545,
+            enable_admin_api: false,
         };
 
         let result = args.init_dependency_set().await;
@@ -336,12 +362,13 @@ mod tests {
             rollup_config_paths: PathBuf::from("dummy/rollup_config_*.json"),
             rpc_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
             rpc_port: 8545,
+            enable_admin_api: false,
         };
 
         let result = args.init_dependency_set().await;
         let err = result.expect_err("init_dependency_set should have failed due to file not found");
         let io_error = err.downcast_ref::<std::io::Error>();
-        assert!(io_error.is_some(), "Error should be an std::io::Error, but was: {:?}", err);
+        assert!(io_error.is_some(), "Error should be an std::io::Error, but was: {err:?}");
         assert_eq!(io_error.unwrap().kind(), std::io::ErrorKind::NotFound);
         Ok(())
     }
@@ -361,12 +388,13 @@ mod tests {
             rollup_config_paths: PathBuf::from("dummy/rollup_config_*.json"),
             rpc_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
             rpc_port: 8545,
+            enable_admin_api: false,
         };
 
         let result = args.init_dependency_set().await;
         let err = result.expect_err("init_dependency_set should have failed due to invalid JSON");
         let json_error = err.downcast_ref::<serde_json::Error>();
-        assert!(json_error.is_some(), "Error should be a serde_json::Error, but was: {:?}", err);
+        assert!(json_error.is_some(), "Error should be a serde_json::Error, but was: {err:?}");
         Ok(())
     }
 
@@ -434,6 +462,7 @@ mod tests {
             rollup_config_paths: dir.path().join("rollup-*.json"),
             rpc_address: "127.0.0.1".parse().unwrap(),
             rpc_port: 8545,
+            enable_admin_api: false,
         };
 
         let configs = args.get_rollup_configs().await?;
@@ -455,6 +484,7 @@ mod tests {
             rollup_config_paths: dir.path().join("rollup-*.json"),
             rpc_address: "127.0.0.1".parse().unwrap(),
             rpc_port: 8545,
+            enable_admin_api: false,
         };
 
         let configs = args.get_rollup_configs().await?;
@@ -479,6 +509,7 @@ mod tests {
             rollup_config_paths: dir.path().join("rollup-*.json"),
             rpc_address: "127.0.0.1".parse().unwrap(),
             rpc_port: 8545,
+            enable_admin_api: false,
         };
 
         let result = args.get_rollup_configs().await;
@@ -498,6 +529,7 @@ mod tests {
             rollup_config_paths: PathBuf::from(""),
             rpc_address: "127.0.0.1".parse().unwrap(),
             rpc_port: 8545,
+            enable_admin_api: false,
         };
         let result = args.get_rollup_configs().await;
         assert!(result.is_err());
@@ -517,10 +549,133 @@ mod tests {
             rollup_config_paths: PathBuf::from("dummy/rollup_config_*.json"),
             rpc_address: "127.0.0.1".parse().unwrap(),
             rpc_port: 8545,
+            enable_admin_api: false,
         };
         let result = args.init_managed_nodes_config();
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("No JWT secrets provided"),);
+    }
+
+    #[test]
+    fn test_init_managed_nodes_config_success_single() {
+        let dir = tempdir().unwrap();
+        let secret_path = dir.path().join("s1");
+        std::fs::write(
+            &secret_path,
+            "0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        )
+        .unwrap();
+
+        let args = SupervisorArgs {
+            l1_rpc: "dummy".into(),
+            l2_consensus_nodes: vec!["http://node1:8551".into()],
+            l2_consensus_jwt_secret: vec![secret_path.to_string_lossy().into()],
+            datadir: PathBuf::from("dummy"),
+            datadir_sync_endpoint: None,
+            dependency_set: PathBuf::from("dummy.json"),
+            rollup_config_paths: PathBuf::from(""),
+            rpc_address: "127.0.0.1".parse().unwrap(),
+            rpc_port: 8545,
+            enable_admin_api: false,
+        };
+
+        let res = args.init_managed_nodes_config();
+        assert!(res.is_ok());
+        let cfgs = res.unwrap();
+        assert_eq!(cfgs.len(), 1);
+        assert_eq!(cfgs[0].url, "http://node1:8551");
+    }
+
+    #[test]
+    fn test_init_managed_nodes_config_multiple_nodes_single_secret_uses_default() {
+        let dir = tempdir().unwrap();
+        let secret_path = dir.path().join("s1");
+        std::fs::write(
+            &secret_path,
+            "0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        )
+        .unwrap();
+
+        let args = SupervisorArgs {
+            l1_rpc: "dummy".into(),
+            l2_consensus_nodes: vec!["http://n1:8551".into(), "http://n2:8551".into()],
+            l2_consensus_jwt_secret: vec![secret_path.to_string_lossy().into()],
+            datadir: PathBuf::from("dummy"),
+            datadir_sync_endpoint: None,
+            dependency_set: PathBuf::from("dummy.json"),
+            rollup_config_paths: PathBuf::from(""),
+            rpc_address: "127.0.0.1".parse().unwrap(),
+            rpc_port: 8545,
+            enable_admin_api: false,
+        };
+
+        let res = args.init_managed_nodes_config().unwrap();
+        assert_eq!(res.len(), 2);
+        assert_eq!(res[0].url, "http://n1:8551");
+        assert_eq!(res[1].url, "http://n2:8551");
+    }
+
+    #[test]
+    fn test_init_managed_nodes_config_missing_secret_file() {
+        let args = SupervisorArgs {
+            l1_rpc: "dummy".into(),
+            l2_consensus_nodes: vec!["http://node1:8551".into()],
+            l2_consensus_jwt_secret: vec!["/non/existent/path".into()],
+            datadir: PathBuf::from("dummy"),
+            datadir_sync_endpoint: None,
+            dependency_set: PathBuf::from("dummy.json"),
+            rollup_config_paths: PathBuf::from(""),
+            rpc_address: "127.0.0.1".parse().unwrap(),
+            rpc_port: 8545,
+            enable_admin_api: false,
+        };
+
+        let err = args.init_managed_nodes_config().unwrap_err();
+        assert!(err.to_string().contains("Failed to read JWT secret"));
+    }
+
+    #[test]
+    fn test_init_managed_nodes_config_invalid_jwt_hex() {
+        let dir = tempdir().unwrap();
+        let secret_path = dir.path().join("bad");
+        std::fs::write(&secret_path, "not-hex").unwrap();
+
+        let args = SupervisorArgs {
+            l1_rpc: "dummy".into(),
+            l2_consensus_nodes: vec!["http://node1:8551".into()],
+            l2_consensus_jwt_secret: vec![secret_path.to_string_lossy().into()],
+            datadir: PathBuf::from("dummy"),
+            datadir_sync_endpoint: None,
+            dependency_set: PathBuf::from("dummy.json"),
+            rollup_config_paths: PathBuf::from(""),
+            rpc_address: "127.0.0.1".parse().unwrap(),
+            rpc_port: 8545,
+            enable_admin_api: false,
+        };
+
+        let err = args.init_managed_nodes_config().unwrap_err();
+        assert!(err.to_string().contains("Failed to parse JWT secret"));
+    }
+
+    #[test]
+    fn test_init_managed_nodes_config_empty_nodes_returns_empty() {
+        let args = SupervisorArgs {
+            l1_rpc: "dummy".to_string(),
+            // clap/env may produce [""] — ensure it's filtered to empty
+            l2_consensus_nodes: vec!["".to_string()],
+            l2_consensus_jwt_secret: vec![],
+            datadir: PathBuf::from("dummy"),
+            datadir_sync_endpoint: None,
+            dependency_set: PathBuf::from("dummy.json"),
+            rollup_config_paths: PathBuf::from(""),
+            rpc_address: "127.0.0.1".parse().unwrap(),
+            rpc_port: 8545,
+            enable_admin_api: false,
+        };
+
+        let res = args.init_managed_nodes_config();
+        assert!(res.is_ok());
+        assert!(res.unwrap().is_empty());
     }
 
     #[tokio::test]
@@ -606,6 +761,7 @@ mod tests {
             rollup_config_paths: rollup_dir.path().join("rollup-*.json"),
             rpc_address: "127.0.0.1".parse().unwrap(),
             rpc_port: 8545,
+            enable_admin_api: false,
         };
 
         // This will fail at the L1 RPC call unless you mock RootProvider.

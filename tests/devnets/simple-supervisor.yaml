@@ -7,10 +7,12 @@ optimism_package:
         node1:
           el:
             type: op-geth
+            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:v1.101511.0
           cl:
             type: op-node
-            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.13.3
+            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:develop
             log_level: debug
+            extra_params: [--experimental.sequencer-api=true]
       network_params:
         network: "kurtosis"
         network_id: "2151908"
@@ -21,7 +23,7 @@ optimism_package:
         granite_time_offset: 0
         fund_dev_accounts: true
       batcher_params:
-        extra_params: []
+        extra_params: [--data-availability-type=calldata]
       proposer_params:
         game_type: 1
         proposal_interval: 10m
@@ -30,10 +32,12 @@ optimism_package:
         node1:
           el:
             type: op-geth
+            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:v1.101511.0
           cl:
             type: op-node
-            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.13.3
+            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:develop
             log_level: debug
+            extra_params: [--experimental.sequencer-api=true]
       network_params:
         network: "kurtosis"
         network_id: "2151909"
@@ -44,7 +48,7 @@ optimism_package:
         granite_time_offset: 0
         fund_dev_accounts: true
       batcher_params:
-        extra_params: []
+        extra_params: [--data-availability-type=calldata]
       proposer_params:
         game_type: 1
         proposal_interval: 10m
@@ -57,14 +61,24 @@ optimism_package:
       type: kona-supervisor
       image: kona-supervisor:local
       superchain: superchain
+      extra_env_vars:
+        RUST_LOG: "supervisor=info,supervisor::chain_processor=trace"
+  test-sequencers:
+    sequencer:
+      enabled: true
   global_log_level: "info"
   global_node_selectors: {}
   global_tolerations: []
   persistent: false
+  observability:
+    grafana_params:
+      dashboard_sources:
+        - github.com/op-rs/kona/docker/recipes/kona-supervisor/grafana
 ethereum_package:
   participants:
     - el_type: geth
       cl_type: teku
+      cl_image: consensys/teku:25.7.1
   network_params:
     preset: minimal
     genesis_delay: 5

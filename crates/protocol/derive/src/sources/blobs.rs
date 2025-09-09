@@ -163,9 +163,9 @@ where
     }
 
     /// Extracts the next data from the source.
-    fn next_data(&mut self) -> Result<BlobData, PipelineResult<Bytes>> {
+    fn next_data(&mut self) -> PipelineResult<BlobData> {
         if self.data.is_empty() {
-            return Err(Err(PipelineError::Eof.temp()));
+            return Err(PipelineError::Eof.temp());
         }
 
         Ok(self.data.remove(0))
@@ -187,10 +187,7 @@ where
     ) -> PipelineResult<Self::Item> {
         self.load_blobs(block_ref, batcher_address).await?;
 
-        let next_data = match self.next_data() {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
+        let next_data = self.next_data()?;
         if let Some(c) = next_data.calldata {
             return Ok(c);
         }

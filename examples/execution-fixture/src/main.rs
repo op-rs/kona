@@ -17,8 +17,8 @@
 //!   defaults to `kona-executor`'s `testdata` directory.
 
 use anyhow::{Result, anyhow};
-use clap::{ArgAction, Parser};
-use kona_cli::init_tracing_subscriber;
+use clap::Parser;
+use kona_cli::{LogArgs, LogConfig};
 use kona_executor::test_utils::ExecutorTestFixtureCreator;
 use std::path::PathBuf;
 use tracing::info;
@@ -29,11 +29,8 @@ use url::Url;
 #[derive(Parser, Debug, Clone)]
 #[command(about = "Creates a static test fixture for `kona-executor` from a live chain")]
 pub struct ExecutionFixtureCommand {
-    /// Verbosity level (0-5).
-    /// If set to 0, no logs are printed.
-    /// By default, the verbosity level is set to 3 (info level).
-    #[arg(long, short, default_value = "3", action = ArgAction::Count)]
-    pub v: u8,
+    #[command(flatten)]
+    pub v: LogArgs,
     /// The L2 archive EL to use.
     #[arg(long, short = 'r')]
     pub l2_rpc: Url,
@@ -48,7 +45,7 @@ pub struct ExecutionFixtureCommand {
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = ExecutionFixtureCommand::parse();
-    init_tracing_subscriber(cli.v, None::<EnvFilter>)?;
+    LogConfig::new(cli.v).init_tracing_subscriber(None::<EnvFilter>)?;
 
     let output_dir = if let Some(output_dir) = cli.output_dir {
         output_dir
@@ -72,6 +69,6 @@ async fn main() -> Result<()> {
         .create_static_fixture()
         .await;
 
-    info!(block_number = cli.block_number, "Successfully created static test fixture");
+    info!(target: "execution_fixture", block_number = cli.block_number, "Successfully created static test fixture");
     Ok(())
 }

@@ -12,14 +12,14 @@
   <a href="https://github.com/op-rs/kona/actions/workflows/rust_ci.yaml"><img src="https://img.shields.io/github/actions/workflow/status/op-rs/kona/rust_ci.yaml?style=flat&labelColor=1C2C2E&label=ci&color=BEC5C9&logo=GitHub%20Actions&logoColor=BEC5C9" alt="CI"></a>
   <a href="https://app.codecov.io/gh/op-rs/kona"><img src="https://img.shields.io/codecov/c/gh/op-rs/kona?style=flat&labelColor=1C2C2E&logo=Codecov&color=BEC5C9&logoColor=BEC5C9" alt="Codecov"></a>
   <a href="https://github.com/op-rs/kona/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/License-MIT-d1d1f6.svg?style=flat&labelColor=1C2C2E&color=BEC5C9&logo=googledocs&label=license&logoColor=BEC5C9" alt="License"></a>
-  <a href="https://op-rs.github.io/kona"><img src="https://img.shields.io/badge/Book-854a15?style=flat&labelColor=1C2C2E&color=BEC5C9&logo=mdBook&logoColor=BEC5C9" alt="Book"></a>
+  <a href="https://rollup.yoga"><img src="https://img.shields.io/badge/Docs-854a15?style=flat&labelColor=1C2C2E&color=BEC5C9&logo=mdBook&logoColor=BEC5C9" alt="Docs"></a>
 </p>
 
 <p align="center">
   <a href="#whats-kona">What's Kona?</a> •
   <a href="#overview">Overview</a> •
   <a href="#msrv">MSRV</a> •
-  <a href="https://op-rs.github.io/kona/CONTRIBUTING.html">Contributing</a> •
+  <a href="https://rollup.yoga/intro/contributing">Contributing</a> •
   <a href="#credits">Credits</a> •
   <a href="#license">License</a>
 </p>
@@ -32,7 +32,7 @@ Kona has been extended to be _the monorepo_ for <a href="https://specs.optimism.
 types, components, and services built in Rust. Kona provides an ecosystem of extensible, low-level
 crates that compose into components and services required for the OP Stack.
 
-The [book][book] contains a more in-depth overview of the project, contributor guidelines, tutorials for
+The [docs][site] contains a more in-depth overview of the project, contributor guidelines, tutorials for
 getting started with building your own programs, and a reference for the libraries and tools provided by Kona.
 
 ## Overview
@@ -45,7 +45,7 @@ getting started with building your own programs, and a reference for the librari
 
 - [`client`](./bin/client): The bare-metal program that executes the state transition, to be ran on a prover.
 - [`host`](./bin/host): The host program that runs natively alongside the prover, serving as the [Preimage Oracle][g-preimage-oracle] server.
-- [`node`](./bin/node): [WIP] A [Rollup Node][rollup-node-spec] implementation, backed by [`kona-derive`](./crates/protocol/derive).
+- [`node`](./bin/node): [WIP] A [Rollup Node][rollup-node-spec] implementation, backed by [`kona-derive`](./crates/protocol/derive). Supports flexible chain ID specification via `--l2-chain-id` using either numeric IDs (`10`) or chain names (`optimism`).
 - [`supervisor`](./bin/supervisor): [WIP] A [Supervisor][supervisor-spec] implementation.
 
 **Protocol**
@@ -53,10 +53,10 @@ getting started with building your own programs, and a reference for the librari
 - [`genesis`](./crates/protocol/genesis): Genesis types for OP Stack chains.
 - [`protocol`](./crates/protocol/protocol): Core protocol types used across OP Stack rust crates.
 - [`derive`](./crates/protocol/derive): `no_std` compatible implementation of the [derivation pipeline][g-derivation-pipeline].
-- [`driver`](./crates/protocol/driver): Stateful derivation pipeline driver.
+- [`driver`](./crates/proof/driver): Stateful derivation pipeline driver.
 - [`interop`](./crates/protocol/interop): Core functionality and primitives for the [Interop feature](https://specs.optimism.io/interop/overview.html) of the OP Stack.
 - [`registry`](./crates/protocol/registry): Rust bindings for the [superchain-registry][superchain-registry].
-- [`comp`](./crates/protocol/comp): Compression types for the OP Stack.
+- [`comp`](./crates/batcher/comp): Compression types for the OP Stack.
 - [`hardforks`](./crates/protocol/hardforks): Consensus layer hardfork types for the OP Stack including network upgrade transactions.
 
 **Proof**
@@ -74,7 +74,9 @@ getting started with building your own programs, and a reference for the librari
 - [`service`](./crates/node/service): The OP Stack rollup node service.
 - [`engine`](./crates/node/engine): An extensible implementation of the [OP Stack][op-stack] rollup node engine client
 - [`rpc`](./crates/node/rpc): OP Stack RPC types and extensions.
-- [`p2p`](./crates/node/p2p): OP Stack P2P Networking including Gossip and Discovery.
+- [`gossip`](./crates/node/gossip): OP Stack P2P Networking - Gossip.
+- [`disc`](./crates/node/disc): OP Stack P2P Networking - Discovery.
+- [`peers`](./crates/node/peers): Networking Utilities ported from reth.
 - [`sources`](./crates/node/sources): Data source types and utilities for the kona-node.
 
 **Providers**
@@ -101,11 +103,11 @@ provers! Kona is also used by:
 - [`kailua`][kailua]
 
 To build your own backend for kona, or build a new application on top of its libraries,
-see the [SDK section of the book](https://op-rs.github.io/kona/sdk/intro.html).
+see the [SDK section of the docs](https://rollup.yoga/node/design/intro).
 
 ## MSRV
 
-The current MSRV (minimum supported rust version) is `1.86`.
+The current MSRV (minimum supported rust version) is `1.88`.
 
 The MSRV is not increased automatically, and will be updated
 only as part of a patch (pre-1.0) or minor (post-1.0) release.
@@ -149,7 +151,7 @@ Licensed under the [MIT license.](https://github.com/op-rs/kona/blob/main/LICENS
 [alloy]: https://github.com/alloy-rs/alloy
 [maili]: https://github.com/op-rs/maili
 [op-alloy]: https://github.com/alloy-rs/op-alloy
-[contributing]: https://op-rs.github.io/kona/CONTRIBUTING.html
+[contributing]: https://rollup.yoga/intro/contributing
 [op-stack]: https://github.com/ethereum-optimism/optimism
 [superchain-registry]: https://github.com/ethereum-optimism/superchain-registry
 [op-go-monorepo]: https://github.com/ethereum-optimism/optimism/tree/develop
@@ -158,9 +160,9 @@ Licensed under the [MIT license.](https://github.com/op-rs/kona/blob/main/LICENS
 [rollup-node-spec]: https://specs.optimism.io/protocol/rollup-node.html
 [supervisor-spec]: https://specs.optimism.io/interop/supervisor.html
 [badboi-cannon-rs]: https://github.com/BadBoiLabs/cannon-rs
-[asterisc]: https://github.com/etheruem-optimism/asterisc
+[asterisc]: https://github.com/ethereum-optimism/asterisc
 [fpp-specs]: https://specs.optimism.io/fault-proof/index.html
-[book]: https://op-rs.github.io/kona/
+[site]: https://rollup.yoga
 [op-succinct]: https://github.com/succinctlabs/op-succinct
 [kailua]: https://github.com/risc0/kailua
 [op-labs]: https://github.com/ethereum-optimism

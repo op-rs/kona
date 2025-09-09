@@ -1,6 +1,7 @@
 //! Contains the chain config type.
 
 use alloc::string::String;
+use alloy_chains::Chain;
 use alloy_eips::eip1559::BaseFeeParams;
 use alloy_primitives::Address;
 
@@ -22,7 +23,7 @@ use crate::{
 /// [opg]: https://github.com/ethereum-optimism/op-geth
 /// [scr]: https://github.com/ethereum-optimism/superchain-registry
 /// [ccg]: https://github.com/ethereum-optimism/op-geth/blob/optimism/params/config.go#L342
-/// [ccr]: https://github.com/ethereum-optimism/superchain-registry/blob/main/superchain/superchain.go#L80
+/// [ccr]: https://github.com/ethereum-optimism/superchain-registry/blob/main/ops/internal/config/superchain.go#L70
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -138,7 +139,7 @@ impl ChainConfig {
         RollupConfig {
             genesis: self.genesis,
             l1_chain_id: self.l1_chain_id,
-            l2_chain_id: self.chain_id,
+            l2_chain_id: Chain::from(self.chain_id),
             block_time: self.block_time,
             seq_window_size: self.seq_window_size,
             max_sequencer_drift: self.max_sequencer_drift,
@@ -212,9 +213,9 @@ mod tests {
                 "holocene_time": 1736445601
             },
             "optimism": {
-            "eip1559Elasticity": "0x6",
-            "eip1559Denominator": "0x32",
-            "eip1559DenominatorCanyon": "0xfa"
+                "eip1559Elasticity": 6,
+                "eip1559Denominator": 50,
+                "eip1559DenominatorCanyon": 250
             },
             "alt_da": null,
             "genesis": {

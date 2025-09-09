@@ -1,0 +1,86 @@
+optimism_package:
+  faucet:
+    enabled: true
+  chains:
+    chain1:
+      participants:
+        node1:
+          el:
+            type: op-geth
+            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:v1.101511.0
+          cl:
+            type: op-node
+            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.13.5
+            log_level: debug
+      network_params:
+        network: "kurtosis"
+        network_id: "2151908"
+        interop_time_offset: 220
+        holocene_time_offset: 0
+        isthmus_time_offset: 0
+        fjord_time_offset: 0
+        granite_time_offset: 0
+        fund_dev_accounts: true
+      batcher_params:
+        extra_params: []
+      proposer_params:
+        game_type: 1
+        proposal_interval: 10m
+    chain2:
+      participants:
+        node1:
+          el:
+            type: op-geth
+            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:v1.101511.0
+          cl:
+            type: op-node
+            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.13.5
+            log_level: debug
+      network_params:
+        network: "kurtosis"
+        network_id: "2151909"
+        interop_time_offset: 220
+        holocene_time_offset: 0
+        isthmus_time_offset: 0
+        fjord_time_offset: 0
+        granite_time_offset: 0
+        fund_dev_accounts: true
+      batcher_params:
+        extra_params: []
+      proposer_params:
+        game_type: 1
+        proposal_interval: 10m
+  superchains: 
+    superchain:
+      enabled: true
+  supervisors:
+    supervisor: # default op-supervisor
+      enabled: true
+      type: kona-supervisor
+      image: kona-supervisor:local
+      superchain: superchain
+  global_log_level: "info"
+  global_node_selectors: {}
+  global_tolerations: []
+  persistent: false
+  observability:
+    grafana_params:
+      dashboard_sources:
+        - github.com/op-rs/kona/docker/recipes/kona-supervisor/grafana
+ethereum_package:
+  participants:
+    - el_type: geth
+      cl_type: teku
+      cl_image: consensys/teku:25.7.1
+  network_params:
+    preset: minimal
+    genesis_delay: 5
+    additional_preloaded_contracts: '
+      {
+        "0x4e59b44847b379578588920cA78FbF26c0B4956C": {
+          "balance": "0ETH",
+          "code": "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf3",
+          "storage": {},
+          "nonce": "1"
+        }
+      }'

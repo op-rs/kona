@@ -1,6 +1,6 @@
 [package]
 name = "kona-genesis"
-version = "0.3.0"
+version = "0.4.5"
 description = "Optimism genesis types"
 
 edition.workspace = true
@@ -22,6 +22,7 @@ alloy-consensus.workspace = true
 alloy-eips.workspace = true
 alloy-hardforks.workspace = true
 alloy-op-hardforks.workspace = true
+alloy-chains.workspace = true
 
 # Misc
 thiserror.workspace = true
@@ -36,7 +37,6 @@ arbitrary = { workspace = true, features = ["derive"], optional = true }
 # `serde` feature
 serde = { workspace = true, optional = true }
 serde_repr = { workspace = true, optional = true }
-kona-serde = { workspace = true, optional = true }
 
 [dev-dependencies]
 toml = { workspace = true, features = ["parse"] }
@@ -49,17 +49,18 @@ alloy-primitives = { workspace = true, features = ["rand", "arbitrary"] }
 default = []
 revm = [ "dep:op-revm" ]
 std = [
+	"alloy-chains/std",
 	"alloy-consensus/std",
 	"alloy-eips/std",
 	"alloy-primitives/std",
 	"alloy-sol-types/std",
 	"derive_more/std",
-	"kona-serde?/std",
 	"op-revm?/std",
 	"serde?/std",
 	"thiserror/std",
 ]
 arbitrary = [
+	"alloy-chains/arbitrary",
 	"alloy-consensus/arbitrary",
 	"alloy-eips/arbitrary",
 	"alloy-primitives/arbitrary",
@@ -69,10 +70,12 @@ arbitrary = [
 	"std",
 ]
 serde = [
+	"alloy-chains/serde",
 	"alloy-consensus/serde",
 	"alloy-eips/serde",
+	"alloy-hardforks/serde",
+	"alloy-op-hardforks/serde",
 	"alloy-primitives/serde",
-	"dep:kona-serde",
 	"dep:serde",
 	"dep:serde_repr",
 	"op-revm?/serde",

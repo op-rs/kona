@@ -28,7 +28,7 @@ impl SafetyPromoter for CrossUnsafePromoter {
     }
 }
 
-/// CrossUnsafePromoter implements [`SafetyPromoter`] for [`SafetyLevel::CrossSafe`]
+/// CrossSafePromoter implements [`SafetyPromoter`] for [`SafetyLevel::CrossSafe`]
 #[derive(Debug)]
 pub struct CrossSafePromoter;
 
