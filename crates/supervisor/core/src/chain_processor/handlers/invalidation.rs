@@ -39,7 +39,7 @@ where
             Metrics::BLOCK_INVALIDATION_SUCCESS_TOTAL,
             Metrics::BLOCK_INVALIDATION_ERROR_TOTAL,
             Metrics::BLOCK_INVALIDATION_LATENCY_SECONDS,
-            "invalidate_block",
+            Metrics::BLOCK_INVALIDATION_METHOD_INVALIDATE_BLOCK,
             async {
                 self.inner_handle(block, state).await
             },
@@ -138,7 +138,7 @@ where
             Metrics::BLOCK_REPLACEMENT_SUCCESS_TOTAL,
             Metrics::BLOCK_REPLACEMENT_ERROR_TOTAL,
             Metrics::BLOCK_REPLACEMENT_LATENCY_SECONDS,
-            "replace_block",
+            Metrics::BLOCK_REPLACEMENT_METHOD_REPLACE_BLOCK,
             async {
                 self.inner_handle(replacement, state).await
             },

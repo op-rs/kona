@@ -16,7 +16,7 @@ Run the `kona-supervisor` using the following command
 
 ```bash
 kona-supervisor \
-  --metric.enabled \
+  --metrics.enabled \
   --metrics.port 9090 \
   --metrics.addr 127.0.0.1 \
   --l1-rpc http://localhost:8545 \
