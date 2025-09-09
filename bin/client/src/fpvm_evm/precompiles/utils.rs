@@ -1,6 +1,5 @@
 //! Utility functions for precompiles
 
-
 /// A macro that generates an async block that sends a hint to the host, constructs a key hash
 /// from the hint data, fetches the result of the precompile run from the host, and returns the
 /// result data.
