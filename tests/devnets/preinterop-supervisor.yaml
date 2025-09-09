@@ -63,6 +63,10 @@ optimism_package:
   global_node_selectors: {}
   global_tolerations: []
   persistent: false
+  observability:
+    grafana_params:
+      dashboard_sources:
+        - github.com/op-rs/kona/docker/recipes/kona-supervisor/grafana
 ethereum_package:
   participants:
     - el_type: geth

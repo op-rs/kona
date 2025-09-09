@@ -79,6 +79,7 @@ export const sidebar: SidebarItem[] = [
           ]
       },
       { text: "Configuration", link: "/node/configuration" },
+      { text: "Kurtosis Integration", link: "/kurtosis/overview" },
       { text: "Monitoring", link: "/node/monitoring" },
       { text: "Subcommands", link: "/node/subcommands" },
       {

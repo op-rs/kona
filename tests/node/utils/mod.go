@@ -21,7 +21,7 @@ const (
 	DEFAULT_TIMEOUT = 10 * time.Second
 )
 
-// GetCPUStats executes shell commands to get CPU usage statistics from a service
+// rpcEndpoint gets the RPC endpoint URL for a specified service from Kurtosis
 func rpcEndpoint(ctx context.Context, serviceName string) (string, error) {
 	kurtosisCtx, err := kurtosis_context.NewKurtosisContextFromLocalEngine()
 	if err != nil {

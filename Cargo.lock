@@ -4998,6 +4998,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "kona-providers-local"
+version = "0.1.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-eips",
+ "alloy-primitives",
+ "async-trait",
+ "kona-derive",
+ "kona-genesis",
+ "kona-macros",
+ "kona-protocol",
+ "lru 0.16.0",
+ "metrics",
+ "op-alloy-consensus",
+ "rstest",
+ "thiserror 2.0.16",
+ "tokio",
+]
+
+[[package]]
 name = "kona-registry"
 version = "0.4.5"
 dependencies = [
@@ -8240,9 +8260,9 @@ dependencies = [
 
 [[package]]
 name = "rocksdb"
-version = "0.23.0"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26ec73b20525cb235bad420f911473b69f9fe27cc856c5461bccd7e4af037f43"
+checksum = "ddb7af00d2b17dbd07d82c0063e25411959748ff03e8d4f96134c2ff41fce34f"
 dependencies = [
  "libc",
  "librocksdb-sys",
