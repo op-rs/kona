@@ -26,11 +26,9 @@ kona-macros.workspace = true
 alloy-consensus.workspace = true
 alloy-eips.workspace = true
 alloy-primitives.workspace = true
-alloy-provider.workspace = true
 
 # Op Alloy
 op-alloy-consensus.workspace = true
-op-alloy-network.workspace = true
 
 # Standard library
 async-trait.workspace = true
