@@ -66,10 +66,10 @@ where
 
             let handle = tokio::spawn(async move {
                 observe_metrics_for_result_async!(
-                    Metrics::SUPERVISOR_REORG_SUCCESS,
-                    Metrics::SUPERVISOR_REORG_ERROR,
+                    Metrics::SUPERVISOR_REORG_SUCCESS_TOTAL,
+                    Metrics::SUPERVISOR_REORG_ERROR_TOTAL,
                     Metrics::SUPERVISOR_REORG_DURATION_SECONDS,
-                    "process_chain_reorg",
+                    Metrics::SUPERVISOR_REORG_METHOD_PROCESS_CHAIN_REORG,
                     async {
                         reorg_task.process_chain_reorg().await
                     },

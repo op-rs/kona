@@ -1,18 +1,17 @@
-name: Sysgo E2E Tests
+name: Sysgo E2E Tests Supervisor
 on:
-  push:
-    branches: [main]
-  merge_group:
-  pull_request:
+  workflow_dispatch:
 env:
   CARGO_TERM_COLOR: always
 jobs:
-  node-e2e-sysgo-tests:
+  supervisor-e2e-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    name: node-sysgo-tests
+    name: ${{ matrix.test-pkg }}-tests
     strategy:
       fail-fast: false
+      matrix:
+        test-pkg: ["pre_interop", "l1reorg/sysgo"]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v5
@@ -39,14 +38,5 @@ jobs:
           go-version: '1.24.3'
           cache-dependency-path: "**/go.sum"
 
-      - name: common tests for node with sysgo orchestrator
-        run: just test-e2e-sysgo node node/common
-
-      - name: restart tests for node with sysgo orchestrator
-        run: just test-e2e-sysgo node node/restart
-
-      - name: l2 reorg tests for node with sysgo orchestrator
-        run: just test-e2e-sysgo node node/l2_reorg
-
-
-
+      - name: test ${{ matrix.test-pkg }}
+        run: just test-e2e-sysgo supervisor "/supervisor/${{ matrix.test-pkg }}"
