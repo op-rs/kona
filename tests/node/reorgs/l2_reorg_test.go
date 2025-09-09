@@ -1,4 +1,4 @@
-package reorg
+package reorgs
 
 import (
 	"fmt"

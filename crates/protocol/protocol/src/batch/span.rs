@@ -695,7 +695,8 @@ impl SpanBatch {
                 if !self.check_origin_hash(l1_block.hash) {
                     warn!(
                         target: "batch_span",
-                        "batch is for different L1 chain, epoch hash does not match, expected: {}",
+                        "batch is for different L1 chain, epoch hash does not match, block number: {} | expected hash: {}",
+                        l1_block.number,
                         l1_block.hash
                     );
                     return (BatchValidity::Drop, None);
