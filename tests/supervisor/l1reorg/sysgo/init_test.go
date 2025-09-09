@@ -1,6 +1,5 @@
-package preinterop
+package sysgo
 
-// todo: add tests
 import (
 	"testing"
 
@@ -10,11 +9,6 @@ import (
 
 // TestMain creates the test-setups against the shared backend
 func TestMain(m *testing.M) {
-	// sleep to ensure the backend is ready
-
-	presets.DoMain(m,
-		spresets.WithSimpleInteropMinimal(),
-		presets.WithSuggestedInteropActivationOffset(30),
-		presets.WithInteropNotAtGenesis())
-
+	// Other setups may be added here, hydrated from the same orchestrator
+	presets.DoMain(m, spresets.WithSimpleInteropMinimal())
 }

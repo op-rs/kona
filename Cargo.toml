@@ -161,7 +161,7 @@ op-revm = { version = "9.0.1", default-features = false }
 alloy-evm = { version = "0.18.3", default-features = false }
 alloy-op-evm = { version = "0.18.3", default-features = false }
 
-# Reth (pinned to v1.4.8 for kona-supervisor-storage)
+# Reth (pinned to v1.6.0 for kona-supervisor-storage)
 reth-db-api = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
 reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
 reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
@@ -232,7 +232,7 @@ ipnet = "2.11.0"
 
 # Tracing
 tracing-loki = "0.2.6"
-tracing-subscriber = "0.3.19"
+tracing-subscriber = "0.3.20"
 tracing-appender = "0.2.3"
 tracing = { version = "0.1.41", default-features = false }
 
@@ -258,7 +258,7 @@ serde = { version = "1.0.219", default-features = false }
 serde_json = { version = "1.0.140", default-features = false }
 
 # K/V database
-rocksdb = { version = "0.23.0", default-features = false }
+rocksdb = { version = "0.24.0", default-features = false }
 
 # Cryptography
 sha2 = { version = "0.10.9", default-features = false }
