@@ -4998,6 +4998,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "kona-providers-local"
+version = "0.1.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-eips",
+ "alloy-primitives",
+ "async-trait",
+ "kona-derive",
+ "kona-genesis",
+ "kona-macros",
+ "kona-protocol",
+ "lru 0.16.0",
+ "metrics",
+ "op-alloy-consensus",
+ "rstest",
+ "thiserror 2.0.16",
+ "tokio",
+]
+
+[[package]]
 name = "kona-registry"
 version = "0.4.5"
 dependencies = [
