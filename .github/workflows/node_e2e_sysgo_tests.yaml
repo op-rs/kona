@@ -45,8 +45,8 @@ jobs:
       - name: restart tests for node with sysgo orchestrator
         run: just test-e2e-sysgo node node/restart
 
-      - name: l2 reorg tests for node with sysgo orchestrator
-        run: just test-e2e-sysgo node node/l2_reorg
+      - name: reorg tests for node with sysgo orchestrator
+        run: just test-e2e-sysgo node node/reorgs
 
 
 
