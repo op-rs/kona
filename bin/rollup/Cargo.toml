@@ -21,7 +21,7 @@ kona-genesis.workspace = true
 kona-cli = { workspace = true, features = ["secrets"] }
 
 # General
-anyhow = { workspace = true, default-features = false }
+thiserror.workspace = true
 clap = { workspace = true, features = ["derive", "env"] }
 
 [build-dependencies]
