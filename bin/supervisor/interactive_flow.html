@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kona Supervisor Data Flow Animation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #ffffff;
+        }
+        h1 {
+            text-align: center;
+            background: linear-gradient(to right, #4CAF50, #2196F3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+        }
+        #canvas {
+            width: 100%;
+            max-width: 1400px;
+            height: 850px;
+            margin: 0 auto;
+            background: #0d0d0d;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+        .group-box {
+            position: absolute;
+            border: 2px dashed #444;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            opacity: 0;
+            transition: all 0.4s;
+        }
+        .group-box.active {
+            opacity: 1;
+            border-color: #666;
+            background: rgba(33, 150, 243, 0.05);
+        }
+        .group-label {
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: #0d0d0d;
+            padding: 0 10px;
+            color: #888;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .module {
+            position: absolute;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            opacity: 0;
+            transform: scale(0.8);
+            font-size: 14px;
+            text-align: center;
+            border: 2px solid transparent;
+            z-index: 10;
+        }
+        .module.active {
+            opacity: 1;
+            transform: scale(1);
+            border-color: currentColor;
+        }
+        .module.active.pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 currentColor; }
+            50% { box-shadow: 0 0 20px 10px transparent; }
+            100% { box-shadow: 0 0 0 0 transparent; }
+        }
+        .global {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+        }
+        .global.active {
+            box-shadow: 0 0 30px rgba(76, 175, 80, 0.6);
+        }
+        .per-chain {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+        }
+        .per-chain.active {
+            box-shadow: 0 0 30px rgba(33, 150, 243, 0.6);
+        }
+        .channel {
+            background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+            color: white;
+        }
+        .channel.active {
+            box-shadow: 0 0 30px rgba(255, 152, 0, 0.6);
+        }
+        .connection {
+            position: absolute;
+            stroke: #444;
+            stroke-width: 2;
+            fill: none;
+            opacity: 0;
+            transition: all 0.5s;
+        }
+        .connection.active {
+            opacity: 1;
+            stroke: #4CAF50;
+            stroke-width: 3;
+        }
+        .data-flow {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #FFD700 0%, #FFA500 100%);
+            box-shadow: 0 0 20px #FFD700, 0 0 40px #FFD700;
+            display: none;
+            z-index: 1000;
+        }
+        .control-panel {
+            text-align: center;
+            margin: 30px 0;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.5);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        button.active {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+        .description {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            color: white;
+            border-radius: 10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            border: 1px solid #333;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .description.show {
+            opacity: 1;
+        }
+        .legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            font-size: 14px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .arrow-marker {
+            fill: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <h1>Kona Supervisor System - Interactive Data Flow</h1>
+    <div class="control-panel">
+        <button onclick="showUnsafeEventFlow()">Unsafe Event</button>
+        <button onclick="showDerivedBlockFlow()">Derived Block</button>
+        <button onclick="showCrossUnsafeFlow()">Cross Unsafe</button>
+        <button onclick="showCrossSafeFlow()">Cross Safe</button>
+        <button onclick="showFinalizedFlow()">Finalized</button>
+        <button onclick="showBlockInvalidationFlow()">Block Invalidation</button>
+        <button onclick="showBlockReplacementFlow()">Block Replacement</button>
+        <button onclick="showFullSystem()">Full System</button>
+    </div>
+    <div id="canvas">
+      <svg>
+          <defs>
+              <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                      refX="10" refY="3.5" orient="auto" class="arrow-marker">
+                  <polygon points="0 0, 10 3.5, 0 7" />
+              </marker>
+          </defs>
+      </svg>
+      <div class="legend">
+          <div class="legend-item">
+              <div class="legend-color" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);"></div>
+              <span>Global Module</span>
+          </div>
+          <div class="legend-item">
+              <div class="legend-color" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);"></div>
+              <span>Per-Chain Module</span>
+          </div>
+          <div class="legend-item">
+              <div class="legend-color" style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);"></div>
+              <span>Channel</span>
+          </div>
+      </div>
+      <!-- Global Modules (left side) -->
+      <div class="group-box" id="global-group" style="top: 120px; left: 100px; width: 320px; height: 320px;">
+          <div class="group-label">Global Modules</div>
+      </div>
+      <div class="module global" id="l1w" style="top: 180px; left: 180px;">L1Watcher</div>
+      <div class="module global" id="rpc" style="top: 260px; left: 180px;">RPC Server</div>
+      <div class="module global" id="rh" style="top: 340px; left: 180px;">ReorgHandler</div>
+      <!-- Modules Per Chain (right side) -->
+      <div class="group-box" id="per-chain-group" style="top: 120px; left: 500px; width: 600px; height: 320px;">
+        <div class="group-label">Modules Per Chain</div>
+      </div>
+      <!-- Top row: CrossSafetyChecker (Safe/Unsafe) -->
+      <div class="module per-chain" id="cscj_safe" style="top: 150px; left: 600px;">CrossSafetyChecker<br>(Safe)</div>
+      <div class="module per-chain" id="cscj_unsafe" style="top: 150px; left: 850px;">CrossSafetyChecker<br>(Unsafe)</div>
+      <!-- Middle row: Channels -->
+      <div class="module channel" id="chan" style="top: 260px; left: 600px;">ChainEvent Channel</div>
+      <div class="module channel" id="cmdchan" style="top: 260px; left: 850px;">Command Channel</div>
+      <!-- Bottom row: ManagedNode and ChainProcessor -->
+      <div class="module per-chain" id="mnode" style="top: 350px; left: 600px;">ManagedNode</div>
+      <div class="module per-chain" id="cp" style="top: 350px; left: 850px;">ChainProcessor</div>
+      <!-- Datastore (bottom center) -->
+      <div class="group-box" id="datastore-group" style="top: 530px; left: 450px; width: 600px; height: 100px; border-style: dotted;">
+        <div class="group-label">Datastore</div>
+      </div>
+      <!-- Multiple ChainDBs inside Datastore group, aligned in a single row -->
+      <div class="module global" id="chainDB1" style="top: 560px; left: 480px;">ChainDB #1</div>
+      <div class="module global" id="chainDB2" style="top: 560px; left: 680px;">ChainDB #2</div>
+      <div class="module global" id="chainDB3" style="top: 560px; left: 880px;">ChainDB #3</div>
+      <!-- Data flow dots -->
+      <div class="data-flow" id="flow1"></div>
+      <div class="data-flow" id="flow2"></div>
+      <div class="data-flow" id="flow3"></div>
+      <div class="data-flow" id="flow4"></div>
+      <div class="data-flow" id="flow5"></div>
+      <div class="data-flow" id="flow6"></div>
+      <div class="description" id="description"></div>
+  </div>
+    <script>
+        let animationStep = 0;
+        let animationInterval;
+        let activeConnections = [];
+        const modules = document.querySelectorAll('.module');
+        const description = document.getElementById('description');
+        const svg = document.querySelector('svg');
+        const perChainGroup = document.getElementById('per-chain-group');
+        
+        function drawConnection(fromId, toId, isActive = false) {
+          const from = fromId === 'per-chain-group' ? perChainGroup : document.getElementById(fromId);
+          const to = toId === 'per-chain-group' ? perChainGroup : document.getElementById(toId);
+          if (!from || !to) return null;
+          const fromRect = from.getBoundingClientRect();
+          const toRect = to.getBoundingClientRect();
+          const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+          let startX, startY, endX, endY;
+
+          // If connecting to a group-box, point to its top edge center
+          if (to.classList.contains('group-box')) {
+              endX = toRect.left + toRect.width / 2 - canvasRect.left;
+              endY = toRect.top - canvasRect.top;
+          } else {
+              endX = toRect.left + toRect.width / 2 - canvasRect.left;
+              endY = toRect.top - canvasRect.top; // <-- always top edge of target
+          }
+
+          // For the source, use top edge center as well
+          if (from.classList.contains('group-box')) {
+              startX = fromRect.left + fromRect.width / 2 - canvasRect.left;
+              startY = fromRect.top - canvasRect.top;
+          } else {
+              startX = fromRect.left + fromRect.width / 2 - canvasRect.left;
+              startY = fromRect.top - canvasRect.top; // <-- always top edge of source
+          }
+
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          const d = `M ${startX} ${startY} L ${endX} ${endY}`;
+          path.setAttribute('d', d);
+          path.setAttribute('class', `connection ${isActive ? 'active' : ''}`);
+          path.setAttribute('marker-end', 'url(#arrowhead)');
+          path.setAttribute('id', `conn-${fromId}-${toId}`);
+          return path;
+      }
+
+        function clearConnections() {
+            svg.querySelectorAll('.connection').forEach(conn => conn.remove());
+            activeConnections = [];
+        }
+
+        function resetAnimation() {
+            clearInterval(animationInterval);
+            animationStep = 0;
+            modules.forEach(m => m.classList.remove('active', 'pulse'));
+            perChainGroup.classList.remove('active');
+            description.classList.remove('show');
+            document.querySelectorAll('.data-flow').forEach(d => d.style.display = 'none');
+            clearConnections();
+        }
+
+        function animateDataFlow(fromId, toId, flowId, callback) {
+            const from = document.getElementById(fromId);
+            const to = document.getElementById(toId);
+            const flow = document.getElementById(flowId);
+            if (!from || !to || !flow) return;
+            const fromRect = from.getBoundingClientRect();
+            const toRect = to.getBoundingClientRect();
+            const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+            const startX = fromRect.left + fromRect.width / 2 - canvasRect.left;
+            const startY = fromRect.top + fromRect.height / 2 - canvasRect.top;
+            const endX = toRect.left + toRect.width / 2 - canvasRect.left;
+            const endY = toRect.top + toRect.height / 2 - canvasRect.top;
+            flow.style.display = 'block';
+            flow.style.left = startX + 'px';
+            flow.style.top = startY + 'px';
+            let progress = 0;
+            const animation = setInterval(() => {
+                progress += 0.025;
+                if (progress >= 1) {
+                    clearInterval(animation);
+                    flow.style.display = 'none';
+                    if (callback) callback();
+                    return;
+                }
+                const x = startX + (endX - startX) * progress;
+                const y = startY + (endY - startY) * progress;
+                flow.style.left = x + 'px';
+                flow.style.top = y + 'px';
+            }, 20);
+        }
+
+        function showUnsafeEventFlow() {
+          resetAnimation();
+          description.innerHTML = `
+              ⚠️ <strong>Unsafe Event Flow:</strong><br>
+              → ManagedNode receives unsafe block event from the node<br>
+              → ManagedNode sends 'UnsafeBlock' event through ChainEvent Channel<br>
+              → ChainProcessor fetches the log events for the block, stores log and block information in the Datastore (ChainDB).
+          `;
+          description.classList.add('show');
+          perChainGroup.classList.add('active');
+          document.getElementById('datastore-group').classList.add('active');
+          ['mnode', 'chan', 'cp', 'chainDB1', 'chainDB2', 'chainDB3'].forEach(id => {
+              const module = document.getElementById(id);
+              if (module) module.classList.add('active');
+          });
+          // Only show connection to the Datastore group, not individual ChainDBs
+          const connections = [
+              ['mnode', 'chan'],
+              ['chan', 'cp'],
+              ['cp', 'datastore-group']
+          ];
+          connections.forEach(([from, to]) => {
+              const conn = drawConnection(from, to, true);
+              if (conn) svg.appendChild(conn);
+          });
+          setTimeout(() => animateDataFlow('mnode', 'chan', 'flow1'), 500);
+          setTimeout(() => animateDataFlow('chan', 'cp', 'flow2'), 1000);
+          setTimeout(() => animateDataFlow('cp', 'datastore-group', 'flow3'), 1500);
+        }
+
+        function showDerivedBlockFlow() {
+          resetAnimation();
+          description.innerHTML = `
+              📦 <strong>Derived Block Event Flow:</strong><br>
+              → ManagedNode receives derivation update event from the node<br>
+              → ManagedNode sends 'DerivedBlock' event through ChainEvent Channel<br>
+              → ChainProcessor processes and stores the derivation data in the Datastore (ChainDB).
+          `;
+          description.classList.add('show');
+          perChainGroup.classList.add('active');
+          document.getElementById('datastore-group').classList.add('active');
+          ['mnode', 'chan', 'cp', 'chainDB1', 'chainDB2', 'chainDB3'].forEach(id => {
+              const module = document.getElementById(id);
+              if (module) module.classList.add('active');
+          });
+          // Only show connection to the Datastore group, not individual ChainDBs
+          const connections = [
+              ['mnode', 'chan'],
+              ['chan', 'cp'],
+              ['cp', 'datastore-group']
+          ];
+          connections.forEach(([from, to]) => {
+              const conn = drawConnection(from, to, true);
+              if (conn) svg.appendChild(conn);
+          });
+          setTimeout(() => animateDataFlow('mnode', 'chan', 'flow1'), 500);
+          setTimeout(() => animateDataFlow('chan', 'cp', 'flow2'), 1000);
+          setTimeout(() => animateDataFlow('cp', 'datastore-group', 'flow3'), 1500);
+        }
+
+        function showCrossUnsafeFlow() {
+            resetAnimation();
+            description.innerHTML = `
+                🔄 <strong>Cross Unsafe Block Promotion Flow:</strong><br> 
+                → CrossSafetyChecker (Unsafe) runs safety checks and detects promotable block<br> 
+                → CrossSafetyChecker (Unsafe) sends 'CrossUnsafeUpdate' event through ChainEvent Channel<br>
+                → ChainProcessor processes and notifies the ManagedNode about the new cross unsafe head using Command Channel<br>
+            `;
+            description.classList.add('show');
+            perChainGroup.classList.add('active');
+            ['cscj_unsafe', 'chan', 'cp', 'cmdchan', 'mnode'].forEach(id => {
+                const module = document.getElementById(id);
+                if (module) {
+                    module.classList.add('active');
+                    if (id === 'cscj_unsafe') module.classList.add('pulse');
+                }
+            });
+            const connections = [
+                ['cscj_unsafe', 'chan'],
+                ['chan', 'cp'],
+                ['cp', 'cmdchan'],
+                ['cmdchan', 'mnode']
+            ];
+            connections.forEach(([from, to]) => {
+                const conn = drawConnection(from, to, true);
+                if (conn) svg.appendChild(conn);
+            });
+            setTimeout(() => animateDataFlow('cscj_unsafe', 'chan', 'flow1'), 500);
+            setTimeout(() => animateDataFlow('chan', 'cp', 'flow2'), 1100);
+            setTimeout(() => animateDataFlow('cp', 'cmdchan', 'flow3'), 1700);
+            setTimeout(() => animateDataFlow('cmdchan', 'mnode', 'flow4'), 2300);
+        }
+
+        function showCrossSafeFlow() {
+            resetAnimation();
+            description.innerHTML = `
+                ✅ <strong>Cross Safe Block Promotion Flow:</strong><br> 
+                → CrossSafetyChecker (Safe) runs safety checks and detects promotable block<br>
+                → CrossSafetyChecker (Safe) sends 'CrossSafeUpdate' event through ChainEvent Channel<br>
+                → ChainProcessor processes and notifies the ManagedNode about the new cross safe head using Command Channel<br>
+            `;
+            description.classList.add('show');
+            perChainGroup.classList.add('active');
+            ['cscj_safe', 'chan', 'cp', 'cmdchan', 'mnode'].forEach(id => {
+                const module = document.getElementById(id);
+                if (module) {
+                    module.classList.add('active');
+                    if (id === 'cscj_safe') module.classList.add('pulse');
+                }
+            });
+            const connections = [
+                ['cscj_safe', 'chan'],
+                ['chan', 'cp'],
+                ['cp', 'cmdchan'],
+                ['cmdchan', 'mnode']
+            ];
+            connections.forEach(([from, to]) => {
+                const conn = drawConnection(from, to, true);
+                if (conn) svg.appendChild(conn);
+            });
+            setTimeout(() => animateDataFlow('cscj_safe', 'chan', 'flow1'), 500);
+            setTimeout(() => animateDataFlow('chan', 'cp', 'flow2'), 1100);
+            setTimeout(() => animateDataFlow('cp', 'cmdchan', 'flow3'), 1700);
+            setTimeout(() => animateDataFlow('cmdchan', 'mnode', 'flow4'), 2300);
+        }
+
+        function showFinalizedFlow() {
+          resetAnimation();
+          description.innerHTML = `
+              🏁 <strong>Finalized Block Flow:</strong><br>
+              → L1Watcher detects new finalized L1 block<br>
+              → L1Watcher sends 'FinalizedSourceUpdate' event through ChainEvent Channel<br>
+              → ChainProcessor finds the derived block at the finalized source block and updates finalized head<br>
+              → ChainProcessor notifies the ManagedNode about the new finalized head using Command Channel<br>
+          `;
+          description.classList.add('show');
+          document.getElementById('global-group').classList.add('active');
+          perChainGroup.classList.add('active');
+          document.getElementById('datastore-group').classList.add('active');
+          ['l1w', 'chan', 'cp', 'cmdchan', 'mnode', 'chainDB1', 'chainDB2', 'chainDB3'].forEach(id => {
+              const module = document.getElementById(id);
+              if (module) module.classList.add('active');
+          });
+          const connections = [
+              ['l1w', 'chan'],
+              ['chan', 'cp'],
+              ['cp', 'datastore-group'],
+              ['cp', 'cmdchan'],
+              ['cmdchan', 'mnode']
+          ];
+          connections.forEach(([from, to]) => {
+              const conn = drawConnection(from, to, true);
+              if (conn) svg.appendChild(conn);
+          });
+          setTimeout(() => animateDataFlow('l1w', 'chan', 'flow1'), 500);
+          setTimeout(() => animateDataFlow('chan', 'cp', 'flow2'), 1000);
+          setTimeout(() => animateDataFlow('cp', 'datastore-group', 'flow3'), 1500);
+          setTimeout(() => animateDataFlow('cp', 'cmdchan', 'flow4'), 2000);
+          setTimeout(() => animateDataFlow('cmdchan', 'mnode', 'flow5'), 2500);
+      }
+
+        function showBlockInvalidationFlow() {
+            resetAnimation();
+            description.innerHTML = `
+                ❌ <strong>Block Invalidation Flow:</strong><br> 
+                → CrossSafetyChecker (Safe) runs safety checks and detects an invalid block<br>
+                → CrossSafetyChecker (Safe) sends 'InvalidateBlock' event through ChainEvent Channel<br>
+                → ChainProcessor processes and ask ManagedNode to invalidate block using Command Channel. ChainProcessor then waits for the BlockReplacement event.<br>
+            `;
+            description.classList.add('show');
+            perChainGroup.classList.add('active');
+            ['cscj_safe', 'chan', 'cp', 'cmdchan', 'mnode'].forEach(id => {
+                const module = document.getElementById(id);
+                if (module) {
+                    module.classList.add('active');
+                    if (id === 'cscj_safe') module.classList.add('pulse');
+                }
+            });
+            const connections = [
+                ['cscj_safe', 'chan'],
+                ['chan', 'cp'],
+                ['cp', 'cmdchan'],
+                ['cmdchan', 'mnode']
+            ];
+            connections.forEach(([from, to]) => {
+                const conn = drawConnection(from, to, true);
+                if (conn) svg.appendChild(conn);
+            });
+            setTimeout(() => animateDataFlow('cscj_safe', 'chan', 'flow1'), 500);
+            setTimeout(() => animateDataFlow('chan', 'cp', 'flow2'), 1100);
+            setTimeout(() => animateDataFlow('cp', 'cmdchan', 'flow3'), 1700);
+            setTimeout(() => animateDataFlow('cmdchan', 'mnode', 'flow4'), 2300);
+        }
+
+        function showBlockReplacementFlow() {
+          resetAnimation();
+          description.innerHTML = `
+              🔁 <strong>Block Replacement Flow:</strong><br>
+              → ManagedNode receives block replacement event from the node<br>
+              → ManagedNode sends 'BlockReplaced' event through ChainEvent Channel<br>
+              → ChainProcessor verifies and processes the block replacement and updates the state in the Datastore (ChainDB).
+          `;
+          description.classList.add('show');
+          perChainGroup.classList.add('active');
+          document.getElementById('datastore-group').classList.add('active');
+          ['mnode', 'chan', 'cp', 'chainDB1', 'chainDB2', 'chainDB3'].forEach(id => {
+              const module = document.getElementById(id);
+              if (module) module.classList.add('active');
+          });
+          // Only show connection to the Datastore group, not individual ChainDBs
+          const connections = [
+              ['mnode', 'chan'],
+              ['chan', 'cp'],
+              ['cp', 'datastore-group']
+          ];
+          connections.forEach(([from, to]) => {
+              const conn = drawConnection(from, to, true);
+              if (conn) svg.appendChild(conn);
+          });
+          setTimeout(() => animateDataFlow('mnode', 'chan', 'flow1'), 500);
+          setTimeout(() => animateDataFlow('chan', 'cp', 'flow2'), 1000);
+          setTimeout(() => animateDataFlow('cp', 'datastore-group', 'flow3'), 1500);
+        }
+
+        function showFullSystem() {
+          resetAnimation();
+          description.innerHTML = '🌐 <strong>Full System View:</strong>';
+          description.classList.add('show');
+          document.getElementById('global-group').classList.add('active');
+          perChainGroup.classList.add('active');
+          document.getElementById('datastore-group').classList.add('active');
+          modules.forEach(m => m.classList.add('active'));
+          ['chainDB1', 'chainDB2', 'chainDB3'].forEach(id => {
+              const module = document.getElementById(id);
+              if (module) module.classList.add('active');
+          });
+          const allConnections = [
+              // Event flow
+              ['l1w', 'chan'],
+              ['mnode', 'chan'],
+              ['cscj_safe', 'chan'],
+              ['cscj_unsafe', 'chan'],
+              ['chan', 'cp'],
+              // Command flow
+              ['cp', 'cmdchan'],
+              ['cmdchan', 'mnode'],
+              // ChainProcessor points to Datastore group (center of dotted box)
+              ['cp', 'datastore-group'],
+          ];
+          allConnections.forEach(([from, to]) => {
+              const conn = drawConnection(from, to, true);
+              if (conn) svg.appendChild(conn);
+          });
+      }
+    </script>
+</body>
+</html>
