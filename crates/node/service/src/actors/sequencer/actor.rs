@@ -3,10 +3,15 @@
 use super::{
     DelayedL1OriginSelectorProvider, L1OriginSelector, L1OriginSelectorError, SequencerConfig,
 };
-use crate::{CancellableContext, NodeActor, actors::sequencer::conductor::ConductorClient};
+use crate::{
+    CancellableContext, NodeActor,
+    actors::{engine::BuildRequest, sequencer::conductor::ConductorClient},
+};
 use alloy_provider::RootProvider;
+use alloy_rpc_types_engine::PayloadId;
 use async_trait::async_trait;
 use kona_derive::{AttributesBuilder, PipelineErrorKind, StatefulAttributesBuilder};
+use kona_engine::LastPayloadData;
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use kona_providers_alloy::{AlloyChainProvider, AlloyL2ChainProvider};
@@ -14,6 +19,7 @@ use kona_rpc::SequencerAdminQuery;
 use op_alloy_network::Optimism;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{
+    mem,
     sync::Arc,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -55,6 +61,8 @@ pub(super) struct SequencerActorState<AB: AttributesBuilder> {
     /// ## Default value
     /// At startup, the sequencer is active.
     pub is_active: bool,
+    /// Information about the payload currently being built.
+    pub last_payload_data: Option<(PayloadId, OpAttributesWithParent)>,
     /// Whether the sequencer is in recovery mode.
     ///
     /// ## Default value
@@ -92,7 +100,10 @@ impl SequencerActorState<StatefulAttributesBuilder<AlloyChainProvider, AlloyL2Ch
         let conductor = conductor_rpc_url.map(ConductorClient::new_http);
 
         let builder = seq_builder.build();
-        let build_ticker = tokio::time::interval(Duration::from_secs(cfg.block_time));
+        let build_ticker = tokio::time::interval(
+            // Time to start the next build job = block time - sealing duration
+            Duration::from_secs(cfg.block_time).saturating_sub(Self::SEALING_DURATION),
+        );
 
         let origin_selector = L1OriginSelector::new(cfg.clone(), l1_provider);
 
@@ -104,6 +115,7 @@ impl SequencerActorState<StatefulAttributesBuilder<AlloyChainProvider, AlloyL2Ch
             conductor,
             is_active: !sequencer_stopped,
             is_recovery_mode: sequencer_recovery_mode,
+            last_payload_data: None,
         }
     }
 }
@@ -171,8 +183,7 @@ pub struct SequencerContext {
     pub reset_request_tx: mpsc::Sender<()>,
     /// Sender to request the execution layer to build a payload attributes on top of the
     /// current unsafe head.
-    pub build_request_tx:
-        mpsc::Sender<(OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>,
+    pub build_request_tx: mpsc::Sender<BuildRequest>,
     /// A sender to asynchronously sign and gossip built [`OpExecutionPayloadEnvelope`]s to the
     /// network actor.
     pub gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
@@ -196,6 +207,9 @@ pub enum SequencerActorError {
     /// A channel was unexpectedly closed.
     #[error("Channel closed unexpectedly")]
     ChannelClosed,
+    /// Failed to receive built payload.
+    #[error("Failed to receive built payload")]
+    FailedToReceiveBuiltPayload,
 }
 
 impl<AB: AttributesBuilderConfig> SequencerActor<AB> {
@@ -210,6 +224,71 @@ impl<AB: AttributesBuilderConfig> SequencerActor<AB> {
 }
 
 impl<AB: AttributesBuilder> SequencerActorState<AB> {
+    const SEALING_DURATION: Duration = Duration::from_millis(50);
+
+    fn block_building_duration(&self) -> Duration {
+        Duration::from_secs(self.cfg.block_time).saturating_sub(Self::SEALING_DURATION)
+    }
+
+    fn get_tx_pool_flag(
+        &mut self,
+        attributes_timestamp: u64,
+        in_recovery_mode: bool,
+        l1_origin_timestamp: u64,
+    ) -> bool {
+        if in_recovery_mode {
+            warn!(target: "sequencer", "Sequencer is in recovery mode, producing empty block");
+            return true;
+        }
+
+        // If the next L2 block is beyond the sequencer drift threshold, we must produce an empty
+        // block.
+        if attributes_timestamp >
+            l1_origin_timestamp + self.cfg.max_sequencer_drift(l1_origin_timestamp)
+        {
+            return true;
+        }
+
+        // Do not include transactions in the first Ecotone block.
+        if self.cfg.is_first_ecotone_block(attributes_timestamp) {
+            info!(target: "sequencer", "Sequencing ecotone upgrade block");
+            return true;
+        }
+
+        // Do not include transactions in the first Fjord block.
+        if self.cfg.is_first_fjord_block(attributes_timestamp) {
+            info!(target: "sequencer", "Sequencing fjord upgrade block");
+            return true;
+        }
+
+        // Do not include transactions in the first Granite block.
+        if self.cfg.is_first_granite_block(attributes_timestamp) {
+            info!(target: "sequencer", "Sequencing granite upgrade block");
+            return true;
+        }
+
+        // Do not include transactions in the first Holocene block.
+        if self.cfg.is_first_holocene_block(attributes_timestamp) {
+            info!(target: "sequencer", "Sequencing holocene upgrade block");
+            return true;
+        }
+
+        // Do not include transactions in the first Isthmus block.
+        if self.cfg.is_first_isthmus_block(attributes_timestamp) {
+            info!(target: "sequencer", "Sequencing isthmus upgrade block");
+            return true;
+        }
+
+        // Do not include transactions in the first Interop block.
+        if self.cfg.is_first_interop_block(attributes_timestamp) {
+            info!(target: "sequencer", "Sequencing interop upgrade block");
+            return true;
+        }
+
+        // Set the no_tx_pool flag to false by default (since we're building with the sequencer).
+        false
+    }
+
     /// Starts the build job for the next L2 block, on top of the current unsafe head.
     async fn build_block(
         &mut self,
@@ -288,59 +367,15 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
                 }
             };
 
-        // Set the no_tx_pool flag to false by default (since we're building with the sequencer).
-        attributes.no_tx_pool = Some(false);
-
-        if in_recovery_mode {
-            warn!(target: "sequencer", "Sequencer is in recovery mode, producing empty block");
-            attributes.no_tx_pool = Some(true);
-        }
-
-        // If the next L2 block is beyond the sequencer drift threshold, we must produce an empty
-        // block.
-        if attributes.payload_attributes.timestamp >
-            l1_origin.timestamp + self.cfg.max_sequencer_drift(l1_origin.timestamp)
-        {
-            attributes.no_tx_pool = Some(true);
-        }
-
-        // Do not include transactions in the first Ecotone block.
-        if self.cfg.is_first_ecotone_block(attributes.payload_attributes.timestamp) {
-            info!(target: "sequencer", "Sequencing ecotone upgrade block");
-            attributes.no_tx_pool = Some(true);
-        }
-
-        // Do not include transactions in the first Fjord block.
-        if self.cfg.is_first_fjord_block(attributes.payload_attributes.timestamp) {
-            info!(target: "sequencer", "Sequencing fjord upgrade block");
-            attributes.no_tx_pool = Some(true);
-        }
-
-        // Do not include transactions in the first Granite block.
-        if self.cfg.is_first_granite_block(attributes.payload_attributes.timestamp) {
-            info!(target: "sequencer", "Sequencing granite upgrade block");
-            attributes.no_tx_pool = Some(true);
-        }
-
-        // Do not include transactions in the first Holocene block.
-        if self.cfg.is_first_holocene_block(attributes.payload_attributes.timestamp) {
-            info!(target: "sequencer", "Sequencing holocene upgrade block");
-            attributes.no_tx_pool = Some(true);
-        }
-
-        // Do not include transactions in the first Isthmus block.
-        if self.cfg.is_first_isthmus_block(attributes.payload_attributes.timestamp) {
-            info!(target: "sequencer", "Sequencing isthmus upgrade block");
-            attributes.no_tx_pool = Some(true);
-        }
-
-        // Do not include transactions in the first Interop block.
-        if self.cfg.is_first_interop_block(attributes.payload_attributes.timestamp) {
-            info!(target: "sequencer", "Sequencing interop upgrade block");
-            attributes.no_tx_pool = Some(true);
-        }
+        attributes.no_tx_pool = Some(self.get_tx_pool_flag(
+            attributes.payload_attributes.timestamp,
+            in_recovery_mode,
+            l1_origin.timestamp,
+        ));
 
         let attrs_with_parent = OpAttributesWithParent::new(attributes, unsafe_head, None, false);
+
+        let payload_stamp = attrs_with_parent.inner.payload_attributes.timestamp;
 
         // Log the attributes build duration, if metrics are enabled.
         kona_macros::set!(
@@ -350,17 +385,76 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         );
 
         // Create a new channel to receive the built payload.
-        let (payload_tx, payload_rx) = mpsc::channel(1);
+        let (payload_tx, mut payload_rx) = mpsc::channel(1);
 
         // Send the built attributes to the engine to be built.
         let _build_request_start = Instant::now();
-        if let Err(err) = ctx.build_request_tx.send((attrs_with_parent, payload_tx)).await {
+        let (last_payload_data, built_payload_rx) = mem::take(&mut self.last_payload_data)
+            .map(|(payload_id, attributes)| {
+                let (built_payload_tx, built_payload_rx) = mpsc::channel(1);
+                (
+                    LastPayloadData {
+                        payload_id,
+                        payload_attributes: attributes,
+                        built_payload: built_payload_tx,
+                    },
+                    built_payload_rx,
+                )
+            })
+            .unzip();
+
+        if let Err(err) = ctx
+            .build_request_tx
+            .send(BuildRequest {
+                attributes: attrs_with_parent.clone(),
+                payload_id_tx: payload_tx,
+                last_payload_data,
+            })
+            .await
+        {
             error!(target: "sequencer", ?err, "Failed to send built attributes to engine");
             ctx.cancellation.cancel();
             return Err(SequencerActorError::ChannelClosed);
         }
 
-        let payload = self.try_wait_for_payload(ctx, payload_rx).await?;
+        // If there is no payload to receive from the engine, return early. This should happen at
+        // startup because there is no payload to receive from the engine yet.
+        if let Some(payload_rx) = built_payload_rx {
+            match self.commit_payload(ctx, payload_rx).await {
+                Ok(()) => {}
+                Err(SequencerActorError::FailedToReceiveBuiltPayload) => {
+                    warn!(target: "sequencer", "Failed to receive built payload. Will retry on next tick.");
+                }
+                Err(err) => {
+                    error!(target: "sequencer", ?err, "Failed to commit built payload");
+                    ctx.cancellation.cancel();
+                    return Err(err);
+                }
+            }
+        }
+
+        // Receive the new payload ID.
+        let Some(payload_id) = payload_rx.recv().await else {
+            warn!(target: "sequencer", "Failed to receive new payload ID");
+            self.build_ticker.reset_immediately();
+            return Ok(());
+        };
+
+        self.last_payload_data = Some((payload_id, attrs_with_parent));
+
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards");
+
+        // Time to start the next build job = current timestamp + block building duration
+        let then =
+            Duration::from_secs(payload_stamp).saturating_add(self.block_building_duration());
+
+        if then.saturating_sub(now) <= self.block_building_duration() {
+            warn!(
+                target: "sequencer",
+                "The current timestamp is lagging behind the next block timestamp, building immediately"
+            );
+            self.build_ticker.reset_immediately();
+        }
 
         // Log the block building job duration, if metrics are enabled.
         kona_macros::set!(
@@ -368,6 +462,19 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
             crate::Metrics::SEQUENCER_BLOCK_BUILDING_JOB_DURATION,
             _build_request_start.elapsed()
         );
+
+        Ok(())
+    }
+
+    async fn commit_payload(
+        &mut self,
+        ctx: &mut SequencerContext,
+        mut payload_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
+    ) -> Result<(), SequencerActorError> {
+        let payload = payload_rx
+            .recv()
+            .await
+            .ok_or_else(|| SequencerActorError::FailedToReceiveBuiltPayload)?;
 
         // If the conductor is available, commit the payload to it.
         if let Some(conductor) = &self.conductor {
@@ -383,32 +490,7 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
             );
         }
 
-        let now =
-            SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_secs();
-        let then = payload.execution_payload.timestamp() + self.cfg.block_time;
-        if then.saturating_sub(now) <= self.cfg.block_time {
-            warn!(
-                target: "sequencer",
-                "Next block timestamp is more than a block time away from now, building immediately"
-            );
-            self.build_ticker.reset_immediately();
-        }
-
         self.schedule_gossip(ctx, payload).await
-    }
-
-    /// Waits for the next payload to be built and returns it, if there is a payload receiver
-    /// present.
-    async fn try_wait_for_payload(
-        &mut self,
-        ctx: &mut SequencerContext,
-        mut payload_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
-    ) -> Result<OpExecutionPayloadEnvelope, SequencerActorError> {
-        payload_rx.recv().await.ok_or_else(|| {
-            error!(target: "sequencer", "Failed to receive built payload");
-            ctx.cancellation.cancel();
-            SequencerActorError::ChannelClosed
-        })
     }
 
     /// Schedules a built [`OpExecutionPayloadEnvelope`] to be signed and gossipped.

@@ -13,11 +13,8 @@ use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types_engine::{OpExecutionPayload, OpExecutionPayloadEnvelope};
-use std::{
-    sync::Arc,
-    time::{Duration, Instant, SystemTime},
-};
-use tokio::{sync::mpsc, time::sleep};
+use std::{sync::Arc, time::Instant};
+use tokio::sync::mpsc;
 
 /// Task for building new blocks with automatic forkchoice synchronization.
 ///
@@ -50,12 +47,27 @@ pub struct BuildTask {
     /// The [`RollupConfig`].
     pub cfg: Arc<RollupConfig>,
     /// The [`OpAttributesWithParent`] to instruct the execution layer to build.
-    pub attributes: OpAttributesWithParent,
+    pub next_attributes: OpAttributesWithParent,
     /// Whether or not the payload was derived, or created by the sequencer.
     pub is_attributes_derived: bool,
-    /// An optional channel to send the built [`OpExecutionPayloadEnvelope`] to, after the block
+    /// The ID of the last payload built that needs to be sealed.
+    /// At startup, this is `None`
+    pub last_payload_data: Option<LastPayloadData>,
+    /// A channel to send the [`PayloadId`] of the payload that was built
+    pub payload_id_tx: mpsc::Sender<PayloadId>,
+}
+
+/// The last payload data to seal and insert in the EL.
+#[derive(Debug, Clone)]
+pub struct LastPayloadData {
+    /// The ID of the last payload built that needs to be sealed.
+    pub payload_id: PayloadId,
+    /// The payload attributes of the last payload built that needs to be sealed.
+    /// This is used to re-attempt payload import with deposits only after holocene.
+    pub payload_attributes: OpAttributesWithParent,
+    /// A channel to send the built [`OpExecutionPayloadEnvelope`] to, after the block
     /// has been built, imported, and canonicalized.
-    pub payload_tx: Option<mpsc::Sender<OpExecutionPayloadEnvelope>>,
+    pub built_payload: mpsc::Sender<OpExecutionPayloadEnvelope>,
 }
 
 impl BuildTask {
@@ -63,11 +75,19 @@ impl BuildTask {
     pub const fn new(
         engine: Arc<EngineClient>,
         cfg: Arc<RollupConfig>,
-        attributes: OpAttributesWithParent,
+        next_attributes: OpAttributesWithParent,
         is_attributes_derived: bool,
-        payload_tx: Option<mpsc::Sender<OpExecutionPayloadEnvelope>>,
+        last_payload_data: Option<LastPayloadData>,
+        payload_id_tx: mpsc::Sender<PayloadId>,
     ) -> Self {
-        Self { engine, cfg, attributes, is_attributes_derived, payload_tx }
+        Self {
+            engine,
+            cfg,
+            next_attributes,
+            is_attributes_derived,
+            last_payload_data,
+            payload_id_tx,
+        }
     }
 
     /// Starts the block building process by sending an initial `engine_forkchoiceUpdate` call with
@@ -87,11 +107,11 @@ impl BuildTask {
     /// ### Syncing (`SYNCING`)
     /// If the EL is syncing, the payload attributes are buffered and the function returns early.
     /// This is a temporary state, and the function should be called again later.
-    async fn start_build(
-        &self,
-        state: &EngineState,
+    pub(crate) async fn start_build_next_attributes(
+        cfg: &RollupConfig,
         engine_client: &EngineClient,
-        attributes_envelope: OpAttributesWithParent,
+        next_attributes: OpAttributesWithParent,
+        state: &EngineState,
     ) -> Result<PayloadId, BuildTaskError> {
         // Sanity check if the head is behind the finalized head. If it is, this is a critical
         // error.
@@ -104,29 +124,31 @@ impl BuildTask {
             )));
         }
 
+        let fcu_start_time = Instant::now();
+
         // When inserting a payload, we advertise the parent's unsafe head as the current unsafe
         // head to build on top of.
         let new_forkchoice = state
             .sync_state
             .apply_update(EngineSyncStateUpdate {
-                unsafe_head: Some(attributes_envelope.parent),
+                unsafe_head: Some(next_attributes.parent),
                 ..Default::default()
             })
             .create_forkchoice_state();
 
         let forkchoice_version = EngineForkchoiceVersion::from_cfg(
-            &self.cfg,
-            attributes_envelope.inner.payload_attributes.timestamp,
+            &cfg,
+            next_attributes.inner.payload_attributes.timestamp,
         );
         let update = match forkchoice_version {
             EngineForkchoiceVersion::V3 => {
                 engine_client
-                    .fork_choice_updated_v3(new_forkchoice, Some(attributes_envelope.inner))
+                    .fork_choice_updated_v3(new_forkchoice, Some(next_attributes.inner))
                     .await
             }
             EngineForkchoiceVersion::V2 => {
                 engine_client
-                    .fork_choice_updated_v2(new_forkchoice, Some(attributes_envelope.inner))
+                    .fork_choice_updated_v2(new_forkchoice, Some(next_attributes.inner))
                     .await
             }
         }
@@ -137,11 +159,13 @@ impl BuildTask {
 
         match update.payload_status.status {
             PayloadStatusEnum::Valid => {
+                let fcu_duration = fcu_start_time.elapsed();
                 debug!(
                     target: "engine_builder",
                     unsafe_hash = new_forkchoice.head_block_hash.to_string(),
                     safe_hash = new_forkchoice.safe_block_hash.to_string(),
                     finalized_hash = new_forkchoice.finalized_block_hash.to_string(),
+                    ?fcu_duration,
                     "Forkchoice update with attributes successful"
                 );
             }
@@ -180,14 +204,11 @@ impl BuildTask {
     /// - `engine_getPayloadV3` is used for payloads with a timestamp after the Ecotone fork.
     /// - `engine_getPayloadV4` is used for payloads with a timestamp after the Isthmus fork.
     async fn fetch_payload(
-        &self,
         cfg: &RollupConfig,
         engine: &EngineClient,
         payload_id: PayloadId,
-        payload_attrs: OpAttributesWithParent,
+        payload_timestamp: u64,
     ) -> Result<OpExecutionPayloadEnvelope, BuildTaskError> {
-        let payload_timestamp = payload_attrs.inner().payload_attributes.timestamp;
-
         debug!(
             target: "engine_builder",
             payload_id = payload_id.to_string(),
@@ -238,102 +259,93 @@ impl BuildTask {
 
         Ok(payload_envelope)
     }
-}
 
-#[async_trait]
-impl EngineTaskExt for BuildTask {
-    type Output = ();
+    pub(crate) async fn seal_and_insert_payload(
+        state: &mut EngineState,
+        cfg: &RollupConfig,
+        engine: &EngineClient,
+        last_payload_data: LastPayloadData,
+        is_attributes_derived: bool,
+    ) -> Result<(), BuildTaskError> {
+        // Get the last payload data.
+        let LastPayloadData {
+            payload_id,
+            payload_attributes: last_payload_attributes,
+            built_payload,
+        } = last_payload_data;
 
-    type Error = BuildTaskError;
-
-    async fn execute(&self, state: &mut EngineState) -> Result<(), BuildTaskError> {
-        debug!(
-            target: "engine_builder",
-            txs = self.attributes.inner().transactions.as_ref().map_or(0, |txs| txs.len()),
-            is_deposits = self.attributes.is_deposits_only(),
-            "Starting new build job"
-        );
-
-        // Start the build by sending an FCU call with the current forkchoice and the input
-        // payload attributes.
-        let fcu_start_time = Instant::now();
-        let payload_id = self.start_build(state, &self.engine, self.attributes.clone()).await?;
-
-        let fcu_duration = fcu_start_time.elapsed();
-
-        // Compute the time of the next block.
-        let next_block = Duration::from_secs(
-            self.attributes.parent().block_info.timestamp.saturating_add(self.cfg.block_time),
-        );
-
-        // Compute the time left to seal the next block.
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .map_err(|_| BuildTaskError::ClockWentBackwards)?;
-
-        // Add a buffer to the time left to seal the next block.
-        const SEALING_BUFFER: Duration = Duration::from_millis(50);
-
-        let time_left_to_seal = next_block.saturating_sub(now).saturating_sub(SEALING_BUFFER);
-
-        // Wait for the time left to seal the next block.
-        if !time_left_to_seal.is_zero() {
-            sleep(time_left_to_seal).await;
-        }
+        let payload_timestamp = last_payload_attributes.inner().payload_attributes.timestamp;
+        let parent_beacon_block_root =
+            last_payload_attributes.inner().payload_attributes.parent_beacon_block_root;
 
         // Fetch the payload just inserted from the EL and import it into the engine.
         let block_import_start_time = Instant::now();
-        let new_payload = self
-            .fetch_payload(&self.cfg, &self.engine, payload_id, self.attributes.clone())
-            .await?;
+        let new_payload =
+            Self::fetch_payload(&cfg, &engine, payload_id.clone(), payload_timestamp).await?;
 
         let new_block_ref = L2BlockInfo::from_payload_and_genesis(
             new_payload.execution_payload.clone(),
-            self.attributes.inner().payload_attributes.parent_beacon_block_root,
-            &self.cfg.genesis,
+            parent_beacon_block_root,
+            &cfg.genesis,
         )
         .map_err(BuildTaskError::FromBlock)?;
 
         // Insert the new block into the engine.
         match InsertTask::new(
-            Arc::clone(&self.engine),
-            self.cfg.clone(),
+            Arc::new(engine.clone()),
+            Arc::new(cfg.clone()),
             new_payload.clone(),
-            self.is_attributes_derived,
+            is_attributes_derived,
         )
         .execute(state)
         .await
         {
             Err(InsertTaskError::UnexpectedPayloadStatus(e))
-                if self.attributes.is_deposits_only() =>
+                if last_payload_attributes.is_deposits_only() =>
             {
                 error!(target: "engine_builder", error = ?e, "Critical: Deposit-only payload import failed");
                 return Err(BuildTaskError::DepositOnlyPayloadFailed);
             }
             // HOLOCENE: Re-attempt payload import with deposits only
             Err(InsertTaskError::UnexpectedPayloadStatus(e))
-                if self
-                    .cfg
-                    .is_holocene_active(self.attributes.inner().payload_attributes.timestamp) =>
+                if cfg.is_holocene_active(payload_timestamp) =>
             {
                 warn!(target: "engine_builder", error = ?e, "Re-attempting payload import with deposits only.");
-                // HOLOCENE: Re-attempt payload import with deposits only
-                match Self::new(
-                    self.engine.clone(),
-                    self.cfg.clone(),
-                    self.attributes.as_deposits_only(),
-                    self.is_attributes_derived,
-                    self.payload_tx.clone(),
+
+                // HOLOCENE: Re-attempt payload import with deposits only. We don't need to wait for
+                // transactions to be included in the block so we can seal
+                // immediately
+
+                let deposits_only_attrs = last_payload_attributes.as_deposits_only();
+
+                // Build a new payload with deposits only this time
+                let payload_id = Self::start_build_next_attributes(
+                    &cfg,
+                    &engine,
+                    deposits_only_attrs.clone(),
+                    state,
                 )
-                .execute(state)
+                .await?;
+
+                return match Box::pin(Self::seal_and_insert_payload(
+                    state,
+                    cfg,
+                    engine,
+                    LastPayloadData {
+                        payload_id,
+                        payload_attributes: deposits_only_attrs,
+                        built_payload,
+                    },
+                    is_attributes_derived,
+                ))
                 .await
                 {
                     Ok(_) => {
-                        info!(target: "engine_builder", "Successfully imported deposits-only payload")
+                        info!(target: "engine_builder", "Successfully imported deposits-only payload. Flushing engine...");
+                        Err(BuildTaskError::HoloceneInvalidFlush)
                     }
-                    Err(_) => return Err(BuildTaskError::DepositOnlyPayloadReattemptFailed),
+                    Err(_) => Err(BuildTaskError::DepositOnlyPayloadReattemptFailed),
                 }
-                return Err(BuildTaskError::HoloceneInvalidFlush);
             }
             Err(e) => {
                 error!(target: "engine_builder", "Payload import failed: {e}");
@@ -346,20 +358,68 @@ impl EngineTaskExt for BuildTask {
 
         let block_import_duration = block_import_start_time.elapsed();
 
-        // If a channel was provided, send the built payload envelope to it.
-        if let Some(tx) = &self.payload_tx {
-            tx.send(new_payload).await.map_err(Box::new).map_err(BuildTaskError::MpscSend)?;
-        }
-
         info!(
             target: "engine_builder",
             l2_number = new_block_ref.block_info.number,
             l2_time = new_block_ref.block_info.timestamp,
-            fcu_duration = ?fcu_duration,
             block_import_duration = ?block_import_duration,
-            "Built and imported new {} block",
-            if self.is_attributes_derived { "safe" } else { "unsafe" },
+            "Imported new {} block",
+            if is_attributes_derived { "safe" } else { "unsafe" },
         );
+
+        // If a channel was provided, send the built payload envelope to it.
+        built_payload
+            .send(new_payload)
+            .await
+            .map_err(Box::new)
+            .map_err(BuildTaskError::MpscSendEnvelope)?;
+
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl EngineTaskExt for BuildTask {
+    type Output = ();
+
+    type Error = BuildTaskError;
+
+    async fn execute(&self, state: &mut EngineState) -> Result<(), BuildTaskError> {
+        // If there is last payload data, seal and insert the payload.
+        if let Some(last_payload_data) = &self.last_payload_data {
+            Self::seal_and_insert_payload(
+                state,
+                &self.cfg,
+                &self.engine,
+                last_payload_data.clone(),
+                self.is_attributes_derived,
+            )
+            .await?;
+        }
+
+        debug!(
+            target: "engine_builder",
+            txs = self.next_attributes.inner().transactions.as_ref().map_or(0, |txs| txs.len()),
+            is_deposits = self.next_attributes.is_deposits_only(),
+            "Starting new build job"
+        );
+
+        // Start the build by sending an FCU call with the current forkchoice and the input
+        // payload attributes.
+        let payload_id = Self::start_build_next_attributes(
+            &self.cfg,
+            &self.engine,
+            self.next_attributes.clone(),
+            state,
+        )
+        .await?;
+
+        // Send the payload ID being built to the channel.
+        self.payload_id_tx
+            .send(payload_id)
+            .await
+            .map_err(Box::new)
+            .map_err(BuildTaskError::MpscSendId)?;
 
         Ok(())
     }

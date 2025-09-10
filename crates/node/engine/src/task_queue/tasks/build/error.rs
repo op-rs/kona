@@ -4,7 +4,7 @@ use crate::{
     EngineTaskError, InsertTaskError, SynchronizeTaskError,
     task_queue::tasks::task::EngineTaskErrorSeverity,
 };
-use alloy_rpc_types_engine::PayloadStatusEnum;
+use alloy_rpc_types_engine::{PayloadId, PayloadStatusEnum};
 use alloy_transport::{RpcError, TransportErrorKind};
 use kona_protocol::FromBlockError;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
@@ -80,7 +80,10 @@ pub enum BuildTaskError {
     FromBlock(#[from] FromBlockError),
     /// Error sending the built payload envelope.
     #[error(transparent)]
-    MpscSend(#[from] Box<mpsc::error::SendError<OpExecutionPayloadEnvelope>>),
+    MpscSendEnvelope(#[from] Box<mpsc::error::SendError<OpExecutionPayloadEnvelope>>),
+    /// Error sending the built payload ID.
+    #[error(transparent)]
+    MpscSendId(#[from] Box<mpsc::error::SendError<PayloadId>>),
     /// The clock went backwards.
     #[error("The clock went backwards")]
     ClockWentBackwards,
@@ -114,7 +117,8 @@ impl EngineTaskError for BuildTaskError {
             Self::DepositOnlyPayloadReattemptFailed => EngineTaskErrorSeverity::Critical,
             Self::DepositOnlyPayloadFailed => EngineTaskErrorSeverity::Critical,
             Self::FromBlock(_) => EngineTaskErrorSeverity::Critical,
-            Self::MpscSend(_) => EngineTaskErrorSeverity::Critical,
+            Self::MpscSendEnvelope(_) => EngineTaskErrorSeverity::Critical,
+            Self::MpscSendId(_) => EngineTaskErrorSeverity::Critical,
             Self::ClockWentBackwards => EngineTaskErrorSeverity::Critical,
         }
     }

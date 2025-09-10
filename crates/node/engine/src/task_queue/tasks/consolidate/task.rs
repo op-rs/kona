@@ -2,12 +2,13 @@
 
 use crate::{
     BuildTask, ConsolidateTaskError, EngineClient, EngineState, EngineTaskExt, SynchronizeTask,
-    state::EngineSyncStateUpdate,
+    state::EngineSyncStateUpdate, task_queue::tasks::build::LastPayloadData,
 };
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use std::{sync::Arc, time::Instant};
+use tokio::sync::mpsc;
 
 /// The [`ConsolidateTask`] attempts to consolidate the engine state
 /// using the specified payload attributes and the oldest unsafe head.
@@ -42,14 +43,37 @@ impl ConsolidateTask {
         &self,
         state: &mut EngineState,
     ) -> Result<(), ConsolidateTaskError> {
-        let build_task = BuildTask::new(
-            self.client.clone(),
-            self.cfg.clone(),
+        let payload_id = BuildTask::start_build_next_attributes(
+            &self.cfg,
+            &self.client,
             self.attributes.clone(),
+            state,
+        )
+        .await?;
+
+        let (built_payload_tx, mut built_payload_rx) = mpsc::channel(1);
+
+        // Don't wait before sealing the payload since we don't maintain a transaction pool.
+        BuildTask::seal_and_insert_payload(
+            state,
+            &self.cfg,
+            &self.client,
+            LastPayloadData {
+                payload_id,
+                payload_attributes: self.attributes.clone(),
+                built_payload: built_payload_tx,
+            },
             self.is_attributes_derived,
-            None,
-        );
-        Ok(build_task.execute(state).await?)
+        )
+        .await?;
+
+        let Some(built_payload) = built_payload_rx.recv().await else {
+            return Err(ConsolidateTaskError::FailedToReceiveBuiltPayload);
+        };
+
+        info!(target: "engine", ?payload_id, hash = %built_payload.execution_payload.block_hash(), number = %built_payload.execution_payload.block_number(), "Built payload via consolidation");
+
+        Ok(())
     }
 
     /// Attempts consolidation on the engine state.
