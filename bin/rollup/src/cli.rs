@@ -2,7 +2,7 @@
 
 use crate::version;
 use clap::Parser;
-use kona_cli::{GlobalArgs, CliResult, cli_styles};
+use kona_cli::{CliResult, GlobalArgs, cli_styles};
 
 /// The rollup CLI.
 #[derive(Parser, Clone, Debug)]
