@@ -28,11 +28,9 @@ comment:
 ignore:
   - "examples/**/*"
   - "**/test_util*"
-  # Ignore providers
-  - "crates/providers"
   # Ignore noop files
   - "**/noop.rs"
-  # Node - WIP
-  - "bin/node"
-  - "crates/node/engine"
-  - "crates/node/service"
+  # Ignore integration tests
+  - "tests"
+  # Ignore github actions
+  - ".github"

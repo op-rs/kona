@@ -30,6 +30,8 @@ jobs:
 
       - uses: taiki-e/install-action@just
 
+      - uses: taiki-e/install-action@cargo-llvm-cov
+
       - uses: jdx/mise-action@v3       # installs Mise + runs `mise install`
 
       - name: Setup Go 1.24.3
@@ -39,14 +41,31 @@ jobs:
           go-version: '1.24.3'
           cache-dependency-path: "**/go.sum"
 
-      - name: common tests for node with sysgo orchestrator
-        run: just test-e2e-sysgo node node/common
+      - name: common tests for node with sysgo orchestrator and report coverage
+        run: |
+          source <(cargo llvm-cov show-env --export-prefix)
+          just test-e2e-sysgo node node/common
+          cargo llvm-cov report --lcov --output-path node_common_cov.lcov
 
-      - name: restart tests for node with sysgo orchestrator
-        run: just test-e2e-sysgo node node/restart
+      - name: restart tests for node with sysgo orchestrator and report coverage
+        run: |
+          source <(cargo llvm-cov show-env --export-prefix)
+          just test-e2e-sysgo node node/restart
+          cargo llvm-cov report --lcov --output-path node_restart_cov.lcov
 
-      - name: reorg tests for node with sysgo orchestrator
-        run: just test-e2e-sysgo node node/reorgs
+      - name: reorg tests for node with sysgo orchestrator and report coverage
+        run: |
+          source <(cargo llvm-cov show-env --export-prefix)
+          just test-e2e-sysgo node node/reorgs
+          cargo llvm-cov report --lcov --output-path node_reorgs_cov.lcov
+
+      - name: Upload coverage to codecov.io
+        uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          env_vars: OS,RUST
+          files: node_common_cov.lcov node_restart_cov.lcov node_reorgs_cov.lcov
 
 
 

@@ -59,9 +59,9 @@ test-e2e-sysgo BINARY GO_PKG_NAME="" FILTER="" : unzip-contract-artifacts
     export DISABLE_OP_E2E_LEGACY=true
     
     if [ "{{BINARY}}" = "node" ]; then
-        export KONA_NODE_EXEC_PATH="{{SOURCE}}/../target/release/kona-node"
+        export KONA_NODE_EXEC_PATH="{{SOURCE}}/../target/debug/kona-node"
         export DEVSTACK_ORCHESTRATOR=sysgo
-        cd {{SOURCE}}/.. && just build-node
+        cd {{SOURCE}}/.. && cargo build --bin kona-node
     elif [ "{{BINARY}}" = "supervisor" ]; then
         export DEVSTACK_SUPERVISOR_KIND=kona
         export KONA_SUPERVISOR_EXEC_PATH="{{SOURCE}}/../target/release/kona-supervisor"
