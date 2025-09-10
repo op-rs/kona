@@ -213,6 +213,7 @@
 <body>
     <h1>Kona Supervisor System - Interactive Data Flow</h1>
     <div class="control-panel">
+        <button onclick="showFullSystem()">Full System</button>
         <button onclick="showUnsafeEventFlow()">Unsafe Event</button>
         <button onclick="showDerivedBlockFlow()">Derived Block</button>
         <button onclick="showCrossUnsafeFlow()">Cross Unsafe</button>
@@ -220,7 +221,6 @@
         <button onclick="showFinalizedFlow()">Finalized</button>
         <button onclick="showBlockInvalidationFlow()">Block Invalidation</button>
         <button onclick="showBlockReplacementFlow()">Block Replacement</button>
-        <button onclick="showFullSystem()">Full System</button>
     </div>
     <div id="canvas">
       <svg>
@@ -291,6 +291,8 @@
         const svg = document.querySelector('svg');
         const perChainGroup = document.getElementById('per-chain-group');
         
+        window.onload = showFullSystem;
+
         function drawConnection(fromId, toId, isActive = false) {
           const from = fromId === 'per-chain-group' ? perChainGroup : document.getElementById(fromId);
           const to = toId === 'per-chain-group' ? perChainGroup : document.getElementById(toId);
