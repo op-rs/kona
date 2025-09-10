@@ -64,8 +64,9 @@ jobs:
         with:
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
-          env_vars: OS,RUST
-          files: node_common_cov.lcov node_restart_cov.lcov node_reorgs_cov.lcov
+          files: node_common_cov.lcov,node_restart_cov.lcov,node_reorgs_cov.lcov
+          name: node-sysgo-tests
+          verbose: true
 
 
 

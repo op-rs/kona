@@ -30,7 +30,3 @@ ignore:
   - "**/test_util*"
   # Ignore noop files
   - "**/noop.rs"
-  # Ignore integration tests
-  - "tests"
-  # Ignore github actions
-  - ".github"
