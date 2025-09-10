@@ -21,6 +21,9 @@ pub enum ConsolidateTaskError {
     /// The consolidation forkchoice update call to the engine api failed.
     #[error(transparent)]
     ForkchoiceUpdateFailed(#[from] SynchronizeTaskError),
+    /// Failed to receive the built payload.
+    #[error("Failed to receive the built payload")]
+    FailedToReceiveBuiltPayload,
 }
 
 impl EngineTaskError for ConsolidateTaskError {
@@ -30,6 +33,7 @@ impl EngineTaskError for ConsolidateTaskError {
             Self::FailedToFetchUnsafeL2Block => EngineTaskErrorSeverity::Temporary,
             Self::BuildTaskFailed(inner) => inner.severity(),
             Self::ForkchoiceUpdateFailed(inner) => inner.severity(),
+            Self::FailedToReceiveBuiltPayload => EngineTaskErrorSeverity::Critical,
         }
     }
 }
