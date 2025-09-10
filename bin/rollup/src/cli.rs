@@ -1,8 +1,8 @@
 //! Contains the rollup CLI.
 
-use crate::{error::RollupResult, version};
+use crate::version;
 use clap::Parser;
-use kona_cli::{GlobalArgs, cli_styles};
+use kona_cli::{GlobalArgs, CliResult, cli_styles};
 
 /// The rollup CLI.
 #[derive(Parser, Clone, Debug)]
@@ -22,7 +22,7 @@ pub struct Cli {
 
 impl Cli {
     /// Runs the rollup binary.
-    pub fn run(self) -> RollupResult<()> {
-        Err(crate::error::RollupError::NotImplemented)
+    pub fn run(self) -> CliResult<()> {
+        unimplemented!("Rollup CLI is not yet implemented")
     }
 }

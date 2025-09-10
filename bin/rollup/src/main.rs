@@ -8,7 +8,6 @@
 #![deny(missing_docs, unused_must_use, rust_2018_idioms)]
 
 pub mod cli;
-pub mod error;
 pub mod version;
 
 fn main() {

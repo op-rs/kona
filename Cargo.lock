@@ -8283,7 +8283,6 @@ dependencies = [
  "clap",
  "kona-cli",
  "kona-genesis",
- "thiserror 2.0.16",
  "vergen",
  "vergen-git2",
 ]

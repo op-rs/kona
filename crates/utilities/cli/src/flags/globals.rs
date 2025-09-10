@@ -46,12 +46,12 @@ impl GlobalArgs {
         let id = self.l2_chain_id;
         OPCHAINS
             .get(&id.id())
-            .ok_or(CliError::ChainConfigNotFound { chain_id: id.id() })?
+            .ok_or(CliError::ChainConfigNotFound(id.id()))?
             .roles
             .as_ref()
-            .ok_or(CliError::RolesNotFound { chain_id: id.id() })?
+            .ok_or(CliError::RolesNotFound(id.id()))?
             .unsafe_block_signer
-            .ok_or(CliError::UnsafeBlockSignerNotFound { chain_id: id.id() })
+            .ok_or(CliError::UnsafeBlockSignerNotFound(id.id()))
     }
 }
 
