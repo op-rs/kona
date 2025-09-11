@@ -54,6 +54,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: node_common_cov.lcov
           flags: e2e
+          env_vars: OS,RUST
           name: node-sysgo-tests-common
           verbose: true
 
@@ -70,6 +71,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: node_restart_cov.lcov
           flags: e2e
+          env_vars: OS,RUST
           name: node-sysgo-tests-restart
           verbose: true
 
@@ -86,6 +88,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: node_reorgs_cov.lcov
           flags: e2e
+          env_vars: OS,RUST
           name: node-sysgo-tests-reorgs
           verbose: true
 

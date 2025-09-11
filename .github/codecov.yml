@@ -57,3 +57,6 @@ ignore:
   - "**/test_util*"
   # Ignore noop files
   - "**/noop.rs"
+
+fixes:
+  - "/home/runner/work/kona/kona/::"
