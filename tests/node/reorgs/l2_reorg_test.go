@@ -15,7 +15,7 @@ import (
 )
 
 func TestL2Reorg(gt *testing.T) {
-	const NUM_BLOCKS_TO_REORG = 1
+	const NUM_BLOCKS_TO_REORG = 5
 	t := devtest.SerialT(gt)
 
 	out := node_utils.NewMixedOpKonaWithTestSequencer(t)
