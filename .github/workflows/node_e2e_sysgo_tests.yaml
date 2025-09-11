@@ -46,12 +46,32 @@ jobs:
           source <(cargo llvm-cov show-env --export-prefix)
           just test-e2e-sysgo node node/common
           cargo llvm-cov report --lcov --output-path node_common_cov.lcov
+      
+      - name: Upload coverage to codecov.io
+        uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: node_common_cov.lcov
+          flags: e2e
+          name: node-sysgo-tests-common
+          verbose: true
 
       - name: restart tests for node with sysgo orchestrator and report coverage
         run: |
           source <(cargo llvm-cov show-env --export-prefix)
           just test-e2e-sysgo node node/restart
           cargo llvm-cov report --lcov --output-path node_restart_cov.lcov
+
+      - name: Upload coverage to codecov.io
+        uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: node_restart_cov.lcov
+          flags: e2e
+          name: node-sysgo-tests-restart
+          verbose: true
 
       - name: reorg tests for node with sysgo orchestrator and report coverage
         run: |
@@ -64,9 +84,9 @@ jobs:
         with:
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: node_common_cov.lcov,node_restart_cov.lcov,node_reorgs_cov.lcov
+          files: node_reorgs_cov.lcov
           flags: e2e
-          name: node-sysgo-tests
+          name: node-sysgo-tests-reorgs
           verbose: true
 
 
