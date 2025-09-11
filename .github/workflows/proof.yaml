@@ -92,6 +92,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           env_vars: OS,RUST
           files: actions_cov.lcov
+          flags: proof
 
   host-client-offline-runs:
     name: FPP e2e - ${{ matrix.target}} | ${{ matrix.name }}
@@ -184,3 +185,4 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           env_vars: OS,RUST
           files: client_host_cov.lcov
+          flags: proof

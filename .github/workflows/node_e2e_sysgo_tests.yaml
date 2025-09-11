@@ -65,6 +65,7 @@ jobs:
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
           files: node_common_cov.lcov,node_restart_cov.lcov,node_reorgs_cov.lcov
+          flags: e2e
           name: node-sysgo-tests
           verbose: true
 
