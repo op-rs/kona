@@ -277,4 +277,4 @@ require (
 
 replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101602.0-rc.1
 
-replace github.com/ethereum-optimism/optimism => github.com/theochap/optimism v0.0.0-20250903080002-d6bc7cb245f4
+replace github.com/ethereum-optimism/optimism => github.com/theochap/optimism v0.0.0-20250911071047-0fcf1fe931e8
