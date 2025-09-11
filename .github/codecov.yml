@@ -58,5 +58,24 @@ ignore:
   # Ignore noop files
   - "**/noop.rs"
 
+
+flag_management:
+  individual_flags:
+    - name: unit
+      statuses:
+        - type: project
+          target: auto
+          threshold: 1%
+    - name: e2e
+      statuses:
+        - type: project
+          target: auto
+          threshold: 1%
+    - name: proof
+      statuses:
+        - type: project
+          target: auto
+          threshold: 1%
+
 fixes:
   - "/home/runner/work/kona/kona/::"
