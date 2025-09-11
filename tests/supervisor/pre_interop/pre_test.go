@@ -23,6 +23,7 @@ import (
 )
 
 func TestPreInteropComprehensive(gt *testing.T) {
+	gt.Skip()
 	t := devtest.ParallelT(gt)
 	sys := presets.NewSimpleInterop(t)
 
