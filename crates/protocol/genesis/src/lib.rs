@@ -36,8 +36,8 @@ pub use superchain::{
 
 mod updates;
 pub use updates::{
-    BatcherUpdate, Eip1559Update, GasConfigUpdate, GasLimitUpdate, OperatorFeeUpdate,
-    UnsafeBlockSignerUpdate,
+    BatcherUpdate, Eip1559Update, GasConfigUpdate, GasLimitUpdate, MinBaseFeeUpdate,
+    OperatorFeeUpdate, UnsafeBlockSignerUpdate,
 };
 
 mod system;

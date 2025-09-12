@@ -50,10 +50,12 @@ where
         return Err(PrecompileError::OutOfGas);
     }
 
+    let precompile = bls12_381::g1_msm::PRECOMPILE;
+
     let result_data = kona_proof::block_on(precompile_run! {
         hint_writer,
         oracle_reader,
-        &[bls12_381::g1_msm::PRECOMPILE.address().as_slice(), &required_gas.to_be_bytes(), input]
+        &[precompile.address().as_slice(), &required_gas.to_be_bytes(), input]
     })
     .map_err(|e| PrecompileError::Other(e.to_string()))?;
 

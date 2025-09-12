@@ -248,6 +248,7 @@ mod tests {
                 no_tx_pool: None,
                 gas_limit: None,
                 eip_1559_params: None,
+                min_base_fee: None,
             },
             parent: Default::default(),
             derived_from: Default::default(),
