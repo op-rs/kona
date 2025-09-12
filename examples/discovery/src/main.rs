@@ -47,7 +47,7 @@ impl DiscCommand {
     /// Run the discovery subcommand.
     pub async fn run(self) -> anyhow::Result<()> {
         let filter = tracing_subscriber::EnvFilter::from_default_env()
-            .add_directive("discv5=error".parse()?);
+            .add_directive("discv5=error".parse::<tracing_subscriber::filter::Directive>()?);
         LogConfig::new(self.v).init_tracing_subscriber(Some(filter))?;
 
         let CombinedKey::Secp256k1(secret_key) = CombinedKey::generate_secp256k1() else {
@@ -62,19 +62,16 @@ impl DiscCommand {
         );
         tracing::info!(target: "discovery", "Starting discovery service on {:?}", socket);
 
-        let discovery_builder = Discv5Builder::new(
-            socket,
-            self.l2_chain_id,
-            discv5::ConfigBuilder::new(discv5::ListenConfig::Ipv4 {
-                ip: Ipv4Addr::UNSPECIFIED,
-                port: self.disc_port,
-            })
-            .build(),
-        );
-        let mut discovery = discovery_builder.build()?;
-        discovery.interval = std::time::Duration::from_secs(self.interval);
-        discovery.forward = false;
-        let (handler, mut enr_receiver) = discovery.start();
+        let config = discv5::ConfigBuilder::new(discv5::ListenConfig::Ipv4 {
+            ip: Ipv4Addr::UNSPECIFIED,
+            port: self.disc_port,
+        })
+        .request_timeout(std::time::Duration::from_secs(self.interval))
+        .enable_packet_filter(false)
+        .build();
+
+        let discovery_builder = Discv5Builder::new(socket, self.l2_chain_id, config);
+        let (mut discovery, handler, mut enr_receiver) = discovery_builder.build_with_handler()?;
         tracing::info!(target: "discovery", "Discovery service started, receiving peers.");
 
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
