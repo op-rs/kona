@@ -247,7 +247,7 @@ where
                     let head = match self.supervisor.super_head(*id) {
                         Ok(head) => head,
                         Err(SupervisorError::SpecError(SpecError::SuperchainDAError(
-                            SuperchainDAError::UninitializedChainDatabase,
+                            SuperchainDAError::DataCorruption,
                         ))) => {
                             uninitialized_chain_db_count += 1;
                             continue;
@@ -282,7 +282,9 @@ where
 
                 if uninitialized_chain_db_count == chains.len() {
                     warn!(target: "supervisor::rpc", "No chain db initialized");
-                    return Err(SuperchainDAError::UninitializedChainDatabase.into());
+                    return Err(ErrorObject::from(SupervisorError::SpecError(
+                        SpecError::SuperchainDAError(SuperchainDAError::DataCorruption),
+                    )));
                 }
 
                 Ok(SupervisorSyncStatus {
@@ -444,7 +446,7 @@ mod tests {
             .returning(move || Box::new(vec![chain_id_1, chain_id_2].into_iter()));
         mock_service.expect_super_head().times(2).returning(move |_| {
             Err(SupervisorError::SpecError(SpecError::SuperchainDAError(
-                SuperchainDAError::UninitializedChainDatabase,
+                SuperchainDAError::DataCorruption,
             )))
         });
 
@@ -454,7 +456,7 @@ mod tests {
         assert_eq!(
             result.unwrap_err(),
             ErrorObject::from(SupervisorError::SpecError(SpecError::SuperchainDAError(
-                SuperchainDAError::UninitializedChainDatabase
+                SuperchainDAError::DataCorruption
             )))
         );
 
@@ -478,7 +480,7 @@ mod tests {
                 Ok(super_head)
             } else {
                 Err(SupervisorError::SpecError(SpecError::SuperchainDAError(
-                    SuperchainDAError::UninitializedChainDatabase,
+                    SuperchainDAError::DataCorruption,
                 )))
             }
         });

@@ -141,9 +141,6 @@ impl From<StorageError> for SpecError {
             StorageError::Database(_) => Self::from(SuperchainDAError::DataCorruption),
             StorageError::FutureData => Self::from(SuperchainDAError::FutureData),
             StorageError::EntryNotFound(_) => Self::from(SuperchainDAError::MissedData),
-            StorageError::DatabaseNotInitialised => {
-                Self::from(SuperchainDAError::UninitializedChainDatabase)
-            }
             StorageError::ConflictError => Self::from(SuperchainDAError::ConflictingData),
             StorageError::BlockOutOfOrder => Self::from(SuperchainDAError::OutOfOrder),
             _ => Self::ErrorNotInSpec,
@@ -156,15 +153,6 @@ mod test {
     use kona_supervisor_storage::EntryNotFoundError;
 
     use super::*;
-
-    #[test]
-    fn test_storage_error_conversion() {
-        let test_err = SpecError::from(StorageError::DatabaseNotInitialised);
-        let expected_err =
-            SpecError::SuperchainDAError(SuperchainDAError::UninitializedChainDatabase);
-
-        assert_eq!(test_err, expected_err);
-    }
 
     #[test]
     fn test_unmapped_storage_error_conversion() {

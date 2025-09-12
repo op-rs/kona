@@ -197,6 +197,7 @@ where
                 l2_parent.block_info.timestamp,
                 next_l2_time,
             ),
+            min_base_fee: sys_config.min_base_fee,
         })
     }
 }
@@ -465,6 +466,7 @@ mod tests {
                 alloy_primitives::U64::from(SystemConfig::default().gas_limit).to_be_bytes(),
             )),
             eip_1559_params: None,
+            min_base_fee: None,
         };
         assert_eq!(payload, expected);
         assert_eq!(payload.transactions.unwrap().len(), 1);
@@ -515,6 +517,7 @@ mod tests {
                 alloy_primitives::U64::from(SystemConfig::default().gas_limit).to_be_bytes(),
             )),
             eip_1559_params: None,
+            min_base_fee: None,
         };
         assert_eq!(payload, expected);
         assert_eq!(payload.transactions.unwrap().len(), 1);
@@ -566,6 +569,7 @@ mod tests {
                 alloy_primitives::U64::from(SystemConfig::default().gas_limit).to_be_bytes(),
             )),
             eip_1559_params: None,
+            min_base_fee: None,
         };
         assert_eq!(payload, expected);
         assert_eq!(payload.transactions.unwrap().len(), 7);
@@ -616,6 +620,7 @@ mod tests {
                 alloy_primitives::U64::from(SystemConfig::default().gas_limit).to_be_bytes(),
             )),
             eip_1559_params: None,
+            min_base_fee: None,
         };
         assert_eq!(payload.transactions.as_ref().unwrap().len(), 10);
         assert_eq!(payload, expected);
