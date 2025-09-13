@@ -1,14 +1,14 @@
 //! The [`EngineActor`].
 
 use super::{EngineError, L2Finalizer};
-use alloy_rpc_types_engine::JwtSecret;
+use alloy_rpc_types_engine::{JwtSecret, PayloadId};
 use async_trait::async_trait;
 use futures::future::OptionFuture;
 use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
     BuildTask, ConsolidateTask, Engine, EngineClient, EngineQueries,
     EngineState as InnerEngineState, EngineTask, EngineTaskError, EngineTaskErrorSeverity,
-    InsertTask,
+    InsertTask, LastPayloadData,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
@@ -43,10 +43,20 @@ pub struct EngineActor {
     /// ## Note
     /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
     /// mode.
-    build_request_rx:
-        Option<mpsc::Receiver<(OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>>,
+    build_request_rx: Option<mpsc::Receiver<BuildRequest>>,
     /// The [`L2Finalizer`], used to finalize L2 blocks.
     finalizer: L2Finalizer,
+}
+
+/// A request to build a new payload. Sent by the sequencer actor to the engine actor.
+#[derive(Debug, Clone)]
+pub struct BuildRequest {
+    /// Next payload attributes to build.
+    pub attributes: OpAttributesWithParent,
+    /// A channel to send the [`PayloadId`] of the payload that was built.
+    pub payload_id_tx: mpsc::Sender<PayloadId>,
+    /// The last payload data to seal and insert in the EL.
+    pub last_payload_data: Option<LastPayloadData>,
 }
 
 /// The outbound data for the [`EngineActor`].
@@ -57,8 +67,7 @@ pub struct EngineInboundData {
     /// ## Note
     /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
     /// mode.
-    pub build_request_tx:
-        Option<mpsc::Sender<(OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>>,
+    pub build_request_tx: Option<mpsc::Sender<BuildRequest>>,
     /// A channel to send [`OpAttributesWithParent`] to the engine actor.
     pub attributes_tx: mpsc::Sender<OpAttributesWithParent>,
     /// A channel to send [`OpExecutionPayloadEnvelope`] to the engine actor.
@@ -429,7 +438,7 @@ impl NodeActor for EngineActor {
                         .await?;
                 }
                 Some(res) = OptionFuture::from(self.build_request_rx.as_mut().map(|rx| rx.recv())), if self.build_request_rx.is_some() => {
-                    let Some((attributes, response_tx)) = res else {
+                    let Some(BuildRequest { attributes, payload_id_tx, last_payload_data }) = res else {
                         error!(target: "engine", "Build request receiver closed unexpectedly while in sequencer mode");
                         cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
@@ -441,7 +450,8 @@ impl NodeActor for EngineActor {
                         attributes,
                         // The payload is not derived in this case.
                         false,
-                        Some(response_tx),
+                        last_payload_data,
+                        payload_id_tx,
                     )));
                     state.engine.enqueue(task);
                 }
