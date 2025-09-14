@@ -109,7 +109,9 @@ impl EngineTask {
         Ok(())
     }
 
-    const fn task_metrics_label(&self) -> &'static str {
+    /// Returns the metrics label for this task type.
+    /// Used for categorizing inflight task metrics by task type.
+    pub const fn task_metrics_label(&self) -> &'static str {
         match self {
             Self::Insert(_) => crate::Metrics::INSERT_TASK_LABEL,
             Self::Consolidate(_) => crate::Metrics::CONSOLIDATE_TASK_LABEL,
