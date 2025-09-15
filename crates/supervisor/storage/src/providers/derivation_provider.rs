@@ -573,7 +573,7 @@ where
 
 
                 // Log progress periodically or on last block
-                if processed_blocks % DEFAULT_LOG_INTERVAL == 0 || processed_blocks == total_blocks
+                if processed_blocks % DEFAULT_LOG_INTERVAL == 0
                 {
                     info!(
                         target: "supervisor::storage",
