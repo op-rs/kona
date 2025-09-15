@@ -1,4 +1,5 @@
 SOURCE := source_directory()
+CURRENT_DIR := `pwd`
 DEFAULT_DEVNET_PATH := source_directory() + "/devnets/simple-kona.yaml"
 DEFAULT_OP_PACKAGE_PATH := "github.com/ethpandaops/optimism-package@998796c0f3bb478d63d729e65f0b76e24112e00d"
 
@@ -16,7 +17,7 @@ build-devnet BINARY:
 # The CUSTOM_DEVNET_PATH variable can be used to specify a custom devnet path.
 # If not specified, the default devnet path will be used.
 # The ENCLAVE variable can be used to specify a custom enclave name to use for kurtosis.
-devnet DEVNET OP_PACKAGE_PATH="" CUSTOM_DEVNET_PATH="":
+devnet DEVNET CUSTOM_DEVNET_PATH="":
   #!/bin/bash
   export DEVNET="--enclave {{DEVNET}}"
 
@@ -25,13 +26,7 @@ devnet DEVNET OP_PACKAGE_PATH="" CUSTOM_DEVNET_PATH="":
     export DEVNET_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
   fi
 
-  export OP_PACKAGE_PATH="{{OP_PACKAGE_PATH}}"
-  if [ -z "{{OP_PACKAGE_PATH}}" ]; then
-    export OP_PACKAGE_PATH="{{DEFAULT_OP_PACKAGE_PATH}}"
-  # if the OP_PACKAGE_PATH is a local path, use mise to install it
-  elif [ -d "{{OP_PACKAGE_PATH}}" ]; then
-    cd $OP_PACKAGE_PATH && mise install
-  fi
+  export OP_PACKAGE_PATH="{{DEFAULT_OP_PACKAGE_PATH}}"
 
   # Run the kurtosis test
   kurtosis run $OP_PACKAGE_PATH --args-file $DEVNET_PATH $DEVNET
@@ -100,11 +95,37 @@ test-e2e-kurtosis DEVNET GO_PKG_NAME="" FILTER="" DEVNET_CUSTOM_PATH="" :
     # Run the test with count=1 to avoid caching the test results.
     cd {{SOURCE}} && go test -count=1 -timeout 40m -v ./$GO_PKG_NAME $FILTER 
 
-build-deploy-devnet BINARY DEVNET OP_PACKAGE_PATH="": (build-devnet BINARY) (devnet DEVNET OP_PACKAGE_PATH)
-  
-deploy-devnet-and-test-e2e DEVNET GO_PKG_NAME OP_PACKAGE_PATH="": (devnet DEVNET OP_PACKAGE_PATH) (test-e2e-kurtosis DEVNET GO_PKG_NAME)
+long-running-test DEVNET FILTER DEVNET_CUSTOM_PATH="" OUTPUT_LOGS_DIR="":
+    #!/bin/bash
+    if ! [ -z "{{FILTER}}" ]; then
+        export FILTER="-run {{FILTER}}"
+    fi
+    
+    export OP_TESTLOG_FILE_LOGGER_OUTDIR="{{OUTPUT_LOGS_DIR}}"
+    if [ -z "{{OUTPUT_LOGS_DIR}}" ]; then
+        export OP_TESTLOG_FILE_LOGGER_OUTDIR="{{CURRENT_DIR}}/kona-test-logs"
+    fi
 
-build-devnet-and-test-e2e BINARY DEVNET GO_PKG_NAME OP_PACKAGE_PATH="": (build-devnet BINARY) (deploy-devnet-and-test-e2e DEVNET GO_PKG_NAME OP_PACKAGE_PATH)
+    mkdir -p $OP_TESTLOG_FILE_LOGGER_OUTDIR
+
+    export DEVNET_CUSTOM_PATH="{{DEVNET_CUSTOM_PATH}}"
+    if [ -z "{{DEVNET_CUSTOM_PATH}}" ]; then
+        export DEVNET_CUSTOM_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
+    fi
+
+    export OP_DEPLOYER_ARTIFACTS="{{SOURCE}}/artifacts"
+    export DEVNET_ENV_URL="ktnative://{{DEVNET}}$DEVNET_CUSTOM_PATH"
+    export DISABLE_OP_E2E_LEGACY=true
+    export DEVSTACK_ORCHESTRATOR=sysext
+
+    # Run the test with count=1 to avoid caching the test results.
+    cd {{SOURCE}} && go test -count=1 -timeout 0 -v ./node/long-running $FILTER 
+
+build-deploy-devnet BINARY DEVNET CUSTOM_DEVNET_PATH="": (build-devnet BINARY) (devnet DEVNET CUSTOM_DEVNET_PATH)
+  
+deploy-devnet-and-test-e2e DEVNET GO_PKG_NAME CUSTOM_DEVNET_PATH="": (devnet DEVNET CUSTOM_DEVNET_PATH) (test-e2e-kurtosis DEVNET GO_PKG_NAME)
+
+build-devnet-and-test-e2e BINARY DEVNET GO_PKG_NAME CUSTOM_DEVNET_PATH="": (build-devnet BINARY) (deploy-devnet-and-test-e2e DEVNET GO_PKG_NAME CUSTOM_DEVNET_PATH)
 
 # Updates the devnet with the latest local changes. This is useful to
 # rapidly iterate on the devnet without having to redeploy the whole kurtosis network.

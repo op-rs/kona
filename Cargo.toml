@@ -2,7 +2,7 @@
 edition = "2024"
 license = "MIT"
 rust-version = "1.88"
-authors = ["clabby", "refcell", "theochap"]
+authors = ["clabby", "refcell", "theochap", "emhane"]
 homepage = "https://github.com/op-rs/kona"
 repository = "https://github.com/op-rs/kona"
 keywords = ["ethereum", "optimism", "crypto"]
