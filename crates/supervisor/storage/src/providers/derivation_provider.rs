@@ -548,7 +548,7 @@ where
             let mut cursor = self.tx.cursor_write::<DerivedBlocks>()?;
             let mut walker = cursor.walk(Some(block.number))?;
 
-            info!(
+            trace!(
                 target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 target_block_number = %block.number,
