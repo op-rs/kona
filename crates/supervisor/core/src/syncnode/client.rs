@@ -86,35 +86,8 @@ pub trait ManagedNodeClient: Send + Sync + Debug {
 pub struct ClientConfig {
     /// The URL + port of the managed node
     pub url: String,
-    /// The path to the JWT token for the managed node
-    pub jwt_path: String,
-}
-
-impl ClientConfig {
-    /// Reads the JWT secret from the configured file path.
-    /// If the file cannot be read, falls back to creating a default JWT secret.
-    pub fn jwt_secret(&self) -> Option<JwtSecret> {
-        if let Ok(secret) = std::fs::read_to_string(&self.jwt_path) {
-            return JwtSecret::from_hex(secret).ok();
-        }
-        Self::default_jwt_secret()
-    }
-
-    /// Uses the current directory to attempt to read
-    /// the JWT secret from a file named `jwt.hex`.
-    pub fn default_jwt_secret() -> Option<JwtSecret> {
-        let cur_dir = std::env::current_dir().ok()?;
-        if let Ok(secret) = std::fs::read_to_string(cur_dir.join("jwt.hex")).map_err(|err| {
-            error!(
-                target: "supervisor::managed_node",
-                %err,
-                "Failed to read JWT file"
-            );
-        }) {
-            return JwtSecret::from_hex(secret).ok();
-        }
-        None
-    }
+    /// jwt secret for the managed node interop rpc
+    pub jwt_secret: JwtSecret,
 }
 
 /// Client for interacting with a managed node.
@@ -136,14 +109,9 @@ impl Client {
 
     /// Creates authentication headers using JWT secret.
     fn create_auth_headers(&self) -> Result<HeaderMap, ClientError> {
-        let Some(jwt_secret) = self.config.jwt_secret() else {
-            error!(target: "supervisor::managed_node", "JWT secret not found or invalid");
-            return Err(AuthenticationError::InvalidJwt.into())
-        };
-
         // Create JWT claims with current time
         let claims = Claims::with_current_timestamp();
-        let token = jwt_secret.encode(&claims).map_err(|err| {
+        let token = self.config.jwt_secret.encode(&claims).map_err(|err| {
             error!(target: "supervisor::managed_node", %err, "Failed to encode JWT claims");
             AuthenticationError::InvalidJwt
         })?;
@@ -434,60 +402,5 @@ impl ManagedNodeClient for Client {
             "node" => self.config.url.clone()
         )?;
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::io::Write;
-    use tempfile::NamedTempFile;
-
-    fn create_mock_jwt_file() -> NamedTempFile {
-        let mut file = NamedTempFile::new().expect("Failed to create temp file");
-        // Create a valid 32-byte hex string for JWT secret
-        let hex_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-        writeln!(file, "{hex_secret}").expect("Failed to write to temp file");
-        file
-    }
-
-    #[tokio::test]
-    async fn test_jwt_secret_functionality() {
-        // Test with valid JWT file
-        let jwt_file = create_mock_jwt_file();
-        let jwt_path = jwt_file.path();
-
-        let config = ClientConfig {
-            url: "test.server".to_string(),
-            jwt_path: jwt_path.to_str().unwrap().to_string(),
-        };
-
-        let jwt_secret = config.jwt_secret();
-        assert!(jwt_secret.is_some(), "JWT secret should be loaded from file");
-
-        // Test with invalid path - should now return None instead of creating a file
-        let config_invalid = ClientConfig {
-            url: "test.server".to_string(),
-            jwt_path: "/nonexistent/path/jwt.hex".to_string(),
-        };
-
-        let jwt_secret_fallback = config_invalid.jwt_secret();
-        assert!(jwt_secret_fallback.is_none(), "Should return None when JWT file doesn't exist");
-
-        // Test default_jwt_secret with nonexistent file
-        let original_dir = std::env::current_dir().expect("Should get current directory");
-
-        // Change to a temporary directory where jwt.hex doesn't exist
-        let temp_dir = tempfile::tempdir().expect("Should create temp directory");
-        std::env::set_current_dir(temp_dir.path()).expect("Should change directory");
-
-        let default_secret = ClientConfig::default_jwt_secret();
-        assert!(
-            default_secret.is_none(),
-            "default_jwt_secret should return None when jwt.hex doesn't exist"
-        );
-
-        // Restore original directory
-        std::env::set_current_dir(original_dir).expect("Should restore directory");
     }
 }

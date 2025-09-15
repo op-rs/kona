@@ -1,5 +1,10 @@
 //! [`ManagedNode`] implementation for subscribing to the events from managed node.
 
+use super::{
+    BlockProvider, ManagedNodeClient, ManagedNodeController, ManagedNodeDataProvider,
+    ManagedNodeError, SubscriptionHandler, resetter::Resetter,
+};
+use crate::event::ChainEvent;
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
 use alloy_primitives::{B256, ChainId};
@@ -12,13 +17,7 @@ use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader, Log
 use kona_supervisor_types::{BlockSeal, OutputV0, Receipts};
 use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
-
-use super::{
-    BlockProvider, ManagedNodeClient, ManagedNodeController, ManagedNodeDataProvider,
-    ManagedNodeError, SubscriptionHandler, resetter::Resetter,
-};
-use crate::event::ChainEvent;
-use tracing::{error, trace, warn};
+use tracing::{debug, error, trace, warn};
 
 /// [`ManagedNode`] handles the subscription to managed node events.
 ///
@@ -50,7 +49,7 @@ where
         l1_provider: RootProvider<Ethereum>,
         chain_event_sender: mpsc::Sender<ChainEvent>,
     ) -> Self {
-        let resetter = Arc::new(Resetter::new(client.clone(), db_provider));
+        let resetter = Arc::new(Resetter::new(client.clone(), l1_provider.clone(), db_provider));
 
         Self { client, resetter, l1_provider, chain_event_sender, chain_id: Mutex::new(None) }
     }
@@ -117,17 +116,16 @@ where
             timestamp: block.header.timestamp,
         };
 
-        if block.header.parent_hash != derived_ref_pair.source.hash {
+        if new_source.parent_hash != derived_ref_pair.source.hash {
             // this could happen due to a reorg.
             // this case should be handled by the reorg manager
-            warn!(
+            debug!(
                 target: "supervisor::managed_node",
                 %chain_id,
                 %new_source,
                 current_source = %derived_ref_pair.source,
                 "Parent hash mismatch. Possible reorg detected"
             );
-            return Ok(());
         }
 
         self.client.provide_l1(new_source).await.inspect_err(|err| {
@@ -613,13 +611,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_handle_exhaust_l1_returns_ok_on_parent_hash_mismatch() {
+    async fn test_handle_exhaust_l1_calls_provide_l1_on_parent_hash_mismatch() {
         let mut client = MockClient::new();
         client.expect_chain_id().times(1).returning(|| Ok(ChainId::from(42u64)));
-        client.expect_provide_l1().times(0); // Should NOT be called
+        client.expect_provide_l1().times(1).returning(|_| Ok(())); // Should be called
 
         let client = Arc::new(client);
-        let db = Arc::new(MockDb::new());
+        let db = MockDb::new();
 
         let derived_ref_pair = DerivedRefPair {
             source: BlockInfo {
@@ -676,7 +674,7 @@ mod tests {
         asserter.push(MockResponse::Success(serde_json::from_str(next_block).unwrap()));
 
         let (tx, _rx) = mpsc::channel(10);
-        let node = ManagedNode::new(client.clone(), db, l1_provider, tx);
+        let node = ManagedNode::new(client.clone(), Arc::new(db), l1_provider, tx);
 
         let result = node.handle_exhaust_l1(&derived_ref_pair).await;
         assert!(result.is_ok());

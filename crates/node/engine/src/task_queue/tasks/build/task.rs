@@ -13,8 +13,11 @@ use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types_engine::{OpExecutionPayload, OpExecutionPayloadEnvelope};
-use std::{sync::Arc, time::Instant};
-use tokio::sync::mpsc;
+use std::{
+    sync::Arc,
+    time::{Duration, Instant, SystemTime},
+};
+use tokio::{sync::mpsc, time::sleep};
 
 /// Task for building new blocks with automatic forkchoice synchronization.
 ///
@@ -90,12 +93,6 @@ impl BuildTask {
         engine_client: &EngineClient,
         attributes_envelope: OpAttributesWithParent,
     ) -> Result<PayloadId, BuildTaskError> {
-        debug!(
-            target: "engine_builder",
-            txs = attributes_envelope.inner.transactions.as_ref().map_or(0, |txs| txs.len()),
-            "Starting new build job"
-        );
-
         // Sanity check if the head is behind the finalized head. If it is, this is a critical
         // error.
         if state.sync_state.unsafe_head().block_info.number <
@@ -253,6 +250,7 @@ impl EngineTaskExt for BuildTask {
         debug!(
             target: "engine_builder",
             txs = self.attributes.inner().transactions.as_ref().map_or(0, |txs| txs.len()),
+            is_deposits = self.attributes.is_deposits_only(),
             "Starting new build job"
         );
 
@@ -262,6 +260,26 @@ impl EngineTaskExt for BuildTask {
         let payload_id = self.start_build(state, &self.engine, self.attributes.clone()).await?;
 
         let fcu_duration = fcu_start_time.elapsed();
+
+        // Compute the time of the next block.
+        let next_block = Duration::from_secs(
+            self.attributes.parent().block_info.timestamp.saturating_add(self.cfg.block_time),
+        );
+
+        // Compute the time left to seal the next block.
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .map_err(|_| BuildTaskError::ClockWentBackwards)?;
+
+        // Add a buffer to the time left to seal the next block.
+        const SEALING_BUFFER: Duration = Duration::from_millis(50);
+
+        let time_left_to_seal = next_block.saturating_sub(now).saturating_sub(SEALING_BUFFER);
+
+        // Wait for the time left to seal the next block.
+        if !time_left_to_seal.is_zero() {
+            sleep(time_left_to_seal).await;
+        }
 
         // Fetch the payload just inserted from the EL and import it into the engine.
         let block_import_start_time = Instant::now();

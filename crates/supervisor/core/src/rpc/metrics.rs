@@ -20,6 +20,7 @@ impl Metrics {
         "cross_derived_to_source";
     pub(crate) const SUPERVISOR_RPC_METHOD_DEPENDENCY_SET: &'static str = "dependency_set";
     pub(crate) const SUPERVISOR_RPC_METHOD_LOCAL_UNSAFE: &'static str = "local_unsafe";
+    pub(crate) const SUPERVISOR_RPC_METHOD_LOCAL_SAFE: &'static str = "local_safe";
     pub(crate) const SUPERVISOR_RPC_METHOD_CROSS_SAFE: &'static str = "cross_safe";
     pub(crate) const SUPERVISOR_RPC_METHOD_FINALIZED: &'static str = "finalized";
     pub(crate) const SUPERVISOR_RPC_METHOD_FINALIZED_L1: &'static str = "finalized_l1";
@@ -83,6 +84,7 @@ impl Metrics {
     fn zero() {
         Self::zero_rpc_method(Self::SUPERVISOR_RPC_METHOD_CROSS_DERIVED_TO_SOURCE);
         Self::zero_rpc_method(Self::SUPERVISOR_RPC_METHOD_LOCAL_UNSAFE);
+        Self::zero_rpc_method(Self::SUPERVISOR_RPC_METHOD_LOCAL_SAFE);
         Self::zero_rpc_method(Self::SUPERVISOR_RPC_METHOD_CROSS_SAFE);
         Self::zero_rpc_method(Self::SUPERVISOR_RPC_METHOD_FINALIZED);
         Self::zero_rpc_method(Self::SUPERVISOR_RPC_METHOD_FINALIZED_L1);

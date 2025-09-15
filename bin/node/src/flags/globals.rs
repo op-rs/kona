@@ -2,7 +2,7 @@
 
 use alloy_primitives::Address;
 use clap::Parser;
-use kona_cli::{log::LogArgs, metrics_args::MetricsArgs};
+use kona_cli::{LogArgs, MetricsArgs};
 use kona_genesis::RollupConfig;
 use kona_registry::OPCHAINS;
 

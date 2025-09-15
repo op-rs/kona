@@ -42,7 +42,7 @@ where
 
 impl<O, L1, L2, DA> OraclePipeline<O, L1, L2, DA>
 where
-    O: CommsClient + FlushableCache + FlushableCache + Send + Sync + Debug,
+    O: CommsClient + FlushableCache + Send + Sync + Debug,
     L1: ChainProvider + Send + Sync + Debug + Clone,
     L2: L2ChainProvider + Send + Sync + Debug + Clone,
     DA: DataAvailabilityProvider + Send + Sync + Debug + Clone,

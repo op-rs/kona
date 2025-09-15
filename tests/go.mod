@@ -3,19 +3,16 @@ module github.com/op-rs/kona
 go 1.24.3
 
 // We're using the "develop" branch of the Optimism repo to include the latest changes to the `devstack` package.
-require github.com/ethereum-optimism/optimism v1.13.6-0.20250818173129-f6c1dcf0ca26
+require github.com/ethereum-optimism/optimism v1.13.7-0.20250911102140-1c7497580b91
 
-require github.com/stretchr/testify v1.10.0
-
-require github.com/gorilla/websocket v1.5.3
-
-require github.com/ethereum/go-ethereum v1.15.11
-
-require github.com/libp2p/go-libp2p v0.36.2
-
-require github.com/kurtosis-tech/kurtosis/api/golang v1.8.2-0.20250602144112-2b7d06430e48
-
-require golang.org/x/sync v0.14.0
+require (
+	github.com/ethereum/go-ethereum v1.15.11
+	github.com/gorilla/websocket v1.5.3
+	github.com/kurtosis-tech/kurtosis/api/golang v1.8.2-0.20250602144112-2b7d06430e48
+	github.com/libp2p/go-libp2p v0.36.2
+	github.com/stretchr/testify v1.10.0
+	golang.org/x/sync v0.14.0
+)
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
@@ -44,8 +41,7 @@ require (
 	github.com/cockroachdb/pebble v1.1.5 // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
-	github.com/consensys/bavard v0.1.27 // indirect
-	github.com/consensys/gnark-crypto v0.16.0 // indirect
+	github.com/consensys/gnark-crypto v0.18.0 // indirect
 	github.com/containerd/cgroups v1.1.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.5 // indirect
@@ -65,13 +61,14 @@ require (
 	github.com/dop251/goja v0.0.0-20230806174421-c933cf95e127 // indirect
 	github.com/dsnet/compress v0.0.2-0.20210315054119-f66993602bf5 // indirect
 	github.com/elastic/gosigar v0.14.3 // indirect
+	github.com/emicklei/dot v1.6.2 // indirect
 	github.com/ethereum-optimism/go-ethereum-hdwallet v0.1.3 // indirect
 	github.com/ethereum-optimism/superchain-registry/validation v0.0.0-20250603144016-9c45ca7d4508 // indirect
 	github.com/ethereum/c-kzg-4844/v2 v2.1.0 // indirect
 	github.com/ethereum/go-verkle v0.2.2 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/ferranbt/fastssz v0.1.2 // indirect
+	github.com/ferranbt/fastssz v0.1.4 // indirect
 	github.com/flynn/noise v1.1.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
@@ -85,7 +82,7 @@ require (
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/go-yaml/yaml v2.1.0+incompatible // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
-	github.com/gofrs/flock v0.8.1 // indirect
+	github.com/gofrs/flock v0.12.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
@@ -157,7 +154,6 @@ require (
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/pointerstructure v1.2.1 // indirect
-	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/multiformats/go-base32 v0.1.0 // indirect
@@ -260,12 +256,12 @@ require (
 	go.uber.org/mock v0.4.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.35.0 // indirect
+	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c // indirect
 	golang.org/x/mod v0.22.0 // indirect
-	golang.org/x/net v0.36.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/term v0.29.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/term v0.30.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
 	golang.org/x/tools v0.29.0 // indirect
@@ -277,7 +273,6 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect
-	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101511.1-dev.1.0.20250608235258-6005dd53e1b5
+replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101602.1-rc.1

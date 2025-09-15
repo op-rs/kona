@@ -15,7 +15,8 @@ use kona_supervisor_storage::{
 use kona_supervisor_types::{SuperHead, parse_access_list};
 use op_alloy_rpc_types::SuperchainDAError;
 use std::{collections::HashMap, sync::Arc};
-use tracing::error;
+use tokio::sync::RwLock;
+use tracing::{error, warn};
 
 use crate::{
     SpecError, SupervisorError,
@@ -58,6 +59,11 @@ pub trait SupervisorService: Debug + Send + Sync {
     /// [`LocalUnsafe`]: SafetyLevel::LocalUnsafe
     fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
 
+    /// Returns [`LocalSafe`] block for the given chain.
+    ///
+    /// [`LocalSafe`]: SafetyLevel::LocalSafe
+    fn local_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
+
     /// Returns [`CrossSafe`] block for the given chain.
     ///
     /// [`CrossSafe`]: SafetyLevel::CrossSafe
@@ -97,7 +103,7 @@ pub struct Supervisor<M> {
 
     // As of now supervisor only supports a single managed node per chain.
     // This is a limitation of the current implementation, but it will be extended in the future.
-    managed_nodes: HashMap<ChainId, Arc<M>>,
+    managed_nodes: RwLock<HashMap<ChainId, Arc<M>>>,
 }
 
 impl<M> Supervisor<M>
@@ -106,12 +112,30 @@ where
 {
     /// Creates a new [`Supervisor`] instance.
     #[allow(clippy::new_without_default, clippy::missing_const_for_fn)]
-    pub fn new(
-        config: Arc<Config>,
-        database_factory: Arc<ChainDbFactory>,
-        managed_nodes: HashMap<ChainId, Arc<M>>,
-    ) -> Self {
-        Self { config, database_factory, managed_nodes }
+    pub fn new(config: Arc<Config>, database_factory: Arc<ChainDbFactory>) -> Self {
+        Self { config, database_factory, managed_nodes: RwLock::new(HashMap::new()) }
+    }
+
+    /// Adds a new managed node to the [`Supervisor`].
+    pub async fn add_managed_node(
+        &self,
+        chain_id: ChainId,
+        managed_node: Arc<M>,
+    ) -> Result<(), SupervisorError> {
+        // todo: instead of passing the chain ID, we should get it from the managed node
+        if !self.config.dependency_set.dependencies.contains_key(&chain_id) {
+            warn!(target: "supervisor::service", %chain_id, "Unsupported chain ID");
+            return Err(SupervisorError::UnsupportedChainId);
+        }
+
+        let mut managed_nodes = self.managed_nodes.write().await;
+        if managed_nodes.contains_key(&chain_id) {
+            warn!(target: "supervisor::service", %chain_id, "Managed node already exists for chain");
+            return Ok(());
+        }
+
+        managed_nodes.insert(chain_id, managed_node.clone());
+        Ok(())
     }
 
     fn verify_safety_level(
@@ -190,6 +214,13 @@ where
         })?)
     }
 
+    fn local_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
+        Ok(self.get_db(chain)?.get_safety_head_ref(SafetyLevel::LocalSafe).map_err(|err| {
+            error!(target: "supervisor::service", %chain, %err, "Failed to get local safe head ref for chain");
+            SpecError::from(err)
+        })?)
+    }
+
     fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
         Ok(self.get_db(chain)?.get_safety_head_ref(SafetyLevel::CrossSafe).map_err(|err| {
             error!(target: "supervisor::service", %chain, %err, "Failed to get cross safe head ref for chain");
@@ -224,9 +255,15 @@ where
         let mut cross_safe_source = BlockNumHash::default();
 
         for id in chain_ids {
-            let Some(managed_node) = self.managed_nodes.get(id) else {
-                error!(target: "supervisor::service", chain_id = %id, "Managed node not found for chain");
-                return Err(SupervisorError::ManagedNodeMissing(*id));
+            let managed_node = {
+                let guard = self.managed_nodes.read().await;
+                match guard.get(id) {
+                    Some(m) => m.clone(),
+                    None => {
+                        error!(target: "supervisor::service", chain_id = %id, "Managed node not found for chain");
+                        return Err(SupervisorError::ManagedNodeMissing(*id));
+                    }
+                }
             };
             let output_v0 = managed_node.output_v0_at_timestamp(timestamp).await?;
             let output_v0_string = serde_json::to_string(&output_v0)
@@ -307,13 +344,16 @@ where
                 executing_chain_id,
                 executing_descriptor.timestamp,
                 executing_descriptor.timeout,
-            )?;
+            ).map_err(|err| {
+                warn!(target: "supervisor::service", %err, "Failed to validate interop timestamps");
+                SpecError::SuperchainDAError(SuperchainDAError::ConflictingData)
+            })?;
 
             // Verify the initiating message exists and valid for corresponding executing message.
             let db = self.get_db(initiating_chain_id)?;
 
             let block = db.get_block(access.block_number).map_err(|err| {
-                error!(target: "supervisor::service", %initiating_chain_id, %err, "Failed to get block for chain");
+                warn!(target: "supervisor::service", %initiating_chain_id, %err, "Failed to get block for chain");
                 SpecError::from(err)
             })?;
             if block.timestamp != access.timestamp {
@@ -323,10 +363,13 @@ where
             }
 
             let log = db.get_log(access.block_number, access.log_index).map_err(|err| {
-                error!(target: "supervisor::service", %initiating_chain_id, %err, "Failed to get log for chain");
+                warn!(target: "supervisor::service", %initiating_chain_id, %err, "Failed to get log for chain");
                 SpecError::from(err)
             })?;
-            access.verify_checksum(&log.hash)?;
+            access.verify_checksum(&log.hash).map_err(|err| {
+                warn!(target: "supervisor::service", %initiating_chain_id, %err, "Failed to verify checksum for access list");
+                SpecError::SuperchainDAError(SuperchainDAError::ConflictingData)
+            })?;
 
             // The message must be included in a block that is at least as safe as required
             // by the `min_safety` level

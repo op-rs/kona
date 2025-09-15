@@ -20,7 +20,7 @@ optimism_package:
               KONA_NODE_RPC_WS_ENABLED: "true"
               KONA_NODE_RPC_DEV_ENABLED: "true"
           sequencer: true
-        optimism-1:
+        optimism-validator:
           el:
             type: op-geth
           cl:
@@ -38,6 +38,7 @@ ethereum_package:
   participants:
   - el_type: geth
     cl_type: teku
+    cl_image: consensys/teku:25.7.1
   network_params:
     preset: minimal
     genesis_delay: 5

@@ -1,9 +1,9 @@
 //! Contains the supervisor CLI.
 
-use crate::flags::SupervisorArgs;
+use crate::{flags::SupervisorArgs, metrics::VersionInfo};
 use anyhow::Result;
 use clap::Parser;
-use kona_cli::{LogConfig, cli_styles, log::LogArgs, metrics_args::MetricsArgs};
+use kona_cli::{LogArgs, LogConfig, MetricsArgs, cli_styles};
 use kona_supervisor_service::Service;
 use tracing::{error, info};
 
@@ -28,6 +28,9 @@ impl Cli {
     /// Runs the CLI.
     pub fn run(self) -> Result<()> {
         self.metrics.init_metrics()?;
+        // Register build metrics
+        VersionInfo::from_build().register_version_metrics();
+
         self.init_logs(&self.global)?;
 
         Self::run_until_ctrl_c(async move {

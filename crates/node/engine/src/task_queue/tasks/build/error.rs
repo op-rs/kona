@@ -81,6 +81,9 @@ pub enum BuildTaskError {
     /// Error sending the built payload envelope.
     #[error(transparent)]
     MpscSend(#[from] Box<mpsc::error::SendError<OpExecutionPayloadEnvelope>>),
+    /// The clock went backwards.
+    #[error("The clock went backwards")]
+    ClockWentBackwards,
 }
 
 impl EngineTaskError for BuildTaskError {
@@ -112,6 +115,7 @@ impl EngineTaskError for BuildTaskError {
             Self::DepositOnlyPayloadFailed => EngineTaskErrorSeverity::Critical,
             Self::FromBlock(_) => EngineTaskErrorSeverity::Critical,
             Self::MpscSend(_) => EngineTaskErrorSeverity::Critical,
+            Self::ClockWentBackwards => EngineTaskErrorSeverity::Critical,
         }
     }
 }

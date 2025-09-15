@@ -115,7 +115,7 @@ where
     where
         F: PreimageFetcher + Send + Sync,
     {
-        // Read the preimage request from the client, and throw early if there isn't is any.
+        // Read the preimage request from the client, and throw early if there isn't any.
         let mut buf = [0u8; 32];
         self.channel.read_exact(&mut buf).await?;
         let preimage_key = PreimageKey::try_from(buf)?;

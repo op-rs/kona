@@ -12,22 +12,33 @@ homepage.workspace = true
 workspace = true
 
 [dependencies]
+# Workspace
+kona-genesis.workspace = true
+kona-registry.workspace = true
+
+# Alloy
+alloy-chains.workspace = true
+
+# General
 tracing.workspace = true
 serde = { workspace = true, features = ["derive"]}
 clap = { workspace = true, features = ["derive", "env"] }
 tracing-subscriber = { workspace = true, features = ["fmt", "env-filter", "json", "tracing-log"] }
 tracing-appender.workspace = true
 metrics-exporter-prometheus = { workspace = true, features = ["http-listener"] }
-anyhow = { workspace = true, default-features = false }
+metrics-process.workspace = true
+thiserror.workspace = true
 
 # `secrets` feature
 libp2p = { workspace = true, features = ["secp256k1"], optional = true }
-thiserror = { workspace = true, optional = true }
-alloy-primitives = { workspace = true, optional = true }
+alloy-primitives.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
 [features]
 default = []
-secrets = [ "dep:alloy-primitives", "dep:libp2p", "dep:thiserror" ]
+secrets = [ "dep:libp2p" ]

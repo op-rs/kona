@@ -5,8 +5,7 @@ power of [`revm`][revm]'s Handler abstractions, the logic of the STF can be easi
 
 To register a custom handler, for example to add a custom precompile, modify the behavior of an EVM opcode,
 or change the fee handling, `StatelessL2BlockExecutorBuilder::with_handle_register` is your friend. It accepts a
-[`KonaHandleRegister`](https://docs.rs/kona-executor/latest/kona_executor/type.KonaHandleRegister.html), which
-can be used to take full advantage of [`revm`'s Handler API](https://github.com/bluealloy/revm/blob/f57e3e639ee157c7e659e740bd175a7357003570/documentation/src/crates/revm/handler.md#handler).
+handle register function that can be used to take full advantage of [`revm`'s Handler API](https://github.com/bluealloy/revm/blob/f57e3e639ee157c7e659e740bd175a7357003570/documentation/src/crates/revm/handler.md#handler).
 
 ## Example - Custom Precompile
 

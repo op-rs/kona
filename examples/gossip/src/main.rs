@@ -19,7 +19,7 @@
 
 use clap::Parser;
 use discv5::enr::CombinedKey;
-use kona_cli::{LogConfig, log::LogArgs};
+use kona_cli::{LogArgs, LogConfig};
 use kona_disc::LocalNode;
 use kona_node_service::{NetworkActor, NetworkConfig, NetworkContext, NodeActor};
 use kona_registry::ROLLUP_CONFIGS;

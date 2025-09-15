@@ -5,7 +5,7 @@ use alloc::string::ToString;
 use kona_preimage::{HintWriterClient, PreimageOracleClient};
 use revm::precompile::{
     PrecompileError, PrecompileOutput, PrecompileResult,
-    bn128::{
+    bn254::{
         PAIR_ELEMENT_LEN,
         pair::{self, ISTANBUL_PAIR_BASE, ISTANBUL_PAIR_PER_POINT},
     },
@@ -32,7 +32,7 @@ where
     }
 
     if input.len() % PAIR_ELEMENT_LEN != 0 {
-        return Err(PrecompileError::Bn128PairLength);
+        return Err(PrecompileError::Bn254PairLength);
     }
 
     let result_data = kona_proof::block_on(precompile_run! {
@@ -58,7 +58,7 @@ where
     O: PreimageOracleClient + Send + Sync,
 {
     if input.len() > BN256_MAX_PAIRING_SIZE_GRANITE {
-        return Err(PrecompileError::Bn128PairLength);
+        return Err(PrecompileError::Bn254PairLength);
     }
 
     fpvm_bn128_pair(input, gas_limit, hint_writer, oracle_reader)
@@ -127,7 +127,7 @@ mod test {
             let accelerated_result =
                 fpvm_bn128_pair(&input, u64::MAX, hint_writer, oracle_reader).unwrap_err();
 
-            assert!(matches!(accelerated_result, PrecompileError::Bn128PairLength));
+            assert!(matches!(accelerated_result, PrecompileError::Bn254PairLength));
         })
         .await;
     }
@@ -139,7 +139,7 @@ mod test {
             let accelerated_result =
                 fpvm_bn128_pair(&input, u64::MAX, hint_writer, oracle_reader).unwrap_err();
 
-            assert!(matches!(accelerated_result, PrecompileError::Bn128PairLength));
+            assert!(matches!(accelerated_result, PrecompileError::Bn254PairLength));
         })
         .await;
     }

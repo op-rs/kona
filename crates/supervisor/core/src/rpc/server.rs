@@ -89,6 +89,25 @@ where
         )
     }
 
+    async fn local_safe(&self, chain_id_hex: HexStringU64) -> RpcResult<DerivedIdPair> {
+        let chain_id = ChainId::from(chain_id_hex);
+        crate::observe_rpc_call!(
+            Metrics::SUPERVISOR_RPC_METHOD_LOCAL_SAFE,
+            async {
+                trace!(target: "supervisor::rpc",
+                    %chain_id,
+                    "Received local_safe request"
+                );
+
+                let derived = self.supervisor.local_safe(chain_id)?.id();
+                let source = self.supervisor.derived_to_source_block(chain_id, derived)?.id();
+
+                Ok(DerivedIdPair { source, derived })
+            }
+            .await
+        )
+    }
+
     async fn dependency_set_v1(&self) -> RpcResult<DependencySet> {
         crate::observe_rpc_call!(
             Metrics::SUPERVISOR_RPC_METHOD_DEPENDENCY_SET,
@@ -333,6 +352,7 @@ mod tests {
             fn latest_block_from(&self, l1_block: BlockNumHash, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
             fn derived_to_source_block(&self, chain: ChainId, derived: BlockNumHash) -> Result<BlockInfo, SupervisorError>;
             fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
+            fn local_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
             fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
             fn finalized(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
             fn finalized_l1(&self) -> Result<BlockInfo, SupervisorError>;

@@ -17,6 +17,7 @@ members = [
   "crates/node/*",
   "crates/supervisor/*",
   "crates/protocol/*",
+  "crates/batcher/*",
   "crates/providers/*",
   "crates/utilities/*",
   "examples/*",
@@ -26,6 +27,7 @@ default-members = [
   "bin/client",
   "bin/node",
   "bin/supervisor",
+  "bin/rollup",
 ]
 
 [workspace.metadata.cargo-udeps.ignore]
@@ -77,7 +79,7 @@ kona-host = { path = "bin/host", version = "1.0.2", default-features = false }
 kona-client = { path = "bin/client", version = "1.0.2", default-features = false }
 
 # Protocol
-kona-comp = { path = "crates/protocol/comp", version = "0.4.5", default-features = false }
+kona-comp = { path = "crates/batcher/comp", version = "0.4.5", default-features = false }
 kona-derive = { path = "crates/protocol/derive", version = "0.4.5", default-features = false }
 kona-interop = { path = "crates/protocol/interop", version = "0.4.5", default-features = false }
 kona-genesis = { path = "crates/protocol/genesis", version = "0.4.5", default-features = false }
@@ -104,6 +106,7 @@ kona-supervisor-metrics = { path = "crates/supervisor/metrics", version = "0.1.0
 
 # Providers
 kona-providers-alloy = { path = "crates/providers/providers-alloy", version = "0.3.3", default-features = false }
+kona-providers-local = { path = "crates/providers/providers-local", version = "0.1.0", default-features = false }
 
 # Proof
 kona-driver = { path = "crates/proof/driver", version = "0.4.0", default-features = false }
@@ -154,12 +157,12 @@ op-alloy-rpc-jsonrpsee = { version = "0.18.14", default-features = false }
 op-alloy-rpc-types-engine = { version = "0.18.14", default-features = false }
 
 # Execution
-revm = { version = "27.0", default-features = false }
-op-revm = { version = "8.0", default-features = false }
-alloy-evm = { version = "0.14", default-features = false }
-alloy-op-evm = { version = "0.14", default-features = false }
+revm = { version = "28.0.1", default-features = false }
+op-revm = { version = "9.0.1", default-features = false }
+alloy-evm = { version = "0.18.3", default-features = false }
+alloy-op-evm = { version = "0.18.3", default-features = false }
 
-# Reth (pinned to v1.4.8 for kona-supervisor-storage)
+# Reth (pinned to v1.6.0 for kona-supervisor-storage)
 reth-db-api = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
 reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
 reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
@@ -230,7 +233,7 @@ ipnet = "2.11.0"
 
 # Tracing
 tracing-loki = "0.2.6"
-tracing-subscriber = "0.3.19"
+tracing-subscriber = "0.3.20"
 tracing-appender = "0.2.3"
 tracing = { version = "0.1.41", default-features = false }
 
@@ -238,6 +241,7 @@ tracing = { version = "0.1.41", default-features = false }
 metrics = { version = "0.24.2", default-features = false }
 prometheus = { version = "0.14.0", default-features = false }
 metrics-exporter-prometheus = { version = "0.17.0", default-features = false }
+metrics-process = "2.4.0"
 
 # Testing
 pprof = "0.15.0"
@@ -255,7 +259,7 @@ serde = { version = "1.0.219", default-features = false }
 serde_json = { version = "1.0.140", default-features = false }
 
 # K/V database
-rocksdb = { version = "0.23.0", default-features = false }
+rocksdb = { version = "0.24.0", default-features = false }
 
 # Cryptography
 sha2 = { version = "0.10.9", default-features = false }

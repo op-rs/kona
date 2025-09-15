@@ -8,7 +8,7 @@ use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use backon::{ExponentialBuilder, Retryable};
 use clap::Parser;
-use kona_cli::{LogConfig, metrics_args::MetricsArgs};
+use kona_cli::{LogConfig, MetricsArgs};
 use kona_genesis::RollupConfig;
 use kona_node_service::{NodeMode, RollupNode, RollupNodeService};
 use kona_registry::scr_rollup_config_by_alloy_ident;
@@ -60,7 +60,7 @@ pub(super) enum JwtValidationError {
 ///           --l1-eth-rpc http://localhost:8545 \
 ///           --l1-beacon http://localhost:5052 \
 ///           --l2-engine-rpc http://localhost:8551 \
-///           --l2-jwt-secret /path/to/jwt.hex
+///           --l2-engine-jwt-secret /path/to/jwt.hex
 /// ```
 #[derive(Parser, PartialEq, Debug, Clone)]
 #[command(about = "Runs the consensus node")]

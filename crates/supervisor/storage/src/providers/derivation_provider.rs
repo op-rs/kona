@@ -209,7 +209,7 @@ where
         })?;
 
         let (_, block) = result.ok_or_else(|| {
-            error!(
+            warn!(
                 target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 "No blocks found in storage"
@@ -330,7 +330,7 @@ where
             if incoming_pair == stored_pair.into() {
                 return Ok(());
             } else {
-                error!(
+                warn!(
                     target: "supervisor::storage",
                     chain_id = %self.chain_id,
                     %latest_derivation_state,
@@ -477,7 +477,7 @@ where
         }
 
         if !latest_source_block.is_parent_of(&incoming_source) {
-            error!(
+            warn!(
                 target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 latest_source_block = %latest_source_block,

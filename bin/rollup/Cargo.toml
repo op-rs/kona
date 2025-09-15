@@ -1,0 +1,28 @@
+[package]
+name = "rollup"
+version = "0.0.0"
+description = "rollup"
+
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+keywords.workspace = true
+repository.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# Workspace
+kona-genesis.workspace = true
+
+kona-cli = { workspace = true, features = ["secrets"] }
+
+# General
+clap = { workspace = true, features = ["derive", "env"] }
+
+[build-dependencies]
+vergen = { workspace = true, features = ["build", "cargo", "emit_and_set"] }
+vergen-git2.workspace = true

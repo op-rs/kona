@@ -26,7 +26,7 @@ where
         &self,
         origin: BlockInfo,
         state: &mut ProcessorState,
-    ) -> Result<(), ChainProcessorError> {
+    ) -> Result<BlockInfo, ChainProcessorError> {
         trace!(
             target: "supervisor::chain_processor",
             chain_id = self.chain_id,
@@ -41,11 +41,11 @@ where
                 %origin,
                 "Invalidated block set, skipping derivation origin update"
             );
-            return Ok(());
+            return Ok(origin);
         }
 
         match self.db_provider.save_source_block(origin) {
-            Ok(()) => Ok(()),
+            Ok(_) => Ok(origin),
             Err(StorageError::BlockOutOfOrder) => {
                 debug!(
                     target: "supervisor::chain_processor",
@@ -66,7 +66,7 @@ where
                         ChainProcessorError::ChannelSendFailed(err.to_string())
                     },
                 )?;
-                Ok(())
+                Ok(origin)
             }
             Err(err) => {
                 error!(

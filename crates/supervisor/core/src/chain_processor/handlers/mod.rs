@@ -15,6 +15,7 @@ pub use unsafe_block::UnsafeBlockHandler;
 
 use crate::{ChainProcessorError, ProcessorState};
 use async_trait::async_trait;
+use kona_protocol::BlockInfo;
 
 /// [`EventHandler`] trait defines the interface for handling different types of events in the chain
 /// processor. Each handler will implement this trait to process specific events like block updates,
@@ -22,6 +23,9 @@ use async_trait::async_trait;
 #[async_trait]
 pub trait EventHandler<E> {
     /// Handle the event with the given state.
-    async fn handle(&self, event: E, state: &mut ProcessorState)
-    -> Result<(), ChainProcessorError>;
+    async fn handle(
+        &self,
+        event: E,
+        state: &mut ProcessorState,
+    ) -> Result<BlockInfo, ChainProcessorError>;
 }

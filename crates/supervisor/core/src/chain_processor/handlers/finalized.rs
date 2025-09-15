@@ -29,7 +29,7 @@ where
         &self,
         finalized_source_block: BlockInfo,
         _state: &mut ProcessorState,
-    ) -> Result<(), ChainProcessorError> {
+    ) -> Result<BlockInfo, ChainProcessorError> {
         trace!(
             target: "supervisor::chain_processor",
             chain_id = self.chain_id,
@@ -38,12 +38,7 @@ where
         );
 
         let result = self.inner_handle(finalized_source_block).await;
-        Metrics::record_block_processing(
-            self.chain_id,
-            Metrics::BLOCK_TYPE_FINALIZED,
-            finalized_source_block,
-            &result,
-        );
+        Metrics::record_block_processing(self.chain_id, Metrics::BLOCK_TYPE_FINALIZED, &result);
 
         result
     }
@@ -56,7 +51,7 @@ where
     async fn inner_handle(
         &self,
         finalized_source_block: BlockInfo,
-    ) -> Result<(), ChainProcessorError> {
+    ) -> Result<BlockInfo, ChainProcessorError> {
         let finalized_derived_block = self
             .db_provider
             .update_finalized_using_source(finalized_source_block)
@@ -83,7 +78,7 @@ where
                 );
                 ChainProcessorError::ChannelSendFailed(err.to_string())
             })?;
-        Ok(())
+        Ok(finalized_derived_block)
     }
 }
 
