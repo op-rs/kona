@@ -571,15 +571,6 @@ where
                     100.0
                 };
 
-                info!(
-                    target: "supervisor::storage",
-                    chain_id = %self.chain_id,
-                    block_number = %key,
-                    percentage = %format!("{:.2}%", percentage),
-                    processed_blocks,
-                    total_blocks,
-                    "Validated block for rewind"
-                );
 
                 // Log progress periodically or on last block
                 if processed_blocks % DEFAULT_LOG_INTERVAL == 0 || processed_blocks == total_blocks
