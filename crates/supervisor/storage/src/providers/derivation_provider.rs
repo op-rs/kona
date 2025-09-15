@@ -31,7 +31,7 @@ impl<'tx, TX> DerivationProvider<'tx, TX> {
         Self { tx, chain_id, observability_interval: DEFAULT_LOG_INTERVAL }
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn new_with_observability_interval(
         tx: &'tx TX,
         chain_id: ChainId,
