@@ -7,7 +7,7 @@ use crate::{
 };
 
 /// Base fee max change denominator for Optimism Mainnet as defined in the Optimism
-/// [transaction costs](https://community.optimism.io/docs/developers/build/differences/#transaction-costs) doc.
+/// [transaction costs](https://docs.optimism.io/app-developers/transactions/fees) doc.
 pub const OP_MAINNET_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR: u64 = 50;
 
 /// Base fee max change denominator for Optimism Mainnet as defined in the Optimism Canyon
@@ -15,11 +15,11 @@ pub const OP_MAINNET_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR: u64 = 50;
 pub const OP_MAINNET_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON: u64 = 250;
 
 /// Base fee max change denominator for Optimism Mainnet as defined in the Optimism
-/// [transaction costs](https://community.optimism.io/docs/developers/build/differences/#transaction-costs) doc.
+/// [transaction costs](https://docs.optimism.io/app-developers/transactions/fees) doc.
 pub const OP_MAINNET_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER: u64 = 6;
 
 /// Base fee max change denominator for Optimism Sepolia as defined in the Optimism
-/// [transaction costs](https://community.optimism.io/docs/developers/build/differences/#transaction-costs) doc.
+/// [transaction costs](https://docs.optimism.io/app-developers/transactions/fees) doc.
 pub const OP_SEPOLIA_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR: u64 = 50;
 
 /// Base fee max change denominator for Optimism Sepolia as defined in the Optimism Canyon
@@ -27,11 +27,11 @@ pub const OP_SEPOLIA_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR: u64 = 50;
 pub const OP_SEPOLIA_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON: u64 = 250;
 
 /// Base fee max change denominator for Optimism Sepolia as defined in the Optimism
-/// [transaction costs](https://community.optimism.io/docs/developers/build/differences/#transaction-costs) doc.
+/// [transaction costs](https://docs.optimism.io/app-developers/transactions/fees) doc.
 pub const OP_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER: u64 = 6;
 
 /// Base fee max change denominator for Base Sepolia as defined in the Optimism
-/// [transaction costs](https://community.optimism.io/docs/developers/build/differences/#transaction-costs) doc.
+/// [transaction costs](https://docs.optimism.io/app-developers/transactions/fees) doc.
 pub const BASE_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER: u64 = 10;
 
 /// Base fee max change denominator for Base Sepolia as defined in the Optimism Canyon
@@ -43,7 +43,7 @@ pub const BASE_SEPOLIA_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR: u64 = 50
 pub const BASE_SEPOLIA_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON: u64 = 250;
 
 /// Base fee max change denominator for Base Mainnet as defined in the Optimism
-/// [transaction costs](https://community.optimism.io/docs/developers/build/differences/#transaction-costs) doc.
+/// [transaction costs](https://docs.optimism.io/app-developers/transactions/fees) doc.
 pub const BASE_MAINNET_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER: u64 = 6;
 
 /// Base fee max change denominator for Base Mainnet as defined in the Optimism Canyon

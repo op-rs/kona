@@ -4303,7 +4303,6 @@ version = "0.3.2"
 dependencies = [
  "alloy-chains",
  "alloy-primitives",
- "anyhow",
  "clap",
  "kona-genesis",
  "kona-registry",
@@ -8281,7 +8280,6 @@ dependencies = [
 name = "rollup"
 version = "0.0.0"
 dependencies = [
- "anyhow",
  "clap",
  "kona-cli",
  "kona-genesis",
