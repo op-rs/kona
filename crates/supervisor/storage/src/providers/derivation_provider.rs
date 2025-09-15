@@ -13,7 +13,7 @@ use reth_db_api::{
     cursor::DbCursorRO,
     transaction::{DbTx, DbTxMut},
 };
-use tracing::{error, info, warn};
+use tracing::{error, info, trace, warn};
 
 const DEFAULT_LOG_INTERVAL: u64 = 100;
 
@@ -571,10 +571,8 @@ where
                     100.0
                 };
 
-
                 // Log progress periodically or on last block
-                if processed_blocks % DEFAULT_LOG_INTERVAL == 0
-                {
+                if processed_blocks % DEFAULT_LOG_INTERVAL == 0 {
                     info!(
                         target: "supervisor::storage",
                         chain_id = %self.chain_id,

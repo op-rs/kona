@@ -77,7 +77,7 @@ where
             if stored_block == *block {
                 return Ok(());
             }
-            error!(
+            warn!(
                 target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 %stored_block,
