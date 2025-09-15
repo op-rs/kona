@@ -198,6 +198,8 @@ where
                     );
                     return Err(StorageError::ConflictError);
                 }
+                // remove the block
+                walker.delete_current()?;
 
                 processed_blocks += 1;
                 let percentage = if total_blocks > 0 {
@@ -217,8 +219,6 @@ where
                     "Validated block for rewind"
                 );
 
-                // remove the block
-                walker.delete_current()?;
                 // remove the logs of that block
                 self.tx.delete::<LogEntries>(key, None)?;
 

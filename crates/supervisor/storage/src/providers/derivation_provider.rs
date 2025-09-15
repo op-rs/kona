@@ -7,7 +7,6 @@ use crate::{
 };
 use alloy_eips::eip1898::BlockNumHash;
 use alloy_primitives::ChainId;
-use derive_more::Constructor;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 use reth_db_api::{
@@ -16,11 +15,33 @@ use reth_db_api::{
 };
 use tracing::{error, info, warn};
 
+const DEFAULT_LOG_INTERVAL: u64 = 100;
+
 /// Provides access to derivation storage operations within a transaction.
-#[derive(Debug, Constructor)]
+#[derive(Debug)]
 pub(crate) struct DerivationProvider<'tx, TX> {
     tx: &'tx TX,
     chain_id: ChainId,
+    #[doc(hidden)]
+    observability_interval: u64,
+}
+
+impl<'tx, TX> DerivationProvider<'tx, TX> {
+    pub(crate) fn new(tx: &'tx TX, chain_id: ChainId) -> Self {
+        Self { tx, chain_id, observability_interval: DEFAULT_LOG_INTERVAL }
+    }
+
+    pub(crate) fn new_with_observability_interval(
+        tx: &'tx TX,
+        chain_id: ChainId,
+        observability_interval: Option<u64>,
+    ) -> Self {
+        Self {
+            tx,
+            chain_id,
+            observability_interval: observability_interval.unwrap_or(DEFAULT_LOG_INTERVAL),
+        }
+    }
 }
 
 impl<TX> DerivationProvider<'_, TX>
@@ -519,7 +540,6 @@ where
         }
 
         let total_blocks = latest_block.saturating_sub(block.number);
-        const LOG_INTERVAL: u64 = 100;
         let mut processed_blocks = 0;
 
         // Delete all derived blocks with number ≥ `block.number`
@@ -534,11 +554,16 @@ where
                 target_block_hash = %block.hash,
                 latest_block,
                 total_blocks,
+                observability_interval = %self.observability_interval,
                 "Starting rewind of derived block storage"
             );
 
             while let Some(Ok((key, _stored_block))) = walker.next() {
+                // Remove the block
+                walker.delete_current()?;
+
                 processed_blocks += 1;
+
                 let percentage = if total_blocks > 0 {
                     (processed_blocks as f64 / total_blocks as f64 * 100.0).min(100.0)
                 } else {
@@ -555,11 +580,9 @@ where
                     "Validated block for rewind"
                 );
 
-                // Remove the block
-                walker.delete_current()?;
-
                 // Log progress periodically or on last block
-                if processed_blocks % LOG_INTERVAL == 0 || processed_blocks == total_blocks {
+                if processed_blocks % DEFAULT_LOG_INTERVAL == 0 || processed_blocks == total_blocks
+                {
                     info!(
                         target: "supervisor::storage",
                         chain_id = %self.chain_id,
@@ -1202,7 +1225,82 @@ mod tests {
     fn test_rewind_block_to_success() {
         let db = setup_db();
         let tx = db.tx_mut().expect("Failed to get mutable tx");
-        let provider = DerivationProvider::new(&tx, CHAIN_ID);
+
+        // Use the new constructor with observability interval = 1 for detailed logging in tests
+        let provider =
+            DerivationProvider::new_with_observability_interval(&tx, CHAIN_ID, Some(100));
+
+        let derived_genesis = block_info(9, genesis_block().hash, 201);
+        provider
+            .initialise(derived_pair(genesis_block(), derived_genesis))
+            .expect("initialise should succeed");
+
+        // Setup:
+        // Block 1: derived blocks 10, 11, 12
+        // Block 2: derived blocks 13, 14
+        // We will rewind to (source: 1, derived: 11)
+        // After rewind:
+        // - Block 1 keeps only 10
+        // - Block 2 is removed completely
+        // Rewind 2 - to block 10
+        // After rewind: Only genesis left
+        let (source1, source2) = {
+            let s1 = block_info(1, genesis_block().hash, 200);
+            let s2 = block_info(2, s1.hash, 300);
+            (s1, s2)
+        };
+
+        let (derived10, derived11, derived12, derived13, derived14) = {
+            let d1 = block_info(10, derived_genesis.hash, 195);
+            let d2 = block_info(11, d1.hash, 197);
+            let d3 = block_info(12, d2.hash, 290);
+            let d4 = block_info(13, d3.hash, 292);
+            let d5 = block_info(14, d4.hash, 295);
+            (d1, d2, d3, d4, d5)
+        };
+
+        provider.save_source_block(source1).expect("Failed to save source block 1");
+        provider
+            .save_derived_block(derived_pair(source1, derived10))
+            .expect("Failed to save derived block 10");
+        provider
+            .save_derived_block(derived_pair(source1, derived11))
+            .expect("Failed to save derived block 11");
+        provider
+            .save_derived_block(derived_pair(source1, derived12))
+            .expect("Failed to save derived block 12");
+        provider.save_source_block(source2).expect("Failed to save source block 2");
+        provider
+            .save_derived_block(derived_pair(source2, derived13))
+            .expect("Failed to save derived block 13");
+        provider
+            .save_derived_block(derived_pair(source2, derived14))
+            .expect("Failed to save derived block 14");
+
+        let rewind_point = derived11;
+        // This will now log every single block being rewound with percentage
+        provider.rewind_to(&rewind_point.id()).expect("rewind should succeed");
+
+        // Expect: source block 1 retains only derived 10
+        let new_state = provider.latest_derivation_state().expect("should succeed");
+        assert_eq!(new_state.derived, derived10);
+        assert_eq!(new_state.source, source1);
+
+        let rewind_point = derived10;
+        // This will also log every single block being rewound with percentage
+        provider.rewind_to(&rewind_point.id()).expect("rewind should succeed");
+
+        // Expect: source block 1 retains nothing, genesis should be new latest source
+        let new_state = provider.latest_derivation_state().expect("should should succeed");
+        assert_eq!(new_state.derived, derived_genesis);
+        assert_eq!(new_state.source, genesis_block());
+    }
+    #[test]
+    fn test_rewind_block_to_success_with_new_observability_interval() {
+        let db = setup_db();
+        let interval = Some(12);
+        let tx = db.tx_mut().expect("Failed to get mutable tx");
+        let provider = DerivationProvider::new_with_observability_interval(&tx, CHAIN_ID, interval);
         let derived_genesis = block_info(9, genesis_block().hash, 201);
         provider
             .initialise(derived_pair(genesis_block(), derived_genesis))
