@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kind: ["cannon", "asterisc"]
+        kind: ["cannon"]
         version: ["kona", "kona-int"]
     steps: 
       - name: Checkout sources
@@ -23,28 +23,30 @@ jobs:
         uses: jlumbroso/free-disk-space@main
         with:
           large-packages: false
+
       - uses: ./.github/actions/setup
         with:
           components: llvm-tools-preview
           prefix-key: ${{ matrix.kind }}
 
-      - uses: google-github-actions/auth@v2
+      - name: Authenticate to GCP
+        id: 'auth'
+        uses: google-github-actions/auth@v3
         with:
-          credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
+          create_credentials_file: 'true'
+          workload_identity_provider: 'projects/oplabs-tools-artifacts/locations/global/workloadIdentityPools/external-op-rs-ci/provider/github-op-rs-oidc'
+          service_account: 'rust-enviroment-uploader@oplabs-tools-artifacts.iam.gserviceaccount.com'
 
-      - uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: oplabs-network-data
+      - uses: taiki-e/install-action@just
 
       - name: Generate prestate artifacts
         run: |
           HASH="$(cat .config/monorepo)"
           cd docker/fpvm-prestates
           just "${{ matrix.kind }}" "${{ matrix.version }}" "${{ github.ref_name }}" "$HASH"
-      - run: 
-           no_output_timeout: 30m 
-           name: Upload prestates artifacts 
-           command: | 
+
+      - name: Upload prestates artifacts to GCS
+        run: |
              # Use the actual hash for tags (hash can be found by reading releases.json) 
              PRESTATE_HASH=$(jq -r .pre ./prestate-artifacts-${{ matrix.kind }}/prestate-proof.json) 
   
@@ -67,5 +69,9 @@ jobs:
                # Use the branch name for branches to provide a consistent URL 
                PRESTATE_HASH="${BRANCH_NAME}-${{ matrix.version }}" 
              fi 
-             gsutil cp ./prestate-artifacts-${{ matrix.kind }}/prestate.bin.gz \ 
-               "gs://oplabs-network-data/proofs/op-program/kona/${{ matrix.kind }}/${PRESTATE_HASH}-prestate.bin.gz" 
+
+             gcloud auth login --brief --cred-file="${{ steps.auth.outputs.credentials_file_path }}"
+
+             gsutil cp ./prestate-artifacts-${{ matrix.kind }}/prestate.bin.gz "gs://kona-proof-prestates/${{ matrix.kind }}/${PRESTATE_HASH}-prestate.bin.gz" 
+
+             echo "Successfully published prestates artifacts to GCS"
