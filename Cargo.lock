@@ -4749,6 +4749,7 @@ dependencies = [
  "serde_json",
  "strum",
  "tabled",
+ "tempfile",
  "thiserror 2.0.16",
  "tokio",
  "tokio-stream",
