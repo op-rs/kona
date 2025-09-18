@@ -141,11 +141,9 @@ impl From<StorageError> for SpecError {
             StorageError::Database(_) => Self::from(SuperchainDAError::DataCorruption),
             StorageError::FutureData => Self::from(SuperchainDAError::FutureData),
             StorageError::EntryNotFound(_) => Self::from(SuperchainDAError::MissedData),
-            StorageError::DatabaseNotInitialised => {
-                Self::from(SuperchainDAError::UninitializedChainDatabase)
-            }
             StorageError::ConflictError => Self::from(SuperchainDAError::ConflictingData),
             StorageError::BlockOutOfOrder => Self::from(SuperchainDAError::OutOfOrder),
+            StorageError::DatabaseNotInitialised => Self::ErrorNotInSpec,
             _ => Self::ErrorNotInSpec,
         }
     }
@@ -160,8 +158,7 @@ mod test {
     #[test]
     fn test_storage_error_conversion() {
         let test_err = SpecError::from(StorageError::DatabaseNotInitialised);
-        let expected_err =
-            SpecError::SuperchainDAError(SuperchainDAError::UninitializedChainDatabase);
+        let expected_err = SpecError::ErrorNotInSpec;
 
         assert_eq!(test_err, expected_err);
     }

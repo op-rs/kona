@@ -123,14 +123,14 @@ pub enum AlloyChainProviderError {
 impl From<AlloyChainProviderError> for PipelineErrorKind {
     fn from(e: AlloyChainProviderError) -> Self {
         match e {
-            AlloyChainProviderError::Transport(e) => PipelineErrorKind::Temporary(
-                PipelineError::Provider(format!("Transport error: {e}")),
-            ),
-            AlloyChainProviderError::BlockNotFound(id) => PipelineErrorKind::Temporary(
-                PipelineError::Provider(format!("L1 Block not found: {id}")),
-            ),
+            AlloyChainProviderError::Transport(e) => {
+                Self::Temporary(PipelineError::Provider(format!("Transport error: {e}")))
+            }
+            AlloyChainProviderError::BlockNotFound(id) => {
+                Self::Temporary(PipelineError::Provider(format!("L1 Block not found: {id}")))
+            }
             AlloyChainProviderError::ReceiptsConversion(_) => {
-                PipelineErrorKind::Temporary(PipelineError::Provider(
+                Self::Temporary(PipelineError::Provider(
                     "Failed to convert RPC receipts into consensus receipts".to_string(),
                 ))
             }

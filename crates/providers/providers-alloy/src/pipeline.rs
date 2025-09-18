@@ -14,7 +14,7 @@ use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use std::sync::Arc;
 
 /// An online polled derivation pipeline.
-pub type OnlinePolledDerivationPipeline = DerivationPipeline<
+type OnlinePolledDerivationPipeline = DerivationPipeline<
     PolledAttributesQueueStage<
         OnlineDataProvider,
         AlloyChainProvider,
@@ -25,7 +25,7 @@ pub type OnlinePolledDerivationPipeline = DerivationPipeline<
 >;
 
 /// An online managed derivation pipeline.
-pub type OnlineManagedDerivationPipeline = DerivationPipeline<
+type OnlineManagedDerivationPipeline = DerivationPipeline<
     IndexedAttributesQueueStage<
         OnlineDataProvider,
         AlloyChainProvider,
@@ -36,13 +36,12 @@ pub type OnlineManagedDerivationPipeline = DerivationPipeline<
 >;
 
 /// An RPC-backed Ethereum data source.
-pub type OnlineDataProvider =
+type OnlineDataProvider =
     EthereumDataSource<AlloyChainProvider, OnlineBlobProvider<OnlineBeaconClient>>;
 
 /// An RPC-backed payload attributes builder for the `AttributesQueue` stage of the derivation
 /// pipeline.
-pub type OnlineAttributesBuilder =
-    StatefulAttributesBuilder<AlloyChainProvider, AlloyL2ChainProvider>;
+type OnlineAttributesBuilder = StatefulAttributesBuilder<AlloyChainProvider, AlloyL2ChainProvider>;
 
 /// An online derivation pipeline.
 #[derive(Debug)]
@@ -106,9 +105,9 @@ impl OnlinePipeline {
         let dap = EthereumDataSource::new_from_parts(chain_provider.clone(), blob_provider, &cfg);
 
         let pipeline = PipelineBuilder::new()
-            .rollup_config(cfg.clone())
+            .rollup_config(cfg)
             .dap_source(dap)
-            .l2_chain_provider(l2_chain_provider.clone())
+            .l2_chain_provider(l2_chain_provider)
             .chain_provider(chain_provider)
             .builder(attributes)
             .origin(BlockInfo::default())
@@ -138,9 +137,9 @@ impl OnlinePipeline {
         let dap = EthereumDataSource::new_from_parts(chain_provider.clone(), blob_provider, &cfg);
 
         let pipeline = PipelineBuilder::new()
-            .rollup_config(cfg.clone())
+            .rollup_config(cfg)
             .dap_source(dap)
-            .l2_chain_provider(l2_chain_provider.clone())
+            .l2_chain_provider(l2_chain_provider)
             .chain_provider(chain_provider)
             .builder(attributes)
             .origin(BlockInfo::default())

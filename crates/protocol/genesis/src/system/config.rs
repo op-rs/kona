@@ -37,6 +37,10 @@ pub struct SystemConfig {
     pub operator_fee_scalar: Option<u32>,
     /// The operator fee constant (isthmus hardfork)
     pub operator_fee_constant: Option<u64>,
+    /// Min base fee (jovian hardfork)
+    /// Note: according to the [spec](https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/jovian/system-config.md#initialization), as long as the MinBaseFee is not
+    /// explicitly set, the default value (`0`) will be systematically applied.
+    pub min_base_fee: Option<u64>,
 }
 
 /// Custom EIP-1559 parameter decoding is needed here for holocene encoding.
@@ -70,6 +74,7 @@ impl<'a> serde::Deserialize<'a> for SystemConfig {
             operator_fee_params: Option<B256>,
             operator_fee_scalar: Option<u32>,
             operator_fee_constant: Option<u64>,
+            min_base_fee: Option<u64>,
         }
 
         let mut alias = SystemConfigAlias::deserialize(deserializer)?;
@@ -99,6 +104,7 @@ impl<'a> serde::Deserialize<'a> for SystemConfig {
             eip1559_elasticity: alias.eip1559_elasticity,
             operator_fee_scalar: alias.operator_fee_scalar,
             operator_fee_constant: alias.operator_fee_constant,
+            min_base_fee: alias.min_base_fee,
         })
     }
 }

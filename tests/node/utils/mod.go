@@ -10,6 +10,9 @@ import (
 	"github.com/kurtosis-tech/kurtosis/api/golang/engine/lib/kurtosis_context"
 )
 
+const DefaultL1ID = 900
+const DefaultL2ID = 901
+
 // --- Generic RPC request/response types -------------------------------------
 
 // ---------------------------------------------------------------------------
@@ -18,7 +21,7 @@ const (
 	DEFAULT_TIMEOUT = 10 * time.Second
 )
 
-// GetCPUStats executes shell commands to get CPU usage statistics from a service
+// rpcEndpoint gets the RPC endpoint URL for a specified service from Kurtosis
 func rpcEndpoint(ctx context.Context, serviceName string) (string, error) {
 	kurtosisCtx, err := kurtosis_context.NewKurtosisContextFromLocalEngine()
 	if err != nil {
