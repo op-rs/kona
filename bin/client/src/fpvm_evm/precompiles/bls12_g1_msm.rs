@@ -6,12 +6,13 @@
 //!
 //! [revm implementation]: https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/g1_msm.rs
 
-use crate::fpvm_evm::precompiles::utils::{msm_required_gas, precompile_run};
+use crate::fpvm_evm::precompiles::utils::precompile_run;
 use alloc::string::ToString;
 use kona_preimage::{HintWriterClient, PreimageOracleClient};
 use revm::precompile::{
     PrecompileError, PrecompileOutput, PrecompileResult, bls12_381,
     bls12_381_const::{DISCOUNT_TABLE_G1_MSM, G1_MSM_BASE_GAS_FEE, G1_MSM_INPUT_LENGTH},
+    bls12_381_utils::msm_required_gas,
 };
 
 /// The maximum input size for the BLS12-381 g1 msm operation after the Isthmus Hardfork.
@@ -49,10 +50,12 @@ where
         return Err(PrecompileError::OutOfGas);
     }
 
+    let precompile = bls12_381::g1_msm::PRECOMPILE;
+
     let result_data = kona_proof::block_on(precompile_run! {
         hint_writer,
         oracle_reader,
-        &[bls12_381::g1_msm::PRECOMPILE.address().as_slice(), &required_gas.to_be_bytes(), input]
+        &[precompile.address().as_slice(), &required_gas.to_be_bytes(), input]
     })
     .map_err(|e| PrecompileError::Other(e.to_string()))?;
 

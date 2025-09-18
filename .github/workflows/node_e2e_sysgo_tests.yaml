@@ -22,6 +22,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           channel: stable
+          components: llvm-tools-preview
 
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
@@ -29,6 +30,8 @@ jobs:
           large-packages: false
 
       - uses: taiki-e/install-action@just
+
+      - uses: taiki-e/install-action@cargo-llvm-cov
 
       - uses: jdx/mise-action@v3       # installs Mise + runs `mise install`
 
@@ -39,14 +42,56 @@ jobs:
           go-version: '1.24.3'
           cache-dependency-path: "**/go.sum"
 
-      - name: common tests for node with sysgo orchestrator
-        run: just test-e2e-sysgo node node/common
+      - name: common tests for node with sysgo orchestrator and report coverage
+        run: |
+          source <(cargo llvm-cov show-env --export-prefix)
+          just test-e2e-sysgo node node/common
+          cargo llvm-cov report --lcov --output-path node_common_cov.lcov
+      
+      - name: Upload coverage to codecov.io
+        uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: node_common_cov.lcov
+          flags: e2e
+          env_vars: OS,RUST
+          name: node-sysgo-tests-common
+          verbose: true
 
-      - name: restart tests for node with sysgo orchestrator
-        run: just test-e2e-sysgo node node/restart
+      - name: restart tests for node with sysgo orchestrator and report coverage
+        run: |
+          source <(cargo llvm-cov show-env --export-prefix)
+          just test-e2e-sysgo node node/restart
+          cargo llvm-cov report --lcov --output-path node_restart_cov.lcov
 
-      - name: l2 reorg tests for node with sysgo orchestrator
-        run: just test-e2e-sysgo node node/l2_reorg
+      - name: Upload coverage to codecov.io
+        uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: node_restart_cov.lcov
+          flags: e2e
+          env_vars: OS,RUST
+          name: node-sysgo-tests-restart
+          verbose: true
+
+      - name: reorg tests for node with sysgo orchestrator and report coverage
+        run: |
+          source <(cargo llvm-cov show-env --export-prefix)
+          just test-e2e-sysgo node node/reorgs
+          cargo llvm-cov report --lcov --output-path node_reorgs_cov.lcov
+
+      - name: Upload coverage to codecov.io
+        uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: node_reorgs_cov.lcov
+          flags: e2e
+          env_vars: OS,RUST
+          name: node-sysgo-tests-reorgs
+          verbose: true
 
 
 

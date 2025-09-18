@@ -66,6 +66,11 @@ where
             }
             Metrics::record_block_depth(self.chain_id, l1_depth, l2_depth);
         }
+        info!(
+            target: "supervisor::reorg_handler",
+            chain_id = %self.chain_id,
+            "Processed reorged successfully"
+        );
         Ok(())
     }
 
@@ -73,15 +78,15 @@ where
         &self,
         rewind_target_source: BlockInfo,
     ) -> Result<RewoundState, ReorgHandlerError> {
-        trace!(
+        info!(
             target: "supervisor::reorg_handler",
             chain_id = %self.chain_id,
             rewind_target_source = rewind_target_source.number,
-            "Rewinding to target source block..."
+            "Reorg detected - rewinding to target source block..."
         );
 
         // Call the rewinder to handle the DB rewinding
-        let derived_block_rewounded =
+        let derived_block_rewound =
             self.db.rewind_to_source(&rewind_target_source.id()).inspect_err(|err| {
                 warn!(
                     target: "supervisor::reorg_handler::db",
@@ -91,14 +96,14 @@ where
                 );
             })?;
 
-        Ok(RewoundState { source: rewind_target_source, derived: derived_block_rewounded })
+        Ok(RewoundState { source: rewind_target_source, derived: derived_block_rewound })
     }
 
     async fn rewind_to_activation_block(&self) -> Result<Option<RewoundState>, ReorgHandlerError> {
-        trace!(
+        info!(
             target: "supervisor::reorg_handler",
             chain_id = %self.chain_id,
-            "Rewinding to activation block..."
+            "Reorg detected - rewinding to activation block..."
         );
 
         // If the rewind target is pre-interop, we need to rewind to the activation block
