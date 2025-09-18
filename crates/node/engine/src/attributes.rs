@@ -771,7 +771,12 @@ mod tests {
         attributes.inner.eip_1559_params = Some(Default::default());
 
         let check = AttributesMatch::check(&cfg, &attributes, &block);
-        assert_eq!(check, AttributesMatch::Mismatch(AttributesMismatch::MissingBlockEIP1559));
+        assert_eq!(
+            check,
+            AttributesMatch::Mismatch(AttributesMismatch::UnknownExtraDataDecodingError(
+                EIP1559ParamError::InvalidExtraDataLength
+            ))
+        );
         assert!(check.is_mismatch());
     }
 

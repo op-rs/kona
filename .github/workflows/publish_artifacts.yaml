@@ -64,7 +64,7 @@ jobs:
                # Upload the git commit info for each prestate since this won't be recorded in releases.json 
                (echo "Commit=${{ github.ref_name }}" && echo "Prestate: ${PRESTATE_HASH}") > "${INFO_FILE}" 
 
-               gsutil cp "${INFO_FILE}" "gs://kona-proof-prestates/${{ matrix.kind }}/${BRANCH_NAME}-${{ matrix.version }}-prestate.bin.txt" 
+               gsutil cp "${INFO_FILE}" "gs://kona-proof-prestates/${{ matrix.kind }}/${BRANCH_NAME}-${{ matrix.version }}-prestate.bin.gz.txt" 
                echo "Published commit hash data successfully" # So we know if any uploads worked 
 
                rm "${INFO_FILE}" # keep things tidy 
