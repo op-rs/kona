@@ -16,7 +16,7 @@ jobs:
     name: Close stale PRs
     steps:
       - name: Close stale PRs
-        uses: actions/stale@v9
+        uses: actions/stale@v10
         with:
           # More Operations than default 30
           operations-per-run: 100

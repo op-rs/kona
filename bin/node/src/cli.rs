@@ -87,7 +87,15 @@ impl Cli {
         F: std::future::Future<Output = Result<()>>,
     {
         let rt = Self::tokio_runtime().map_err(|e| anyhow::anyhow!(e))?;
-        rt.block_on(fut)
+        rt.block_on(async move {
+            tokio::select! {
+                res = fut => res,
+                _ = tokio::signal::ctrl_c() => {
+                    tracing::info!(target: "cli", "Received Ctrl-C, shutting down...");
+                    Ok(())
+                }
+            }
+        })
     }
 
     /// Creates a new default tokio multi-thread [Runtime](tokio::runtime::Runtime) with all

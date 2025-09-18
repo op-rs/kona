@@ -47,7 +47,7 @@ pub(crate) fn execute_native_precompile<T: Into<Bytes>>(
     let Some(precompile) = precompiles.precompiles.get(&address) else {
         panic!("Precompile not found");
     };
-    precompile(&input.into(), gas)
+    precompile.execute(&input.into(), gas)
 }
 
 /// Starts a mock host thread that serves [`HintType::L1Precompile`] hints and preimages.

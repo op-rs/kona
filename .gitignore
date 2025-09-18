@@ -47,3 +47,6 @@ prestate-artifacts-*
 
 # rustc bug report
 rustc-ice-*
+
+# logfiles
+*.log

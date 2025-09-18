@@ -220,6 +220,8 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           env_vars: OS,RUST
           files: lcov.info
+          flags: unit
+          verbose: true
       - name: Upload test results to codecov.io
         if: ${{ !cancelled() }}
         uses: codecov/test-results-action@v1

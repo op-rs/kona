@@ -409,7 +409,7 @@ impl Service {
         self.initialise().await?;
 
         // todo: refactor this to only run the tasks completion loop
-        // and handle admin requests elewhere
+        // and handle admin requests elsewhere
         loop {
             tokio::select! {
                 // Admin requests (if admin_receiver was initialized)

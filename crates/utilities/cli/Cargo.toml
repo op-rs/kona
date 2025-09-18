@@ -27,11 +27,10 @@ tracing-subscriber = { workspace = true, features = ["fmt", "env-filter", "json"
 tracing-appender.workspace = true
 metrics-exporter-prometheus = { workspace = true, features = ["http-listener"] }
 metrics-process.workspace = true
-anyhow = { workspace = true, default-features = false }
+thiserror.workspace = true
 
 # `secrets` feature
 libp2p = { workspace = true, features = ["secp256k1"], optional = true }
-thiserror = { workspace = true, optional = true }
 alloy-primitives.workspace = true
 
 [dev-dependencies]
@@ -42,4 +41,4 @@ libc = "0.2"
 
 [features]
 default = []
-secrets = [ "dep:libp2p", "dep:thiserror" ]
+secrets = [ "dep:libp2p" ]

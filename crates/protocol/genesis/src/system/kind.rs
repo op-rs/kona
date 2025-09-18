@@ -18,6 +18,8 @@ pub enum SystemConfigUpdateKind {
     Eip1559 = 4,
     /// Operator fee parameter update
     OperatorFee = 5,
+    /// Min base fee parameter update
+    MinBaseFee = 6,
 }
 
 impl TryFrom<u64> for SystemConfigUpdateKind {

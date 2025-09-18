@@ -39,10 +39,12 @@ where
         )));
     }
 
+    let precompile = bls12_381::map_fp2_to_g2::PRECOMPILE;
+
     let result_data = kona_proof::block_on(precompile_run! {
         hint_writer,
         oracle_reader,
-        &[bls12_381::map_fp2_to_g2::PRECOMPILE.address().as_slice(), &MAP_FP2_TO_G2_BASE_GAS_FEE.to_be_bytes(), input]
+        &[precompile.address().as_slice(), &MAP_FP2_TO_G2_BASE_GAS_FEE.to_be_bytes(), input]
     })
     .map_err(|e| PrecompileError::Other(e.to_string()))?;
 

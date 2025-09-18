@@ -5,6 +5,9 @@
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
+mod error;
+pub use error::{CliError, CliResult};
+
 mod flags;
 pub use flags::{GlobalArgs, LogArgs, MetricsArgs, OverrideArgs};
 

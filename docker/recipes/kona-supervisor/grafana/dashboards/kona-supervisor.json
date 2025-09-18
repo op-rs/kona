@@ -120,6 +120,10 @@
       "pluginVersion": "11.5.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "exemplar": false,
@@ -130,11 +134,7 @@
           "legendFormat": "{{version}}",
           "range": false,
           "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
+          "useBackend": false
         }
       ],
       "title": "Version",
@@ -195,6 +195,10 @@
       "pluginVersion": "11.5.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "exemplar": false,
@@ -205,11 +209,7 @@
           "legendFormat": "{{build_timestamp}}",
           "range": false,
           "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
+          "useBackend": false
         }
       ],
       "title": "Build Timestamp",
@@ -269,6 +269,10 @@
       "pluginVersion": "11.5.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "exemplar": false,
@@ -279,11 +283,7 @@
           "legendFormat": "{{cargo_features}}",
           "range": false,
           "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
+          "useBackend": false
         }
       ],
       "title": "Cargo Features",
@@ -344,6 +344,10 @@
       "pluginVersion": "11.5.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "expr": "kona_supervisor_info{namespace=~\"kona-supervisor-supervisor-superchain\"}",
@@ -352,11 +356,7 @@
           "legendFormat": "{{git_sha}}",
           "range": true,
           "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
+          "useBackend": false
         }
       ],
       "title": "Git SHA",
@@ -416,6 +416,10 @@
       "pluginVersion": "11.5.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "expr": "kona_supervisor_info{namespace=~\"kona-supervisor-supervisor-superchain\"}",
@@ -424,11 +428,7 @@
           "legendFormat": "{{target_triple}}",
           "range": true,
           "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
+          "useBackend": false
         }
       ],
       "title": "Target Triple",
@@ -489,6 +489,10 @@
       "pluginVersion": "11.5.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "expr": "kona_supervisor_info{namespace=~\"kona-supervisor-supervisor-superchain\"}",
@@ -497,11 +501,7 @@
           "legendFormat": "{{build_profile}}",
           "range": true,
           "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
+          "useBackend": false
         }
       ],
       "title": "Build Profile",
@@ -859,7 +859,7 @@
       "type": "stat"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -867,407 +867,558 @@
         "y": 11
       },
       "id": 35,
-      "panels": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 5
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 12,
-            "x": 0,
-            "y": 8
-          },
-          "id": 36,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "none",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "11.5.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "disableTextWrap": false,
-              "editorMode": "builder",
-              "expr": "kona_supervisor_reorg_error{namespace=\"kona-supervisor-supervisor-superchain\"}",
-              "fullMetaSearch": false,
-              "hide": false,
-              "includeNullMetadata": true,
-              "instant": false,
-              "legendFormat": "Failed ({{chain_id}})",
-              "range": true,
-              "refId": "Error",
-              "useBackend": false
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "disableTextWrap": false,
-              "editorMode": "builder",
-              "expr": "kona_supervisor_reorg_success{namespace=\"kona-supervisor-supervisor-superchain\", method!=\"process_chain_reorg\"}",
-              "fullMetaSearch": false,
-              "includeNullMetadata": true,
-              "legendFormat": "Successful ({{chain_id}})",
-              "range": true,
-              "refId": "Success",
-              "useBackend": false
-            }
-          ],
-          "title": "Reorg ",
-          "type": "stat"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 7,
-            "w": 12,
-            "x": 12,
-            "y": 8
-          },
-          "id": 37,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "none",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "11.5.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "disableTextWrap": false,
-              "editorMode": "builder",
-              "expr": "supervisor_block_processing_success_total{type=\"finalized\"}",
-              "fullMetaSearch": false,
-              "hide": false,
-              "includeNullMetadata": true,
-              "legendFormat": "Finalized ({{chain_id}})",
-              "range": true,
-              "refId": "Finalized",
-              "useBackend": false
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "disableTextWrap": false,
-              "editorMode": "builder",
-              "expr": "supervisor_block_processing_success_total{type=\"cross_safe\"}",
-              "fullMetaSearch": false,
-              "includeNullMetadata": true,
-              "legendFormat": "Cross-safe ({{chain_id}})",
-              "range": true,
-              "refId": "Cross-safe",
-              "useBackend": false
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "disableTextWrap": false,
-              "editorMode": "builder",
-              "expr": "supervisor_block_processing_success_total{type=\"cross_unsafe\"}",
-              "fullMetaSearch": false,
-              "hide": false,
-              "includeNullMetadata": true,
-              "legendFormat": "Cross-unsafe ({{chain_id}})",
-              "range": true,
-              "refId": "Cross-unsafe",
-              "useBackend": false
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "disableTextWrap": false,
-              "editorMode": "builder",
-              "expr": "supervisor_block_processing_success_total{type=\"local_safe\"}",
-              "fullMetaSearch": false,
-              "hide": false,
-              "includeNullMetadata": true,
-              "legendFormat": "Local-safe ({{chain_id}})",
-              "range": true,
-              "refId": "Local-safe",
-              "useBackend": false
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "disableTextWrap": false,
-              "editorMode": "builder",
-              "expr": "supervisor_block_processing_success_total{type=\"local_unsafe\"}",
-              "fullMetaSearch": false,
-              "hide": false,
-              "includeNullMetadata": true,
-              "legendFormat": "Local-unsafe ({{chain_id}})",
-              "range": true,
-              "refId": "Local-unsafe",
-              "useBackend": false
-            }
-          ],
-          "title": "Total Blocks Processed",
-          "type": "stat"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "continuous-RdYlGr"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 3,
-            "w": 6,
-            "x": 0,
-            "y": 236
-          },
-          "id": 38,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "none",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "11.5.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "disableTextWrap": false,
-              "editorMode": "builder",
-              "expr": "sum by(namespace) (supervisor_rpc_requests_error_total{namespace=\"kona-supervisor-supervisor-superchain\"})",
-              "fullMetaSearch": false,
-              "hide": false,
-              "includeNullMetadata": true,
-              "legendFormat": "Failed Requests",
-              "range": true,
-              "refId": "Error",
-              "useBackend": false
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "disableTextWrap": false,
-              "editorMode": "builder",
-              "expr": "sum by(namespace) (supervisor_rpc_requests_success_total{namespace=\"kona-supervisor-supervisor-superchain\"})",
-              "fullMetaSearch": false,
-              "includeNullMetadata": true,
-              "legendFormat": "Successful Requests",
-              "range": true,
-              "refId": "Success",
-              "useBackend": false
-            }
-          ],
-          "title": "Supervisor RPC",
-          "type": "stat"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "continuous-RdYlGr"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 3,
-            "w": 6,
-            "x": 6,
-            "y": 236
-          },
-          "id": 39,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "none",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "11.5.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "disableTextWrap": false,
-              "editorMode": "builder",
-              "expr": "sum by(namespace) (managed_node_rpc_requests_error_total{namespace=\"kona-supervisor-supervisor-superchain\"})",
-              "fullMetaSearch": false,
-              "hide": false,
-              "includeNullMetadata": true,
-              "legendFormat": "Failed Requests",
-              "range": true,
-              "refId": "Error",
-              "useBackend": false
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "disableTextWrap": false,
-              "editorMode": "builder",
-              "expr": "sum by(namespace) (managed_node_rpc_requests_success_total{namespace=\"kona-supervisor-supervisor-superchain\"})",
-              "fullMetaSearch": false,
-              "includeNullMetadata": true,
-              "legendFormat": "Successful Requests",
-              "range": true,
-              "refId": "Success",
-              "useBackend": false
-            }
-          ],
-          "title": "Managed Node RPC",
-          "type": "stat"
-        }
-      ],
+      "panels": [],
       "title": "Supervisor Overview",
       "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
+      "id": 36,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "kona_supervisor_reorg_error_total{namespace=~\"kona-supervisor-supervisor-superchain\", chain_id=~\"$chain_id\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Failed ({{chain_id}})",
+          "range": true,
+          "refId": "Error",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "kona_supervisor_reorg_success_total{namespace=\"kona-supervisor-supervisor-superchain\", method!=\"process_chain_reorg\", chain_id=~\"$chain_id\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "Successful ({{chain_id}})",
+          "range": true,
+          "refId": "Success",
+          "useBackend": false
+        }
+      ],
+      "title": "Reorg: $chain_id",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Total number of blocks processed, including reorgs, reset, etc.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
+      "id": 37,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "supervisor_block_processing_success_total{type=~\"finalized\", chain_id=~\"$chain_id\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "legendFormat": "Finalized ({{chain_id}})",
+          "range": true,
+          "refId": "Finalized",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "supervisor_block_processing_success_total{type=~\"cross_safe\", chain_id=~\"$chain_id\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "Cross-safe ({{chain_id}})",
+          "range": true,
+          "refId": "Cross-safe",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "supervisor_block_processing_success_total{type=~\"cross_unsafe\", chain_id=~\"$chain_id\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "legendFormat": "Cross-unsafe ({{chain_id}})",
+          "range": true,
+          "refId": "Cross-unsafe",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "supervisor_block_processing_success_total{type=~\"local_safe\", chain_id=~\"$chain_id\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "legendFormat": "Local-safe ({{chain_id}})",
+          "range": true,
+          "refId": "Local-safe",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "supervisor_block_processing_success_total{type=~\"local_unsafe\", chain_id=~\"$chain_id\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "legendFormat": "Local-unsafe ({{chain_id}})",
+          "range": true,
+          "refId": "Local-unsafe",
+          "useBackend": false
+        }
+      ],
+      "title": "Total Blocks Processed: $chain_id",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "purple",
+            "mode": "shades"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "id": 38,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "sum by(namespace) (supervisor_rpc_requests_error_total{namespace=\"kona-supervisor-supervisor-superchain\"})",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "legendFormat": "Failed Requests",
+          "range": true,
+          "refId": "Error",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "sum by(namespace) (supervisor_rpc_requests_success_total{namespace=\"kona-supervisor-supervisor-superchain\"})",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "Successful Requests",
+          "range": true,
+          "refId": "Success",
+          "useBackend": false
+        }
+      ],
+      "title": "Supervisor RPC",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Shows the latest safety head ref block number for each chain",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 19
+      },
+      "id": 54,
+      "options": {
+        "displayMode": "lcd",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "text"
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "supervisor_safety_head_ref_labels{type=~\"local_unsafe\", chain_id=~\"$chain_id\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "{{type}}: {{chain_id}}",
+          "range": true,
+          "refId": "Local Unsafe",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "supervisor_safety_head_ref_labels{type=~\"cross_unsafe\", chain_id=~\"$chain_id\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "legendFormat": "{{type}}: {{chain_id}}",
+          "range": true,
+          "refId": "Cross Unsafe",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "supervisor_safety_head_ref_labels{type=~\"local_safe\", chain_id=~\"$chain_id\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "legendFormat": "{{type}}: {{chain_id}}",
+          "range": true,
+          "refId": "Local Safe",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "supervisor_safety_head_ref_labels{type=~\"cross_safe\", chain_id=~\"$chain_id\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "legendFormat": "{{type}}: {{chain_id}}",
+          "range": true,
+          "refId": "Cross Safe",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "supervisor_safety_head_ref_labels{type=~\"finalized\", chain_id=~\"$chain_id\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "legendFormat": "{{type}}: {{chain_id}}",
+          "range": true,
+          "refId": "Finalized",
+          "useBackend": false
+        }
+      ],
+      "title": "Safety Head Refs: $chain_id",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Total Requests",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 19
+      },
+      "id": 39,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "sum by(node) (managed_node_rpc_requests_error_total{namespace=\"kona-supervisor-supervisor-superchain\", node=~\".*$chain_id.*\"})",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "legendFormat": "Failed Req ({{node}})",
+          "range": true,
+          "refId": "Error",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "sum by(node) (managed_node_rpc_requests_success_total{namespace=\"kona-supervisor-supervisor-superchain\", node=~\".*$chain_id.*\"})",
+          "fullMetaSearch": false,
+          "includeNullMetadata": false,
+          "legendFormat": "{{node}}",
+          "range": true,
+          "refId": "Success",
+          "useBackend": false
+        }
+      ],
+      "title": "Managed Node RPC: $chain_id",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^([^0-9]*)(\\d+)(.*)$",
+            "renamePattern": "$2"
+          }
+        }
+      ],
+      "type": "stat"
     },
     {
       "collapsed": true,
@@ -1275,7 +1426,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 12
+        "y": 27
       },
       "id": 29,
       "panels": [
@@ -1328,7 +1479,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1343,7 +1495,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 9
+            "y": 28
           },
           "id": 33,
           "options": {
@@ -1368,7 +1520,7 @@
               },
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "kona_supervisor_reorg_l1_depth{quantile=\"0.95\"}",
+              "expr": "kona_supervisor_reorg_l1_depth{quantile=\"0.95\", chain_id=~\"$chain_id\"}",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "legendFormat": "{{chain_id}}",
@@ -1377,7 +1529,7 @@
               "useBackend": false
             }
           ],
-          "title": "L1 Depth",
+          "title": "L1 Depth: $chain_id",
           "type": "timeseries"
         },
         {
@@ -1429,7 +1581,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1444,7 +1597,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 9
+            "y": 28
           },
           "id": 34,
           "options": {
@@ -1469,7 +1622,7 @@
               },
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "kona_supervisor_reorg_l2_depth{quantile=\"0.95\"}",
+              "expr": "kona_supervisor_reorg_l2_depth{quantile=\"0.95\", chain_id=~\"$chain_id\"}",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "legendFormat": "{{chain_id}}",
@@ -1478,7 +1631,7 @@
               "useBackend": false
             }
           ],
-          "title": "L2 Depth",
+          "title": "L2 Depth: $chain_id",
           "type": "timeseries"
         },
         {
@@ -1530,7 +1683,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1545,7 +1699,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 121
+            "y": 52
           },
           "id": 30,
           "options": {
@@ -1570,7 +1724,7 @@
               },
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "kona_supervisor_reorg_success{namespace=\"kona-supervisor-supervisor-superchain\", method!=\"process_chain_reorg\"}",
+              "expr": "rate(kona_supervisor_reorg_success_total{namespace=\"kona-supervisor-supervisor-superchain\", chain_id=~\"$chain_id\"}[5m])",
               "fullMetaSearch": false,
               "includeNullMetadata": false,
               "legendFormat": "{{chain_id}}",
@@ -1579,7 +1733,7 @@
               "useBackend": false
             }
           ],
-          "title": "Reorg Success Rate",
+          "title": "Reorg Success Rate: $chain_id",
           "type": "timeseries"
         },
         {
@@ -1631,7 +1785,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1646,7 +1801,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 121
+            "y": 52
           },
           "id": 31,
           "options": {
@@ -1672,7 +1827,7 @@
               "disableTextWrap": false,
               "editorMode": "builder",
               "exemplar": false,
-              "expr": "kona_supervisor_reorg_duration_seconds{quantile=\"0.95\", method!=\"process_chain_reorg\"}",
+              "expr": "kona_supervisor_reorg_duration_seconds{quantile=\"0.95\", method!=\"process_chain_reorg\", chain_id=~\"$chain_id\"}",
               "format": "time_series",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
@@ -1683,7 +1838,7 @@
               "useBackend": false
             }
           ],
-          "title": "Reorg Duration in seconds",
+          "title": "Reorg Duration in seconds: $chain_id",
           "type": "timeseries"
         },
         {
@@ -1735,7 +1890,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1750,7 +1906,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 129
+            "y": 60
           },
           "id": 32,
           "options": {
@@ -1775,7 +1931,7 @@
               },
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "kona_supervisor_reorg_error{namespace=\"kona-supervisor-supervisor-superchain\"}",
+              "expr": "rate(kona_supervisor_reorg_error_total{namespace=\"kona-supervisor-supervisor-superchain\", chain_id=~\"$chain_id\"}[5m])",
               "fullMetaSearch": false,
               "includeNullMetadata": false,
               "legendFormat": "{{chain_id}}",
@@ -1784,7 +1940,7 @@
               "useBackend": false
             }
           ],
-          "title": "Reorg Error Rate",
+          "title": "Reorg Error Rate: $chain_id",
           "type": "timeseries"
         }
       ],
@@ -1797,7 +1953,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 13
+        "y": 28
       },
       "id": 1,
       "panels": [
@@ -1850,7 +2006,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1865,7 +2022,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 10
+            "y": 29
           },
           "id": 2,
           "options": {
@@ -1947,7 +2104,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1962,7 +2120,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 10
+            "y": 29
           },
           "id": 3,
           "options": {
@@ -2042,7 +2200,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2057,7 +2216,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 122
+            "y": 53
           },
           "id": 4,
           "options": {
@@ -2139,7 +2298,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2154,7 +2314,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 122
+            "y": 53
           },
           "id": 5,
           "options": {
@@ -2234,7 +2394,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2249,7 +2410,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 130
+            "y": 61
           },
           "id": 6,
           "options": {
@@ -2329,15 +2490,15 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
                     "value": 80
                   }
                 ]
-              },
-              "unit": "s"
+              }
             },
             "overrides": []
           },
@@ -2345,7 +2506,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 130
+            "y": 61
           },
           "id": 7,
           "options": {
@@ -2368,12 +2529,14 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
+              "editorMode": "builder",
               "expr": "supervisor_block_processing_latency_seconds{quantile=\"0.95\",type=\"local_safe\",chain_id=~\"$chain_id\"}",
               "legendFormat": "{{chain_id}}",
+              "range": true,
               "refId": "A"
             }
           ],
-          "title": "Block Latency p95: local_safe",
+          "title": "Block Processing Latency p95: local_safe",
           "type": "timeseries"
         },
         {
@@ -2425,15 +2588,15 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
                     "value": 80
                   }
                 ]
-              },
-              "unit": "s"
+              }
             },
             "overrides": []
           },
@@ -2441,7 +2604,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 138
+            "y": 69
           },
           "id": 8,
           "options": {
@@ -2469,7 +2632,7 @@
               "refId": "A"
             }
           ],
-          "title": "Block Latency p95: local_unsafe",
+          "title": "Block Processing Latency p95: local_unsafe",
           "type": "timeseries"
         },
         {
@@ -2521,7 +2684,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2537,7 +2701,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 138
+            "y": 69
           },
           "id": 9,
           "options": {
@@ -2565,7 +2729,7 @@
               "refId": "A"
             }
           ],
-          "title": "Block Latency p95: finalized",
+          "title": "Block Processing Latency p95: finalized",
           "type": "timeseries"
         },
         {
@@ -2617,7 +2781,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2633,7 +2798,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 146
+            "y": 77
           },
           "id": 10,
           "options": {
@@ -2661,7 +2826,7 @@
               "refId": "A"
             }
           ],
-          "title": "Block Latency p95: cross_safe",
+          "title": "Block Processing Latency p95: cross_safe",
           "type": "timeseries"
         },
         {
@@ -2713,7 +2878,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2729,7 +2895,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 146
+            "y": 77
           },
           "id": 11,
           "options": {
@@ -2759,7 +2925,7 @@
               "refId": "A"
             }
           ],
-          "title": "Block Latency p95: cross_unsafe",
+          "title": "Block Processing Latency p95: cross_unsafe",
           "type": "timeseries"
         },
         {
@@ -2811,7 +2977,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2826,7 +2993,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 154
+            "y": 85
           },
           "id": 44,
           "options": {
@@ -2851,7 +3018,7 @@
               },
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "rate(supervisor_block_invalidation_success_total{chain_id=~\"$chain_id\", namespace=\"kona-supervisor-supervisor-superchain\"}[5m])",
+              "expr": "rate(supervisor_block_invalidation_success_total{namespace=\"kona-supervisor-supervisor-superchain\", chain_id=~\"$chain_id\"}[5m])",
               "fullMetaSearch": false,
               "includeNullMetadata": false,
               "legendFormat": "{{chain_id}}",
@@ -2860,7 +3027,7 @@
               "useBackend": false
             }
           ],
-          "title": "Block Invalidation Speed",
+          "title": "Block Invalidation Speed: $chain_id",
           "type": "timeseries"
         },
         {
@@ -2912,7 +3079,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2927,7 +3095,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 154
+            "y": 85
           },
           "id": 46,
           "options": {
@@ -3013,7 +3181,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3028,7 +3197,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 162
+            "y": 93
           },
           "id": 45,
           "options": {
@@ -3114,7 +3283,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3129,7 +3299,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 162
+            "y": 93
           },
           "id": 47,
           "options": {
@@ -3176,7 +3346,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 14
+        "y": 29
       },
       "id": 12,
       "panels": [
@@ -3245,7 +3415,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 15
+            "y": 30
           },
           "id": 13,
           "options": {
@@ -3268,8 +3438,10 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
+              "editorMode": "builder",
               "expr": "rate(kona_supervisor_storage_success_total{chain_id=~\"$chain_id\"}[5m])",
               "legendFormat": "{{method}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -3341,7 +3513,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 15
+            "y": 30
           },
           "id": 14,
           "options": {
@@ -3437,7 +3609,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 23
+            "y": 54
           },
           "id": 15,
           "options": {
@@ -3533,7 +3705,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 23
+            "y": 54
           },
           "id": 16,
           "options": {
@@ -3629,7 +3801,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 31
+            "y": 62
           },
           "id": 17,
           "options": {
@@ -3652,8 +3824,10 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
+              "editorMode": "builder",
               "expr": "kona_supervisor_storage_duration_seconds{quantile=\"0.95\",chain_id=~\"$chain_id\",method=~\"get_current_l1|get_safety_head_ref|get_super_head|update_current_l1|update_finalized_using_source|update_current_cross_unsafe|update_current_cross_safe\"}",
               "legendFormat": "{{method}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -3725,7 +3899,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 31
+            "y": 62
           },
           "id": 18,
           "options": {
@@ -3763,12 +3937,16 @@
           },
           "fieldConfig": {
             "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3784,7 +3962,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 39
+            "y": 70
           },
           "id": 19,
           "options": {
@@ -3809,7 +3987,7 @@
             },
             "showUnfilled": true,
             "sizing": "auto",
-            "valueMode": "color"
+            "valueMode": "text"
           },
           "pluginVersion": "11.5.0",
           "targets": [
@@ -3833,12 +4011,16 @@
           },
           "fieldConfig": {
             "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3854,7 +4036,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 47
+            "y": 78
           },
           "id": 20,
           "options": {
@@ -3879,7 +4061,7 @@
             },
             "showUnfilled": true,
             "sizing": "auto",
-            "valueMode": "color"
+            "valueMode": "text"
           },
           "pluginVersion": "11.5.0",
           "targets": [
@@ -3906,7 +4088,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 15
+        "y": 30
       },
       "id": 21,
       "panels": [
@@ -3975,7 +4157,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 16
+            "y": 31
           },
           "id": 22,
           "options": {
@@ -4071,7 +4253,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 16
+            "y": 31
           },
           "id": 23,
           "options": {
@@ -4167,7 +4349,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 24
+            "y": 39
           },
           "id": 24,
           "options": {
@@ -4208,7 +4390,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 16
+        "y": 31
       },
       "id": 25,
       "panels": [
@@ -4271,13 +4453,38 @@
               },
               "unit": "ops"
             },
-            "overrides": []
+            "overrides": [
+              {
+                "__systemRef": "hideSeriesFrom",
+                "matcher": {
+                  "id": "byNames",
+                  "options": {
+                    "mode": "exclude",
+                    "names": [
+                      "block_ref_by_number: ws://op-cl-2151909-node1-op-node:9645"
+                    ],
+                    "prefix": "All except:",
+                    "readOnly": true
+                  }
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom",
+                    "value": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": true
+                    }
+                  }
+                ]
+              }
+            ]
           },
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 17
+            "y": 32
           },
           "id": 26,
           "options": {
@@ -4300,9 +4507,17 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "rate(managed_node_rpc_requests_success_total[5m])",
+              "disableTextWrap": false,
+              "editorMode": "builder",
+              "expr": "rate(managed_node_rpc_requests_success_total{node=~\".*$chain_id.*\"}[5m])",
+              "fullMetaSearch": false,
+              "hide": false,
+              "includeNullMetadata": false,
+              "instant": false,
               "legendFormat": "{{method}}",
-              "refId": "A"
+              "range": true,
+              "refId": "A",
+              "useBackend": false
             }
           ],
           "title": "Managed Node RPC Success Rate (per Method)",
@@ -4373,7 +4588,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 17
+            "y": 32
           },
           "id": 27,
           "options": {
@@ -4396,9 +4611,15 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "rate(managed_node_rpc_requests_error_total[5m])",
+              "disableTextWrap": false,
+              "editorMode": "builder",
+              "expr": "rate(managed_node_rpc_requests_error_total{node=~\".*$chain_id.*\"}[5m])",
+              "fullMetaSearch": false,
+              "includeNullMetadata": true,
               "legendFormat": "{{method}}",
-              "refId": "A"
+              "range": true,
+              "refId": "A",
+              "useBackend": false
             }
           ],
           "title": "Managed Node RPC Error Rate (per Method)",
@@ -4469,7 +4690,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 25
+            "y": 40
           },
           "id": 28,
           "options": {
@@ -4492,9 +4713,15 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "managed_node_rpc_request_duration_seconds{quantile=\"0.95\"}",
+              "disableTextWrap": false,
+              "editorMode": "builder",
+              "expr": "managed_node_rpc_request_duration_seconds{quantile=\"0.95\", node=~\".*$chain_id.*\"}",
+              "fullMetaSearch": false,
+              "includeNullMetadata": true,
               "legendFormat": "{{method}}",
-              "refId": "A"
+              "range": true,
+              "refId": "A",
+              "useBackend": false
             }
           ],
           "title": "Managed Node RPC Latency p95 (per Method)",
@@ -4516,12 +4743,17 @@
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
+        "definition": "label_values(chain_id)",
         "includeAll": true,
         "label": "Chain ID",
         "multi": true,
         "name": "chain_id",
         "options": [],
-        "query": "label_values(supervisor_block_processing_success_total, chain_id)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(chain_id)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
         "refresh": 2,
         "type": "query"
       }
@@ -4535,6 +4767,6 @@
   "timezone": "",
   "title": "Kona Supervisor Dashboard",
   "uid": "fevgnwku1evi8b",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }

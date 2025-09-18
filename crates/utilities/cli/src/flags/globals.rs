@@ -6,7 +6,7 @@ use clap::Parser;
 use kona_genesis::RollupConfig;
 use kona_registry::OPCHAINS;
 
-use crate::{LogArgs, MetricsArgs, OverrideArgs};
+use crate::{CliError, CliResult, LogArgs, MetricsArgs, OverrideArgs};
 
 /// Global arguments for the CLI.
 #[derive(Parser, Default, Clone, Debug)]
@@ -42,16 +42,16 @@ impl GlobalArgs {
     }
 
     /// Returns the signer [`Address`] from the rollup config for the given l2 chain id.
-    pub fn genesis_signer(&self) -> anyhow::Result<Address> {
+    pub fn genesis_signer(&self) -> CliResult<Address> {
         let id = self.l2_chain_id;
         OPCHAINS
             .get(&id.id())
-            .ok_or(anyhow::anyhow!("No chain config found for chain ID: {id}"))?
+            .ok_or(CliError::ChainConfigNotFound(id.id()))?
             .roles
             .as_ref()
-            .ok_or(anyhow::anyhow!("No roles found for chain ID: {id}"))?
+            .ok_or(CliError::RolesNotFound(id.id()))?
             .unsafe_block_signer
-            .ok_or(anyhow::anyhow!("No unsafe block signer found for chain ID: {id}"))
+            .ok_or(CliError::UnsafeBlockSignerNotFound(id.id()))
     }
 }
 

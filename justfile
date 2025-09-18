@@ -22,6 +22,10 @@ default:
 build-node:
   cargo build --release --bin kona-node
 
+# Build the supervisor
+build-supervisor:
+  cargo build --release --bin kona-supervisor
+
 # Run all tests (excluding online tests)
 tests: test test-docs
 
