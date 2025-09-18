@@ -175,7 +175,7 @@ where
                             // Flush the stage.
                             self.flush();
 
-                            return Err(PipelineError::Eof.temp());
+                            return Err(PipelineError::NotEnoughData.temp());
                         }
                         BatchValidity::Past => {
                             if !self.is_active()? {

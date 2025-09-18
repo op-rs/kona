@@ -695,8 +695,11 @@ impl SpanBatch {
                 if !self.check_origin_hash(l1_block.hash) {
                     warn!(
                         target: "batch_span",
-                        "batch is for different L1 chain, epoch hash does not match, expected: {}",
-                        l1_block.hash
+                        l1_block_number = ?l1_block.number,
+                        l1_block_hash = ?l1_block.hash,
+                        l1_origin_number = ?starting_epoch_num,
+                        l1_check_hash = ?self.l1_origin_check,
+                        "batch is for different L1 chain, epoch hash does not match",
                     );
                     return (BatchValidity::Drop, None);
                 }
@@ -1485,9 +1488,7 @@ mod tests {
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
-        let str = alloc::format!(
-            "batch is for different L1 chain, epoch hash does not match, expected: {l1_block_hash}",
-        );
+        let str = "batch is for different L1 chain, epoch hash does not match".to_string();
         assert!(logs[0].contains(&str));
     }
 

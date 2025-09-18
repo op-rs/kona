@@ -209,10 +209,10 @@ where
 
         match self.reorg_handler.handle_l1_reorg(latest_block).await {
             Ok(()) => {
-                info!(
+                trace!(
                     target: "supervisor::l1_watcher",
                     block_number = latest_block.number,
-                    "Successfully processed L1 reorg"
+                    "Successfully processed potential L1 reorg"
                 );
             }
             Err(err) => {
