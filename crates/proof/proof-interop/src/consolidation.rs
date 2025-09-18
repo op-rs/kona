@@ -201,6 +201,16 @@ where
                         .and_then(|s| s.try_into().ok())
                         .expect("slice conversion cannot fail")
                 }),
+                min_base_fee: rollup_config
+                    .is_jovian_active(header.timestamp)
+                    .then(|| {
+                        header
+                            .extra_data
+                            .get(9..17)
+                            .and_then(|s| <[u8; 8]>::try_from(s).ok())
+                            .map(u64::from_be_bytes)
+                    })
+                    .flatten(),
             };
 
             // Create a new stateless L2 block executor for the current chain.

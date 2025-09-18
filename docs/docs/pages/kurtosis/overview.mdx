@@ -1,0 +1,130 @@
+import { Callout } from 'vocs/components'
+
+# Kurtosis Integration
+
+Kona-node integrates with [Kurtosis](https://docs.kurtosis.com) using the [Optimism Package](https://github.com/ethpandaops/optimism-package) to deploy local OP Stack devnets for testing and development.
+
+<Callout type="info">
+  Kurtosis provides containerized, reproducible development environments for testing OP Stack configurations with kona-node as a drop-in replacement for op-node.
+</Callout>
+
+## Prerequisites
+
+- [Kurtosis CLI](https://docs.kurtosis.com/install/) installed
+- Docker running locally
+- Go 1.24+ for test execution
+
+## Configuration
+
+Kona-node uses the same [optimism-package](https://github.com/ethpandaops/optimism-package) configuration as op-node. Replace `op-node` with `kona-node` in the consensus layer configuration:
+
+```yaml
+optimism_package:
+  chains:
+    chain0:
+      participants:
+        kona-validator:
+          el:
+            type: op-reth
+          cl:
+            type: kona-node
+            image: "kona-node:local"
+            extra_env_vars:
+              KONA_NODE_RPC_WS_ENABLED: "true"
+              KONA_NODE_RPC_DEV_ENABLED: "true"
+            log_level: "debug"
+          sequencer: false
+```
+
+### Node Identification
+
+For proper parsing by `op-devstack`, follow these naming conventions:
+
+- **Kona nodes**: Include `"kona"` in the participant name
+- **OP-node nodes**: Include `"optimism"` in the participant name
+- **Sequencers**: Include `"sequencer"` in the participant name
+
+## Deployment Modes
+
+### Validator Mode
+
+Deploy kona-node as a validator alongside an op-geth sequencer:
+
+```yaml
+participants:
+  optimism-sequencer:
+    el:
+      type: op-geth
+    cl:
+      type: op-node
+    sequencer: true
+  kona-validator:
+    el:
+      type: op-reth
+    cl:
+      type: kona-node
+      image: "kona-node:local"
+    sequencer: false
+```
+
+### Sequencer Mode
+
+Deploy kona-node as a sequencer (experimental):
+
+```yaml
+participants:
+  kona-sequencer:
+    el:
+      type: op-geth
+    cl:
+      type: kona-node
+      image: "kona-node:local"
+    sequencer: true
+```
+
+## Environment Variables
+
+Configure kona-node behavior through environment variables:
+
+```yaml
+extra_env_vars:
+  KONA_NODE_RPC_WS_ENABLED: "true"    # Enable WebSocket RPC
+  KONA_NODE_RPC_DEV_ENABLED: "true"   # Enable development RPC methods
+  RUST_LOG: "kona_node=debug"         # Set logging level
+```
+
+## Testing
+
+Deploy and test with the provided justfile commands:
+
+```bash
+# Build local docker image
+just build-devnet node
+
+# Deploy devnet
+just devnet simple-kona
+
+# Run end-to-end tests (requires justfile parameters)
+just test-e2e-kurtosis simple-kona
+
+# Cleanup
+just cleanup-kurtosis
+```
+
+## Available Devnet Configurations
+
+Pre-configured devnet templates are available in `tests/devnets/`:
+
+- `simple-kona.yaml`: Basic two-node setup with op-geth sequencer and kona-node validator
+- `simple-kona-sequencer.yaml`: Dual-sequencer setup with both kona-node and op-node as sequencers
+- `large-kona.yaml`: Large multi-node network configuration
+
+## RPC Compatibility
+
+Kona-node provides the same RPC interface as op-node, ensuring compatibility with existing tooling and test frameworks when deployed through Kurtosis.
+
+## Related Resources
+
+- [Kona Node Configuration](/node/configuration)
+- [Optimism Package Documentation](https://github.com/ethpandaops/optimism-package)
+- [Kurtosis Sequencing Test Example](/sdk/examples/kurtosis-sequencing-test)

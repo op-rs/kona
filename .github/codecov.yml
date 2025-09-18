@@ -6,15 +6,42 @@
 # Reference: https://docs.codecov.com/docs/codecovyml-reference
 
 coverage:
-  range: 90..100
+  range: 80..100
   round: down
   precision: 1
   status:
     project:
       default:
         threshold: 1%
+      # Unit tests should have higher coverage requirements
+      unit:
+        threshold: 1%
+      # E2E tests may have lower coverage due to integration complexity
+      e2e:
+        threshold: 1%
+      # Proof/action tests may have variable coverage
+      proof:
+        threshold: 1%
     patch:
       default:
+        target: auto
+        threshold: 1%
+        base: auto
+        only_pulls: true
+      # Unit tests should maintain higher patch coverage
+      unit:
+        target: auto
+        threshold: 1%
+        base: auto
+        only_pulls: true
+      # E2E tests can have more lenient patch requirements
+      e2e:
+        target: auto
+        threshold: 1%
+        base: auto
+        only_pulls: true
+      # Proof tests can have lenient patch requirements
+      proof:
         target: auto
         threshold: 1%
         base: auto
@@ -28,11 +55,27 @@ comment:
 ignore:
   - "examples/**/*"
   - "**/test_util*"
-  # Ignore providers
-  - "crates/providers"
   # Ignore noop files
   - "**/noop.rs"
-  # Node - WIP
-  - "bin/node"
-  - "crates/node/engine"
-  - "crates/node/service"
+
+
+flag_management:
+  individual_flags:
+    - name: unit
+      statuses:
+        - type: project
+          target: auto
+          threshold: 1%
+    - name: e2e
+      statuses:
+        - type: project
+          target: auto
+          threshold: 1%
+    - name: proof
+      statuses:
+        - type: project
+          target: auto
+          threshold: 1%
+
+fixes:
+  - "/home/runner/work/kona/kona/::"

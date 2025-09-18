@@ -1,9 +1,8 @@
 //! Contains the rollup CLI.
 
 use crate::version;
-use anyhow::Result;
 use clap::Parser;
-use kona_cli::{GlobalArgs, cli_styles};
+use kona_cli::{CliResult, GlobalArgs, cli_styles};
 
 /// The rollup CLI.
 #[derive(Parser, Clone, Debug)]
@@ -23,7 +22,7 @@ pub struct Cli {
 
 impl Cli {
     /// Runs the rollup binary.
-    pub fn run(self) -> Result<()> {
+    pub fn run(self) -> CliResult<()> {
         unimplemented!("Rollup CLI is not yet implemented")
     }
 }

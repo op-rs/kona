@@ -5,10 +5,14 @@ use alloy_primitives::ChainId;
 pub(crate) struct Metrics;
 
 impl Metrics {
-    pub(crate) const SUPERVISOR_REORG_SUCCESS: &'static str = "kona_supervisor_reorg_success";
-    pub(crate) const SUPERVISOR_REORG_ERROR: &'static str = "kona_supervisor_reorg_error";
+    pub(crate) const SUPERVISOR_REORG_SUCCESS_TOTAL: &'static str =
+        "kona_supervisor_reorg_success_total";
+    pub(crate) const SUPERVISOR_REORG_ERROR_TOTAL: &'static str =
+        "kona_supervisor_reorg_error_total";
     pub(crate) const SUPERVISOR_REORG_DURATION_SECONDS: &'static str =
         "kona_supervisor_reorg_duration_seconds";
+    pub(crate) const SUPERVISOR_REORG_METHOD_PROCESS_CHAIN_REORG: &'static str =
+        "process_chain_reorg";
     pub(crate) const SUPERVISOR_REORG_L1_DEPTH: &'static str = "kona_supervisor_reorg_l1_depth";
     pub(crate) const SUPERVISOR_REORG_L2_DEPTH: &'static str = "kona_supervisor_reorg_l2_depth";
 
@@ -19,13 +23,13 @@ impl Metrics {
 
     fn describe() {
         metrics::describe_counter!(
-            Self::SUPERVISOR_REORG_SUCCESS,
+            Self::SUPERVISOR_REORG_SUCCESS_TOTAL,
             metrics::Unit::Count,
             "Total number of successfully processed L1 reorgs in the supervisor",
         );
 
         metrics::describe_counter!(
-            Self::SUPERVISOR_REORG_ERROR,
+            Self::SUPERVISOR_REORG_ERROR_TOTAL,
             metrics::Unit::Count,
             "Total number of errors encountered while processing L1 reorgs in the supervisor",
         );
@@ -50,20 +54,40 @@ impl Metrics {
     }
 
     fn zero(chain_id: ChainId) {
-        metrics::counter!(Self::SUPERVISOR_REORG_SUCCESS, "chain_id" => chain_id.to_string())
-            .increment(0);
+        metrics::counter!(
+            Self::SUPERVISOR_REORG_SUCCESS_TOTAL,
+            "chain_id" => chain_id.to_string(),
+            "method" => Self::SUPERVISOR_REORG_METHOD_PROCESS_CHAIN_REORG,
+        )
+        .increment(0);
 
-        metrics::counter!(Self::SUPERVISOR_REORG_ERROR, "chain_id" => chain_id.to_string())
-            .increment(0);
+        metrics::counter!(
+            Self::SUPERVISOR_REORG_ERROR_TOTAL,
+            "chain_id" => chain_id.to_string(),
+            "method" => Self::SUPERVISOR_REORG_METHOD_PROCESS_CHAIN_REORG,
+        )
+        .increment(0);
 
-        metrics::histogram!(Self::SUPERVISOR_REORG_L1_DEPTH, "chain_id" => chain_id.to_string())
-            .record(0);
+        metrics::histogram!(
+            Self::SUPERVISOR_REORG_L1_DEPTH,
+            "chain_id" => chain_id.to_string(),
+            "method" => Self::SUPERVISOR_REORG_METHOD_PROCESS_CHAIN_REORG,
+        )
+        .record(0);
 
-        metrics::histogram!(Self::SUPERVISOR_REORG_L2_DEPTH, "chain_id" => chain_id.to_string())
-            .record(0);
+        metrics::histogram!(
+            Self::SUPERVISOR_REORG_L2_DEPTH,
+            "chain_id" => chain_id.to_string(),
+            "method" => Self::SUPERVISOR_REORG_METHOD_PROCESS_CHAIN_REORG,
+        )
+        .record(0);
 
-        metrics::histogram!(Self::SUPERVISOR_REORG_DURATION_SECONDS, "chain_id" => chain_id.to_string())
-            .record(0.0);
+        metrics::histogram!(
+            Self::SUPERVISOR_REORG_DURATION_SECONDS,
+            "chain_id" => chain_id.to_string(),
+            "method" => Self::SUPERVISOR_REORG_METHOD_PROCESS_CHAIN_REORG,
+        )
+        .record(0.0);
     }
 
     pub(crate) fn record_block_depth(chain_id: ChainId, l1_depth: u64, l2_depth: u64) {

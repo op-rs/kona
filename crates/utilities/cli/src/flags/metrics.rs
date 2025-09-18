@@ -1,7 +1,7 @@
 //! Utility module to house implementation and declaration of MetricsArgs since it's being used in
 //! multiple places, it's just being referenced from this module.
 
-use crate::init_prometheus_server;
+use crate::{CliResult, init_prometheus_server};
 use clap::{Parser, arg};
 use std::net::IpAddr;
 
@@ -42,7 +42,7 @@ impl MetricsArgs {
     /// Initialize the tracing stack and Prometheus metrics recorder.
     ///
     /// This function should be called at the beginning of the program.
-    pub fn init_metrics(&self) -> anyhow::Result<()> {
+    pub fn init_metrics(&self) -> CliResult<()> {
         if self.enabled {
             init_prometheus_server(self.addr, self.port)?;
         }

@@ -197,16 +197,16 @@ pub enum AlloyL2ChainProviderError {
 impl From<AlloyL2ChainProviderError> for PipelineErrorKind {
     fn from(e: AlloyL2ChainProviderError) -> Self {
         match e {
-            AlloyL2ChainProviderError::Transport(e) => PipelineErrorKind::Temporary(
-                PipelineError::Provider(format!("Transport error: {e}")),
-            ),
-            AlloyL2ChainProviderError::BlockNotFound(_) => {
-                PipelineErrorKind::Temporary(PipelineError::Provider("Block not found".to_string()))
+            AlloyL2ChainProviderError::Transport(e) => {
+                Self::Temporary(PipelineError::Provider(format!("Transport error: {e}")))
             }
-            AlloyL2ChainProviderError::L2BlockInfoConstruction(_) => PipelineErrorKind::Temporary(
+            AlloyL2ChainProviderError::BlockNotFound(_) => {
+                Self::Temporary(PipelineError::Provider("Block not found".to_string()))
+            }
+            AlloyL2ChainProviderError::L2BlockInfoConstruction(_) => Self::Temporary(
                 PipelineError::Provider("L2 block info construction failed".to_string()),
             ),
-            AlloyL2ChainProviderError::SystemConfigConversion(_) => PipelineErrorKind::Temporary(
+            AlloyL2ChainProviderError::SystemConfigConversion(_) => Self::Temporary(
                 PipelineError::Provider("system config conversion failed".to_string()),
             ),
         }
