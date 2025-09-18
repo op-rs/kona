@@ -235,18 +235,22 @@ impl EngineActorState {
         let (l2_safe_head, l1_origin, system_config) =
             self.engine.reset(self.client.clone(), self.rollup.clone()).await?;
 
+        // Attempt to update the safe head following the reset.
+        // IMPORTANT NOTE: We need to update the safe head BEFORE sending the reset signal to the
+        // derivation actor. Since the derivation actor receives the safe head via a watch
+        // channel, updating the safe head after sending the reset signal may cause a race
+        // condition where the derivation actor receives the pre-reset safe head.
+        self.maybe_update_safe_head(engine_l2_safe_head_tx);
+
         // Signal the derivation actor to reset.
         let signal = ResetSignal { l2_safe_head, l1_origin, system_config: Some(system_config) };
         match derivation_signal_tx.send(signal.signal()).await {
-            Ok(_) => debug!(target: "engine", "Sent reset signal to derivation actor"),
+            Ok(_) => info!(target: "engine", "Sent reset signal to derivation actor"),
             Err(err) => {
                 error!(target: "engine", ?err, "Failed to send reset signal to the derivation actor");
                 return Err(EngineError::ChannelClosed);
             }
         }
-
-        // Attempt to update the safe head following the reset.
-        self.maybe_update_safe_head(engine_l2_safe_head_tx);
 
         // Clear the queue of L2 blocks awaiting finalization.
         finalizer.clear();
@@ -350,7 +354,7 @@ impl EngineActorState {
             false
         };
         let sent = engine_l2_safe_head_tx.send_if_modified(update);
-        trace!(target: "engine", ?sent, "Attempted L2 Safe Head Update");
+        info!(target: "engine", safe_head = ?state_safe_head, ?sent, "Attempted L2 Safe Head Update");
     }
 }
 

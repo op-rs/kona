@@ -124,7 +124,7 @@ where
         let output = if let Some(accelerated) = self.accelerated_precompiles.get(address) {
             (accelerated)(&input, gas_limit, &self.hint_writer, &self.oracle_reader)
         } else if let Some(precompile) = self.inner.precompiles.get(address) {
-            (*precompile)(&input, gas_limit)
+            precompile.execute(&input, gas_limit)
         } else {
             return Ok(None);
         };

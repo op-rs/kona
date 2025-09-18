@@ -8,7 +8,7 @@ use kona_protocol::BlockInfo;
 use kona_supervisor_metrics::observe_metrics_for_result_async;
 use kona_supervisor_storage::{DbReader, StorageRewinder};
 use std::{collections::HashMap, sync::Arc};
-use tracing::{error, info};
+use tracing::{error, info, trace};
 
 /// Handles L1 reorg operations for multiple chains
 #[derive(Debug, Constructor)]
@@ -45,10 +45,10 @@ where
 
     /// Processes a reorg for all chains when a new latest L1 block is received
     pub async fn handle_l1_reorg(&self, latest_block: BlockInfo) -> Result<(), ReorgHandlerError> {
-        info!(
+        trace!(
             target: "supervisor::reorg_handler",
             l1_block_number = latest_block.number,
-            "Reorg detected, processing..."
+            "Potential reorg detected, processing..."
         );
 
         self.verify_and_handle_chain_reorg().await
