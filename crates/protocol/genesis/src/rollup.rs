@@ -288,7 +288,9 @@ impl RollupConfig {
     /// Returns true if Isthmus is active at the given timestamp.
     pub fn is_isthmus_active(&self, timestamp: u64) -> bool {
         self.hardforks.isthmus_time.is_some_and(|t| timestamp >= t) ||
-            self.is_jovian_active(timestamp)
+            self.is_jovian_active(timestamp) ||
+            // For now we're uncoupling Jovian and Interop hardforks since they're both being worked on at the same time
+            self.is_interop_active(timestamp)
     }
 
     /// Returns true if the timestamp marks the first Isthmus block.
@@ -299,8 +301,7 @@ impl RollupConfig {
 
     /// Returns true if Jovian is active at the given timestamp.
     pub fn is_jovian_active(&self, timestamp: u64) -> bool {
-        self.hardforks.jovian_time.is_some_and(|t| timestamp >= t) ||
-            self.is_interop_active(timestamp)
+        self.hardforks.jovian_time.is_some_and(|t| timestamp >= t)
     }
 
     /// Returns true if the timestamp marks the first Jovian block.
