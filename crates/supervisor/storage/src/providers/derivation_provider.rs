@@ -560,21 +560,24 @@ where
             );
 
             while let Some(Ok((key, _stored_block))) = walker.next() {
-                // Remove the block
+                // Remove the block first
                 walker.delete_current()?;
 
+                // Only count as processed after successful deletion
                 processed_blocks += 1;
 
-                let percentage = if total_blocks > 0 {
-                    (processed_blocks as f64 / total_blocks as f64 * 100.0).min(100.0)
-                } else {
-                    100.0
-                };
-
                 // Log progress periodically or on last block
-                if processed_blocks % self.observability_interval == 0 {
+                if processed_blocks % self.observability_interval == 0 ||
+                    processed_blocks == total_blocks
+                {
+                    let percentage = if total_blocks > 0 {
+                        (processed_blocks as f64 / total_blocks as f64 * 100.0).min(100.0)
+                    } else {
+                        100.0
+                    };
+
                     info!(
-                        target: "supervisor::storage",
+                        target: "baba::storage",
                         chain_id = %self.chain_id,
                         block_number = %key,
                         percentage = %format!("{:.2}%", percentage),
