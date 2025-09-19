@@ -26,7 +26,7 @@ jobs:
 
       - name: Authenticate to GCP
         id: 'auth'
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           create_credentials_file: 'true'
           workload_identity_provider: 'projects/441280564867/locations/global/workloadIdentityPools/external-op-rs-ci/providers/github-op-rs-oidc'
