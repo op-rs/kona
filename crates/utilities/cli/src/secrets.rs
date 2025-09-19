@@ -7,6 +7,9 @@ use libp2p::identity::{Keypair, secp256k1::SecretKey};
 use std::{
     path::{Path, PathBuf},
     str::FromStr,
+    fs::OpenOptions,
+    os::unix::fs::OpenOptionsExt,
+    io::Write,
 };
 use thiserror::Error;
 
@@ -36,7 +39,24 @@ impl SecretKeyLoader {
 
                 let secret = SecretKey::generate();
                 let hex = alloy_primitives::hex::encode(secret.to_bytes());
-                std::fs::write(secret_key_path, hex)?;
+                
+                // Create file with restrictive permissions (600 - owner read/write only)
+                #[cfg(unix)]
+                {
+                    let mut file = OpenOptions::new()
+                        .create(true)
+                        .write(true)
+                        .truncate(true)
+                        .mode(0o600)
+                        .open(secret_key_path)?;
+                    file.write_all(hex.as_bytes())?;
+                }
+                
+                #[cfg(not(unix))]
+                {
+                    std::fs::write(secret_key_path, hex)?;
+                }
+                
                 let kp = libp2p::identity::secp256k1::Keypair::from(secret);
                 Ok(Keypair::from(kp))
             }
