@@ -577,7 +577,7 @@ where
                     };
 
                     info!(
-                        target: "baba::storage",
+                        target: "supervisor::storage",
                         chain_id = %self.chain_id,
                         block_number = %key,
                         percentage = %format!("{:.2}%", percentage),
