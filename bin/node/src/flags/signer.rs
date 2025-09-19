@@ -27,7 +27,7 @@ pub struct SignerArgs {
     #[arg(
         long = "p2p.sequencer.key.path",
         env = "KONA_NODE_P2P_SEQUENCER_KEY_PATH",
-        conflicts_with = "endpoint"
+        conflicts_with = "sequencer_key"
     )]
     pub sequencer_key_path: Option<PathBuf>,
     /// The URL of the remote signer endpoint. If not provided, remote signer will be disabled.
