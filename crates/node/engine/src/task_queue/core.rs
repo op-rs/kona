@@ -1,13 +1,12 @@
 //! The [`Engine`] is a task queue that receives and executes [`EngineTask`]s.
 
 use super::EngineTaskExt;
-use crate::{
-    EngineClient, EngineState, EngineSyncStateUpdate, EngineTask, EngineTaskError,
-    EngineTaskErrorSeverity, SynchronizeTask, SynchronizeTaskError,
-    task_queue::EngineTaskErrors,
-};
 #[cfg(feature = "metrics")]
 use crate::Metrics;
+use crate::{
+    EngineClient, EngineState, EngineSyncStateUpdate, EngineTask, EngineTaskError,
+    EngineTaskErrorSeverity, SynchronizeTask, SynchronizeTaskError, task_queue::EngineTaskErrors,
+};
 use alloy_provider::Provider;
 use alloy_rpc_types_eth::Transaction;
 use kona_genesis::{RollupConfig, SystemConfig};
@@ -73,8 +72,9 @@ impl Engine {
     pub fn enqueue(&mut self, task: EngineTask) {
         // Increment the inflight task metric for this task type
         #[cfg(feature = "metrics")]
-        metrics::gauge!(Metrics::ENGINE_INFLIGHT_TASKS, "type" => task.task_metrics_label()).increment(1.0);
-        
+        metrics::gauge!(Metrics::ENGINE_INFLIGHT_TASKS, "type" => task.task_metrics_label())
+            .increment(1.0);
+
         self.tasks.push(task);
         self.task_queue_length.send_replace(self.tasks.len());
     }
@@ -159,7 +159,7 @@ impl Engine {
                 metrics::gauge!(Metrics::ENGINE_INFLIGHT_TASKS, "type" => task.task_metrics_label()).decrement(1.0);
             }
         }
-        
+
         #[cfg(not(feature = "metrics"))]
         self.tasks.clear();
     }
@@ -178,11 +178,11 @@ impl Engine {
 
             // Pop the task from the queue now that it's been executed.
             let completed_task = self.tasks.pop().expect("Task should exist since we peeked it");
-            
+
             // Decrement the inflight task metric for this task type
             #[cfg(feature = "metrics")]
             metrics::gauge!(Metrics::ENGINE_INFLIGHT_TASKS, "type" => completed_task.task_metrics_label()).decrement(1.0);
-            
+
             // Avoid unused variable warning when metrics feature is disabled
             #[cfg(not(feature = "metrics"))]
             let _ = completed_task;

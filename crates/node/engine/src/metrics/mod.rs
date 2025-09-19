@@ -139,8 +139,20 @@ impl Metrics {
 
         // Engine inflight tasks (initialize all task types to 0)
         kona_macros::set!(gauge, Self::ENGINE_INFLIGHT_TASKS, "type", Self::INSERT_TASK_LABEL, 0.0);
-        kona_macros::set!(gauge, Self::ENGINE_INFLIGHT_TASKS, "type", Self::CONSOLIDATE_TASK_LABEL, 0.0);
+        kona_macros::set!(
+            gauge,
+            Self::ENGINE_INFLIGHT_TASKS,
+            "type",
+            Self::CONSOLIDATE_TASK_LABEL,
+            0.0
+        );
         kona_macros::set!(gauge, Self::ENGINE_INFLIGHT_TASKS, "type", Self::BUILD_TASK_LABEL, 0.0);
-        kona_macros::set!(gauge, Self::ENGINE_INFLIGHT_TASKS, "type", Self::FINALIZE_TASK_LABEL, 0.0);
+        kona_macros::set!(
+            gauge,
+            Self::ENGINE_INFLIGHT_TASKS,
+            "type",
+            Self::FINALIZE_TASK_LABEL,
+            0.0
+        );
     }
 }
