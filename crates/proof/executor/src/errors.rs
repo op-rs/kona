@@ -7,6 +7,7 @@
 use alloc::string::String;
 use alloy_evm::block::BlockExecutionError;
 use kona_mpt::TrieNodeError;
+use op_alloy_consensus::EIP1559ParamError;
 use revm::context::DBErrorMarker;
 use thiserror::Error;
 
@@ -97,7 +98,7 @@ pub enum ExecutorError {
     /// - Incorrect protocol version handling
     /// - Data corruption during header assembly
     #[error("Invalid `extraData` field in the block header")]
-    InvalidExtraData,
+    InvalidExtraData(#[from] EIP1559ParamError),
     /// Block gas limit exceeded during execution.
     ///
     /// This error occurs when the cumulative gas consumption of all transactions

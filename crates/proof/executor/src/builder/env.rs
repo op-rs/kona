@@ -1,7 +1,12 @@
 //! Environment utility functions for [StatelessL2Builder].
 
 use super::StatelessL2Builder;
-use crate::{ExecutorError, ExecutorResult, TrieDBProvider, util::decode_holocene_eip_1559_params};
+use crate::{
+    ExecutorError, ExecutorResult, TrieDBProvider,
+    util::{
+        decode_holocene_eip_1559_params_block_header, decode_jovian_eip_1559_params_block_header,
+    },
+};
 use alloy_consensus::{BlockHeader, Header};
 use alloy_eips::{eip1559::BaseFeeParams, eip7840::BlobParams};
 use alloy_evm::{EvmEnv, EvmFactory};
@@ -31,9 +36,15 @@ where
         parent_header: &Header,
         payload_attrs: &OpPayloadAttributes,
         base_fee_params: &BaseFeeParams,
+        min_base_fee: u64,
     ) -> ExecutorResult<EvmEnv<OpSpecId>> {
-        let block_env =
-            Self::prepare_block_env(spec_id, parent_header, payload_attrs, base_fee_params)?;
+        let block_env = Self::prepare_block_env(
+            spec_id,
+            parent_header,
+            payload_attrs,
+            base_fee_params,
+            min_base_fee,
+        )?;
         let cfg_env = self.evm_cfg_env(payload_attrs.payload_attributes.timestamp);
         Ok(EvmEnv::new(cfg_env, block_env))
     }
@@ -51,6 +62,7 @@ where
         parent_header: &Header,
         payload_attrs: &OpPayloadAttributes,
         base_fee_params: &BaseFeeParams,
+        min_base_fee: u64,
     ) -> ExecutorResult<BlockEnv> {
         let (params, fraction) = if spec_id.is_enabled_in(OpSpecId::ISTHMUS) {
             (Some(BlobParams::prague()), BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE)
@@ -64,8 +76,16 @@ where
             .maybe_next_block_excess_blob_gas(params)
             .or_else(|| spec_id.is_enabled_in(OpSpecId::ECOTONE).then_some(0))
             .map(|excess| BlobExcessGasAndPrice::new(excess, fraction));
-        let next_block_base_fee =
+
+        let mut next_block_base_fee =
             parent_header.next_block_base_fee(*base_fee_params).unwrap_or_default();
+
+        // If the next block base fee is less than the min base fee, set it to the min base fee.
+        // # Note
+        // Before Jovian activation, the min-base-fee is 0 so this is a no-op.
+        if next_block_base_fee < min_base_fee {
+            next_block_base_fee = min_base_fee;
+        }
 
         Ok(BlockEnv {
             number: U256::from(parent_header.number + 1),
@@ -79,32 +99,39 @@ where
         })
     }
 
-    /// Returns the active base fee parameters for the given payload attributes.
+    /// Returns the active base fee parameters for the parent header.
+    /// Returns the min-base-fee as the second element of the tuple.
+    ///
+    /// ## Note
+    /// Before Jovian activation, the min-base-fee is 0.
     pub(crate) fn active_base_fee_params(
         config: &RollupConfig,
         parent_header: &Header,
-        payload_attrs: &OpPayloadAttributes,
-    ) -> ExecutorResult<BaseFeeParams> {
-        let base_fee_params =
-            if config.is_holocene_active(payload_attrs.payload_attributes.timestamp) {
-                // After Holocene activation, the base fee parameters are stored in the
-                // `extraData` field of the parent header. If Holocene wasn't active in the
-                // parent block, the default base fee parameters are used.
-                config
-                    .is_holocene_active(parent_header.timestamp)
-                    .then(|| decode_holocene_eip_1559_params(parent_header))
-                    .transpose()?
-                    .unwrap_or(config.chain_op_config.as_canyon_base_fee_params())
-            } else if config.is_canyon_active(payload_attrs.payload_attributes.timestamp) {
+        payload_timestamp: u64,
+    ) -> ExecutorResult<(BaseFeeParams, u64)> {
+        match config {
+            // After Holocene activation, the base fee parameters are stored in the
+            // `extraData` field of the parent header. If Holocene wasn't active in the
+            // parent block, the default base fee parameters are used.
+            _ if config.is_jovian_active(parent_header.timestamp) => {
+                decode_jovian_eip_1559_params_block_header(parent_header)
+            }
+            _ if config.is_holocene_active(parent_header.timestamp) => {
+                decode_holocene_eip_1559_params_block_header(parent_header)
+                    .map(|base_fee_params| (base_fee_params, 0))
+            }
+            // If the next payload attribute timestamp is past canyon activation,
+            // use the canyon base fee params from the rollup config.
+            _ if config.is_canyon_active(payload_timestamp) => {
                 // If the payload attribute timestamp is past canyon activation,
                 // use the canyon base fee params from the rollup config.
-                config.chain_op_config.as_canyon_base_fee_params()
-            } else {
-                // If the payload attribute timestamp is prior to canyon activation,
+                Ok((config.chain_op_config.as_canyon_base_fee_params(), 0))
+            }
+            _ => {
+                // If the next payload attribute timestamp is prior to canyon activation,
                 // use the default base fee params from the rollup config.
-                config.chain_op_config.as_base_fee_params()
-            };
-
-        Ok(base_fee_params)
+                Ok((config.chain_op_config.as_base_fee_params(), 0))
+            }
+        }
     }
 }

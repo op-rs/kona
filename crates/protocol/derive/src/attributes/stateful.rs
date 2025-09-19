@@ -197,7 +197,11 @@ where
                 l2_parent.block_info.timestamp,
                 next_l2_time,
             ),
-            min_base_fee: sys_config.min_base_fee,
+            min_base_fee: self
+                .rollup_cfg
+                .is_jovian_active(next_l2_time)
+                .then(|| sys_config.min_base_fee.unwrap_or_default()), /* Default to zero if not
+                                                                        * set at Jovian */
         })
     }
 }

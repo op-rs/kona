@@ -6,7 +6,9 @@ use alloy_primitives::{Address, B256, Bytes};
 use alloy_rpc_types_eth::{Block, BlockTransactions, Withdrawals};
 use kona_genesis::RollupConfig;
 use kona_protocol::OpAttributesWithParent;
-use op_alloy_consensus::{EIP1559ParamError, OpTxEnvelope, decode_holocene_extra_data};
+use op_alloy_consensus::{
+    EIP1559ParamError, OpTxEnvelope, decode_holocene_extra_data, decode_jovian_extra_data,
+};
 use op_alloy_rpc_types::Transaction;
 
 /// Result of validating payload attributes against an execution layer block.
@@ -205,8 +207,16 @@ impl AttributesMatch {
             Some((ae, ad)) => (ae.into(), ad.into()),
         };
 
+        let extra_data_decoded = if config.is_jovian_active(block.header.timestamp) {
+            decode_jovian_extra_data(&block.header.extra_data).map(|(be, bd, _)| (be, bd))
+        } else if config.is_holocene_active(block.header.timestamp) {
+            decode_holocene_extra_data(&block.header.extra_data)
+        } else {
+            return AttributesMismatch::MissingBlockEIP1559.into();
+        };
+
         // We decode the extra data stemming from the block header.
-        let (be, bd): (u128, u128) = match decode_holocene_extra_data(&block.header.extra_data) {
+        let (be, bd): (u128, u128) = match extra_data_decoded {
             Ok((be, bd)) => (be.into(), bd.into()),
             Err(EIP1559ParamError::NoEIP1559Params) => {
                 error!(
@@ -291,8 +301,8 @@ impl AttributesMatch {
             return AttributesMismatch::GasLimit(gas_limit, block.header.inner.gas_limit).into();
         }
 
-        if let Self::Mismatch(m) = Self::check_withdrawals(config, attributes, block) {
-            return m.into();
+        if let m @ Self::Mismatch(_) = Self::check_withdrawals(config, attributes, block) {
+            return m;
         }
 
         if attributes.inner().payload_attributes.parent_beacon_block_root !=
@@ -915,6 +925,36 @@ mod tests {
 
         let check = AttributesMatch::check(&cfg, &attributes, &block);
         assert_eq!(check, AttributesMatch::Mismatch(AttributesMismatch::InvalidExtraDataVersion));
+        assert!(check.is_mismatch());
+    }
+
+    /// Try to encode jovian extra data with the holocene encoding function.
+    #[test]
+    fn test_eip1559_parameters_invalid_jovian_encoding() {
+        let (mut cfg, mut attributes, mut block) = eip1559_test_setup();
+
+        cfg.hardforks.jovian_time = Some(0);
+
+        let eip1559_extra_params = encode_holocene_extra_data(
+            Default::default(),
+            BaseFeeParams { max_change_denominator: 100, elasticity_multiplier: 2 },
+        )
+        .unwrap();
+        let eip1559_params: FixedBytes<8> =
+            eip1559_extra_params.clone().split_off(1).as_ref().try_into().unwrap();
+
+        let raw_extra_params_bytes = eip1559_extra_params.to_vec();
+
+        attributes.inner.eip_1559_params = Some(eip1559_params);
+        block.header.extra_data = raw_extra_params_bytes.into();
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+        assert_eq!(
+            check,
+            AttributesMatch::Mismatch(AttributesMismatch::UnknownExtraDataDecodingError(
+                EIP1559ParamError::InvalidExtraDataLength
+            ))
+        );
         assert!(check.is_mismatch());
     }
 
