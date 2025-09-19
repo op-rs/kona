@@ -36,7 +36,7 @@ func TestEngine(gt *testing.T) {
 					done <- struct{}{}
 				}()
 
-				queue <- GetDevWS(t, node, "engine_queue_size", done)
+				queue <- node_utils.GetDevWS(t, node, "engine_queue_size", done)
 			}()
 
 			q := <-queue
