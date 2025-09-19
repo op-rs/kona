@@ -572,7 +572,7 @@ where
                 };
 
                 // Log progress periodically or on last block
-                if processed_blocks % DEFAULT_LOG_INTERVAL == 0 {
+                if processed_blocks % self.observability_interval == 0 {
                     info!(
                         target: "supervisor::storage",
                         chain_id = %self.chain_id,
