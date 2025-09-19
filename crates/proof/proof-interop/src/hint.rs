@@ -134,7 +134,10 @@ mod test {
         assert_eq!(HintType::from_str("agreed-pre-state").unwrap(), HintType::AgreedPreState);
         assert_eq!(HintType::from_str("l2-output-root").unwrap(), HintType::L2OutputRoot);
         assert_eq!(HintType::from_str("l2-account-proof").unwrap(), HintType::L2AccountProof);
-        assert_eq!(HintType::from_str("l2-account-storage-proof").unwrap(), HintType::L2AccountStorageProof);
+        assert_eq!(
+            HintType::from_str("l2-account-storage-proof").unwrap(),
+            HintType::L2AccountStorageProof
+        );
         assert_eq!(HintType::from_str("l2-block-data").unwrap(), HintType::L2BlockData);
         assert_eq!(HintType::from_str("l2-payload-witness").unwrap(), HintType::L2PayloadWitness);
         match HintType::from_str("invalid") {
@@ -184,7 +187,7 @@ mod test {
     fn test_hint_fmt() {
         use super::HintType;
         use alloc::format;
-        
+
         assert_eq!(format!("{}", HintType::L1BlockHeader), "l1-block-header");
     }
 }
