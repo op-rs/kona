@@ -81,7 +81,9 @@ pub enum SignerArgsParseError {
     #[error("A local sequencer key and a remote signer cannot be specified at the same time.")]
     LocalAndRemoteSigner,
     /// Both sequencer key and sequencer key path cannot be specified at the same time.
-    #[error("Both sequencer key and sequencer key path cannot be specified at the same time. Use either --p2p.sequencer.key or --p2p.sequencer.key.path.")]
+    #[error(
+        "Both sequencer key and sequencer key path cannot be specified at the same time. Use either --p2p.sequencer.key or --p2p.sequencer.key.path."
+    )]
     ConflictingSequencerKeyInputs,
     /// The sequencer key is invalid.
     #[error("The sequencer key is invalid.")]
@@ -111,7 +113,7 @@ impl SignerArgs {
     pub fn config(self, args: &GlobalArgs) -> Result<Option<BlockSigner>, SignerArgsParseError> {
         // First, resolve the sequencer key from either raw input or file
         let sequencer_key = self.resolve_sequencer_key()?;
-        
+
         // The sequencer signer obtained from the CLI arguments.
         let gossip_signer: Option<BlockSigner> = match (sequencer_key, self.config_remote()?) {
             (Some(_), Some(_)) => return Err(SignerArgsParseError::LocalAndRemoteSigner),
@@ -203,13 +205,13 @@ mod tests {
         let key = b256!("1d2b0bda21d56b8bd12d4f94ebacffdfb35f5e226f84b461103bb8beab6353be");
         let hex = alloy_primitives::hex::encode(key.0);
         write!(temp_file, "{}", hex).unwrap();
-        
+
         let signer_args = SignerArgs {
             sequencer_key: None,
             sequencer_key_path: Some(temp_file.path().to_path_buf()),
             ..Default::default()
         };
-        
+
         let resolved = signer_args.resolve_sequencer_key().unwrap();
         assert_eq!(resolved, Some(key));
     }
@@ -217,11 +219,13 @@ mod tests {
     #[test]
     fn test_resolve_sequencer_key_conflicting_inputs() {
         let signer_args = SignerArgs {
-            sequencer_key: Some(b256!("bcc617ea05150ff60490d3c6058630ba94ae9f12a02a87efd291349ca0e54e0a")),
+            sequencer_key: Some(b256!(
+                "bcc617ea05150ff60490d3c6058630ba94ae9f12a02a87efd291349ca0e54e0a"
+            )),
             sequencer_key_path: Some(PathBuf::from("/path/to/key.txt")),
             ..Default::default()
         };
-        
+
         let result = signer_args.resolve_sequencer_key();
         assert!(matches!(result, Err(SignerArgsParseError::ConflictingSequencerKeyInputs)));
     }
