@@ -190,17 +190,21 @@ where
                 transactions: Some(transactions),
                 no_tx_pool: Some(true),
                 gas_limit: Some(header.gas_limit),
-                eip_1559_params: rollup_config.is_holocene_active(header.timestamp).then(|| {
-                    // SAFETY: After the Holocene hardfork, blocks must have the EIP-1559 parameters
-                    // of the chain placed within the header's `extra_data`
-                    // field. This slice index + conversion cannot fail
-                    // unless the protocol rules have been violated.
-                    header
-                        .extra_data
-                        .get(1..9)
-                        .and_then(|s| s.try_into().ok())
-                        .expect("slice conversion cannot fail")
-                }),
+                eip_1559_params: rollup_config
+                    .is_holocene_active(header.timestamp)
+                    .then(|| {
+                        // SAFETY: After the Holocene hardfork, blocks must have the EIP-1559
+                        // parameters of the chain placed within the
+                        // header's `extra_data` field. This slice index +
+                        // conversion cannot fail unless the protocol rules
+                        // have been violated.
+                        header.extra_data.get(1..9).and_then(|s| s.try_into().ok()).ok_or(
+                            ExecutorError::InvalidExtraData(
+                                op_alloy_consensus::EIP1559ParamError::NoEIP1559Params,
+                            ),
+                        )
+                    })
+                    .transpose()?,
                 min_base_fee: rollup_config
                     .is_jovian_active(header.timestamp)
                     .then(|| {
@@ -209,8 +213,11 @@ where
                             .get(9..17)
                             .and_then(|s| <[u8; 8]>::try_from(s).ok())
                             .map(u64::from_be_bytes)
+                            .ok_or(ExecutorError::InvalidExtraData(
+                                op_alloy_consensus::EIP1559ParamError::MinBaseFeeNotSet,
+                            ))
                     })
-                    .flatten(),
+                    .transpose()?,
             };
 
             // Create a new stateless L2 block executor for the current chain.

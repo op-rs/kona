@@ -15,7 +15,7 @@ pub struct MinBaseFeeUpdate {
 
 impl MinBaseFeeUpdate {
     /// Applies the update to the [`SystemConfig`].
-    pub const fn apply(&self, config: &mut SystemConfig) {
+    pub fn apply(&self, config: &mut SystemConfig) {
         config.min_base_fee = Some(self.min_base_fee);
     }
 }
