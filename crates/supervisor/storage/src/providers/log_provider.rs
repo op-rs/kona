@@ -84,7 +84,7 @@ where
                 incoming_block = %block,
                 "Incoming log block is not consistent with the stored log block",
             );
-            return Err(StorageError::ConflictError);
+            return Err(StorageError::ConflictError)
         }
 
         if !latest_block.is_parent_of(block) {
