@@ -206,7 +206,7 @@ where
 
             while let Some(Ok((key, stored_block))) = walker.next() {
                 if key == block.number && block.hash != stored_block.hash {
-                    error!(
+                    warn!(
                         target: "supervisor::storage",
                         chain_id = %self.chain_id,
                         %stored_block,
