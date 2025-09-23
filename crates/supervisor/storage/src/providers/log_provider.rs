@@ -234,14 +234,14 @@ where
                     };
 
                     info!(
-                    target: "supervisor::storage",
-                                            chain_id = %self.chain_id,
-                                            block_number = %key,
-                                            percentage = %format!("{:.2}%", percentage),
-                                            processed_blocks,
-                                            total_blocks,
-                                            "Rewind progress"
-                                        );
+                       target: "supervisor::storage",
+                       chain_id = %self.chain_id,
+                       block_number = %key,
+                       percentage = %format!("{:.2}%", percentage),
+                       processed_blocks,
+                       total_blocks,
+                       "Rewind progress"
+                    );
                 }
             }
 
