@@ -35,7 +35,7 @@ impl<'tx, TX> DerivationProvider<'tx, TX> {
     pub(crate) fn new_with_observability_interval(
         tx: &'tx TX,
         chain_id: ChainId,
-        observability_interval: Option<u64>,
+        observability_interval: u64,
     ) -> Self {
         Self {
             tx,
