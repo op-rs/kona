@@ -86,7 +86,7 @@ where
         );
 
         // Call the rewinder to handle the DB rewinding
-        let derived_block_rewounded =
+        let derived_block_rewound =
             self.db.rewind_to_source(&rewind_target_source.id()).inspect_err(|err| {
                 warn!(
                     target: "supervisor::reorg_handler::db",
@@ -96,7 +96,7 @@ where
                 );
             })?;
 
-        Ok(RewoundState { source: rewind_target_source, derived: derived_block_rewounded })
+        Ok(RewoundState { source: rewind_target_source, derived: derived_block_rewound })
     }
 
     async fn rewind_to_activation_block(&self) -> Result<Option<RewoundState>, ReorgHandlerError> {

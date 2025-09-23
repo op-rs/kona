@@ -18,6 +18,8 @@ pub enum SystemConfigUpdateKind {
     Eip1559 = 4,
     /// Operator fee parameter update
     OperatorFee = 5,
+    /// Min base fee parameter update
+    MinBaseFee = 6,
 }
 
 impl TryFrom<u64> for SystemConfigUpdateKind {
@@ -31,6 +33,7 @@ impl TryFrom<u64> for SystemConfigUpdateKind {
             3 => Ok(Self::UnsafeBlockSigner),
             4 => Ok(Self::Eip1559),
             5 => Ok(Self::OperatorFee),
+            6 => Ok(Self::MinBaseFee),
             _ => Err(SystemConfigUpdateError::LogProcessing(
                 LogProcessingError::InvalidSystemConfigUpdateType(value),
             )),
