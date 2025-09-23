@@ -472,7 +472,7 @@ mod tests {
     /// Helper to initialize database in a new transaction, committing if successful.
     fn initialize_db(db: &DatabaseEnv, block: &BlockInfo) -> Result<(), StorageError> {
         let tx = db.tx_mut().expect("Could not get mutable tx");
-        let provider = LogProvider::new_with_observability_interval(&tx, CHAIN_ID, 100);
+        let provider = LogProvider::new(&tx, CHAIN_ID);
         let res = provider.initialise(*block);
         if res.is_ok() {
             tx.commit().expect("Failed to commit transaction");
