@@ -31,17 +31,12 @@ impl<'tx, TX> DerivationProvider<'tx, TX> {
         Self::new_with_observability_interval(tx, chain_id, DEFAULT_LOG_INTERVAL)
     }
 
-    #[cfg(test)]
-    pub(crate) fn new_with_observability_interval(
+    pub(crate) const fn new_with_observability_interval(
         tx: &'tx TX,
         chain_id: ChainId,
         observability_interval: u64,
     ) -> Self {
-        Self {
-            tx,
-            chain_id,
-            observability_interval: observability_interval.unwrap_or(DEFAULT_LOG_INTERVAL),
-        }
+        Self { tx, chain_id, observability_interval }
     }
 }
 
@@ -537,7 +532,7 @@ where
                 latest_block,
                 "Cannot rewind to future block"
             );
-            return Err(StorageError::FutureData);
+            return Err(StorageError::FutureData)
         }
 
         let total_blocks = latest_block.saturating_sub(block.number);
@@ -1220,8 +1215,7 @@ mod tests {
         let tx = db.tx_mut().expect("Failed to get mutable tx");
 
         // Use the new constructor with observability interval = 1 for detailed logging in tests
-        let provider =
-            DerivationProvider::new_with_observability_interval(&tx, CHAIN_ID, Some(100));
+        let provider = DerivationProvider::new_with_observability_interval(&tx, CHAIN_ID, 100);
 
         let derived_genesis = block_info(9, genesis_block().hash, 201);
         provider
@@ -1291,7 +1285,7 @@ mod tests {
     #[test]
     fn test_rewind_block_to_success_with_new_observability_interval() {
         let db = setup_db();
-        let interval = Some(12);
+        let interval = 12;
         let tx = db.tx_mut().expect("Failed to get mutable tx");
         let provider = DerivationProvider::new_with_observability_interval(&tx, CHAIN_ID, interval);
         let derived_genesis = block_info(9, genesis_block().hash, 201);
