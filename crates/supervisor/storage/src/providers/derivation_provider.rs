@@ -28,7 +28,7 @@ pub(crate) struct DerivationProvider<'tx, TX> {
 
 impl<'tx, TX> DerivationProvider<'tx, TX> {
     pub(crate) const fn new(tx: &'tx TX, chain_id: ChainId) -> Self {
-        Self { tx, chain_id, observability_interval: DEFAULT_LOG_INTERVAL }
+        Self::new_with_observability_interval(tx, chain_id, DEFAULT_LOG_INTERVAL)
     }
 
     #[cfg(test)]
