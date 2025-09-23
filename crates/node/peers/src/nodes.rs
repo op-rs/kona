@@ -6,9 +6,7 @@ use discv5::Enr;
 use lazy_static::lazy_static;
 use std::str::FromStr;
 
-use kona_genesis::{
-    BASE_MAINNET_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, OP_MAINNET_CHAIN_ID, OP_SEPOLIA_CHAIN_ID,
-};
+use kona_registry::CHAINS;
 
 /// Bootnodes for OP Stack chains.
 #[derive(Debug, Clone, Deref, PartialEq, Eq)]
@@ -19,9 +17,12 @@ impl BootNodes {
     ///
     /// If the chain id is not recognized, no bootnodes are returned.
     pub fn from_chain_id(id: u64) -> Self {
-        match id {
-            OP_MAINNET_CHAIN_ID | BASE_MAINNET_CHAIN_ID => Self::mainnet(),
-            OP_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID => Self::testnet(),
+        let Some(chain) = CHAINS.get_chain_by_id(id) else {
+            return Self(vec![]);
+        };
+        match chain.parent.chain_id() {
+            1 => Self::mainnet(),
+            11155111 => Self::testnet(),
             _ => Self(vec![]),
         }
     }
@@ -125,11 +126,13 @@ pub static OP_RAW_TESTNET_BOOTNODES: &[&str] = &[
 mod tests {
     use discv5::enr::EnrPublicKey;
 
+    use kona_genesis::{BASE_MAINNET_CHAIN_ID, OP_MAINNET_CHAIN_ID, OP_SEPOLIA_CHAIN_ID};
+
     use super::*;
 
     #[test]
     fn test_validate_bootnode_lens() {
-        assert_eq!(OP_RAW_BOOTNODES.len(), 21);
+        assert_eq!(OP_RAW_BOOTNODES.len(), 24);
         assert_eq!(OP_RAW_TESTNET_BOOTNODES.len(), 8);
     }
 
@@ -147,9 +150,18 @@ mod tests {
     #[test]
     fn test_bootnodes_from_chain_id() {
         let mainnet = BootNodes::from_chain_id(OP_MAINNET_CHAIN_ID);
-        assert_eq!(mainnet.len(), 21);
+        assert_eq!(mainnet.len(), 24);
+
+        let mainnet = BootNodes::from_chain_id(BASE_MAINNET_CHAIN_ID);
+        assert_eq!(mainnet.len(), 24);
+
+        let mainnet = BootNodes::from_chain_id(130 /* Unichain Mainnet */);
+        assert_eq!(mainnet.len(), 24);
 
         let testnet = BootNodes::from_chain_id(OP_SEPOLIA_CHAIN_ID);
+        assert_eq!(testnet.len(), 8);
+
+        let testnet = BootNodes::from_chain_id(1301 /* Unichain Sepolia */);
         assert_eq!(testnet.len(), 8);
 
         let unknown = BootNodes::from_chain_id(0);
@@ -159,7 +171,7 @@ mod tests {
     #[test]
     fn test_bootnodes_len() {
         let bootnodes = BootNodes::mainnet();
-        assert_eq!(bootnodes.len(), 21);
+        assert_eq!(bootnodes.len(), 24);
 
         let bootnodes = BootNodes::testnet();
         assert_eq!(bootnodes.len(), 8);
