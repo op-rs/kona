@@ -218,10 +218,10 @@ where
                 // remove the block
                 walker.delete_current()?;
 
-                processed_blocks += 1;
-
                 // remove the logs of that block
                 self.tx.delete::<LogEntries>(key, None)?;
+
+                processed_blocks += 1;
 
                 // Log progress periodically or on last block
                 if processed_blocks % self.observability_interval == 0 ||
