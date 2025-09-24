@@ -145,7 +145,7 @@ action-tests-single test_name='Test_ProgramAction' *args='':
   just monorepo
 
   echo "Building contract artifacts for the monorepo"
-  (cd monorepo/packages/contracts-bedrock && forge build)
+  (cd monorepo/packages/contracts-bedrock && forge build --no-restart -j 0)
 
   echo "Building host program for the native target"
   just build-native --bin kona-host
