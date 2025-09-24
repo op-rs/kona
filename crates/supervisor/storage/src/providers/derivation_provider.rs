@@ -535,7 +535,8 @@ where
             return Err(StorageError::FutureData)
         }
 
-        let total_blocks = latest_block.saturating_sub(block.number);
+        // total blocks to rewind down to and including tgt block
+        let total_blocks = latest_block - block.number + 1;
         let mut processed_blocks = 0;
 
         // Delete all derived blocks with number ≥ `block.number`
