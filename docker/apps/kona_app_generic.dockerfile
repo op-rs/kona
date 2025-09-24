@@ -72,13 +72,13 @@ FROM build-entrypoint AS builder
 COPY --from=planner /app/recipe.json recipe.json
 
 # Build dependencies - this is the caching Docker layer!
-RUN RUSTFLAGS="-C target-cpu=native" cargo chef cook --bin "${BIN_TARGET}" --profile "${BUILD_PROFILE}" --recipe-path recipe.json
+RUN RUSTFLAGS="-C target-cpu=generic" cargo chef cook --bin "${BIN_TARGET}" --profile "${BUILD_PROFILE}" --recipe-path recipe.json
 
 # Build application. This step will systematically trigger a cache invalidation if the source code changes.
 COPY --from=app-setup kona .
 # Build the application binary on the selected tag. Since we build the external dependencies in the previous step,
 # this step will reuse the target directory from the previous step.
-RUN RUSTFLAGS="-C target-cpu=native" cargo build --bin "${BIN_TARGET}" --profile "${BUILD_PROFILE}"
+RUN RUSTFLAGS="-C target-cpu=generic" cargo build --bin "${BIN_TARGET}" --profile "${BUILD_PROFILE}"
 
 # Export stage
 FROM ubuntu:22.04 AS export-stage

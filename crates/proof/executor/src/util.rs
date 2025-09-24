@@ -1,14 +1,17 @@
 //! Contains utilities for the L2 executor.
 
-use crate::{ExecutorError, ExecutorResult, constants::HOLOCENE_EXTRA_DATA_VERSION};
-use alloc::vec::Vec;
-use alloy_consensus::Header;
+use crate::{ExecutorError, ExecutorResult};
+use alloy_consensus::{BlockHeader, Header};
 use alloy_eips::eip1559::BaseFeeParams;
-use alloy_primitives::{B64, Bytes};
+use alloy_primitives::Bytes;
 use kona_genesis::RollupConfig;
+use op_alloy_consensus::{
+    EIP1559ParamError, decode_holocene_extra_data, decode_jovian_extra_data,
+    encode_holocene_extra_data, encode_jovian_extra_data,
+};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
-/// Parse Holocene [Header] extra data.
+/// Parse Holocene [Header] extra data from the block header.
 ///
 /// ## Takes
 /// - `extra_data`: The extra data field of the [Header].
@@ -16,32 +19,43 @@ use op_alloy_rpc_types_engine::OpPayloadAttributes;
 /// ## Returns
 /// - `Ok(BaseFeeParams)`: The EIP-1559 parameters.
 /// - `Err(ExecutorError::InvalidExtraData)`: If the extra data is invalid.
-pub(crate) fn decode_holocene_eip_1559_params(header: &Header) -> ExecutorResult<BaseFeeParams> {
-    // Check the extra data length.
-    if header.extra_data.len() != 1 + 8 {
-        return Err(ExecutorError::InvalidExtraData);
-    }
-
-    // Check the extra data version byte.
-    if header.extra_data[0] != HOLOCENE_EXTRA_DATA_VERSION {
-        return Err(ExecutorError::InvalidExtraData);
-    }
-
-    // Parse the EIP-1559 parameters.
-    let data = &header.extra_data[1..];
-    let denominator =
-        u32::from_be_bytes(data[..4].try_into().map_err(|_| ExecutorError::InvalidExtraData)?)
-            as u128;
-    let elasticity =
-        u32::from_be_bytes(data[4..].try_into().map_err(|_| ExecutorError::InvalidExtraData)?)
-            as u128;
+pub(crate) fn decode_holocene_eip_1559_params_block_header(
+    header: &Header,
+) -> ExecutorResult<BaseFeeParams> {
+    let (elasticity, denominator) = decode_holocene_extra_data(header.extra_data())?;
 
     // Check for potential division by zero.
+    // In the block header, the denominator is always non-zero.
+    // <https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/holocene/exec-engine.md#eip-1559-parameters-in-block-header>
     if denominator == 0 {
-        return Err(ExecutorError::InvalidExtraData);
+        return Err(ExecutorError::InvalidExtraData(EIP1559ParamError::ElasticityOverflow));
     }
 
-    Ok(BaseFeeParams { elasticity_multiplier: elasticity, max_change_denominator: denominator })
+    Ok(BaseFeeParams {
+        elasticity_multiplier: elasticity.into(),
+        max_change_denominator: denominator.into(),
+    })
+}
+
+pub(crate) fn decode_jovian_eip_1559_params_block_header(
+    header: &Header,
+) -> ExecutorResult<(BaseFeeParams, u64)> {
+    let (elasticity, denominator, min_base_fee) = decode_jovian_extra_data(header.extra_data())?;
+
+    // Check for potential division by zero.
+    // In the block header, the denominator is always non-zero.
+    // <https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/holocene/exec-engine.md#eip-1559-parameters-in-block-header>
+    if denominator == 0 {
+        return Err(ExecutorError::InvalidExtraData(EIP1559ParamError::ElasticityOverflow));
+    }
+
+    Ok((
+        BaseFeeParams {
+            elasticity_multiplier: elasticity.into(),
+            max_change_denominator: denominator.into(),
+        },
+        min_base_fee,
+    ))
 }
 
 /// Encode Holocene [Header] extra data.
@@ -57,35 +71,40 @@ pub(crate) fn encode_holocene_eip_1559_params(
     config: &RollupConfig,
     attributes: &OpPayloadAttributes,
 ) -> ExecutorResult<Bytes> {
-    let payload_params = attributes.eip_1559_params.ok_or(ExecutorError::MissingEIP1559Params)?;
-    let params = if payload_params == B64::ZERO {
-        encode_canyon_base_fee_params(config)
-    } else {
-        payload_params
-    };
-
-    let mut data = Vec::with_capacity(1 + 8);
-    data.push(HOLOCENE_EXTRA_DATA_VERSION);
-    data.extend_from_slice(params.as_ref());
-    Ok(data.into())
+    Ok(encode_holocene_extra_data(
+        attributes.eip_1559_params.ok_or(ExecutorError::MissingEIP1559Params)?,
+        config.chain_op_config.as_base_fee_params(),
+    )?)
 }
 
-/// Encodes the canyon base fee parameters, per Holocene spec.
+/// Encode Jovian [Header] extra data.
 ///
-/// <https://specs.optimism.io/protocol/holocene/exec-engine.html#eip1559params-encoding>
-pub(crate) fn encode_canyon_base_fee_params(config: &RollupConfig) -> B64 {
-    let params = config.chain_op_config.as_canyon_base_fee_params();
-
-    let mut buf = B64::ZERO;
-    buf[..4].copy_from_slice(&(params.max_change_denominator as u32).to_be_bytes());
-    buf[4..].copy_from_slice(&(params.elasticity_multiplier as u32).to_be_bytes());
-    buf
+/// ## Takes
+/// - `config`: The [RollupConfig] for the chain.
+/// - `attributes`: The [OpPayloadAttributes] for the block.
+///
+/// ## Returns
+/// - `Ok(data)`: The encoded extra data.
+/// - `Err(ExecutorError::MissingEIP1559Params)`: If the EIP-1559 parameters are missing.
+pub(crate) fn encode_jovian_eip_1559_params(
+    config: &RollupConfig,
+    attributes: &OpPayloadAttributes,
+) -> ExecutorResult<Bytes> {
+    Ok(encode_jovian_extra_data(
+        attributes.eip_1559_params.ok_or(ExecutorError::MissingEIP1559Params)?,
+        config.chain_op_config.as_base_fee_params(),
+        attributes
+            .min_base_fee
+            .ok_or(ExecutorError::InvalidExtraData(EIP1559ParamError::MinBaseFeeNotSet))?,
+    )?)
 }
 
 #[cfg(test)]
 mod test {
-    use super::decode_holocene_eip_1559_params;
-    use crate::util::{encode_canyon_base_fee_params, encode_holocene_eip_1559_params};
+    use super::decode_holocene_eip_1559_params_block_header;
+    use crate::util::{
+        decode_jovian_eip_1559_params_block_header, encode_holocene_eip_1559_params,
+    };
     use alloy_consensus::Header;
     use alloy_primitives::{B64, b64, hex};
     use alloy_rpc_types_engine::PayloadAttributes;
@@ -113,31 +132,42 @@ mod test {
     fn test_decode_holocene_eip_1559_params() {
         let params = hex!("00BEEFBABE0BADC0DE");
         let mock_header = Header { extra_data: params.to_vec().into(), ..Default::default() };
-        let params = decode_holocene_eip_1559_params(&mock_header).unwrap();
+        let params = decode_holocene_eip_1559_params_block_header(&mock_header).unwrap();
 
         assert_eq!(params.elasticity_multiplier, 0x0BAD_C0DE);
         assert_eq!(params.max_change_denominator, 0xBEEF_BABE);
     }
 
     #[test]
+    fn test_decode_jovian_eip_1559_params() {
+        let params = hex!("01BEEFBABE0BADC0DE00000000DEADBEEF");
+        let mock_header = Header { extra_data: params.to_vec().into(), ..Default::default() };
+        let (params, base_fee) = decode_jovian_eip_1559_params_block_header(&mock_header).unwrap();
+
+        assert_eq!(params.elasticity_multiplier, 0x0BAD_C0DE);
+        assert_eq!(params.max_change_denominator, 0xBEEF_BABE);
+        assert_eq!(base_fee, 0xDEAD_BEEF);
+    }
+
+    #[test]
     fn test_decode_holocene_eip_1559_params_invalid_version() {
         let params = hex!("01BEEFBABE0BADC0DE");
         let mock_header = Header { extra_data: params.to_vec().into(), ..Default::default() };
-        assert!(decode_holocene_eip_1559_params(&mock_header).is_err());
+        assert!(decode_holocene_eip_1559_params_block_header(&mock_header).is_err());
     }
 
     #[test]
     fn test_decode_holocene_eip_1559_params_invalid_denominator() {
         let params = hex!("00000000000BADC0DE");
         let mock_header = Header { extra_data: params.to_vec().into(), ..Default::default() };
-        assert!(decode_holocene_eip_1559_params(&mock_header).is_err());
+        assert!(decode_holocene_eip_1559_params_block_header(&mock_header).is_err());
     }
 
     #[test]
     fn test_decode_holocene_eip_1559_params_invalid_length() {
         let params = hex!("00");
         let mock_header = Header { extra_data: params.to_vec().into(), ..Default::default() };
-        assert!(decode_holocene_eip_1559_params(&mock_header).is_err());
+        assert!(decode_holocene_eip_1559_params_block_header(&mock_header).is_err());
     }
 
     #[test]
@@ -189,18 +219,5 @@ mod test {
             encode_holocene_eip_1559_params(&cfg, &attrs).unwrap(),
             hex!("000000004000000060").to_vec()
         );
-    }
-
-    #[test]
-    fn test_encode_canyon_1559_params() {
-        let cfg = RollupConfig {
-            chain_op_config: BaseFeeConfig {
-                eip1559_denominator: 32,
-                eip1559_elasticity: 64,
-                eip1559_denominator_canyon: 32,
-            },
-            ..Default::default()
-        };
-        assert_eq!(encode_canyon_base_fee_params(&cfg), b64!("0000002000000040"));
     }
 }
