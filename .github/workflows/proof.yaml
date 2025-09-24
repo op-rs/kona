@@ -29,62 +29,21 @@ jobs:
           components: llvm-tools-preview
           prefix-key: ${{ matrix.kind }}
       - uses: taiki-e/install-action@cargo-llvm-cov
-      - name: Prep action test environment
-        run: just monorepo
-      - name: Restore cached Forge artifacts
-        id: cache-forge-build-restore
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            monorepo/packages/contracts-bedrock/forge-artifacts
-            monorepo/packages/contracts-bedrock/artifacts
-            monorepo/packages/contracts-bedrock/cache
-          key: ${{ matrix.kind }}-${{ hashFiles('monorepo/packages/contracts-bedrock/src/**') }}-forge-artifacts
       - name: Setup Go toolchain
         uses: actions/setup-go@v5
         with:
           go-version: "1.22.7"
           cache-dependency-path: |
-            monorepo/go.sum
+            tests/go.sum
       - name: Setup gotestsum
         uses: autero1/action-gotestsum@v2.0.0
         with:
           gotestsum_version: 1.12.1
-      - name: Setup yq
-        uses: dcarbone/install-yq-action@v1
-      - name: Extract monorepo forge version
-        id: collect-versions
-        run: |
-          append_v() {
-            local input="$1"
-
-            if [[ "$input" == v* ]] || [[ "$input" == nightly* ]]; then
-              echo "$input"
-            else
-              echo "v$input"
-            fi
-          }
-          forge_version=$(append_v "$(yq '.tools.forge' monorepo/mise.toml | tr -d '\n')")
-          echo "forge-version=$forge_version" >> $GITHUB_OUTPUT
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: ${{ steps.collect-versions.outputs.forge-version }}
       - name: Run Action Tests (${{ matrix.kind }})
         run: |
           source <(cargo llvm-cov show-env --export-prefix)
           just "action-tests-${{ matrix.kind }}"
           cargo llvm-cov report --lcov --output-path actions_cov.lcov
-      - name: Cache forge artifacts
-        id: cache-forge-build-save
-        if: ${{ github.ref == 'refs/heads/main' }}
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            monorepo/packages/contracts-bedrock/forge-artifacts
-            monorepo/packages/contracts-bedrock/artifacts
-            monorepo/packages/contracts-bedrock/cache
-          key: ${{ matrix.kind }}-${{ hashFiles('monorepo/packages/contracts-bedrock/src/**') }}-forge-artifacts
       - name: Upload coverage to codecov.io
         uses: codecov/codecov-action@v5
         with:

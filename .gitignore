@@ -22,9 +22,6 @@ package-lock.json
 # `optimism-package` workspace
 optimism-package/
 
-# `optimism` workspace
-optimism/
-
 # Environment Variables
 .env
 
