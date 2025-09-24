@@ -14,7 +14,7 @@ pub use service::{InteropMode, NodeMode, RollupNode, RollupNodeBuilder, RollupNo
 
 mod actors;
 pub use actors::{
-    AttributesBuilderConfig, CancellableContext, ConductorClient, ConductorError,
+    AttributesBuilderConfig, BuildRequest, CancellableContext, ConductorClient, ConductorError,
     DelayedL1OriginSelectorProvider, DerivationActor, DerivationBuilder, DerivationContext,
     DerivationError, DerivationInboundChannels, DerivationState, EngineActor, EngineBuilder,
     EngineContext, EngineError, EngineInboundData, InboundDerivationMessage, L1OriginSelector,
