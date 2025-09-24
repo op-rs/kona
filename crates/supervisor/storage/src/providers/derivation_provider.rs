@@ -1345,7 +1345,7 @@ mod tests {
         let tx = db.tx_mut().expect("Could not get mutable tx");
         let provider = DerivationProvider::new_with_observability_interval(&tx, CHAIN_ID, 1);
         let derived_id = BlockNumHash { number: derived1.number, hash: derived1.hash };
-        let _ = provider.rewind_to(&derived_id).expect("rewind should succeed");
+        provider.rewind_to(&derived_id).expect("rewind should succeed");
 
         let res = provider.get_derived_block_pair_by_number(1);
         assert!(matches!(res, Err(StorageError::EntryNotFound(_))));
