@@ -2,6 +2,7 @@
 
 use crate::DecodeError;
 use alloy_primitives::B256;
+use op_alloy_consensus::EIP1559ParamError;
 
 /// An error encountered during OP [`Block`](alloy_consensus::Block) conversion.
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
@@ -23,5 +24,5 @@ pub enum OpBlockConversionError {
     EmptyTransactions(B256),
     /// EIP-1559 parameter decoding error.
     #[error("Failed to decode EIP-1559 parameters from header's `extraData` field.")]
-    Eip1559DecodeError,
+    Eip1559DecodeError(#[from] EIP1559ParamError),
 }

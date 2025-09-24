@@ -33,6 +33,7 @@ impl TryFrom<u64> for SystemConfigUpdateKind {
             3 => Ok(Self::UnsafeBlockSigner),
             4 => Ok(Self::Eip1559),
             5 => Ok(Self::OperatorFee),
+            6 => Ok(Self::MinBaseFee),
             _ => Err(SystemConfigUpdateError::LogProcessing(
                 LogProcessingError::InvalidSystemConfigUpdateType(value),
             )),
