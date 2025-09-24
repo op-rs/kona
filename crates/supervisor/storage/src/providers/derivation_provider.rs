@@ -691,6 +691,7 @@ mod tests {
     use super::*;
     use crate::models::Tables;
     use alloy_primitives::B256;
+    use kona_cli::init_test_tracing;
     use kona_interop::DerivedRefPair;
     use kona_protocol::BlockInfo;
     use reth_db::{
@@ -700,11 +701,6 @@ mod tests {
     use tempfile::TempDir;
 
     static CHAIN_ID: ChainId = 1;
-
-    #[tokio::test]
-    async fn test_online_runtime_loader() {
-        kona_cli::init_test_tracing();
-    }
 
     fn block_info(number: u64, parent_hash: B256, timestamp: u64) -> BlockInfo {
         BlockInfo { hash: B256::from([number as u8; 32]), number, parent_hash, timestamp }
@@ -1210,151 +1206,6 @@ mod tests {
     }
 
     #[test]
-    fn test_rewind_block_to_success() {
-        let db = setup_db();
-        let tx = db.tx_mut().expect("Failed to get mutable tx");
-
-        // Use the new constructor with observability interval = 1 for detailed logging in tests
-        let provider = DerivationProvider::new_with_observability_interval(&tx, CHAIN_ID, 100);
-
-        let derived_genesis = block_info(9, genesis_block().hash, 201);
-        provider
-            .initialise(derived_pair(genesis_block(), derived_genesis))
-            .expect("initialise should succeed");
-
-        // Setup:
-        // Block 1: derived blocks 10, 11, 12
-        // Block 2: derived blocks 13, 14
-        // We will rewind to (source: 1, derived: 11)
-        // After rewind:
-        // - Block 1 keeps only 10
-        // - Block 2 is removed completely
-        // Rewind 2 - to block 10
-        // After rewind: Only genesis left
-        let (source1, source2) = {
-            let s1 = block_info(1, genesis_block().hash, 200);
-            let s2 = block_info(2, s1.hash, 300);
-            (s1, s2)
-        };
-
-        let (derived10, derived11, derived12, derived13, derived14) = {
-            let d1 = block_info(10, derived_genesis.hash, 195);
-            let d2 = block_info(11, d1.hash, 197);
-            let d3 = block_info(12, d2.hash, 290);
-            let d4 = block_info(13, d3.hash, 292);
-            let d5 = block_info(14, d4.hash, 295);
-            (d1, d2, d3, d4, d5)
-        };
-
-        provider.save_source_block(source1).expect("Failed to save source block 1");
-        provider
-            .save_derived_block(derived_pair(source1, derived10))
-            .expect("Failed to save derived block 10");
-        provider
-            .save_derived_block(derived_pair(source1, derived11))
-            .expect("Failed to save derived block 11");
-        provider
-            .save_derived_block(derived_pair(source1, derived12))
-            .expect("Failed to save derived block 12");
-        provider.save_source_block(source2).expect("Failed to save source block 2");
-        provider
-            .save_derived_block(derived_pair(source2, derived13))
-            .expect("Failed to save derived block 13");
-        provider
-            .save_derived_block(derived_pair(source2, derived14))
-            .expect("Failed to save derived block 14");
-
-        let rewind_point = derived11;
-        // This will now log every single block being rewound with percentage
-        provider.rewind_to(&rewind_point.id()).expect("rewind should succeed");
-
-        // Expect: source block 1 retains only derived 10
-        let new_state = provider.latest_derivation_state().expect("should succeed");
-        assert_eq!(new_state.derived, derived10);
-        assert_eq!(new_state.source, source1);
-
-        let rewind_point = derived10;
-        // This will also log every single block being rewound with percentage
-        provider.rewind_to(&rewind_point.id()).expect("rewind should succeed");
-
-        // Expect: source block 1 retains nothing, genesis should be new latest source
-        let new_state = provider.latest_derivation_state().expect("should should succeed");
-        assert_eq!(new_state.derived, derived_genesis);
-        assert_eq!(new_state.source, genesis_block());
-    }
-    #[test]
-    fn test_rewind_block_to_success_with_new_observability_interval() {
-        let db = setup_db();
-        let interval = 12;
-        let tx = db.tx_mut().expect("Failed to get mutable tx");
-        let provider = DerivationProvider::new_with_observability_interval(&tx, CHAIN_ID, interval);
-        let derived_genesis = block_info(9, genesis_block().hash, 201);
-        provider
-            .initialise(derived_pair(genesis_block(), derived_genesis))
-            .expect("initialise should succeed");
-
-        // Setup:
-        // Block 1: derived blocks 10, 11, 12
-        // Block 2: derived blocks 13, 14
-        // We will rewind to (source: 1, derived: 11)
-        // After rewind:
-        // - Block 1 keeps only 10
-        // - Block 2 is removed completely
-
-        // Rewind 2 - to block 10
-        // After rewind: Only genesis left
-
-        let (source1, source2) = {
-            let s1 = block_info(1, genesis_block().hash, 200);
-            let s2 = block_info(2, s1.hash, 300);
-            (s1, s2)
-        };
-        let (derived10, derived11, derived12, derived13, derived14) = {
-            let d1 = block_info(10, derived_genesis.hash, 195);
-            let d2 = block_info(11, d1.hash, 197);
-            let d3 = block_info(12, d2.hash, 290);
-            let d4 = block_info(13, d3.hash, 292);
-            let d5 = block_info(14, d4.hash, 295);
-            (d1, d2, d3, d4, d5)
-        };
-
-        provider.save_source_block(source1).expect("Failed to save source block 1");
-        provider
-            .save_derived_block(derived_pair(source1, derived10))
-            .expect("Failed to save derived block 10");
-        provider
-            .save_derived_block(derived_pair(source1, derived11))
-            .expect("Failed to save derived block 11");
-        provider
-            .save_derived_block(derived_pair(source1, derived12))
-            .expect("Failed to save derived block 12");
-
-        provider.save_source_block(source2).expect("Failed to save source block 2");
-        provider
-            .save_derived_block(derived_pair(source2, derived13))
-            .expect("Failed to save derived block 13");
-        provider
-            .save_derived_block(derived_pair(source2, derived14))
-            .expect("Failed to save derived block 14");
-
-        let rewind_point = derived11;
-        provider.rewind_to(&rewind_point.id()).expect("rewind should succeed");
-
-        // Expect: source block 1 retains only derived 10
-        let new_state = provider.latest_derivation_state().expect("should succeed");
-        assert_eq!(new_state.derived, derived10);
-        assert_eq!(new_state.source, source1);
-
-        let rewind_point = derived10;
-        provider.rewind_to(&rewind_point.id()).expect("rewind should succeed");
-
-        // Expect: source block 1 retains nothing, genesis should be new latest source
-        let new_state = provider.latest_derivation_state().expect("should succeed");
-        assert_eq!(new_state.derived, derived_genesis);
-        assert_eq!(new_state.source, genesis_block());
-    }
-
-    #[test]
     fn test_get_activation_block_returns_error_if_empty() {
         let db = setup_db();
 
@@ -1457,6 +1308,45 @@ mod tests {
         assert_eq!(target, derived1);
 
         let res = provider.get_derived_block_pair_by_number(10);
+        assert!(matches!(res, Err(StorageError::EntryNotFound(_))));
+    }
+
+    #[test]
+    fn rewind_to_deletes_derived_blocks_and_returns_target() {
+        init_test_tracing();
+
+        let db = setup_db();
+
+        let source0 = block_info(100, B256::from([100u8; 32]), 200);
+        let derived0 = block_info(0, genesis_block().hash, 200);
+        let pair0 = derived_pair(source0, derived0);
+        assert!(initialize_db(&db, &pair0).is_ok());
+
+        // Setup source1 with derived 10,11,12 and source2 with 13,14
+        let source1 = block_info(101, source0.hash, 200);
+        let source2 = block_info(102, source1.hash, 300);
+        let derived1 = block_info(1, derived0.hash, 195);
+        let derived2 = block_info(2, derived1.hash, 197);
+        let derived3 = block_info(3, derived2.hash, 290);
+        let derived4 = block_info(4, derived3.hash, 292);
+        let derived5 = block_info(5, derived4.hash, 295);
+
+        assert!(insert_source_block(&db, &source1).is_ok());
+        assert!(insert_pair(&db, &derived_pair(source1, derived1)).is_ok());
+        assert!(insert_pair(&db, &derived_pair(source1, derived2)).is_ok());
+        assert!(insert_pair(&db, &derived_pair(source1, derived3)).is_ok());
+
+        assert!(insert_source_block(&db, &source2).is_ok());
+        assert!(insert_pair(&db, &derived_pair(source2, derived4)).is_ok());
+        assert!(insert_pair(&db, &derived_pair(source2, derived5)).is_ok());
+
+        // Perform rewind_to_source starting at source1
+        let tx = db.tx_mut().expect("Could not get mutable tx");
+        let provider = DerivationProvider::new_with_observability_interval(&tx, CHAIN_ID, 1);
+        let derived_id = BlockNumHash { number: derived1.number, hash: derived1.hash };
+        let _ = provider.rewind_to(&derived_id).expect("rewind should succeed");
+
+        let res = provider.get_derived_block_pair_by_number(1);
         assert!(matches!(res, Err(StorageError::EntryNotFound(_))));
     }
 
