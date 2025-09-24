@@ -185,6 +185,7 @@ where
             return Err(StorageError::FutureData);
         }
 
+        // total blocks to rewind down to and including tgt block
         let total_blocks = latest_block - block.number + 1;
         let mut processed_blocks = 0;
 

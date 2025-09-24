@@ -552,7 +552,7 @@ where
                 latest_block,
                 total_blocks,
                 observability_interval = %self.observability_interval,
-                "Starting rewind of derived block storage"
+                "Rewinding derived block storage..."
             );
 
             while let Some(Ok((key, _stored_block))) = walker.next() {
