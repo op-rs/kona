@@ -199,9 +199,5 @@ update-packages:
 # Updates the pinned version of the optimism
 update-optimism:
   #!/bin/bash
-  [ ! -d optimism ] && git clone https://github.com/ethereum-optimism/optimism
-  cd optimism && \
-    git fetch origin && \
-    git checkout develop && \
-    git rev-parse HEAD > {{SOURCE}}/.config/optimism
+  git submodule update --remote --force
 
