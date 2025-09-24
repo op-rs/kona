@@ -2,9 +2,10 @@
 
 The `kona-node` supports JSON-RPC for interacting with the node.
 
-Currently, `kona-node` only supports the HTTP transport.
-
-Websocket and IPC transports are not yet implemented.
+By default, `kona-node` exposes an HTTP JSON-RPC server. A WebSocket JSON-RPC
+endpoint is also available and can be enabled with the `--rpc.ws-enabled` flag
+or the `KONA_NODE_RPC_WS_ENABLED` environment variable. IPC transport is not
+supported.
 
 ### Namespaces
 
