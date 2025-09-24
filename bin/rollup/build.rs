@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // if on a tag: v0.2.0-beta.3
     let not_on_tag = env::var("VERGEN_GIT_DESCRIBE")?.ends_with(&format!("-g{sha_short}"));
     let version_suffix = if is_dirty || not_on_tag { "-dev" } else { "" };
-    println!("cargo:rustc-env=KONA_NODE_VERSION_SUFFIX={version_suffix}");
+    println!("cargo:rustc-env=KONA_ROLLUP_VERSION_SUFFIX={version_suffix}");
 
     // Set short SHA
     println!("cargo:rustc-env=VERGEN_GIT_SHA_SHORT={}", &sha[..8]);
@@ -45,21 +45,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Set the build profile
     let out_dir = env::var("OUT_DIR").unwrap();
     let profile = out_dir.rsplit(std::path::MAIN_SEPARATOR).nth(3).unwrap();
-    println!("cargo:rustc-env=KONA_NODE_BUILD_PROFILE={profile}");
+    println!("cargo:rustc-env=KONA_ROLLUP_BUILD_PROFILE={profile}");
 
     // Set formatted version strings
     let pkg_version = env!("CARGO_PKG_VERSION");
 
-    // The short version information for kona-node.
+    // The short version information for kona-rollup.
     // - The latest version from Cargo.toml
     // - The short SHA of the latest commit.
     // Example: 0.1.0 (defa64b2)
-    println!("cargo:rustc-env=KONA_NODE_SHORT_VERSION={pkg_version}{version_suffix} ({sha_short})");
+    println!("cargo:rustc-env=KONA_ROLLUP_SHORT_VERSION={pkg_version}{version_suffix} ({sha_short})");
 
     let features = env::var("VERGEN_CARGO_FEATURES")?;
 
     // LONG_VERSION
-    // The long version information for kona-node.
+    // The long version information for kona-rollup.
     //
     // - The latest version from Cargo.toml + version suffix (if any)
     // - The full SHA of the latest commit
@@ -76,17 +76,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Build Features: jemalloc
     // Build Profile: maxperf
     // ```
-    println!("cargo:rustc-env=KONA_NODE_LONG_VERSION_0=Version: {pkg_version}{version_suffix}");
-    println!("cargo:rustc-env=KONA_NODE_LONG_VERSION_1=Commit SHA: {sha}");
+    println!("cargo:rustc-env=KONA_ROLLUP_LONG_VERSION_0=Version: {pkg_version}{version_suffix}");
+    println!("cargo:rustc-env=KONA_ROLLUP_LONG_VERSION_1=Commit SHA: {sha}");
     println!(
-        "cargo:rustc-env=KONA_NODE_LONG_VERSION_2=Build Timestamp: {}",
+        "cargo:rustc-env=KONA_ROLLUP_LONG_VERSION_2=Build Timestamp: {}",
         env::var("VERGEN_BUILD_TIMESTAMP")?
     );
     println!(
-        "cargo:rustc-env=KONA_NODE_LONG_VERSION_3=Build Features: {}",
+        "cargo:rustc-env=KONA_ROLLUP_LONG_VERSION_3=Build Features: {}",
         if features.is_empty() { "no features enabled".to_string() } else { features }
     );
-    println!("cargo:rustc-env=KONA_NODE_LONG_VERSION_4=Build Profile: {profile}");
+    println!("cargo:rustc-env=KONA_ROLLUP_LONG_VERSION_4=Build Profile: {profile}");
 
     Ok(())
 }
