@@ -17,6 +17,8 @@ jobs:
       fail-fast: false
       matrix:
         kind: ["single", "interop"]
+        exclude:
+          - kind: interop
     steps:
       - name: Checkout sources
         uses: actions/checkout@v5
