@@ -131,6 +131,12 @@ pub enum SingleChainHostError {
     /// Task failed to execute to completion.
     #[error("Join error: {0}")]
     ExecutionError(#[from] tokio::task::JoinError),
+    /// No rollup config found.
+    #[error("No rollup config found")]
+    NoRollupConfig,
+    /// No l1 config found.
+    #[error("No l1 config found")]
+    NoL1Config,
     /// Any other error.
     #[error("Error: {0}")]
     Other(&'static str),
@@ -225,11 +231,8 @@ impl SingleChainHost {
 
     /// Reads the [RollupConfig] from the file system and returns the deserialized configuration.
     pub fn read_rollup_config(&self) -> Result<RollupConfig, SingleChainHostError> {
-        let path = self.rollup_config_path.as_ref().ok_or_else(|| {
-            SingleChainHostError::Other(
-                "No rollup config path provided. Please provide a path to the rollup config.",
-            )
-        })?;
+        let path =
+            self.rollup_config_path.as_ref().ok_or_else(|| SingleChainHostError::NoRollupConfig)?;
 
         // Read the serialized config from the file system.
         let ser_config = std::fs::read_to_string(path)?;
@@ -240,11 +243,7 @@ impl SingleChainHost {
 
     /// Reads the [L1ChainConfig] from the file system and returns the deserialized configuration.
     pub fn read_l1_config(&self) -> Result<L1ChainConfig, SingleChainHostError> {
-        let path = self.l1_config_path.as_ref().ok_or_else(|| {
-            SingleChainHostError::Other(
-                "No l1 config path provided. Please provide a path to the l1 config.",
-            )
-        })?;
+        let path = self.l1_config_path.as_ref().ok_or_else(|| SingleChainHostError::NoL1Config)?;
 
         // Read the serialized config from the file system.
         let ser_config = std::fs::read_to_string(path)?;
