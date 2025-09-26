@@ -232,8 +232,8 @@ impl InteropHost {
         })
     }
 
-    /// Reads the [L1ChainConfig]s from the file system and returns a map of L1 chain ID ->
-    /// [L1ChainConfig]s.
+    /// Reads the [`L1ChainConfig`]s from the file system and returns a map of L1 chain ID ->
+    /// [`L1ChainConfig`]s.
     pub fn read_l1_configs(&self) -> Result<HashMap<u64, L1ChainConfig>, InteropHostError> {
         let l1_config_paths = self.l1_config_paths.as_ref().ok_or_else(|| {
             InteropHostError::Other(
