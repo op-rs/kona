@@ -9,7 +9,10 @@ use kona_interop::ManagedEvent;
 use serde::{Deserialize, Serialize};
 
 // todo:: Determine appropriate locations for these structs and move them accordingly.
-// todo:: Link these structs to the spec documentation after the related PR is merged.
+// These structs correspond to types defined in the interop specifications.
+// See: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/managed-node.md#types>
+// - BlockSeal and OutputV0 are defined in the spec
+// - SubscriptionEvent is used for ManagedEvent communication between supervisor and node
 
 /// Represents a sealed block with its hash, number, and timestamp.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
