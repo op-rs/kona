@@ -904,7 +904,7 @@ mod tests {
         block2.parent_hash = block1.hash;
 
         // block2 doesn't exist in derivation storage - should return not found error
-        let err = db.update_current_cross_unsafe(&block2).expect_err("should return an error");
+        let err = db.update_current_cross_safe(&block2).expect_err("should return an error");
         assert!(matches!(err, StorageError::EntryNotFound(_)));
 
         db.store_block_logs(&block2, vec![]).unwrap();
