@@ -19,7 +19,7 @@ use kona_providers_alloy::{OnlineBeaconClient, OnlineBlobProvider};
 use kona_std_fpvm::{FileChannel, FileDescriptor};
 use op_alloy_network::Optimism;
 use serde::Serialize;
-use std::{collections::HashMap, path::PathBuf, str::FromStr, sync::Arc};
+use std::{collections::HashMap, fs, path::PathBuf, str::FromStr, sync::Arc};
 use tokio::{
     sync::RwLock,
     task::{self, JoinHandle},
@@ -90,10 +90,12 @@ pub struct InteropHost {
     pub server: bool,
     /// Path to rollup configs. If provided, the host will use this config instead of attempting to
     /// look up the configs in the superchain registry.
+    /// The rollup configs should be stored as serde-JSON serialized files.
     #[arg(long, alias = "rollup-cfgs", value_delimiter = ',', env)]
     pub rollup_config_paths: Option<Vec<PathBuf>>,
     /// Path to l1 configs. If provided, the host will use this config instead of attempting to
     /// look up the configs in the superchain registry.
+    /// The l1 configs should be stored as serde-JSON serialized files.
     #[arg(long, alias = "l1-cfgs", value_delimiter = ',', env)]
     pub l1_config_paths: Option<Vec<PathBuf>>,
 }
@@ -110,6 +112,9 @@ pub enum InteropHostError {
     /// A JSON parse error.
     #[error("Failed deserializing RollupConfig: {0}")]
     ParseError(#[from] serde_json::Error),
+    /// Impossible to find the L1 chain config for the given chain ID.
+    #[error("L1 chain config not found for chain ID: {0}")]
+    L1ChainConfigNotFound(u64),
     /// Task failed to execute to completion.
     #[error("Join error: {0}")]
     ExecutionError(#[from] tokio::task::JoinError),
@@ -213,14 +218,12 @@ impl InteropHost {
 
     /// Reads the [RollupConfig]s from the file system and returns a map of L2 chain ID ->
     /// [RollupConfig]s.
-    pub fn read_rollup_configs(&self) -> Result<HashMap<u64, RollupConfig>, InteropHostError> {
-        let rollup_config_paths = self.rollup_config_paths.as_ref().ok_or_else(|| {
-            InteropHostError::Other(
-                "No rollup config paths provided. Please provide a path to the rollup configs.",
-            )
-        })?;
+    pub fn read_rollup_configs(
+        &self,
+    ) -> Option<Result<HashMap<u64, RollupConfig>, InteropHostError>> {
+        let rollup_config_paths = self.rollup_config_paths.as_ref()?;
 
-        rollup_config_paths.iter().try_fold(HashMap::default(), |mut acc, path| {
+        Some(rollup_config_paths.iter().try_fold(HashMap::default(), |mut acc, path| {
             // Read the serialized config from the file system.
             let ser_config = std::fs::read_to_string(path)?;
 
@@ -229,28 +232,24 @@ impl InteropHost {
 
             acc.insert(cfg.l2_chain_id.id(), cfg);
             Ok(acc)
-        })
+        }))
     }
 
     /// Reads the [`L1ChainConfig`]s from the file system and returns a map of L1 chain ID ->
     /// [`L1ChainConfig`]s.
-    pub fn read_l1_configs(&self) -> Result<HashMap<u64, L1ChainConfig>, InteropHostError> {
-        let l1_config_paths = self.l1_config_paths.as_ref().ok_or_else(|| {
-            InteropHostError::Other(
-                "No l1 config paths provided. Please provide a path to the l1 configs.",
-            )
-        })?;
+    pub fn read_l1_configs(&self) -> Option<Result<HashMap<u64, L1ChainConfig>, InteropHostError>> {
+        let l1_config_paths = self.l1_config_paths.as_ref()?;
 
-        l1_config_paths.iter().try_fold(HashMap::default(), |mut acc, path| {
+        Some(l1_config_paths.iter().try_fold(HashMap::default(), |mut acc, path| {
             // Read the serialized config from the file system.
-            let ser_config = std::fs::read_to_string(path)?;
+            let ser_config = fs::read_to_string(path)?;
 
             // Deserialize the config and return it.
             let cfg: L1ChainConfig = serde_json::from_str(&ser_config)?;
 
             acc.insert(cfg.chain_id, cfg.into());
             Ok(acc)
-        })
+        }))
     }
 
     /// Creates the key-value store for the host backend.
