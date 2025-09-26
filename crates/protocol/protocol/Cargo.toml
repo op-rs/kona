@@ -26,6 +26,7 @@ op-alloy-rpc-types-engine.workspace = true
 # Alloy
 alloy-primitives = { workspace = true, features = ["map"] }
 alloy-rlp.workspace = true
+alloy-hardforks.workspace = true
 alloy-eips.workspace = true
 alloy-consensus.workspace = true
 alloy-rpc-types-eth.workspace = true
@@ -69,6 +70,8 @@ alloy-primitives = { workspace = true, features = ["arbitrary"] }
 op-alloy-consensus.workspace = true
 alloy-rpc-types-eth.workspace = true
 op-alloy-rpc-types.workspace = true
+
+kona-registry.workspace = true
 
 [features]
 default = []

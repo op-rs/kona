@@ -10,7 +10,7 @@ use alloy_primitives::{B256, Bytes};
 use alloy_provider::{Provider, RootProvider};
 use clap::Parser;
 use kona_cli::cli_styles;
-use kona_genesis::RollupConfig;
+use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_preimage::{
     BidirectionalChannel, Channel, HintReader, HintWriter, OracleReader, OracleServer,
 };
@@ -92,6 +92,10 @@ pub struct InteropHost {
     /// look up the configs in the superchain registry.
     #[arg(long, alias = "rollup-cfgs", value_delimiter = ',', env)]
     pub rollup_config_paths: Option<Vec<PathBuf>>,
+    /// Path to l1 configs. If provided, the host will use this config instead of attempting to
+    /// look up the configs in the superchain registry.
+    #[arg(long, alias = "l1-cfgs", value_delimiter = ',', env)]
+    pub l1_config_paths: Option<Vec<PathBuf>>,
 }
 
 /// An error that can occur when handling interop hosts
@@ -224,6 +228,27 @@ impl InteropHost {
             let cfg: RollupConfig = serde_json::from_str(&ser_config)?;
 
             acc.insert(cfg.l2_chain_id.id(), cfg);
+            Ok(acc)
+        })
+    }
+
+    /// Reads the [L1ChainConfig]s from the file system and returns a map of L1 chain ID ->
+    /// [L1ChainConfig]s.
+    pub fn read_l1_configs(&self) -> Result<HashMap<u64, L1ChainConfig>, InteropHostError> {
+        let l1_config_paths = self.l1_config_paths.as_ref().ok_or_else(|| {
+            InteropHostError::Other(
+                "No l1 config paths provided. Please provide a path to the l1 configs.",
+            )
+        })?;
+
+        l1_config_paths.iter().try_fold(HashMap::default(), |mut acc, path| {
+            // Read the serialized config from the file system.
+            let ser_config = std::fs::read_to_string(path)?;
+
+            // Deserialize the config and return it.
+            let cfg: L1ChainConfig = serde_json::from_str(&ser_config)?;
+
+            acc.insert(cfg.chain_id, cfg.into());
             Ok(acc)
         })
     }

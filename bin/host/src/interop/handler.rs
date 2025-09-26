@@ -34,7 +34,7 @@ use kona_proof::{
 };
 use kona_proof_interop::{HintType, PreState};
 use kona_protocol::{BlockInfo, OutputRoot, Predeploys};
-use kona_registry::ROLLUP_CONFIGS;
+use kona_registry::{L1_CONFIGS, ROLLUP_CONFIGS};
 use std::sync::Arc;
 use tokio::task;
 use tracing::{Instrument, debug, info, info_span, warn};
@@ -429,6 +429,19 @@ impl HintHandler for InteropHintHandler {
                     .map(Arc::new)
                     .ok_or(anyhow!("No rollup config found for chain ID: {chain_id}"))?;
 
+                let l1_config = L1_CONFIGS
+                    .get(&rollup_config.l1_chain_id)
+                    .cloned()
+                    .or_else(|| {
+                        let local_cfgs = cfg.read_l1_configs().ok()?;
+                        local_cfgs.get(&rollup_config.l1_chain_id).cloned()
+                    })
+                    .map(Arc::new)
+                    .ok_or(anyhow!(
+                        "No l1 config found for chain ID: {}",
+                        rollup_config.l1_chain_id
+                    ))?;
+
                 // Check if the block is canonical before continuing.
                 let parent_block = l2_provider
                     .get_block_by_hash(agreed_block_hash)
@@ -512,6 +525,7 @@ impl HintHandler for InteropHintHandler {
                         );
                         let pipeline = OraclePipeline::new(
                             rollup_config.clone(),
+                            l1_config.clone(),
                             cursor.clone(),
                             oracle,
                             da_provider,
