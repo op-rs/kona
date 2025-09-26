@@ -5,13 +5,13 @@ use crate::{HintType, INVALID_TRANSITION, INVALID_TRANSITION_HASH, PreState};
 use alloc::{string::ToString, vec::Vec};
 use alloy_primitives::{B256, Bytes, U256};
 use alloy_rlp::Decodable;
-use kona_genesis::RollupConfig;
+use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_preimage::{
     CommsClient, HintWriterClient, PreimageKey, PreimageKeyType, PreimageOracleClient,
     errors::PreimageOracleError,
 };
 use kona_proof::errors::OracleProviderError;
-use kona_registry::{HashMap, ROLLUP_CONFIGS};
+use kona_registry::{HashMap, L1_CONFIGS, ROLLUP_CONFIGS};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::warn;
@@ -31,6 +31,9 @@ pub const L2_CLAIMED_TIMESTAMP_KEY: U256 = U256::from_be_slice(&[4]);
 /// The local key ident for the L2 rollup config.
 pub const L2_ROLLUP_CONFIG_KEY: U256 = U256::from_be_slice(&[6]);
 
+/// The local key ident for the l1 config.
+pub const L1_CONFIG_KEY: U256 = U256::from_be_slice(&[7]);
+
 /// The boot information for the interop client program.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BootInfo {
@@ -46,6 +49,8 @@ pub struct BootInfo {
     pub claimed_l2_timestamp: u64,
     /// The rollup config for the L2 chain.
     pub rollup_configs: HashMap<u64, RollupConfig>,
+    /// The L1 config for the L2 chain.
+    pub l1_configs: HashMap<u64, L1ChainConfig>,
 }
 
 impl BootInfo {
@@ -117,7 +122,10 @@ impl BootInfo {
 
         // Attempt to load the rollup config from the chain ID. If there is no config for the chain,
         // fall back to loading the config from the preimage oracle.
-        let rollup_configs = if chain_ids.iter().all(|id| ROLLUP_CONFIGS.contains_key(id)) {
+        let rollup_configs: HashMap<u64, RollupConfig> = if chain_ids
+            .iter()
+            .all(|id| ROLLUP_CONFIGS.contains_key(id))
+        {
             chain_ids.iter().map(|id| (*id, ROLLUP_CONFIGS[id].clone())).collect()
         } else {
             warn!(
@@ -132,8 +140,38 @@ impl BootInfo {
             serde_json::from_slice(&ser_cfg).map_err(OracleProviderError::Serde)?
         };
 
+        // Attempt to load the l1 config from the chain ID. If there is no config for the chain,
+        // fall back to loading the config from the preimage oracle.
+        let l1_configs_futures: Vec<_> = rollup_configs
+            .iter()
+            .map(|(_, cfg)| async {
+            if let Some(config) = L1_CONFIGS.get(&cfg.l1_chain_id) {
+                Ok::<(u64, L1ChainConfig), OracleProviderError>((cfg.l1_chain_id, config.clone()))
+            } else {
+                warn!(
+                    target: "boot_loader",
+                    "No l1 config found for chain ID {}, falling back to preimage oracle. This is insecure in production without additional validation!",
+                    cfg.l1_chain_id
+                );
+                let ser_cfg = oracle
+                    .get(PreimageKey::new_local(L1_CONFIG_KEY.to()))
+                    .await
+                    .map_err(OracleProviderError::Preimage)?;
+                let config = serde_json::from_slice(&ser_cfg).map_err(OracleProviderError::Serde)?;
+                Ok((cfg.l1_chain_id, config))
+            }
+        }
+        )
+        .collect();
+
+        let l1_configs = futures::future::join_all(l1_configs_futures)
+            .await
+            .into_iter()
+            .collect::<Result<HashMap<u64, _>, _>>()?;
+
         Ok(Self {
             l1_head,
+            l1_configs,
             rollup_configs,
             agreed_pre_state_commitment: l2_pre,
             agreed_pre_state,
@@ -146,6 +184,14 @@ impl BootInfo {
     pub fn active_rollup_config(&self) -> Option<RollupConfig> {
         let active_l2_chain_id = self.agreed_pre_state.active_l2_chain_id()?;
         self.rollup_configs.get(&active_l2_chain_id).cloned()
+    }
+
+    /// Returns the [L1ChainConfig] corresponding to the [PreState::active_l2_chain_id] through the
+    /// l2 [RollupConfig].
+    pub fn active_l1_config(&self) -> Option<L1ChainConfig> {
+        let active_l2_chain_id = self.agreed_pre_state.active_l2_chain_id()?;
+        let rollup_config = self.rollup_configs.get(&active_l2_chain_id)?;
+        self.l1_configs.get(&rollup_config.l1_chain_id).cloned()
     }
 
     /// Returns the [RollupConfig] corresponding to the given `chain_id`.

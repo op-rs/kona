@@ -11,7 +11,7 @@ use kona_derive::StatefulAttributesBuilder;
 use op_alloy_network::Optimism;
 use std::sync::Arc;
 
-use kona_genesis::RollupConfig;
+use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_providers_alloy::{
     AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, OnlinePipeline,
 };
@@ -23,6 +23,8 @@ use kona_rpc::RpcBuilder;
 pub struct RollupNode {
     /// The rollup configuration.
     pub(crate) config: Arc<RollupConfig>,
+    /// The L1 chain configuration.
+    pub(crate) l1_config: Arc<L1ChainConfig>,
     /// The interop mode for the node.
     pub(crate) interop_mode: InteropMode,
     /// The L1 EL provider.
@@ -47,8 +49,8 @@ pub struct RollupNode {
 
 impl RollupNode {
     /// Creates a new [RollupNodeBuilder], instantiated with the given [RollupConfig].
-    pub fn builder(config: RollupConfig) -> RollupNodeBuilder {
-        RollupNodeBuilder::new(config)
+    pub fn builder(config: RollupConfig, l1_config: L1ChainConfig) -> RollupNodeBuilder {
+        RollupNodeBuilder::new(config, l1_config)
     }
 }
 
@@ -82,6 +84,7 @@ impl RollupNodeService for RollupNode {
         SequencerBuilder {
             seq_cfg: self.sequencer_config.clone(),
             rollup_cfg: self.config.clone(),
+            l1_config: self.l1_config.clone(),
             l1_provider: self.l1_provider.clone(),
             l1_trust_rpc: self.l1_trust_rpc,
             l2_provider: self.l2_provider.clone(),
@@ -105,6 +108,7 @@ impl RollupNodeService for RollupNode {
             l2_provider: self.l2_provider.clone(),
             l2_trust_rpc: self.l2_trust_rpc,
             rollup_config: self.config.clone(),
+            l1_config: self.l1_config.clone(),
             interop_mode: self.interop_mode,
         }
     }

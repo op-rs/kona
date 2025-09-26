@@ -3,9 +3,9 @@
 
 use crate::errors::OracleProviderError;
 use alloy_primitives::{B256, U256};
-use kona_genesis::RollupConfig;
+use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_preimage::{PreimageKey, PreimageOracleClient};
-use kona_registry::ROLLUP_CONFIGS;
+use kona_registry::{L1_CONFIGS, ROLLUP_CONFIGS};
 use serde::{Deserialize, Serialize};
 
 /// The local key identifier for the L1 head hash.
@@ -49,6 +49,13 @@ pub const L2_CHAIN_ID_KEY: U256 = U256::from_be_slice(&[5]);
 /// the preimage oracle when no hardcoded configuration is available for the
 /// given chain ID. Oracle-loaded configs require additional validation.
 pub const L2_ROLLUP_CONFIG_KEY: U256 = U256::from_be_slice(&[6]);
+
+/// The local key identifier for the L1 chain configuration.
+///
+/// This key is used as a fallback to retrieve the chain configuration from
+/// the preimage oracle when no hardcoded configuration is available for the
+/// given chain ID. Oracle-loaded configs require additional validation.
+pub const L1_CONFIG_KEY: U256 = U256::from_be_slice(&[7]);
 
 /// The boot information for the client program.
 ///
@@ -120,6 +127,10 @@ pub struct BootInfo {
     ///
     /// **Security**: Loaded from registry (secure) or oracle (requires validation).
     pub rollup_config: RollupConfig,
+    /// An optional configuration for the l1 chain associated with the l2 chain.
+    ///
+    /// **Security**: Loaded from registry (secure) or oracle (requires validation).
+    pub l1_config: L1ChainConfig,
 }
 
 impl BootInfo {
@@ -229,6 +240,24 @@ impl BootInfo {
             serde_json::from_slice(&ser_cfg).map_err(OracleProviderError::Serde)?
         };
 
+        // Attempt to load the rollup config from the chain ID. If there is no config for the chain,
+        // fall back to loading the config from the preimage oracle.
+        let l1_config = if let Some(config) = L1_CONFIGS.get(&rollup_config.l1_chain_id) {
+            config.clone()
+        } else {
+            warn!(
+                target: "boot_loader",
+                "No l1 config found for chain ID {}, falling back to preimage oracle. This is insecure in production without additional validation!",
+                rollup_config.l1_chain_id
+            );
+            let ser_cfg = oracle
+                .get(PreimageKey::new_local(L1_CONFIG_KEY.to()))
+                .await
+                .map_err(OracleProviderError::Preimage)?;
+
+            serde_json::from_slice(&ser_cfg).map_err(OracleProviderError::Serde)?
+        };
+
         debug!(
             target: "boot_loader",
             l1_head = %l1_head,
@@ -244,6 +273,7 @@ impl BootInfo {
             claimed_l2_block_number: l2_claim_block,
             chain_id,
             rollup_config,
+            l1_config,
         })
     }
 }

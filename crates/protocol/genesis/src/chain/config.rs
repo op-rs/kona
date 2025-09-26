@@ -11,6 +11,9 @@ use crate::{
     params::base_fee_config, rollup::DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW,
 };
 
+/// L1 chain configuration from the `alloy-genesis` crate.
+pub type L1ChainConfig = alloy_genesis::ChainConfig;
+
 /// Defines core blockchain settings per block.
 ///
 /// Tailors unique settings for each network based on
