@@ -41,9 +41,14 @@ reth-db-api = { workspace = true }
 reth-db = { workspace = true }
 reth-codecs = { workspace = true }
 
+# HTTP client and TLS for remote signer
+tokio = { workspace = true, features = ["full"] }
+
 [dev-dependencies]
 test-fuzz = { workspace = true }
 tempfile = { workspace = true }
+tokio.workspace = true
+kona-cli.workspace = true
 
 [lints]
 workspace = true

@@ -63,6 +63,7 @@ mod tests {
                 eip1559_elasticity: None,
                 operator_fee_scalar: None,
                 operator_fee_constant: None,
+                min_base_fee: None,
             }),
         }
     }
