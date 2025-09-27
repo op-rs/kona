@@ -137,14 +137,11 @@ impl SignerArgs {
             (None, Some(path)) => {
                 let keypair = SecretKeyLoader::load(path)?;
                 // Extract the private key bytes from the secp256k1 keypair
-                if let Ok(secp256k1_keypair) = keypair.try_into_secp256k1() {
+                keypair.try_into_secp256k1().map_or_else(|_| Err(SignerArgsParseError::SequencerKeyInvalid(ecdsa::Error::new())), |secp256k1_keypair| {
                     let private_key_bytes = secp256k1_keypair.secret().to_bytes();
                     let key = B256::from_slice(&private_key_bytes);
                     Ok(Some(key))
-                } else {
-                    // This should never happen since SecretKeyLoader only creates secp256k1 keys
-                    Err(SignerArgsParseError::SequencerKeyInvalid(ecdsa::Error::new()))
-                }
+                })
             }
             (Some(_), Some(_)) => Err(SignerArgsParseError::ConflictingSequencerKeyInputs),
             (None, None) => Ok(None),
@@ -204,7 +201,7 @@ mod tests {
         let mut temp_file = NamedTempFile::new().unwrap();
         let key = b256!("1d2b0bda21d56b8bd12d4f94ebacffdfb35f5e226f84b461103bb8beab6353be");
         let hex = alloy_primitives::hex::encode(key.0);
-        write!(temp_file, "{}", hex).unwrap();
+        write!(temp_file, "{hex}").unwrap();
 
         let signer_args = SignerArgs {
             sequencer_key: None,
