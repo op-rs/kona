@@ -102,7 +102,11 @@ where
         &mut l1_provider,
         &mut l2_provider,
     )
-    .await?;
+    .await
+    .map_err(|e| {
+        error!(target: "client", "Failed to create pipeline cursor: {:?}", e);
+        e
+    })?;
     l2_provider.set_cursor(cursor.clone());
 
     let evm_factory = FpvmOpEvmFactory::new(hint_client, oracle_client);
@@ -117,6 +121,7 @@ where
         l2_provider.clone(),
     )
     .await?;
+
     let executor = KonaExecutor::new(
         rollup_config.as_ref(),
         l2_provider.clone(),
