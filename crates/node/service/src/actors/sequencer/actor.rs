@@ -7,7 +7,7 @@ use crate::{CancellableContext, NodeActor, actors::sequencer::conductor::Conduct
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
 use kona_derive::{AttributesBuilder, PipelineErrorKind, StatefulAttributesBuilder};
-use kona_genesis::RollupConfig;
+use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use kona_providers_alloy::{AlloyChainProvider, AlloyL2ChainProvider};
 use kona_rpc::SequencerAdminQuery;
@@ -117,6 +117,8 @@ pub struct SequencerBuilder {
     pub seq_cfg: SequencerConfig,
     /// The [`RollupConfig`] for the chain being sequenced.
     pub rollup_cfg: Arc<RollupConfig>,
+    /// The [`L1ChainConfig`] for the chain being sequenced.
+    pub l1_config: Arc<L1ChainConfig>,
     /// The L1 provider.
     pub l1_provider: RootProvider,
     /// Whether to trust the L1 RPC.
@@ -144,6 +146,7 @@ impl AttributesBuilderConfig for SequencerBuilder {
         );
         StatefulAttributesBuilder::new(
             self.rollup_cfg,
+            self.l1_config,
             l2_derivation_provider,
             l1_derivation_provider,
         )

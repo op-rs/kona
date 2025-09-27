@@ -1,12 +1,13 @@
 //! Contains the full superchain data.
 
+use crate::L1Config;
+
 use super::ChainList;
 use alloy_primitives::map::HashMap;
-use kona_genesis::{ChainConfig, RollupConfig, Superchains};
+use kona_genesis::{ChainConfig, L1ChainConfig, RollupConfig, Superchains};
 
 /// The registry containing all the superchain configurations.
-#[derive(Debug, Clone, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct Registry {
     /// The list of chains.
     pub chain_list: ChainList,
@@ -14,6 +15,8 @@ pub struct Registry {
     pub op_chains: HashMap<u64, ChainConfig>,
     /// Map of chain IDs to their rollup configurations.
     pub rollup_configs: HashMap<u64, RollupConfig>,
+    /// Map of l1 chain IDs to their l1 configurations.
+    pub l1_configs: HashMap<u64, L1ChainConfig>,
 }
 
 impl Registry {
@@ -53,7 +56,7 @@ impl Registry {
             }
         }
 
-        Self { chain_list, op_chains, rollup_configs }
+        Self { chain_list, op_chains, rollup_configs, l1_configs: L1Config::build_l1_configs() }
     }
 }
 
