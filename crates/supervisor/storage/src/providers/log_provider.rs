@@ -19,7 +19,6 @@ use crate::{
 };
 use alloy_eips::BlockNumHash;
 use alloy_primitives::ChainId;
-use derive_more::Constructor;
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::Log;
 use reth_db_api::{
@@ -27,13 +26,31 @@ use reth_db_api::{
     transaction::{DbTx, DbTxMut},
 };
 use std::fmt::Debug;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, trace, warn};
+
+const DEFAULT_LOG_INTERVAL: u64 = 100;
 
 /// A log storage that wraps a transactional reference to the MDBX backend.
-#[derive(Debug, Constructor)]
+#[derive(Debug)]
 pub(crate) struct LogProvider<'tx, TX> {
     tx: &'tx TX,
     chain_id: ChainId,
+    #[doc(hidden)]
+    observability_interval: u64,
+}
+
+impl<'tx, TX> LogProvider<'tx, TX> {
+    pub(crate) const fn new(tx: &'tx TX, chain_id: ChainId) -> Self {
+        Self::new_with_observability_interval(tx, chain_id, DEFAULT_LOG_INTERVAL)
+    }
+
+    pub(crate) const fn new_with_observability_interval(
+        tx: &'tx TX,
+        chain_id: ChainId,
+        observability_interval: u64,
+    ) -> Self {
+        Self { tx, chain_id, observability_interval }
+    }
 }
 
 impl<TX> LogProvider<'_, TX>
@@ -142,23 +159,103 @@ where
     /// Rewinds the log storage by deleting all blocks and logs from the given block onward.
     /// Fails if the given block exists with a mismatching hash (to prevent unsafe deletion).
     pub(crate) fn rewind_to(&self, block: &BlockNumHash) -> Result<(), StorageError> {
-        let mut cursor = self.tx.cursor_write::<BlockRefs>()?;
-        let mut walker = cursor.walk(Some(block.number))?;
+        info!(
+            target: "supervisor::storage",
+            chain_id = %self.chain_id,
+            target_block_number = %block.number,
+            target_block_hash = %block.hash,
+            "Starting rewind of log storage"
+        );
 
-        while let Some(Ok((key, stored_block))) = walker.next() {
-            if key == block.number && block.hash != stored_block.hash {
-                warn!(
-                    target: "supervisor::storage",
-                    chain_id = %self.chain_id,
-                    %stored_block,
-                    incoming_block = ?block,
-                    "Requested block to rewind does not match stored block",
-                );
-                return Err(StorageError::ConflictError)
-            }
-            walker.delete_current()?; // remove the block
-            self.tx.delete::<LogEntries>(key, None)?; // remove the logs of that block
+        // Get the latest block number from BlockRefs
+        let latest_block = {
+            let mut cursor = self.tx.cursor_read::<BlockRefs>()?;
+            cursor.last()?.map(|(num, _)| num).unwrap_or(block.number)
+        };
+
+        // Check for future block
+        if block.number > latest_block {
+            error!(
+                target: "supervisor::storage",
+                chain_id = %self.chain_id,
+                target_block_number = %block.number,
+                latest_block,
+                "Cannot rewind to future block"
+            );
+            return Err(StorageError::FutureData);
         }
+
+        // total blocks to rewind down to and including tgt block
+        let total_blocks = latest_block - block.number + 1;
+        let mut processed_blocks = 0;
+
+        // Delete all blocks and logs with number ≥ `block.number`
+        {
+            let mut cursor = self.tx.cursor_write::<BlockRefs>()?;
+            let mut walker = cursor.walk(Some(block.number))?;
+
+            trace!(
+                target: "supervisor::storage",
+                chain_id = %self.chain_id,
+                target_block_number = %block.number,
+                target_block_hash = %block.hash,
+                latest_block,
+                total_blocks,
+                observability_interval = %self.observability_interval,
+                "Rewinding log storage..."
+            );
+
+            while let Some(Ok((key, stored_block))) = walker.next() {
+                if key == block.number && block.hash != stored_block.hash {
+                    warn!(
+                        target: "supervisor::storage",
+                        chain_id = %self.chain_id,
+                        %stored_block,
+                        incoming_block = ?block,
+                        "Requested block to rewind does not match stored block"
+                    );
+                    return Err(StorageError::ConflictError);
+                }
+                // remove the block
+                walker.delete_current()?;
+
+                // remove the logs of that block
+                self.tx.delete::<LogEntries>(key, None)?;
+
+                processed_blocks += 1;
+
+                // Log progress periodically or on last block
+                if processed_blocks % self.observability_interval == 0 ||
+                    processed_blocks == total_blocks
+                {
+                    let percentage = if total_blocks > 0 {
+                        (processed_blocks as f64 / total_blocks as f64 * 100.0).min(100.0)
+                    } else {
+                        100.0
+                    };
+
+                    info!(
+                       target: "supervisor::storage",
+                       chain_id = %self.chain_id,
+                       block_number = %key,
+                       percentage = %format!("{:.2}%", percentage),
+                       processed_blocks,
+                       total_blocks,
+                       "Rewind progress"
+                    );
+                }
+            }
+
+            info!(
+                target: "supervisor::storage",
+                target_block_number = ?block.number,
+                target_block_hash = %block.hash,
+                chain_id = %self.chain_id,
+                total_blocks,
+                "Rewind completed successfully"
+            );
+        }
+
         Ok(())
     }
 }
@@ -319,6 +416,7 @@ mod tests {
     use super::*;
     use crate::models::Tables;
     use alloy_primitives::B256;
+    use kona_cli::init_test_tracing;
     use kona_protocol::BlockInfo;
     use kona_supervisor_types::{ExecutingMessage, Log};
     use reth_db::{
@@ -611,6 +709,8 @@ mod tests {
 
     #[test]
     fn test_rewind_to() {
+        init_test_tracing();
+
         let db = setup_db();
         let genesis = genesis_block();
         initialize_db(&db, &genesis).expect("Failed to initialize DB");
@@ -627,12 +727,12 @@ mod tests {
 
         // Rewind to block 3, blocks 3, 4, 5 should be removed
         let tx = db.tx_mut().expect("Could not get mutable tx");
-        let provider = LogProvider::new(&tx, CHAIN_ID);
+        let provider = LogProvider::new_with_observability_interval(&tx, CHAIN_ID, 1);
         provider.rewind_to(&blocks[3].id()).expect("Failed to rewind blocks");
         tx.commit().expect("Failed to commit rewind");
 
         let tx = db.tx().expect("Could not get RO tx");
-        let provider = LogProvider::new(&tx, CHAIN_ID);
+        let provider = LogProvider::new_with_observability_interval(&tx, CHAIN_ID, 1);
 
         // Blocks 0,1,2 should still exist
         for i in 0..=2 {
@@ -656,6 +756,7 @@ mod tests {
             assert!(logs.is_empty(), "logs for block {i} should be empty");
         }
     }
+
     #[test]
     fn test_rewind_to_conflict_hash() {
         let db = setup_db();

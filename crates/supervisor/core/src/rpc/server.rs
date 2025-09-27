@@ -12,7 +12,6 @@ use kona_supervisor_rpc::{
     SuperRootOutputRpc, SupervisorApiServer, SupervisorChainSyncStatus, SupervisorSyncStatus,
 };
 use kona_supervisor_types::{HexStringU64, SuperHead};
-use op_alloy_rpc_types::SuperchainDAError;
 use std::sync::Arc;
 use tracing::{trace, warn};
 
@@ -246,9 +245,7 @@ where
                 for (id, status) in chains.iter_mut() {
                     let head = match self.supervisor.super_head(*id) {
                         Ok(head) => head,
-                        Err(SupervisorError::SpecError(SpecError::SuperchainDAError(
-                            SuperchainDAError::UninitializedChainDatabase,
-                        ))) => {
+                        Err(SupervisorError::SpecError(SpecError::ErrorNotInSpec)) => {
                             uninitialized_chain_db_count += 1;
                             continue;
                         }
@@ -282,7 +279,9 @@ where
 
                 if uninitialized_chain_db_count == chains.len() {
                     warn!(target: "supervisor::rpc", "No chain db initialized");
-                    return Err(SuperchainDAError::UninitializedChainDatabase.into());
+                    return Err(ErrorObject::from(SupervisorError::SpecError(
+                        SpecError::ErrorNotInSpec,
+                    )));
                 }
 
                 Ok(SupervisorSyncStatus {
@@ -442,20 +441,17 @@ mod tests {
         mock_service
             .expect_chain_ids()
             .returning(move || Box::new(vec![chain_id_1, chain_id_2].into_iter()));
-        mock_service.expect_super_head().times(2).returning(move |_| {
-            Err(SupervisorError::SpecError(SpecError::SuperchainDAError(
-                SuperchainDAError::UninitializedChainDatabase,
-            )))
-        });
+        mock_service
+            .expect_super_head()
+            .times(2)
+            .returning(move |_| Err(SupervisorError::SpecError(SpecError::ErrorNotInSpec)));
 
         let rpc = SupervisorRpc::new(Arc::new(mock_service));
         let result = rpc.sync_status().await;
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            ErrorObject::from(SupervisorError::SpecError(SpecError::SuperchainDAError(
-                SuperchainDAError::UninitializedChainDatabase
-            )))
+            ErrorObject::from(SupervisorError::SpecError(SpecError::ErrorNotInSpec,))
         );
 
         // Case 2: Only one chain db is initialized
@@ -477,9 +473,7 @@ mod tests {
             if chain_id == chain_id_1 {
                 Ok(super_head)
             } else {
-                Err(SupervisorError::SpecError(SpecError::SuperchainDAError(
-                    SuperchainDAError::UninitializedChainDatabase,
-                )))
+                Err(SupervisorError::SpecError(SpecError::ErrorNotInSpec))
             }
         });
 

@@ -3,7 +3,7 @@
 use super::StatelessL2Builder;
 use crate::{
     ExecutorError, ExecutorResult, TrieDBError, TrieDBProvider,
-    util::encode_holocene_eip_1559_params,
+    util::{encode_holocene_eip_1559_params, encode_jovian_eip_1559_params},
 };
 use alloc::vec::Vec;
 use alloy_consensus::{EMPTY_OMMER_ROOT_HASH, Header, Sealed};
@@ -70,12 +70,16 @@ where
         //
         // If the payload's `eip_1559_params` are equal to `0`, then the header's `extraData`
         // field is set to the encoded canyon base fee parameters.
-        let encoded_base_fee_params = self
-            .config
-            .is_holocene_active(timestamp)
-            .then(|| encode_holocene_eip_1559_params(self.config, attrs))
-            .transpose()?
-            .unwrap_or_default();
+        let encoded_base_fee_params = match self.config {
+            config if config.is_jovian_active(timestamp) => {
+                let extra_data = encode_jovian_eip_1559_params(self.config, attrs)?;
+                Ok(extra_data)
+            }
+            config if config.is_holocene_active(timestamp) => {
+                encode_holocene_eip_1559_params(self.config, attrs)
+            }
+            _ => Ok(Default::default()),
+        }?;
 
         // The requests hash on the OP Stack, if Isthmus is active, is always the empty SHA256 hash.
         let requests_hash = self.config.is_isthmus_active(timestamp).then_some(EMPTY_REQUESTS_HASH);
@@ -122,8 +126,8 @@ where
 
         info!(
             target: "block_builder",
-            state_root = ?self.trie_db.parent_block_header().state_root,
-            block_number = parent_number,
+            parent_state_root = ?self.trie_db.parent_block_header().state_root,
+            parent_block_number = parent_number,
             "Computing output root",
         );
 
@@ -137,7 +141,7 @@ where
 
         info!(
             target: "block_builder",
-            block_number = parent_number,
+            parent_block_number = parent_number,
             output_root = ?output_root_hash,
             "Computed output root",
         );

@@ -119,62 +119,6 @@ build-asterisc-client:
 check-udeps:
   cargo +nightly udeps --workspace --all-features --all-targets
 
-# Updates the pinned version of the monorepo
-update-monorepo:
-  #!/bin/bash
-  [ ! -d monorepo ] && git clone https://github.com/ethereum-optimism/monorepo
-  cd monorepo && \
-    git fetch origin && \
-    git checkout develop && \
-    git rev-parse HEAD > ../.config/monorepo
-
-# Clones the Optimism monorepo and checks out the pinned commit
-monorepo:
-  #!/bin/bash
-  ([ ! -d monorepo ] && git clone https://github.com/ethereum-optimism/monorepo)
-  (cd monorepo && git checkout "$(cat ../.config/monorepo)")
-
-# Remove the monorepo directory
-clean-monorepo:
-  rm -rf monorepo/
-
-# Run action tests for the single-chain client program on the native target
-action-tests-single test_name='Test_ProgramAction' *args='':
-  #!/bin/bash
-  echo "Setting up monorepo"
-  just monorepo
-
-  echo "Building contract artifacts for the monorepo"
-  (cd monorepo/packages/contracts-bedrock && forge build)
-
-  echo "Building host program for the native target"
-  just build-native --bin kona-host
-  export KONA_HOST_PATH="{{justfile_directory()}}/target/debug/kona-host"
-
-  # GitHub actions patch - do not print logs.
-  # https://github.com/gotestyourself/gotestsum/blob/b4b13345fee56744d80016a20b760d3599c13504/testjson/format.go#L442-L444
-  echo "Running action tests for the client program on the native target"
-  cd monorepo/op-e2e/actions/proofs && \
-    GITHUB_ACTIONS=false gotestsum --format=testname -- -run "{{test_name}}" {{args}} -count=1 ./...
-
-# Run action tests for the interop client program on the native target
-action-tests-interop test_name='TestInteropFaultProofs' *args='':
-  #!/bin/bash
-  echo "Setting up monorepo"
-  just monorepo
-
-  echo "Building contract artifacts for the monorepo"
-  (cd monorepo/packages/contracts-bedrock && forge build)
-
-  echo "Building host program for the native target"
-  just build-native --bin kona-host
-  export KONA_HOST_PATH="{{justfile_directory()}}/target/debug/kona-host"
-
-  # GitHub actions patch - do not print logs.
-  # https://github.com/gotestyourself/gotestsum/blob/b4b13345fee56744d80016a20b760d3599c13504/testjson/format.go#L442-L444
-  echo "Running action tests for the client program on the native target"
-  cd monorepo/op-e2e/actions/interop && \
-    GITHUB_ACTIONS=false gotestsum --format=testname -- -run "{{test_name}}" {{args}} -count=1 ./...
 
 # Updates the `superchain-registry` git submodule source
 source-registry:

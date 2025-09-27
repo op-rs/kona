@@ -5,7 +5,7 @@ use alloy_consensus::{Transaction, TxType, Typed2718};
 use alloy_primitives::B256;
 use alloy_rlp::{Buf, Header};
 use kona_genesis::{RollupConfig, SystemConfig};
-use op_alloy_consensus::OpBlock;
+use op_alloy_consensus::{OpBlock, decode_holocene_extra_data, decode_jovian_extra_data};
 
 use crate::{
     L1BlockInfoBedrock, L1BlockInfoEcotone, L1BlockInfoIsthmus, L1BlockInfoTx,
@@ -70,26 +70,16 @@ pub fn to_system_config(
     };
 
     // After holocene's activation, the EIP-1559 parameters are stored in the block header's nonce.
-    if rollup_config.is_holocene_active(block.header.timestamp) {
-        let eip1559_params = &block.header.extra_data;
-
-        if eip1559_params.len() != 9 {
-            return Err(OpBlockConversionError::Eip1559DecodeError);
-        }
-        if eip1559_params[0] != 0 {
-            return Err(OpBlockConversionError::Eip1559DecodeError);
-        }
-
-        cfg.eip1559_denominator = Some(u32::from_be_bytes(
-            eip1559_params[1..5]
-                .try_into()
-                .map_err(|_| OpBlockConversionError::Eip1559DecodeError)?,
-        ));
-        cfg.eip1559_elasticity = Some(u32::from_be_bytes(
-            eip1559_params[5..9]
-                .try_into()
-                .map_err(|_| OpBlockConversionError::Eip1559DecodeError)?,
-        ));
+    if rollup_config.is_jovian_active(block.header.timestamp) {
+        let (elasticity, denominator, min_base_fee) =
+            decode_jovian_extra_data(&block.header.extra_data)?;
+        cfg.eip1559_denominator = Some(denominator);
+        cfg.eip1559_elasticity = Some(elasticity);
+        cfg.min_base_fee = Some(min_base_fee);
+    } else if rollup_config.is_holocene_active(block.header.timestamp) {
+        let (elasticity, denominator) = decode_holocene_extra_data(&block.header.extra_data)?;
+        cfg.eip1559_denominator = Some(denominator);
+        cfg.eip1559_elasticity = Some(elasticity);
     }
 
     if rollup_config.is_isthmus_active(block.header.timestamp) {
@@ -278,6 +268,7 @@ mod tests {
             eip1559_elasticity: None,
             operator_fee_scalar: None,
             operator_fee_constant: None,
+            min_base_fee: None,
         };
         assert_eq!(config, expected);
     }
@@ -325,6 +316,7 @@ mod tests {
             eip1559_elasticity: Some(0xbabe),
             operator_fee_scalar: None,
             operator_fee_constant: None,
+            min_base_fee: None,
         };
         assert_eq!(config, expected);
     }
@@ -376,6 +368,7 @@ mod tests {
             eip1559_elasticity: Some(0xbabe),
             operator_fee_scalar: Some(0xabcd),
             operator_fee_constant: Some(0xdcba),
+            min_base_fee: None,
         };
         assert_eq!(config, expected);
     }

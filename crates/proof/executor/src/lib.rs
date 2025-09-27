@@ -23,7 +23,5 @@ pub use errors::{ExecutorError, ExecutorResult, TrieDBError, TrieDBResult};
 
 pub(crate) mod util;
 
-pub(crate) mod constants;
-
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;

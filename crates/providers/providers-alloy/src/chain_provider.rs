@@ -255,7 +255,7 @@ impl ChainProvider for AlloyChainProvider {
         self.verify_header_hash(&block.header, hash)?;
 
         let block_info = BlockInfo {
-            hash: block.header.hash_slow(),
+            hash, // Use the already verified hash instead of recomputing
             number: block.header.number,
             parent_hash: block.header.parent_hash,
             timestamp: block.header.timestamp,

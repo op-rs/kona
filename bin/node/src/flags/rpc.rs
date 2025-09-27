@@ -12,8 +12,8 @@ use std::{
 /// RPC CLI Arguments
 #[derive(Parser, Debug, Clone, PartialEq, Eq)]
 pub struct RpcArgs {
-    /// Whether to enable the rpc server.
-    #[arg(long = "rpc.disabled", default_value = "false", env = "KONA_NODE_RPC_ENABLED")]
+    /// Whether to disable the rpc server.
+    #[arg(long = "rpc.disabled", default_value = "false", env = "KONA_NODE_RPC_DISABLED")]
     pub rpc_disabled: bool,
     /// Prevent the RPC server from attempting to restart.
     #[arg(long = "rpc.no-restart", default_value = "false", env = "KONA_NODE_RPC_NO_RESTART")]

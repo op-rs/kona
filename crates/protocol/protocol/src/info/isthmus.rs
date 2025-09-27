@@ -1,4 +1,4 @@
-//! Isthmus L1 Bl{format, ock Info transaction types.
+//! Isthmus L1 Block Info transaction types.
 
 use alloc::vec::Vec;
 use alloy_primitives::{Address, B256, Bytes, U256};

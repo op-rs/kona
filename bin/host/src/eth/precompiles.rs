@@ -2,10 +2,10 @@
 
 use alloy_primitives::{Address, Bytes};
 use anyhow::{Result, anyhow};
-use revm::precompile::{self, PrecompileWithAddress};
+use revm::precompile::{self, Precompile};
 
 /// List of precompiles that are accelerated by the host program.
-pub(crate) const ACCELERATED_PRECOMPILES: &[PrecompileWithAddress] = &[
+pub(crate) const ACCELERATED_PRECOMPILES: &[Precompile] = &[
     precompile::secp256k1::ECRECOVER,          // ecRecover
     precompile::bn254::pair::ISTANBUL,         // ecPairing
     precompile::bls12_381::g1_add::PRECOMPILE, // BLS12-381 G1 Point Addition
@@ -22,7 +22,7 @@ pub(crate) const ACCELERATED_PRECOMPILES: &[PrecompileWithAddress] = &[
 /// Executes an accelerated precompile on [revm].
 pub(crate) fn execute<T: Into<Bytes>>(address: Address, input: T, gas: u64) -> Result<Vec<u8>> {
     if let Some(precompile) =
-        ACCELERATED_PRECOMPILES.iter().find(|precompile| precompile.0 == address)
+        ACCELERATED_PRECOMPILES.iter().find(|precompile| *precompile.address() == address)
     {
         let output = precompile.precompile()(&input.into(), gas)
             .map_err(|e| anyhow!("Failed precompile execution: {e}"))?;
