@@ -2,7 +2,6 @@
 
 use core::net::IpAddr;
 use derive_more::Display;
-use std::string::String;
 
 use alloy_primitives::{ChainId, map::HashMap};
 
