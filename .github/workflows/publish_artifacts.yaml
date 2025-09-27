@@ -42,9 +42,9 @@ jobs:
 
       - name: Generate prestate artifacts
         run: |
-          HASH="$(cat .config/monorepo)"
+          CANNON_TAG="$(cat .config/cannon_tag)"
           cd docker/fpvm-prestates
-          just "${{ matrix.kind }}" "${{ matrix.version }}" "${{ github.ref_name }}" "$HASH"
+          just "${{ matrix.kind }}" "${{ matrix.version }}" "${{ github.ref_name }}" "$CANNON_TAG"
 
       - name: Upload prestates artifacts to GCS
         run: |
