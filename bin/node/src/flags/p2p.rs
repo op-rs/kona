@@ -53,17 +53,11 @@ pub struct P2PArgs {
     pub advertise_ip: Option<IpAddr>,
     /// TCP port to advertise to external peers from the discovery layer. Same as `p2p.listen.tcp`
     /// if set to zero.
-    #[arg(
-        long = "p2p.advertise.tcp",
-        env = "KONA_NODE_P2P_ADVERTISE_TCP_PORT"
-    )]
+    #[arg(long = "p2p.advertise.tcp", env = "KONA_NODE_P2P_ADVERTISE_TCP_PORT")]
     pub advertise_tcp_port: Option<u16>,
     /// UDP port to advertise to external peers from the discovery layer.
     /// Same as `p2p.listen.udp` if set to zero.
-    #[arg(
-        long = "p2p.advertise.udp",
-        env = "KONA_NODE_P2P_ADVERTISE_UDP_PORT"
-    )]
+    #[arg(long = "p2p.advertise.udp", env = "KONA_NODE_P2P_ADVERTISE_UDP_PORT")]
     pub advertise_udp_port: Option<u16>,
 
     /// IP to bind LibP2P/Discv5 to.
@@ -368,7 +362,7 @@ impl P2PArgs {
         };
 
         let advertise_udp_port = match self.advertise_udp_port {
-            None => self.listen_udp_port, 
+            None => self.listen_udp_port,
             Some(port) => port,
         };
 
