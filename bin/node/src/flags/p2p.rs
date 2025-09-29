@@ -243,7 +243,7 @@ impl P2PArgs {
         Ok(())
     }
 
-    /// Checks if the ports are available on the system.
+    /// Checks if the listen ports are available on the system.
     ///
     /// If either of the ports are `0`, this check is skipped.
     ///
@@ -252,17 +252,7 @@ impl P2PArgs {
     /// - If the TCP port is already in use.
     /// - If the UDP port is already in use.
     pub fn check_ports(&self) -> Result<()> {
-        let advertise_tcp = self.advertise_tcp_port.unwrap_or(self.listen_tcp_port);
-        let advertise_udp = self.advertise_udp_port.unwrap_or(self.listen_udp_port);
-
-        Self::check_ports_inner(
-            self.advertise_ip.unwrap_or(self.listen_ip),
-            advertise_tcp,
-            advertise_udp,
-        )?;
-        Self::check_ports_inner(self.listen_ip, self.listen_tcp_port, self.listen_udp_port)?;
-
-        Ok(())
+        Self::check_ports_inner(self.listen_ip, self.listen_tcp_port, self.listen_udp_port)
     }
 
     /// Returns the private key as specified in the raw cli flag or via file path.
