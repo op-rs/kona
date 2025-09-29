@@ -4976,6 +4976,7 @@ dependencies = [
  "dirs",
  "discv5",
  "kona-genesis",
+ "kona-registry",
  "lazy_static",
  "libp2p",
  "libp2p-identity",
