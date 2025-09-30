@@ -62,5 +62,4 @@ default = []
 arbitrary = [
 	"alloy-primitives/arbitrary",
 	"dep:arbitrary",
-	"kona-genesis/arbitrary",
 ]

@@ -106,7 +106,7 @@ impl OnlinePipeline {
     ) -> Self {
         let attributes = StatefulAttributesBuilder::new(
             cfg.clone(),
-            l1_cfg.clone(),
+            l1_cfg,
             l2_chain_provider.clone(),
             chain_provider.clone(),
         );
@@ -140,7 +140,7 @@ impl OnlinePipeline {
     ) -> Self {
         let attributes = StatefulAttributesBuilder::new(
             cfg.clone(),
-            l1_cfg.clone(),
+            l1_cfg,
             l2_chain_provider.clone(),
             chain_provider.clone(),
         );

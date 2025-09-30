@@ -54,4 +54,6 @@ std = [
 	"serde/std",
 	"serde_json/std",
 	"tabled?/std",
+	"alloy-eips/std",
+	"alloy-genesis/std"
 ]

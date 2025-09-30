@@ -5061,7 +5061,6 @@ dependencies = [
  "alloy-rpc-types-engine",
  "arbitrary",
  "async-trait",
- "futures",
  "kona-executor",
  "kona-genesis",
  "kona-interop",

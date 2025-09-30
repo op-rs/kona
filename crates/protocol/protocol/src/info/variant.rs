@@ -83,29 +83,29 @@ impl L1BlockInfoTx {
         // parameters.
         let blob_fee_params = l1_config.blob_schedule_blob_params();
 
-        let blob_fee_config = if let Some(blob_fee_param) =
-            blob_fee_params.active_scheduled_params_at_timestamp(l1_header.timestamp)
-        {
-            *blob_fee_param
-        } else if l1_config.osaka_time.is_some_and(|time| time <= l1_header.timestamp) {
-            BlobParams::osaka()
-        } else if l1_config
-            .prague_time.is_some_and(|time| time <= l1_header.timestamp) &&
-            // There was an incident on OP Stack Sepolia chains (03-05-2025) when L1 activated pectra,
-            // where the sequencer followed the incorrect chain, using the legacy Cancun blob fee
-            // schedule instead of the new Prague blob fee schedule. This portion of the chain was
-            // chosen to be canonicalized in favor of the prospect of a deep reorg imposed by the
-            // sequencers of the testnet chains. An optional hardfork was introduced for Sepolia only,
-            // where if present, activates the use of the Prague blob fee schedule. If the hardfork is
-            // not present, and L1 has activated pectra, the Prague blob fee schedule is used
-            // immediately.
-            (rollup_config.hardforks.pectra_blob_schedule_time.is_none() ||
-                rollup_config.is_pectra_blob_schedule_active(l1_header.timestamp))
-        {
-            BlobParams::prague()
-        } else {
-            BlobParams::cancun()
-        };
+        let blob_fee_config =
+            match blob_fee_params.active_scheduled_params_at_timestamp(l1_header.timestamp) {
+                Some(blob_fee_param) => *blob_fee_param,
+                None if l1_config.osaka_time.is_some_and(|time| time <= l1_header.timestamp) => {
+                    BlobParams::osaka()
+                }
+                None if l1_config
+                    .prague_time.is_some_and(|time| time <= l1_header.timestamp) &&
+                    // There was an incident on OP Stack Sepolia chains (03-05-2025) when L1 activated pectra,
+                    // where the sequencer followed the incorrect chain, using the legacy Cancun blob fee
+                    // schedule instead of the new Prague blob fee schedule. This portion of the chain was
+                    // chosen to be canonicalized in favor of the prospect of a deep reorg imposed by the
+                    // sequencers of the testnet chains. An optional hardfork was introduced for Sepolia only,
+                    // where if present, activates the use of the Prague blob fee schedule. If the hardfork is
+                    // not present, and L1 has activated pectra, the Prague blob fee schedule is used
+                    // immediately.
+                    (rollup_config.hardforks.pectra_blob_schedule_time.is_none() ||
+                        rollup_config.is_pectra_blob_schedule_active(l1_header.timestamp)) =>
+                {
+                    BlobParams::prague()
+                }
+                _ => BlobParams::cancun(),
+            };
 
         let blob_base_fee = l1_header.blob_fee(blob_fee_config).unwrap_or(1);
         let block_hash = l1_header.hash_slow();
@@ -825,7 +825,7 @@ mod test {
 
         let l1_info = L1BlockInfoTx::try_new(
             &rollup_config,
-            &l1_genesis.into(),
+            &l1_genesis,
             &system_config,
             sequence_number,
             &l1_header,

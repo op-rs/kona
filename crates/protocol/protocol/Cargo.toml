@@ -125,4 +125,5 @@ serde = [
 	"op-alloy-rpc-types-engine/serde",
 	"op-alloy-rpc-types/serde",
 	"tracing-subscriber?/serde",
+	"alloy-hardforks/serde"
 ]

@@ -28,9 +28,9 @@ impl From<L1ChainConfig> for L1Config {
     }
 }
 
-impl Into<L1ChainConfig> for L1Config {
-    fn into(self) -> L1ChainConfig {
-        self.0
+impl From<L1Config> for L1ChainConfig {
+    fn from(val: L1Config) -> Self {
+        val.0
     }
 }
 
@@ -53,9 +53,9 @@ impl L1Config {
         match NamedChain::try_from(chain_id)
             .map_err(|_| L1GenesisGetterErrors::ChainIDDoesNotExist(chain_id))?
         {
-            NamedChain::Mainnet => Ok(Self::mainnet().clone().into()),
-            NamedChain::Sepolia => Ok(Self::sepolia().clone().into()),
-            NamedChain::Holesky => Ok(Self::holesky().clone().into()),
+            NamedChain::Mainnet => Ok(Self::mainnet()),
+            NamedChain::Sepolia => Ok(Self::sepolia()),
+            NamedChain::Holesky => Ok(Self::holesky()),
             _ => Err(L1GenesisGetterErrors::UnknownChainID(chain_id)),
         }
     }
@@ -246,13 +246,13 @@ pub enum L1GenesisGetterErrors {
 
 impl Display for L1GenesisGetterErrors {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
 impl From<serde_json::Error> for L1GenesisGetterErrors {
     fn from(error: serde_json::Error) -> Self {
-        L1GenesisGetterErrors::ParseGenesisError(error)
+        Self::ParseGenesisError(error)
     }
 }
 

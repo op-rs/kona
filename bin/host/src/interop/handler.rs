@@ -218,8 +218,7 @@ impl HintHandler for InteropHintHandler {
                     // If an error occurred while reading the rollup configs, return the error.
                     .transpose()?
                     // Try to find the appropriate rollup config for the chain ID.
-                    .map(|configs| configs.get(&chain_id).cloned())
-                    .flatten()
+                    .and_then(|configs| configs.get(&chain_id).cloned())
                     // If we can't find the rollup config, try to find it in the global rollup
                     // configs.
                     .or_else(|| ROLLUP_CONFIGS.get(&chain_id).cloned())
@@ -428,8 +427,7 @@ impl HintHandler for InteropHintHandler {
                     // If an error occurred while reading the rollup configs, return the error.
                     .transpose()?
                     // Try to find the appropriate rollup config for the chain ID.
-                    .map(|configs| configs.get(&chain_id).cloned())
-                    .flatten()
+                    .and_then(|configs| configs.get(&chain_id).cloned())
                     // If we can't find the rollup config, try to find it in the global rollup
                     // configs.
                     .or_else(|| ROLLUP_CONFIGS.get(&chain_id).cloned())
@@ -441,8 +439,7 @@ impl HintHandler for InteropHintHandler {
                     // If an error occurred while reading the l1 configs, return the error.
                     .transpose()?
                     // Try to find the appropriate l1 config for the chain ID.
-                    .map(|configs| configs.get(&rollup_config.l1_chain_id).cloned())
-                    .flatten()
+                    .and_then(|configs| configs.get(&rollup_config.l1_chain_id).cloned())
                     // If we can't find the l1 config, try to find it in the global l1 configs.
                     .or_else(|| L1_CONFIGS.get(&rollup_config.l1_chain_id).cloned())
                     .map(Arc::new)

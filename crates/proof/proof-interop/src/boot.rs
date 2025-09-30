@@ -164,8 +164,7 @@ impl BootInfo {
                 .get(PreimageKey::new_local(L1_CONFIG_KEY.to()))
                 .await
                 .map_err(OracleProviderError::Preimage)?;
-            let config = serde_json::from_slice(&ser_cfg).map_err(OracleProviderError::Serde)?;
-            config
+            serde_json::from_slice(&ser_cfg).map_err(OracleProviderError::Serde)?
         };
 
         Ok(Self {

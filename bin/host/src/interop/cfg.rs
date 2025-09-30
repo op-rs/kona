@@ -247,7 +247,7 @@ impl InteropHost {
             // Deserialize the config and return it.
             let cfg: L1ChainConfig = serde_json::from_str(&ser_config)?;
 
-            acc.insert(cfg.chain_id, cfg.into());
+            acc.insert(cfg.chain_id, cfg);
             Ok(acc)
         }))
     }
