@@ -115,6 +115,7 @@ arbitrary = [
 serde = [
 	"alloy-consensus/serde",
 	"alloy-eips/serde",
+	"alloy-hardforks/serde",
 	"alloy-primitives/serde",
 	"alloy-rpc-types-engine/serde",
 	"alloy-rpc-types-eth/serde",
@@ -125,5 +126,4 @@ serde = [
 	"op-alloy-rpc-types-engine/serde",
 	"op-alloy-rpc-types/serde",
 	"tracing-subscriber?/serde",
-	"alloy-hardforks/serde"
 ]

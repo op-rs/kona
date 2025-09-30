@@ -59,7 +59,4 @@ alloy-consensus = { workspace = true, features = ["arbitrary", "k256"] }
 
 [features]
 default = []
-arbitrary = [
-	"alloy-primitives/arbitrary",
-	"dep:arbitrary",
-]
+arbitrary = [ "alloy-primitives/arbitrary", "dep:arbitrary" ]
