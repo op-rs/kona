@@ -57,7 +57,7 @@ where
         .map(Arc::new)
         .ok_or(FaultProofProgramError::StateTransitionFailed)?;
 
-    let l1_config = boot.active_l1_config().ok_or(FaultProofProgramError::StateTransitionFailed)?;
+    let l1_config = boot.active_l1_config();
 
     // Instantiate the L1 EL + CL provider and the L2 EL provider.
     let mut l1_provider = OracleL1ChainProvider::new(boot.l1_head, oracle.clone());

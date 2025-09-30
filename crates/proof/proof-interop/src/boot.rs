@@ -50,7 +50,7 @@ pub struct BootInfo {
     /// The rollup config for the L2 chain.
     pub rollup_configs: HashMap<u64, RollupConfig>,
     /// The L1 config for the L2 chain.
-    pub l1_configs: HashMap<u64, L1ChainConfig>,
+    pub l1_config: L1ChainConfig,
 }
 
 impl BootInfo {
@@ -142,36 +142,35 @@ impl BootInfo {
 
         // Attempt to load the l1 config from the chain ID. If there is no config for the chain,
         // fall back to loading the config from the preimage oracle.
-        let l1_configs_futures: Vec<_> = rollup_configs
-            .iter()
-            .map(|(_, cfg)| async {
-            if let Some(config) = L1_CONFIGS.get(&cfg.l1_chain_id) {
-                Ok::<(u64, L1ChainConfig), OracleProviderError>((cfg.l1_chain_id, config.clone()))
-            } else {
-                warn!(
-                    target: "boot_loader",
-                    "No l1 config found for chain ID {}, falling back to preimage oracle. This is insecure in production without additional validation!",
-                    cfg.l1_chain_id
-                );
-                let ser_cfg = oracle
-                    .get(PreimageKey::new_local(L1_CONFIG_KEY.to()))
-                    .await
-                    .map_err(OracleProviderError::Preimage)?;
-                let config = serde_json::from_slice(&ser_cfg).map_err(OracleProviderError::Serde)?;
-                Ok((cfg.l1_chain_id, config))
-            }
-        }
-        )
-        .collect();
 
-        let l1_configs = futures::future::join_all(l1_configs_futures)
-            .await
-            .into_iter()
-            .collect::<Result<HashMap<u64, _>, _>>()?;
+        // Note that there should be only one l1 config per interop cluster. Let's ensure that all
+        // the chain ids are the same.
+        let l1_chain_ids = rollup_configs.values().map(|cfg| cfg.l1_chain_id).collect::<Vec<_>>();
+        if l1_chain_ids.iter().any(|id| *id != l1_chain_ids[0]) {
+            return Err(BootstrapError::InvalidL1Config);
+        }
+
+        let l1_chain_id = l1_chain_ids[0];
+
+        let l1_config = if let Some(config) = L1_CONFIGS.get(&l1_chain_id) {
+            config.clone()
+        } else {
+            warn!(
+                target: "boot_loader",
+                "No l1 config found for chain ID {}, falling back to preimage oracle. This is insecure in production without additional validation!",
+                l1_chain_id
+            );
+            let ser_cfg = oracle
+                .get(PreimageKey::new_local(L1_CONFIG_KEY.to()))
+                .await
+                .map_err(OracleProviderError::Preimage)?;
+            let config = serde_json::from_slice(&ser_cfg).map_err(OracleProviderError::Serde)?;
+            config
+        };
 
         Ok(Self {
             l1_head,
-            l1_configs,
+            l1_config,
             rollup_configs,
             agreed_pre_state_commitment: l2_pre,
             agreed_pre_state,
@@ -188,10 +187,8 @@ impl BootInfo {
 
     /// Returns the [L1ChainConfig] corresponding to the [PreState::active_l2_chain_id] through the
     /// l2 [RollupConfig].
-    pub fn active_l1_config(&self) -> Option<L1ChainConfig> {
-        let active_l2_chain_id = self.agreed_pre_state.active_l2_chain_id()?;
-        let rollup_config = self.rollup_configs.get(&active_l2_chain_id)?;
-        self.l1_configs.get(&rollup_config.l1_chain_id).cloned()
+    pub fn active_l1_config(&self) -> L1ChainConfig {
+        self.l1_config.clone()
     }
 
     /// Returns the [RollupConfig] corresponding to the given `chain_id`.
@@ -212,6 +209,9 @@ pub enum BootstrapError {
     /// The pre-state is invalid and the post-state claim is also invalid.
     #[error("No-op state transition detected; both pre and post states are `INVALID`.")]
     InvalidToInvalid,
+    /// The l1 config is invalid because the chain ids are not the same.
+    #[error("The l1 config is invalid because the chain ids are not the same.")]
+    InvalidL1Config,
 }
 
 /// Reads the raw pre-state from the preimage oracle.
