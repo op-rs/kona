@@ -10,9 +10,11 @@ jobs:
   node-e2e-sysgo-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    name: node-sysgo-tests
+    name: ${{ matrix.devnet-config }}-sysgo-tests
     strategy:
       fail-fast: false
+      matrix:
+        devnet-config: ["simple-kona", "simple-kona-geth", "large-kona", "simple-kona-sequencer", "large-kona-sequencer"]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v5
@@ -45,7 +47,7 @@ jobs:
       - name: common tests for node with sysgo orchestrator and report coverage
         run: |
           source <(cargo llvm-cov show-env --export-prefix)
-          just test-e2e-sysgo node node/common
+          just test-e2e-sysgo node node/common "${{ matrix.devnet-config }}"
           cargo llvm-cov report --lcov --output-path node_common_cov.lcov
       
       - name: Upload coverage to codecov.io
@@ -62,7 +64,7 @@ jobs:
       - name: restart tests for node with sysgo orchestrator and report coverage
         run: |
           source <(cargo llvm-cov show-env --export-prefix)
-          just test-e2e-sysgo node node/restart
+          just test-e2e-sysgo node node/restart "${{ matrix.devnet-config }}"
           cargo llvm-cov report --lcov --output-path node_restart_cov.lcov
 
       - name: Upload coverage to codecov.io
@@ -79,7 +81,7 @@ jobs:
       - name: reorg tests for node with sysgo orchestrator and report coverage
         run: |
           source <(cargo llvm-cov show-env --export-prefix)
-          just test-e2e-sysgo node node/reorgs
+          just test-e2e-sysgo node node/reorgs "${{ matrix.devnet-config }}"
           cargo llvm-cov report --lcov --output-path node_reorgs_cov.lcov
 
       - name: Upload coverage to codecov.io

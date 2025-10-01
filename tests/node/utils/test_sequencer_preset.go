@@ -45,19 +45,31 @@ type DefaultMinimalWithTestSequencerIds struct {
 
 func NewDefaultMinimalWithTestSequencerIds(konaNodes int) DefaultMinimalWithTestSequencerIds {
 	return DefaultMinimalWithTestSequencerIds{
-		DefaultMixedOpKonaSystemIDs: NewDefaultMixedOpKonaSystemIDs(eth.ChainIDFromUInt64(DefaultL1ID), eth.ChainIDFromUInt64(DefaultL2ID), 1, 0, 1, konaNodes),
-		TestSequencerId:             "test-sequencer",
+		DefaultMixedOpKonaSystemIDs: NewDefaultMixedOpKonaSystemIDs(eth.ChainIDFromUInt64(DefaultL1ID), eth.ChainIDFromUInt64(DefaultL2ID), L2NodeConfig{
+			OpSequencerNodesWithGeth: 1,
+			OpNodesWithGeth:          1,
+			OpNodesWithReth:          1,
+			KonaNodesWithGeth:        1,
+			KonaNodesWithReth:        1,
+		}),
+		TestSequencerId: "test-sequencer",
 	}
 }
 
 func DefaultMixedWithTestSequencer(dest *DefaultMinimalWithTestSequencerIds, konaNodes int) stack.Option[*sysgo.Orchestrator] {
 
-	opt := DefaultMixedOpKonaSystem(&dest.DefaultMixedOpKonaSystemIDs, 1, 0, 1, konaNodes)
+	opt := DefaultMixedOpKonaSystem(&dest.DefaultMixedOpKonaSystemIDs, L2NodeConfig{
+		OpSequencerNodesWithGeth: 1,
+		OpNodesWithGeth:          1,
+		OpNodesWithReth:          1,
+		KonaNodesWithGeth:        1,
+		KonaNodesWithReth:        1,
+	})
 
 	ids := NewDefaultMinimalWithTestSequencerIds(konaNodes)
 
-	L2SequencerCLNodes := ids.DefaultMixedOpKonaSystemIDs.L2CLOpSequencerNodes
-	L2SequencerELNodes := ids.DefaultMixedOpKonaSystemIDs.L2ELOpSequencerNodes
+	L2SequencerCLNodes := ids.DefaultMixedOpKonaSystemIDs.L2CLSequencerNodes()
+	L2SequencerELNodes := ids.DefaultMixedOpKonaSystemIDs.L2ELSequencerNodes()
 
 	opt.Add(sysgo.WithTestSequencer(ids.TestSequencerId, ids.DefaultMixedOpKonaSystemIDs.L1CL, L2SequencerCLNodes[0], ids.DefaultMixedOpKonaSystemIDs.L1EL, L2SequencerELNodes[0]))
 
