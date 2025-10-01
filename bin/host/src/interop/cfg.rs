@@ -109,7 +109,7 @@ pub enum InteropHostError {
     /// Task failed to execute to completion.
     #[error("Join error: {0}")]
     ExecutionError(#[from] tokio::task::JoinError),
-    /// A RPC error.
+    /// An RPC error.
     #[error("Rpc Error: {0}")]
     RpcError(#[from] alloy_transport::RpcError<alloy_transport::TransportErrorKind>),
     /// An error when no provider found for chain ID.
