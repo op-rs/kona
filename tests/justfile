@@ -46,6 +46,31 @@ build-kona:
   #!/bin/bash
   cd {{SOURCE}}/.. && cargo build --bin kona-node
 
+acceptance-tests CL_TYPE="kona" EL_TYPE="op-reth" GATE="base":
+  #!/bin/bash
+  if [ "{{CL_TYPE}}" = "kona" ] ; then
+    echo "Running acceptance tests for kona-node"
+    export KONA_NODE_EXEC_PATH="{{SOURCE}}/../target/debug/kona-node"
+    echo "Building kona-node..."
+    just build-kona
+  else
+    echo "Running acceptance tests for op-node"
+  fi
+
+  if [ "{{EL_TYPE}}" = "op-reth" ] ; then
+    echo "Running acceptance tests for op-reth"
+    export OP_RETH_EXEC_PATH="{{SOURCE}}/reth/target/debug/op-reth"
+    echo "Building op-reth..."
+    just build-reth
+  else
+    echo "Running acceptance tests for op-geth"
+  fi
+
+  export DEVSTACK_L2CL_KIND="{{CL_TYPE}}"
+  export DEVSTACK_L2EL_KIND="{{EL_TYPE}}"
+  export LOG_LEVEL="debug"
+  cd {{SOURCE}}/optimism/op-acceptance-tests && just acceptance-test "" "{{GATE}}"
+
 test-e2e-sysgo BINARY GO_PKG_NAME="" DEVNET="simple-kona" FILTER="" : unzip-contract-artifacts
     #!/bin/bash
     if [ -z "{{GO_PKG_NAME}}" ]; then
