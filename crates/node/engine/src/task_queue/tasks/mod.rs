@@ -12,7 +12,7 @@ mod insert;
 pub use insert::{InsertTask, InsertTaskError};
 
 mod build;
-pub use build::{BuildTask, BuildTaskError, EngineBuildError};
+pub use build::{BuildTask, BuildTaskError, EngineBuildError, LastPayloadData};
 
 mod consolidate;
 pub use consolidate::{ConsolidateTask, ConsolidateTaskError};
