@@ -23,7 +23,7 @@ cfg_if! {
                 if (fd as i32) < 0 {
                     return Err(IOError(-9)); // EBADF
                 }
-                
+
                 unsafe {
                     let mut file = File::from_raw_fd(fd as i32);
                     let result = file.write_all(buf).map_err(|_| IOError(-9));
@@ -38,7 +38,7 @@ cfg_if! {
                 if (fd as i32) < 0 {
                     return Err(IOError(-9)); // EBADF
                 }
-                
+
                 unsafe {
                     let mut file = File::from_raw_fd(fd as i32);
                     let result = file.read_exact(buf).map_err(|_| IOError(-9));
