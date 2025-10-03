@@ -2,8 +2,12 @@
 
 #[cfg(feature = "metrics")]
 use crate::Metrics;
-use alloy_eips::eip4844::IndexedBlobHash;
-use alloy_rpc_types_beacon::sidecar::{BeaconBlobBundle, BlobData};
+use alloy_consensus::{Blob, Bytes48};
+use alloy_eips::eip4844::{IndexedBlobHash, deserialize_blob};
+use alloy_rpc_types_beacon::{
+    header::Header,
+    sidecar::{BeaconBlobBundle, BlobData},
+};
 use async_trait::async_trait;
 use reqwest::Client;
 use std::{boxed::Box, format, string::String, vec::Vec};
@@ -18,6 +22,9 @@ const GENESIS_METHOD: &str = "eth/v1/beacon/genesis";
 // Starting from Fusaka (Fulu), the "eth/v1/beacon/blob_sidecars" endpoint is not serving
 // kgz blob validation data.
 const SIDECARS_METHOD_PREFIX_DEPRECATED: &str = "eth/v1/beacon/blob_sidecars";
+
+/// THe blobs engine api method prefix.
+const BLOBS_METHOD_PREFIX: &str = "eth/v1/beacon/blobs";
 
 /// A reduced genesis data.
 #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -114,6 +121,38 @@ impl OnlineBeaconClient {
     }
 }
 
+/// A boxed blob. This is used to deserialize the blobs endpoint response.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+struct BoxedBlob {
+    #[serde(deserialize_with = "deserialize_blob")]
+    pub blob: Box<Blob>,
+}
+
+/// A blobs bundle. This is used to deserialize the blobs endpoint response.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+struct BlobsBundle {
+    pub data: Vec<BoxedBlob>,
+}
+
+impl Into<BeaconBlobBundle> for BlobsBundle {
+    fn into(self) -> BeaconBlobBundle {
+        BeaconBlobBundle {
+            data: self
+                .data
+                .into_iter()
+                .map(|blob| BlobData {
+                    index: 0,
+                    blob: blob.blob,
+                    kzg_commitment: Bytes48::default(),
+                    kzg_proof: Bytes48::default(),
+                    signed_block_header: Header::default(),
+                    kzg_commitment_inclusion_proof: Vec::new(),
+                })
+                .collect(),
+        }
+    }
+}
+
 #[async_trait]
 impl BeaconClient for OnlineBeaconClient {
     type Error = reqwest::Error;
@@ -160,12 +199,27 @@ impl BeaconClient for OnlineBeaconClient {
         kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_REQUESTS, "method" => "blob_sidecars");
 
         let result = async {
-            let raw_response = self
+            let raw_response = match self
                 .inner
-                .get(format!("{}/{}/{}", self.base, SIDECARS_METHOD_PREFIX_DEPRECATED, slot))
+                .get(format!("{}/{}/{}", self.base, BLOBS_METHOD_PREFIX, slot))
                 .send()
-                .await?;
-            let raw_response = raw_response.json::<BeaconBlobBundle>().await?;
+                .await
+            {
+                Err(_) => {
+                    // If the blobs endpoint fails, try the deprecated sidecars endpoint. CL Clients
+                    // only support the blobs endpoint from Fusaka (Fulu) onwards.
+                    self.inner
+                        .get(format!(
+                            "{}/{}/{}",
+                            self.base, SIDECARS_METHOD_PREFIX_DEPRECATED, slot
+                        ))
+                        .send()
+                        .await?
+                        .json::<BeaconBlobBundle>()
+                        .await?
+                }
+                Ok(response) => response.json::<BlobsBundle>().await?.into(),
+            };
 
             // Filter the sidecars by the hashes, in-order.
             let mut sidecars = Vec::with_capacity(hashes.len());
