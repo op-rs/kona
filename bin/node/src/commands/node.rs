@@ -94,6 +94,17 @@ pub struct NodeCommand {
     /// URL of the L1 beacon API.
     #[arg(long, visible_alias = "l1.beacon", env = "KONA_NODE_L1_BEACON")]
     pub l1_beacon: Url,
+    /// Whether to skip blob verification.
+    /// WARNING: This should not be used in production unless necessary. This effectively trusts
+    /// the l1 beacon provider to provide valid blobs.
+    #[arg(
+        long,
+        env = "KONA_NODE_L1_BEACON_SKIP_BLOB_VERIFICATION",
+        visible_alias = "l1.beacon.skip-blob-verification",
+        requires = "l1_beacon",
+        default_value = "false"
+    )]
+    pub l1_beacon_skip_blob_verification: bool,
     /// URL of the engine API endpoint of an L2 execution client.
     #[arg(long, visible_alias = "l2", env = "KONA_NODE_L2_ENGINE_RPC")]
     pub l2_engine_rpc: Url,
@@ -135,6 +146,7 @@ impl Default for NodeCommand {
             l1_eth_rpc: Url::parse("http://localhost:8545").unwrap(),
             l1_trust_rpc: true,
             l1_beacon: Url::parse("http://localhost:5052").unwrap(),
+            l1_beacon_skip_blob_verification: false,
             l2_engine_rpc: Url::parse("http://localhost:8551").unwrap(),
             l2_trust_rpc: true,
             l2_engine_jwt_secret: None,
@@ -302,6 +314,7 @@ impl NodeCommand {
             .with_l1_provider_rpc_url(self.l1_eth_rpc)
             .with_l1_trust_rpc(self.l1_trust_rpc)
             .with_l1_beacon_api_url(self.l1_beacon)
+            .with_l1_beacon_skip_blob_verification(self.l1_beacon_skip_blob_verification)
             .with_l2_engine_rpc_url(self.l2_engine_rpc)
             .with_l2_trust_rpc(self.l2_trust_rpc)
             .with_p2p_config(p2p_config)

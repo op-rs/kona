@@ -97,6 +97,7 @@ impl<B: BeaconClient> OnlineBlobProvider<B> {
         let sidecars = self.fetch_sidecars(slot, blob_hashes).await?;
 
         // Filter blob sidecars that match the indices in the specified list.
+        // TODO(@theochap): this check is redundant with the method above.
         let blob_hash_indices = blob_hashes.iter().map(|b| b.index).collect::<Vec<u64>>();
         let filtered = sidecars
             .into_iter()
@@ -143,6 +144,11 @@ where
             .into_iter()
             .enumerate()
             .map(|(i, sidecar)| {
+                // If we are skipping blob validation, just return the blob.
+                if self.beacon_client.skip_blob_verification() {
+                    return Ok(sidecar.blob);
+                }
+
                 let hash = blob_hashes
                     .get(i)
                     .ok_or(BlobProviderError::Backend("Missing blob hash".to_string()))?;
@@ -184,5 +190,109 @@ impl<B: BeaconClient + Send + Sync> BlobSidecarProvider for B {
         self.beacon_blob_side_cars(slot, hashes)
             .await
             .map_err(|e| BlobProviderError::Backend(e.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use alloy_rpc_types_beacon::header::Header;
+
+    use crate::{APIConfigResponse, APIGenesisResponse};
+
+    use super::*;
+
+    struct MockBeaconClient {
+        pub skip_blob_verification: bool,
+        pub blob_sidecars: Vec<Vec<BlobData>>,
+    }
+
+    impl MockBeaconClient {
+        fn new(skip_blob_verification: bool) -> Self {
+            Self { skip_blob_verification, blob_sidecars: Vec::new() }
+        }
+    }
+
+    #[derive(Debug, thiserror::Error)]
+    enum MockBeaconClientError {
+        #[error("Blob sidecars not found {0}")]
+        BlobSidecarsNotFound(u64),
+    }
+
+    #[async_trait]
+    impl BeaconClient for MockBeaconClient {
+        type Error = MockBeaconClientError;
+
+        async fn config_spec(&self) -> Result<APIConfigResponse, Self::Error> {
+            Ok(APIConfigResponse::new(1))
+        }
+
+        async fn beacon_genesis(&self) -> Result<APIGenesisResponse, Self::Error> {
+            Ok(APIGenesisResponse::new(0))
+        }
+
+        async fn beacon_blob_side_cars(
+            &self,
+            slot: u64,
+            _hashes: &[IndexedBlobHash],
+        ) -> Result<Vec<BlobData>, Self::Error> {
+            self.blob_sidecars
+                .get(slot as usize)
+                .ok_or(MockBeaconClientError::BlobSidecarsNotFound(slot))
+                .cloned()
+        }
+
+        fn skip_blob_verification(&self) -> bool {
+            self.skip_blob_verification
+        }
+    }
+
+    #[tokio::test]
+    async fn test_mock_beacon_client_skip_blob_verification() {
+        let mut client = MockBeaconClient::new(true);
+
+        client.blob_sidecars.push(vec![BlobData {
+            index: 0,
+            blob: Box::new(Blob::default()),
+            kzg_commitment: Default::default(),
+            kzg_proof: Default::default(),
+            signed_block_header: Header::default(),
+            kzg_commitment_inclusion_proof: Vec::new(),
+        }]);
+
+        let mut client = OnlineBlobProvider::init(client).await;
+
+        let sidecars = client
+            .get_blobs(
+                &BlockInfo::default(),
+                &[IndexedBlobHash { index: 0, hash: Default::default() }],
+            )
+            .await
+            .unwrap();
+        assert_eq!(sidecars.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_mock_beacon_client_no_skip_blob_verification() {
+        let mut client = MockBeaconClient::new(false);
+
+        client.blob_sidecars.push(vec![BlobData {
+            index: 0,
+            blob: Box::new(Blob::default()),
+            kzg_commitment: Default::default(),
+            kzg_proof: Default::default(),
+            signed_block_header: Header::default(),
+            kzg_commitment_inclusion_proof: Vec::new(),
+        }]);
+
+        let mut client = OnlineBlobProvider::init(client).await;
+
+        let sidecars = client
+            .get_blobs(
+                &BlockInfo::default(),
+                &[IndexedBlobHash { index: 0, hash: Default::default() }],
+            )
+            .await
+            .unwrap_err();
+        assert!(matches!(sidecars, BlobProviderError::Backend(_)));
     }
 }
