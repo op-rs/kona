@@ -4,6 +4,7 @@ use alloy_primitives::{Address, B256};
 use alloy_signer::{Signer, k256::ecdsa};
 use alloy_signer_local::PrivateKeySigner;
 use clap::{Parser, arg};
+use kona_cli::SecretKeyLoader;
 use kona_sources::{BlockSigner, ClientCert, RemoteSigner};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use std::str::FromStr;
@@ -21,6 +22,14 @@ pub struct SignerArgs {
         conflicts_with = "endpoint"
     )]
     pub sequencer_key: Option<B256>,
+    /// An optional path to a file containing the sequencer private key.
+    /// This is mutually exclusive with `p2p.sequencer.key`.
+    #[arg(
+        long = "p2p.sequencer.key.path",
+        env = "KONA_NODE_P2P_SEQUENCER_KEY_PATH",
+        conflicts_with = "sequencer_key"
+    )]
+    pub sequencer_key_path: Option<PathBuf>,
     /// The URL of the remote signer endpoint. If not provided, remote signer will be disabled.
     /// This is mutually exclusive with `p2p.sequencer.key`.
     /// This is required if any of the other signer flags are provided.
@@ -71,9 +80,17 @@ pub enum SignerArgsParseError {
     /// The local sequencer key and remote signer cannot be specified at the same time.
     #[error("A local sequencer key and a remote signer cannot be specified at the same time.")]
     LocalAndRemoteSigner,
+    /// Both sequencer key and sequencer key path cannot be specified at the same time.
+    #[error(
+        "Both sequencer key and sequencer key path cannot be specified at the same time. Use either --p2p.sequencer.key or --p2p.sequencer.key.path."
+    )]
+    ConflictingSequencerKeyInputs,
     /// The sequencer key is invalid.
     #[error("The sequencer key is invalid.")]
     SequencerKeyInvalid(#[from] ecdsa::Error),
+    /// Failed to load sequencer key from file.
+    #[error("Failed to load sequencer key from file")]
+    SequencerKeyFileError(#[from] kona_cli::KeypairError),
     /// The address is required if `signer.endpoint` is provided.
     #[error("The address is required if `signer.endpoint` is provided.")]
     AddressRequired,
@@ -94,8 +111,11 @@ pub enum SignerArgsParseError {
 impl SignerArgs {
     /// Creates a [`BlockSigner`] from the [`SignerArgs`].
     pub fn config(self, args: &GlobalArgs) -> Result<Option<BlockSigner>, SignerArgsParseError> {
+        // First, resolve the sequencer key from either raw input or file
+        let sequencer_key = self.resolve_sequencer_key()?;
+
         // The sequencer signer obtained from the CLI arguments.
-        let gossip_signer: Option<BlockSigner> = match (self.sequencer_key, self.config_remote()?) {
+        let gossip_signer: Option<BlockSigner> = match (sequencer_key, self.config_remote()?) {
             (Some(_), Some(_)) => return Err(SignerArgsParseError::LocalAndRemoteSigner),
             (Some(key), None) => {
                 let signer: BlockSigner = PrivateKeySigner::from_bytes(&key)?
@@ -108,6 +128,24 @@ impl SignerArgs {
         };
 
         Ok(gossip_signer)
+    }
+
+    /// Resolves the sequencer key from either the raw key or the key file.
+    fn resolve_sequencer_key(&self) -> Result<Option<B256>, SignerArgsParseError> {
+        match (self.sequencer_key, &self.sequencer_key_path) {
+            (Some(key), None) => Ok(Some(key)),
+            (None, Some(path)) => {
+                let keypair = SecretKeyLoader::load(path)?;
+                // Extract the private key bytes from the secp256k1 keypair
+                keypair.try_into_secp256k1().map_or_else(|_| Err(SignerArgsParseError::SequencerKeyInvalid(ecdsa::Error::new())), |secp256k1_keypair| {
+                    let private_key_bytes = secp256k1_keypair.secret().to_bytes();
+                    let key = B256::from_slice(&private_key_bytes);
+                    Ok(Some(key))
+                })
+            }
+            (Some(_), Some(_)) => Err(SignerArgsParseError::ConflictingSequencerKeyInputs),
+            (None, None) => Ok(None),
+        }
     }
 
     /// Creates a [`RemoteSigner`] from the [`SignerArgs`].
@@ -147,5 +185,45 @@ impl SignerArgs {
             client_cert,
             headers,
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_primitives::b256;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn test_resolve_sequencer_key_from_file() {
+        // Create a temporary file with a private key
+        let mut temp_file = NamedTempFile::new().unwrap();
+        let key = b256!("1d2b0bda21d56b8bd12d4f94ebacffdfb35f5e226f84b461103bb8beab6353be");
+        let hex = alloy_primitives::hex::encode(key.0);
+        write!(temp_file, "{hex}").unwrap();
+
+        let signer_args = SignerArgs {
+            sequencer_key: None,
+            sequencer_key_path: Some(temp_file.path().to_path_buf()),
+            ..Default::default()
+        };
+
+        let resolved = signer_args.resolve_sequencer_key().unwrap();
+        assert_eq!(resolved, Some(key));
+    }
+
+    #[test]
+    fn test_resolve_sequencer_key_conflicting_inputs() {
+        let signer_args = SignerArgs {
+            sequencer_key: Some(b256!(
+                "bcc617ea05150ff60490d3c6058630ba94ae9f12a02a87efd291349ca0e54e0a"
+            )),
+            sequencer_key_path: Some(PathBuf::from("/path/to/key.txt")),
+            ..Default::default()
+        };
+
+        let result = signer_args.resolve_sequencer_key();
+        assert!(matches!(result, Err(SignerArgsParseError::ConflictingSequencerKeyInputs)));
     }
 }
