@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/ethereum-optimism/optimism/devnet-sdk/shell/env"
 	"github.com/ethereum-optimism/optimism/op-devstack/devtest"
@@ -78,7 +79,10 @@ func (m *TestReorgManager) StopL1CL() {
 		return
 	}
 
-	enclaveCtx, err := kurtosisCtx.GetEnclaveContext(context.TODO(), m.env.Env.Name)
+	// Use a bounded context to avoid hanging tests if Kurtosis call stalls.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	enclaveCtx, err := kurtosisCtx.GetEnclaveContext(ctx, m.env.Env.Name)
 	if err != nil {
 		m.t.Errorf("failed to get enclave context: %v", err)
 		return
