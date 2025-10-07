@@ -2,11 +2,12 @@
 
 #[cfg(feature = "metrics")]
 use crate::Metrics;
-use alloy_eips::eip4844::IndexedBlobHash;
-use alloy_rpc_types_beacon::sidecar::{BeaconBlobBundle, BlobData};
+use alloy_consensus::Blob;
+use alloy_eips::eip4844::{IndexedBlobHash, deserialize_blob};
+use alloy_rpc_types_beacon::sidecar::BeaconBlobBundle;
 use async_trait::async_trait;
 use reqwest::Client;
-use std::{boxed::Box, format, string::String, vec::Vec};
+use std::{boxed::Box, format, ops::Deref, string::String, vec::Vec};
 
 /// The config spec engine api method.
 const SPEC_METHOD: &str = "eth/v1/config/spec";
@@ -15,7 +16,7 @@ const SPEC_METHOD: &str = "eth/v1/config/spec";
 const GENESIS_METHOD: &str = "eth/v1/beacon/genesis";
 
 /// The blob sidecars engine api method prefix.
-const SIDECARS_METHOD_PREFIX: &str = "eth/v1/beacon/blob_sidecars";
+const SIDECARS_METHOD_PREFIX_DEPRECATED: &str = "eth/v1/beacon/blob_sidecars";
 
 /// A reduced genesis data.
 #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -75,14 +76,13 @@ pub trait BeaconClient {
     /// Returns the beacon genesis.
     async fn beacon_genesis(&self) -> Result<APIGenesisResponse, Self::Error>;
 
-    /// Fetches blob sidecars that were confirmed in the specified L1 block with the given indexed
-    /// hashes. Order of the returned sidecars is guaranteed to be that of the hashes. Blob data is
-    /// not checked for validity.
-    async fn beacon_blob_side_cars(
+    /// Fetches blobs that were confirmed in the specified L1 block with the given slot.
+    /// Blob data is not checked for validity.
+    async fn filtered_beacon_blobs(
         &self,
         slot: u64,
-        hashes: &[IndexedBlobHash],
-    ) -> Result<Vec<BlobData>, Self::Error>;
+        blob_hashes: &[IndexedBlobHash],
+    ) -> Result<Vec<BoxedBlobWithIndex>, Self::Error>;
 }
 
 /// An online implementation of the [BeaconClient] trait.
@@ -102,6 +102,44 @@ impl OnlineBeaconClient {
             base.remove(base.len() - 1);
         }
         Self { base, inner: Client::new() }
+    }
+}
+
+/// A boxed blob. This is used to deserialize the blobs endpoint response.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct BoxedBlob {
+    /// The blob data.
+    #[serde(deserialize_with = "deserialize_blob")]
+    pub blob: Box<Blob>,
+}
+
+/// A boxed blob with index.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BoxedBlobWithIndex {
+    /// The index of the blob.
+    pub index: u64,
+    /// The blob data.
+    pub blob: Box<Blob>,
+}
+
+impl Deref for BoxedBlob {
+    type Target = Blob;
+
+    fn deref(&self) -> &Self::Target {
+        &self.blob
+    }
+}
+
+/// A blobs bundle. This is used to deserialize the blobs endpoint response.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+struct BlobsBundle {
+    pub data: Vec<BoxedBlob>,
+}
+
+impl From<BeaconBlobBundle> for BlobsBundle {
+    fn from(value: BeaconBlobBundle) -> Self {
+        let blobs = value.data.into_iter().map(|blob| BoxedBlob { blob: blob.blob }).collect();
+        Self { data: blobs }
     }
 }
 
@@ -143,40 +181,30 @@ impl BeaconClient for OnlineBeaconClient {
         result
     }
 
-    async fn beacon_blob_side_cars(
+    async fn filtered_beacon_blobs(
         &self,
         slot: u64,
-        hashes: &[IndexedBlobHash],
-    ) -> Result<Vec<BlobData>, Self::Error> {
+        blob_hashes: &[IndexedBlobHash],
+    ) -> Result<Vec<BoxedBlobWithIndex>, Self::Error> {
         kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_REQUESTS, "method" => "blob_sidecars");
 
-        let result = async {
-            let raw_response = self
-                .inner
-                .get(format!("{}/{}/{}", self.base, SIDECARS_METHOD_PREFIX, slot))
-                .send()
-                .await?;
-            let raw_response = raw_response.json::<BeaconBlobBundle>().await?;
+        let blob_indexes = blob_hashes.iter().map(|blob| blob.index).collect::<Vec<_>>();
 
-            // Filter the sidecars by the hashes, in-order.
-            let mut sidecars = Vec::with_capacity(hashes.len());
-            hashes.iter().for_each(|hash| {
-                if let Some(sidecar) =
-                    raw_response.data.iter().find(|sidecar| sidecar.index == hash.index)
-                {
-                    sidecars.push(sidecar.clone());
-                }
-            });
+        let raw_response = self
+            .inner
+            .get(format!("{}/{}/{}", self.base, SIDECARS_METHOD_PREFIX_DEPRECATED, slot))
+            .send()
+            .await?;
 
-            Ok(sidecars)
-        }
-        .await;
-
-        #[cfg(feature = "metrics")]
-        if result.is_err() {
-            kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_ERRORS, "method" => "blob_sidecars");
-        }
-
-        result
+        Ok(raw_response
+            .json::<BeaconBlobBundle>()
+            .await?
+            .into_iter()
+            .filter_map(|blob| {
+                blob_indexes
+                    .contains(&blob.index)
+                    .then_some(BoxedBlobWithIndex { index: blob.index, blob: blob.blob })
+            })
+            .collect::<Vec<_>>())
     }
 }

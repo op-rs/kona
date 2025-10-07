@@ -5135,6 +5135,7 @@ dependencies = [
  "alloy-transport",
  "alloy-transport-http",
  "async-trait",
+ "c-kzg",
  "http-body-util",
  "kona-derive",
  "kona-genesis",

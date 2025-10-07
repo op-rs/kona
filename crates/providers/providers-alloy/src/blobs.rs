@@ -1,10 +1,12 @@
 //! Contains an online implementation of the `BlobProvider` trait.
 
-use crate::BeaconClient;
 #[cfg(feature = "metrics")]
 use crate::Metrics;
-use alloy_eips::eip4844::{Blob, BlobTransactionSidecarItem, IndexedBlobHash};
-use alloy_rpc_types_beacon::sidecar::BlobData;
+use crate::{BeaconClient, beacon_client::BoxedBlobWithIndex};
+use alloy_eips::eip4844::{
+    Blob, BlobTransactionSidecarItem, IndexedBlobHash, env_settings::EnvKzgSettings,
+};
+use alloy_primitives::FixedBytes;
 use async_trait::async_trait;
 use kona_derive::{BlobProvider, BlobProviderError};
 use kona_protocol::BlockInfo;
@@ -46,28 +48,6 @@ impl<B: BeaconClient> OnlineBlobProvider<B> {
         Self { beacon_client, genesis_time, slot_interval }
     }
 
-    /// Fetches blob sidecars for the given slot and blob hashes.
-    pub async fn fetch_sidecars(
-        &self,
-        slot: u64,
-        hashes: &[IndexedBlobHash],
-    ) -> Result<Vec<BlobData>, BlobProviderError> {
-        kona_macros::inc!(gauge, Metrics::BLOB_SIDECAR_FETCHES);
-
-        let result = self
-            .beacon_client
-            .beacon_blob_side_cars(slot, hashes)
-            .await
-            .map_err(|e| BlobProviderError::Backend(e.to_string()));
-
-        #[cfg(feature = "metrics")]
-        if result.is_err() {
-            kona_macros::inc!(gauge, Metrics::BLOB_SIDECAR_FETCH_ERRORS);
-        }
-
-        result
-    }
-
     /// Computes the slot for the given timestamp.
     pub const fn slot(
         genesis: u64,
@@ -80,43 +60,89 @@ impl<B: BeaconClient> OnlineBlobProvider<B> {
         Ok((timestamp - genesis) / slot_time)
     }
 
+    /// Fetches blobs for the given slot.
+    async fn fetch_filtered_blobs(
+        &self,
+        slot: u64,
+        blob_hashes: &[IndexedBlobHash],
+    ) -> Result<Vec<BoxedBlobWithIndex>, BlobProviderError> {
+        kona_macros::inc!(gauge, Metrics::BLOB_SIDECAR_FETCHES);
+
+        let result = self
+            .beacon_client
+            .filtered_beacon_blobs(slot, blob_hashes)
+            .await
+            .map_err(|e| BlobProviderError::Backend(e.to_string()));
+
+        #[cfg(feature = "metrics")]
+        if result.is_err() {
+            kona_macros::inc!(gauge, Metrics::BLOB_SIDECAR_FETCH_ERRORS);
+        }
+
+        result
+    }
+
+    /// Converts a vector of boxed blobs with index to a vector of blob transaction sidecar items.
+    ///
+    /// Note: for performance reasons, we need to transmute the blobs to the c_kzg::Blob type to
+    /// avoid the overhead of moving the blobs around or reallocating the memory.
+    fn sidecar_from_blobs(
+        blobs: Vec<BoxedBlobWithIndex>,
+    ) -> Result<Vec<BlobTransactionSidecarItem>, c_kzg::Error> {
+        blobs
+            .into_iter()
+            .map(|blob| {
+                let kzg_settings = EnvKzgSettings::Default;
+
+                // SAFETY: all types have the same size and alignment
+                let kzg_blob =
+                    unsafe { Box::from_raw(Box::<Blob>::into_raw(blob.blob) as *mut c_kzg::Blob) };
+
+                let commitment = kzg_settings
+                    .get()
+                    .blob_to_kzg_commitment(&kzg_blob)
+                    .map(|blob| blob.to_bytes())?;
+                let proof = kzg_settings
+                    .get()
+                    .compute_blob_kzg_proof(&kzg_blob, &commitment)
+                    .map(|proof| proof.to_bytes())?;
+
+                // SAFETY: all types have the same size and alignment
+                let alloy_blob =
+                    unsafe { Box::from_raw(Box::<c_kzg::Blob>::into_raw(kzg_blob) as *mut Blob) };
+
+                Ok(BlobTransactionSidecarItem {
+                    index: blob.index,
+                    blob: alloy_blob,
+                    kzg_commitment: FixedBytes::from(*commitment),
+                    kzg_proof: FixedBytes::from(*proof),
+                })
+            })
+            .collect()
+    }
+
     /// Fetches blob sidecars for the given block reference and blob hashes.
-    pub async fn fetch_filtered_sidecars(
+    /// Does not validate the blobs. Recomputes the kzg proofs associated with the blobs.
+    ///
+    /// Use [`Self::beacon_client`] to fetch the blobs without recomputing the kzg
+    /// proofs/commitments.
+    pub async fn fetch_filtered_blob_sidecars(
         &self,
         block_ref: &BlockInfo,
         blob_hashes: &[IndexedBlobHash],
     ) -> Result<Vec<BlobTransactionSidecarItem>, BlobProviderError> {
         if blob_hashes.is_empty() {
-            return Ok(Vec::new());
+            return Ok(Default::default());
         }
 
         // Calculate the slot for the given timestamp.
         let slot = Self::slot(self.genesis_time, self.slot_interval, block_ref.timestamp)?;
 
-        // Fetch blob sidecars for the slot using the given blob hashes.
-        let sidecars = self.fetch_sidecars(slot, blob_hashes).await?;
+        // Fetch blobs for the slot using.
+        let blobs = self.fetch_filtered_blobs(slot, blob_hashes).await?;
 
-        // Filter blob sidecars that match the indices in the specified list.
-        let blob_hash_indices = blob_hashes.iter().map(|b| b.index).collect::<Vec<u64>>();
-        let filtered = sidecars
-            .into_iter()
-            .filter(|s| blob_hash_indices.contains(&s.index))
-            .collect::<Vec<_>>();
-
-        // Validate the correct number of blob sidecars were retrieved.
-        if blob_hashes.len() != filtered.len() {
-            return Err(BlobProviderError::SidecarLengthMismatch(blob_hashes.len(), filtered.len()));
-        }
-
-        Ok(filtered
-            .into_iter()
-            .map(|bs| BlobTransactionSidecarItem {
-                index: bs.index,
-                blob: bs.blob,
-                kzg_commitment: bs.kzg_commitment,
-                kzg_proof: bs.kzg_proof,
-            })
-            .collect::<Vec<BlobTransactionSidecarItem>>())
+        Self::sidecar_from_blobs(blobs)
+            .map_err(|e| BlobProviderError::Backend(format!("KZG commitment error: {e}")))
     }
 }
 
@@ -127,62 +153,36 @@ where
 {
     type Error = BlobProviderError;
 
-    /// Fetches blob sidecars that were confirmed in the specified L1 block with the given indexed
+    /// Fetches blobs that were confirmed in the specified L1 block with the given indexed
     /// hashes. The blobs are validated for their index and hashes using the specified
     /// [IndexedBlobHash].
-    async fn get_blobs(
+    async fn get_and_validate_blobs(
         &mut self,
         block_ref: &BlockInfo,
         blob_hashes: &[IndexedBlobHash],
     ) -> Result<Vec<Box<Blob>>, Self::Error> {
         // Fetch the blob sidecars for the given block reference and blob hashes.
-        let sidecars = self.fetch_filtered_sidecars(block_ref, blob_hashes).await?;
+        let blobs = self.fetch_filtered_blob_sidecars(block_ref, blob_hashes).await?;
 
         // Validate the blob sidecars straight away with the num hashes.
-        let blobs = sidecars
+        let blobs = blobs
             .into_iter()
             .enumerate()
             .map(|(i, sidecar)| {
                 let hash = blob_hashes
                     .get(i)
-                    .ok_or(BlobProviderError::Backend("Missing blob hash".to_string()))?;
-                sidecar
-                    .verify_blob(&IndexedBlobHash { hash: hash.hash, index: hash.index })
-                    .map(|_| sidecar.blob)
-                    .map_err(|e| BlobProviderError::Backend(e.to_string()))
+                    .ok_or(BlobProviderError::Backend("Missing blob hash".to_string()))?
+                    .hash
+                    .as_slice();
+
+                if sidecar.kzg_commitment.as_slice() != hash {
+                    return Err(BlobProviderError::Backend("KZG commitment mismatch".to_string()));
+                }
+
+                Ok(sidecar.blob)
             })
             .collect::<Result<Vec<Box<Blob>>, BlobProviderError>>()
             .map_err(|e| BlobProviderError::Backend(e.to_string()))?;
         Ok(blobs)
-    }
-}
-
-/// The minimal interface required to fetch sidecars from a remote blob store.
-#[async_trait]
-pub trait BlobSidecarProvider {
-    /// Fetches blob sidecars that were confirmed in the specified L1 block with the given indexed
-    /// hashes. Order of the returned sidecars is guaranteed to be that of the hashes. Blob data is
-    /// not checked for validity.
-    ///
-    /// Consensus specs: <https://ethereum.github.io/beacon-APIs/#/Beacon/getBlobSidecars>
-    async fn beacon_blob_side_cars(
-        &self,
-        slot: u64,
-        hashes: &[IndexedBlobHash],
-    ) -> Result<Vec<BlobData>, BlobProviderError>;
-}
-
-/// Blanket implementation of the [BlobSidecarProvider] trait for all types that
-/// implement [BeaconClient], which has a superset of the required functionality.
-#[async_trait]
-impl<B: BeaconClient + Send + Sync> BlobSidecarProvider for B {
-    async fn beacon_blob_side_cars(
-        &self,
-        slot: u64,
-        hashes: &[IndexedBlobHash],
-    ) -> Result<Vec<BlobData>, BlobProviderError> {
-        self.beacon_blob_side_cars(slot, hashes)
-            .await
-            .map_err(|e| BlobProviderError::Backend(e.to_string()))
     }
 }
