@@ -34,7 +34,7 @@ use kona_proof::{
 };
 use kona_proof_interop::{HintType, PreState};
 use kona_protocol::{BlockInfo, OutputRoot, Predeploys};
-use kona_registry::ROLLUP_CONFIGS;
+use kona_registry::{L1_CONFIGS, ROLLUP_CONFIGS};
 use std::sync::Arc;
 use tokio::task;
 use tracing::{Instrument, debug, info, info_span, warn};
@@ -213,13 +213,16 @@ impl HintHandler for InteropHintHandler {
 
                 // Convert the timestamp to an L2 block number, using the rollup config for the
                 // chain ID embedded within the hint.
-                let rollup_config = ROLLUP_CONFIGS
-                    .get(&chain_id)
-                    .cloned()
-                    .or_else(|| {
-                        let local_cfgs = cfg.read_rollup_configs().ok()?;
-                        local_cfgs.get(&chain_id).cloned()
-                    })
+                let rollup_config = cfg
+                    .read_rollup_configs()
+                    // If an error occurred while reading the rollup configs, return the error.
+                    .transpose()?
+                    // Try to find the appropriate rollup config for the chain ID.
+                    .and_then(|configs| configs.get(&chain_id).cloned())
+                    // If we can't find the rollup config, try to find it in the global rollup
+                    // configs.
+                    .or_else(|| ROLLUP_CONFIGS.get(&chain_id).cloned())
+                    .map(Arc::new)
                     .ok_or(anyhow!("No rollup config found for chain ID: {chain_id}"))?;
                 let block_number = rollup_config.block_number_from_timestamp(timestamp);
 
@@ -419,15 +422,31 @@ impl HintHandler for InteropHintHandler {
                 }
 
                 let l2_provider = providers.l2(&chain_id)?;
-                let rollup_config = ROLLUP_CONFIGS
-                    .get(&chain_id)
-                    .cloned()
-                    .or_else(|| {
-                        let local_cfgs = cfg.read_rollup_configs().ok()?;
-                        local_cfgs.get(&chain_id).cloned()
-                    })
+                let rollup_config = cfg
+                    .read_rollup_configs()
+                    // If an error occurred while reading the rollup configs, return the error.
+                    .transpose()?
+                    // Try to find the appropriate rollup config for the chain ID.
+                    .and_then(|configs| configs.get(&chain_id).cloned())
+                    // If we can't find the rollup config, try to find it in the global rollup
+                    // configs.
+                    .or_else(|| ROLLUP_CONFIGS.get(&chain_id).cloned())
                     .map(Arc::new)
                     .ok_or(anyhow!("No rollup config found for chain ID: {chain_id}"))?;
+
+                let l1_config = cfg
+                    .read_l1_configs()
+                    // If an error occurred while reading the l1 configs, return the error.
+                    .transpose()?
+                    // Try to find the appropriate l1 config for the chain ID.
+                    .and_then(|configs| configs.get(&rollup_config.l1_chain_id).cloned())
+                    // If we can't find the l1 config, try to find it in the global l1 configs.
+                    .or_else(|| L1_CONFIGS.get(&rollup_config.l1_chain_id).cloned())
+                    .map(Arc::new)
+                    .ok_or(anyhow!(
+                        "No l1 config found for chain ID: {}",
+                        rollup_config.l1_chain_id
+                    ))?;
 
                 // Check if the block is canonical before continuing.
                 let parent_block = l2_provider
@@ -512,6 +531,7 @@ impl HintHandler for InteropHintHandler {
                         );
                         let pipeline = OraclePipeline::new(
                             rollup_config.clone(),
+                            l1_config.clone(),
                             cursor.clone(),
                             oracle,
                             da_provider,

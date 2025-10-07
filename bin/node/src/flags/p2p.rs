@@ -53,20 +53,12 @@ pub struct P2PArgs {
     pub advertise_ip: Option<IpAddr>,
     /// TCP port to advertise to external peers from the discovery layer. Same as `p2p.listen.tcp`
     /// if set to zero.
-    #[arg(
-        long = "p2p.advertise.tcp",
-        default_value = "0",
-        env = "KONA_NODE_P2P_ADVERTISE_TCP_PORT"
-    )]
-    pub advertise_tcp_port: u16,
+    #[arg(long = "p2p.advertise.tcp", env = "KONA_NODE_P2P_ADVERTISE_TCP_PORT")]
+    pub advertise_tcp_port: Option<u16>,
     /// UDP port to advertise to external peers from the discovery layer.
     /// Same as `p2p.listen.udp` if set to zero.
-    #[arg(
-        long = "p2p.advertise.udp",
-        default_value = "0",
-        env = "KONA_NODE_P2P_ADVERTISE_UDP_PORT"
-    )]
-    pub advertise_udp_port: u16,
+    #[arg(long = "p2p.advertise.udp", env = "KONA_NODE_P2P_ADVERTISE_UDP_PORT")]
+    pub advertise_udp_port: Option<u16>,
 
     /// IP to bind LibP2P/Discv5 to.
     #[arg(long = "p2p.listen.ip", default_value = "0.0.0.0", env = "KONA_NODE_P2P_LISTEN_IP")]
@@ -251,7 +243,7 @@ impl P2PArgs {
         Ok(())
     }
 
-    /// Checks if the ports are available on the system.
+    /// Checks if the listen ports are available on the system.
     ///
     /// If either of the ports are `0`, this check is skipped.
     ///
@@ -260,15 +252,7 @@ impl P2PArgs {
     /// - If the TCP port is already in use.
     /// - If the UDP port is already in use.
     pub fn check_ports(&self) -> Result<()> {
-        Self::check_ports_inner(
-            // If the advertised ip is not specified, we use the listen ip.
-            self.advertise_ip.unwrap_or(self.listen_ip),
-            self.advertise_tcp_port,
-            self.advertise_udp_port,
-        )?;
-        Self::check_ports_inner(self.listen_ip, self.listen_tcp_port, self.listen_udp_port)?;
-
-        Ok(())
+        Self::check_ports_inner(self.listen_ip, self.listen_tcp_port, self.listen_udp_port)
     }
 
     /// Returns the private key as specified in the raw cli flag or via file path.
@@ -362,16 +346,14 @@ impl P2PArgs {
         let static_ip = self.advertise_ip.is_some();
 
         // If the advertise tcp port is null, use the listen tcp port
-        let advertise_tcp_port = if self.advertise_tcp_port != 0 {
-            self.advertise_tcp_port
-        } else {
-            self.listen_tcp_port
+        let advertise_tcp_port = match self.advertise_tcp_port {
+            None => self.listen_tcp_port,
+            Some(port) => port,
         };
 
-        let advertise_udp_port = if self.advertise_udp_port != 0 {
-            self.advertise_udp_port
-        } else {
-            self.listen_udp_port
+        let advertise_udp_port = match self.advertise_udp_port {
+            None => self.listen_udp_port,
+            Some(port) => port,
         };
 
         let keypair = self.keypair().unwrap_or_else(|_| Keypair::generate_secp256k1());

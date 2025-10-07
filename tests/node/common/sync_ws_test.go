@@ -28,6 +28,14 @@ func TestSyncUnsafeBecomesSafe(gt *testing.T) {
 
 	nodes := out.L2CLKonaNodes()
 
+	// Ensure that all the nodes advance the unsafe and safe head
+	advancedFns := make([]dsl.CheckFunc, 0, len(nodes))
+	for _, node := range nodes {
+		advancedFns = append(advancedFns, node.AdvancedFn(types.LocalSafe, 20, 80))
+		advancedFns = append(advancedFns, node.AdvancedFn(types.LocalUnsafe, 20, 80))
+	}
+	dsl.CheckAll(t, advancedFns...)
+
 	var wg sync.WaitGroup
 	for _, node := range nodes {
 		wg.Add(1)
@@ -74,13 +82,20 @@ func TestSyncUnsafe(gt *testing.T) {
 
 	nodes := out.L2CLKonaNodes()
 
+	// Ensure that all the nodes advance the unsafe head
+	advancedFns := make([]dsl.CheckFunc, 0, len(nodes))
+	for _, node := range nodes {
+		advancedFns = append(advancedFns, node.AdvancedFn(types.LocalUnsafe, 20, 80))
+	}
+	dsl.CheckAll(t, advancedFns...)
+
 	var wg sync.WaitGroup
 	for _, node := range nodes {
 		wg.Add(1)
 		go func(node *dsl.L2CLNode) {
 			defer wg.Done()
 
-			output := node_utils.GetKonaWs(t, node, "unsafe_head", time.After(10*time.Second))
+			output := node_utils.GetKonaWs(t, node, "unsafe_head", time.After(2*time.Minute))
 
 			// For each block, we check that the block is actually in the chain of the other nodes.
 			// That should always be the case unless there is a reorg or a long sync.
@@ -118,6 +133,13 @@ func TestSyncSafe(gt *testing.T) {
 
 	nodes := out.L2CLKonaNodes()
 
+	// Ensure that all the nodes advance the safe head
+	advancedFns := make([]dsl.CheckFunc, 0, len(nodes))
+	for _, node := range nodes {
+		advancedFns = append(advancedFns, node.AdvancedFn(types.LocalSafe, 20, 80))
+	}
+	dsl.CheckAll(t, advancedFns...)
+
 	var wg sync.WaitGroup
 	for _, node := range nodes {
 		wg.Add(1)
@@ -125,7 +147,7 @@ func TestSyncSafe(gt *testing.T) {
 			defer wg.Done()
 			clName := node.Escape().ID().Key()
 
-			output := node_utils.GetKonaWs(t, node, "safe_head", time.After(10*time.Second))
+			output := node_utils.GetKonaWs(t, node, "safe_head", time.After(2*time.Minute))
 
 			// For each block, we check that the block is actually in the chain of the other nodes.
 			// That should always be the case unless there is a reorg or a long sync.

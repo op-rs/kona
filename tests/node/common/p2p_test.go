@@ -100,6 +100,9 @@ func TestP2PChainID(gt *testing.T) {
 	out := node_utils.NewMixedOpKona(t)
 
 	nodes := out.L2CLKonaNodes()
+
+	t.Gate().NotEmpty(nodes, "no KONA nodes found")
+
 	chainID := nodes[0].PeerInfo().ChainID
 
 	for _, node := range nodes {

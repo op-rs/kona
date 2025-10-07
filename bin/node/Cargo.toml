@@ -33,6 +33,7 @@ kona-providers-alloy = { workspace = true, features = ["metrics"] }
 
 # alloy
 alloy-chains.workspace = true
+alloy-genesis.workspace = true
 alloy-signer.workspace = true
 alloy-provider.workspace = true
 alloy-transport.workspace = true

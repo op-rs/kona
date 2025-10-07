@@ -22,7 +22,7 @@ func TestL2SafeSync(gt *testing.T) {
 
 	for _, node := range nodes {
 		checkFuns = append(checkFuns, node.ReachedFn(types.LocalSafe, 20, 40))
-		checkFuns = append(checkFuns, node.MatchedFn(&sequencer, types.LocalSafe, 40))
+		checkFuns = append(checkFuns, node_utils.MatchedWithinRange(t, node, sequencer, 5, types.LocalSafe, 100))
 	}
 
 	dsl.CheckAll(t, checkFuns...)

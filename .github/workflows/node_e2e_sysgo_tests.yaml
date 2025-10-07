@@ -9,10 +9,12 @@ env:
 jobs:
   node-e2e-sysgo-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
-    name: node-sysgo-tests
+    timeout-minutes: 60
+    name: ${{ matrix.devnet-config }}-sysgo-tests
     strategy:
       fail-fast: false
+      matrix:
+        devnet-config: ["simple-kona", "simple-kona-geth", "simple-kona-sequencer", "large-kona-sequencer"]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v5
@@ -45,7 +47,7 @@ jobs:
       - name: common tests for node with sysgo orchestrator and report coverage
         run: |
           source <(cargo llvm-cov show-env --export-prefix)
-          just test-e2e-sysgo node node/common
+          just test-e2e-sysgo node node/common "${{ matrix.devnet-config }}"
           cargo llvm-cov report --lcov --output-path node_common_cov.lcov
       
       - name: Upload coverage to codecov.io
@@ -58,11 +60,62 @@ jobs:
           env_vars: OS,RUST
           name: node-sysgo-tests-common
           verbose: true
+      
+      - name: reorg tests for node with sysgo orchestrator and report coverage
+        run: |
+          source <(cargo llvm-cov show-env --export-prefix)
+          just test-e2e-sysgo node node/reorgs "${{ matrix.devnet-config }}"
+          cargo llvm-cov report --lcov --output-path node_reorgs_cov.lcov
+
+      - name: Upload coverage to codecov.io
+        uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: node_reorgs_cov.lcov
+          flags: e2e
+          env_vars: OS,RUST
+          name: node-sysgo-tests-reorgs
+          verbose: true
+
+  node-restart-sysgo-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    name: sysgo-restart-tests
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - uses: ./.github/actions/setup
+        with:
+          channel: stable
+          components: llvm-tools-preview
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          large-packages: false
+
+      - uses: taiki-e/install-action@just
+
+      - uses: taiki-e/install-action@cargo-llvm-cov
+
+      - uses: jdx/mise-action@v3       # installs Mise + runs `mise install`
+
+      - name: Setup Go 1.24.3
+        uses: actions/setup-go@v5
+        with:
+          # Semantic version range syntax or exact version of Go
+          go-version: '1.24.3'
+          cache-dependency-path: "**/go.sum"
+
 
       - name: restart tests for node with sysgo orchestrator and report coverage
         run: |
           source <(cargo llvm-cov show-env --export-prefix)
-          just test-e2e-sysgo node node/restart
+          just test-e2e-sysgo node node/restart 
           cargo llvm-cov report --lcov --output-path node_restart_cov.lcov
 
       - name: Upload coverage to codecov.io
@@ -76,22 +129,6 @@ jobs:
           name: node-sysgo-tests-restart
           verbose: true
 
-      - name: reorg tests for node with sysgo orchestrator and report coverage
-        run: |
-          source <(cargo llvm-cov show-env --export-prefix)
-          just test-e2e-sysgo node node/reorgs
-          cargo llvm-cov report --lcov --output-path node_reorgs_cov.lcov
-
-      - name: Upload coverage to codecov.io
-        uses: codecov/codecov-action@v5
-        with:
-          fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: node_reorgs_cov.lcov
-          flags: e2e
-          env_vars: OS,RUST
-          name: node-sysgo-tests-reorgs
-          verbose: true
 
 
 

@@ -366,7 +366,7 @@ impl Service {
             info!(target: "supervisor::service", "Enabling Supervisor Admin API");
 
             let (admin_tx, admin_rx) = mpsc::channel::<AdminRequest>(100);
-            let admin_rpc = AdminRpc::new(admin_tx.clone());
+            let admin_rpc = AdminRpc::new(admin_tx);
             rpc_module
                 .merge(admin_rpc.into_rpc())
                 .map_err(|err| anyhow::anyhow!("failed to merge Admin RPC module: {err}"))?;

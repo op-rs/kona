@@ -38,7 +38,15 @@ devnet DEVNET CUSTOM_DEVNET_PATH="":
 cleanup-kurtosis:
   kurtosis clean -a
 
-test-e2e-sysgo BINARY GO_PKG_NAME="" FILTER="" : unzip-contract-artifacts
+build-reth:
+  #!/bin/bash
+  cd {{SOURCE}}/reth/crates/optimism/bin && cargo build --bin op-reth
+
+build-kona:
+  #!/bin/bash
+  cd {{SOURCE}}/.. && cargo build --bin kona-node
+
+test-e2e-sysgo BINARY GO_PKG_NAME="" DEVNET="simple-kona" FILTER="" : unzip-contract-artifacts
     #!/bin/bash
     if [ -z "{{GO_PKG_NAME}}" ]; then
         export GO_PKG_NAME="..."
@@ -52,11 +60,57 @@ test-e2e-sysgo BINARY GO_PKG_NAME="" FILTER="" : unzip-contract-artifacts
 
     export OP_DEPLOYER_ARTIFACTS="{{SOURCE}}/artifacts"
     export DISABLE_OP_E2E_LEGACY=true
+
+    if [ "{{DEVNET}}" = "simple-kona" ]; then
+        export KONA_SEQUENCER_WITH_RETH=0
+        export KONA_VALIDATOR_WITH_RETH=1
+        export KONA_SEQUENCER_WITH_GETH=0
+        export KONA_VALIDATOR_WITH_GETH=0
+
+        export OP_SEQUENCER_WITH_RETH=1
+        export OP_VALIDATOR_WITH_RETH=1
+        export OP_SEQUENCER_WITH_GETH=0
+        export OP_VALIDATOR_WITH_GETH=0
+    elif [ "{{DEVNET}}" = "simple-kona-geth" ]; then
+        export KONA_SEQUENCER_WITH_RETH=0
+        export KONA_VALIDATOR_WITH_RETH=0
+        export KONA_SEQUENCER_WITH_GETH=0
+        export KONA_VALIDATOR_WITH_GETH=1
+
+        export OP_SEQUENCER_WITH_RETH=0
+        export OP_VALIDATOR_WITH_RETH=0
+        export OP_SEQUENCER_WITH_GETH=1
+        export OP_VALIDATOR_WITH_GETH=1
+    elif [ "{{DEVNET}}" = "simple-kona-sequencer" ]; then
+        export KONA_SEQUENCER_WITH_RETH=1
+        export KONA_VALIDATOR_WITH_RETH=1
+        export KONA_SEQUENCER_WITH_GETH=0
+        export KONA_VALIDATOR_WITH_GETH=1
+
+        export OP_SEQUENCER_WITH_RETH=0
+        export OP_VALIDATOR_WITH_RETH=0
+        export OP_SEQUENCER_WITH_GETH=0
+        export OP_VALIDATOR_WITH_GETH=0
+    elif [ "{{DEVNET}}" = "large-kona-sequencer" ]; then
+        export KONA_SEQUENCER_WITH_RETH=1
+        export KONA_VALIDATOR_WITH_RETH=4
+        export KONA_SEQUENCER_WITH_GETH=0
+        export KONA_VALIDATOR_WITH_GETH=4
+
+        export OP_SEQUENCER_WITH_RETH=0
+        export OP_VALIDATOR_WITH_RETH=0
+        export OP_SEQUENCER_WITH_GETH=0
+        export OP_VALIDATOR_WITH_GETH=0
+    fi
     
     if [ "{{BINARY}}" = "node" ]; then
         export KONA_NODE_EXEC_PATH="{{SOURCE}}/../target/debug/kona-node"
+        export OP_RETH_EXEC_PATH="{{SOURCE}}/reth/target/debug/op-reth"
         export DEVSTACK_ORCHESTRATOR=sysgo
-        cd {{SOURCE}}/.. && cargo build --bin kona-node
+        echo "Building kona-node..."
+        just build-kona
+        echo "Building op-reth..."
+        just build-reth
     elif [ "{{BINARY}}" = "supervisor" ]; then
         export DEVSTACK_SUPERVISOR_KIND=kona
         export KONA_SUPERVISOR_EXEC_PATH="{{SOURCE}}/../target/release/kona-supervisor"

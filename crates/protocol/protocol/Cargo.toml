@@ -26,6 +26,7 @@ op-alloy-rpc-types-engine.workspace = true
 # Alloy
 alloy-primitives = { workspace = true, features = ["map"] }
 alloy-rlp.workspace = true
+alloy-hardforks.workspace = true
 alloy-eips.workspace = true
 alloy-consensus.workspace = true
 alloy-rpc-types-eth.workspace = true
@@ -70,6 +71,8 @@ op-alloy-consensus.workspace = true
 alloy-rpc-types-eth.workspace = true
 op-alloy-rpc-types.workspace = true
 
+kona-registry.workspace = true
+
 [features]
 default = []
 std = [
@@ -112,6 +115,7 @@ arbitrary = [
 serde = [
 	"alloy-consensus/serde",
 	"alloy-eips/serde",
+	"alloy-hardforks/serde",
 	"alloy-primitives/serde",
 	"alloy-rpc-types-engine/serde",
 	"alloy-rpc-types-eth/serde",

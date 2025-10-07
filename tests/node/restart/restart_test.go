@@ -27,6 +27,13 @@ func TestRestartSync(gt *testing.T) {
 
 	sequencer := sequencerNodes[0]
 
+	// Ensure that the nodes are advancing.
+	var preCheckFuns []dsl.CheckFunc
+	for _, node := range out.L2CLNodes() {
+		preCheckFuns = append(preCheckFuns, node.AdvancedFn(types.LocalSafe, 20, 100), node.AdvancedFn(types.LocalUnsafe, 20, 100))
+	}
+	dsl.CheckAll(t, preCheckFuns...)
+
 	for _, node := range nodes {
 		t.Logf("testing restarts for node %s", node.Escape().ID().Key())
 		clName := node.Escape().ID().Key()
@@ -68,7 +75,7 @@ func TestRestartSync(gt *testing.T) {
 		node.ConnectPeer(&sequencer)
 
 		// Check that the node is resyncing with the network
-		postStartCheckFuns = append(postStartCheckFuns, MatchedWithinRange(t, node, sequencer, 3, types.LocalSafe, 100), MatchedWithinRange(t, node, sequencer, 3, types.LocalUnsafe, 100))
+		postStartCheckFuns = append(postStartCheckFuns, node_utils.MatchedWithinRange(t, node, sequencer, 3, types.LocalSafe, 100), node_utils.MatchedWithinRange(t, node, sequencer, 3, types.LocalUnsafe, 100))
 
 		// Check that the node is connected to the reference node
 		peers := node.Peers()
