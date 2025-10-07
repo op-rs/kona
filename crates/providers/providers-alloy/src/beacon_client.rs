@@ -18,6 +18,9 @@ const GENESIS_METHOD: &str = "eth/v1/beacon/genesis";
 /// The blob sidecars engine api method prefix.
 const SIDECARS_METHOD_PREFIX_DEPRECATED: &str = "eth/v1/beacon/blob_sidecars";
 
+/// THe blobs engine api method prefix.
+const BLOBS_METHOD_PREFIX: &str = "eth/v1/beacon/blobs";
+
 /// A reduced genesis data.
 #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ReducedGenesisData {
@@ -101,7 +104,7 @@ impl OnlineBeaconClient {
         if base.ends_with("/") {
             base.remove(base.len() - 1);
         }
-        Self { base, inner: Client::new() }
+        Self { base, inner: Client::builder().build().expect("Failed to create beacon client") }
     }
 }
 
@@ -190,21 +193,46 @@ impl BeaconClient for OnlineBeaconClient {
 
         let blob_indexes = blob_hashes.iter().map(|blob| blob.index).collect::<Vec<_>>();
 
-        let raw_response = self
-            .inner
-            .get(format!("{}/{}/{}", self.base, SIDECARS_METHOD_PREFIX_DEPRECATED, slot))
-            .send()
-            .await?;
+        Ok(
+            // Try to get the blobs from the blobs endpoint.
+            match self
+                .inner
+                .get(format!("{}/{}/{}", self.base, BLOBS_METHOD_PREFIX, slot))
+                .send()
+                .await
+            {
+                Ok(response) if response.status().is_success() => {
+                    let bundle = response.json::<BlobsBundle>().await?;
 
-        Ok(raw_response
-            .json::<BeaconBlobBundle>()
-            .await?
-            .into_iter()
-            .filter_map(|blob| {
-                blob_indexes
-                    .contains(&blob.index)
-                    .then_some(BoxedBlobWithIndex { index: blob.index, blob: blob.blob })
-            })
-            .collect::<Vec<_>>())
+                    bundle
+                        .data
+                        .into_iter()
+                        .enumerate()
+                        .filter_map(|(index, blob)| {
+                            let index = index as u64;
+                            blob_indexes
+                                .contains(&index)
+                                .then_some(BoxedBlobWithIndex { index, blob: blob.blob })
+                        })
+                        .collect::<Vec<_>>()
+                }
+                // If the blobs endpoint fails, try the deprecated sidecars endpoint. CL Clients
+                // only support the blobs endpoint from Fusaka (Fulu) onwards.
+                _ => self
+                    .inner
+                    .get(format!("{}/{}/{}", self.base, SIDECARS_METHOD_PREFIX_DEPRECATED, slot))
+                    .send()
+                    .await?
+                    .json::<BeaconBlobBundle>()
+                    .await?
+                    .into_iter()
+                    .filter_map(|blob| {
+                        blob_indexes
+                            .contains(&blob.index)
+                            .then_some(BoxedBlobWithIndex { index: blob.index, blob: blob.blob })
+                    })
+                    .collect::<Vec<_>>(),
+            },
+        )
     }
 }
