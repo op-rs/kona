@@ -67,6 +67,9 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 backon = { workspace = true, features = ["std", "tokio", "tokio-sleep"] }
 tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
 
+rollup-boost = { git = "https://github.com/flashbots/rollup-boost.git", default-features = false, features = ["library"] }
+http = "1.0"
+
 [dev-dependencies]
 rstest.workspace = true
 

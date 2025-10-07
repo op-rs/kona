@@ -13,12 +13,14 @@ use kona_engine::{
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
-use std::sync::Arc;
+use rollup_boost::Health;
+use std::{sync::Arc, time::Duration};
 use tokio::{
     sync::{mpsc, oneshot, watch},
     task::JoinHandle,
 };
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
+use tracing::{debug, info, warn};
 use url::Url;
 
 use crate::{NodeActor, NodeMode, actors::CancellableContext};
@@ -92,33 +94,23 @@ pub struct EngineBuilder {
     /// When the node is in sequencer mode, the engine actor will receive requests to build blocks
     /// from the sequencer actor.
     pub mode: NodeMode,
+    /// The engine client to use for Engine API calls.
+    pub engine_client: Arc<dyn kona_engine::EngineClient>,
 }
 
 impl EngineBuilder {
     /// Launches the [`Engine`]. Returns the [`Engine`] and a channel to receive engine state
     /// updates.
     fn build_state(self) -> EngineActorState {
-        let client = self.client();
         let state = InnerEngineState::default();
         let (engine_state_send, _) = tokio::sync::watch::channel(state);
         let (engine_queue_length_send, _) = tokio::sync::watch::channel(0);
 
         EngineActorState {
             rollup: self.config,
-            client,
+            client: self.engine_client.clone(),
             engine: Engine::new(state, engine_state_send, engine_queue_length_send),
         }
-    }
-
-    /// Returns the [`EngineClient`].
-    pub fn client(&self) -> Arc<EngineClient> {
-        EngineClient::new_http(
-            self.engine_url.clone(),
-            self.l1_rpc_url.clone(),
-            self.config.clone(),
-            self.jwt_secret,
-        )
-        .into()
     }
 }
 
@@ -222,6 +214,15 @@ impl EngineActorState {
                 }
             }
         })
+    }
+
+    /// Starts a health monitoring task for rollup-boost if enabled.
+    fn start_health_monitoring_task(&self) -> Option<JoinHandle<()>> {
+        // For now, we'll assume rollup-boost health monitoring is handled
+        // by the RollupBoostEngineClient itself. In a more sophisticated
+        // implementation, we might want to add a method to check if
+        // this is a rollup-boost client and monitor its health here.
+        None
     }
 
     /// Resets the inner [`Engine`] and propagates the reset to the derivation actor.
@@ -383,6 +384,9 @@ impl NodeActor for EngineActor {
 
         // Start the engine query server in a separate task to avoid blocking the main task.
         let handle = state.start_query_task(self.inbound_queries);
+
+        // Start health monitoring task if using rollup-boost
+        let _health_monitor_handle = state.start_health_monitoring_task();
 
         // The sync complete tx is consumed after the first successful send. Hence we need to wrap
         // it in an `Option` to ensure we satisfy the borrow checker.
