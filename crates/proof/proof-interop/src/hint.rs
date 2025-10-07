@@ -112,3 +112,82 @@ impl Display for HintType {
         write!(f, "{s}")
     }
 }
+
+mod test {
+    #[test]
+    fn test_hint_type_from_str() {
+        use super::HintType;
+        use crate::alloc::string::ToString;
+        use core::str::FromStr;
+        use kona_proof::errors::HintParsingError;
+
+        assert_eq!(HintType::from_str("l1-block-header").unwrap(), HintType::L1BlockHeader);
+        assert_eq!(HintType::from_str("l1-transactions").unwrap(), HintType::L1Transactions);
+        assert_eq!(HintType::from_str("l1-receipts").unwrap(), HintType::L1Receipts);
+        assert_eq!(HintType::from_str("l1-blob").unwrap(), HintType::L1Blob);
+        assert_eq!(HintType::from_str("l1-precompile").unwrap(), HintType::L1Precompile);
+        assert_eq!(HintType::from_str("l2-block-header").unwrap(), HintType::L2BlockHeader);
+        assert_eq!(HintType::from_str("l2-block-data").unwrap(), HintType::L2BlockData);
+        assert_eq!(HintType::from_str("l2-transactions").unwrap(), HintType::L2Transactions);
+        assert_eq!(HintType::from_str("l2-receipts").unwrap(), HintType::L2Receipts);
+        assert_eq!(HintType::from_str("l2-code").unwrap(), HintType::L2Code);
+        assert_eq!(HintType::from_str("agreed-pre-state").unwrap(), HintType::AgreedPreState);
+        assert_eq!(HintType::from_str("l2-output-root").unwrap(), HintType::L2OutputRoot);
+        assert_eq!(HintType::from_str("l2-account-proof").unwrap(), HintType::L2AccountProof);
+        assert_eq!(
+            HintType::from_str("l2-account-storage-proof").unwrap(),
+            HintType::L2AccountStorageProof
+        );
+        assert_eq!(HintType::from_str("l2-block-data").unwrap(), HintType::L2BlockData);
+        assert_eq!(HintType::from_str("l2-payload-witness").unwrap(), HintType::L2PayloadWitness);
+        match HintType::from_str("invalid") {
+            Ok(_) => {
+                panic!("expected error");
+            }
+            Err(parsing_err) => {
+                let HintParsingError(str) = parsing_err;
+                assert_eq!(str, "invalid".to_string());
+            }
+        }
+    }
+
+    #[test]
+    fn test_hint_type_to_str() {
+        use super::HintType;
+
+        assert_eq!(<&str>::from(HintType::L1BlockHeader), "l1-block-header");
+        assert_eq!(<&str>::from(HintType::L1Transactions), "l1-transactions");
+        assert_eq!(<&str>::from(HintType::L1Receipts), "l1-receipts");
+        assert_eq!(<&str>::from(HintType::L1Blob), "l1-blob");
+        assert_eq!(<&str>::from(HintType::L1Precompile), "l1-precompile");
+        assert_eq!(<&str>::from(HintType::L2BlockHeader), "l2-block-header");
+        assert_eq!(<&str>::from(HintType::L2Transactions), "l2-transactions");
+        assert_eq!(<&str>::from(HintType::L2Receipts), "l2-receipts");
+        assert_eq!(<&str>::from(HintType::L2Code), "l2-code");
+        assert_eq!(<&str>::from(HintType::AgreedPreState), "agreed-pre-state");
+        assert_eq!(<&str>::from(HintType::L2OutputRoot), "l2-output-root");
+        assert_eq!(<&str>::from(HintType::L2StateNode), "l2-state-node");
+        assert_eq!(<&str>::from(HintType::L2AccountProof), "l2-account-proof");
+        assert_eq!(<&str>::from(HintType::L2AccountStorageProof), "l2-account-storage-proof");
+        assert_eq!(<&str>::from(HintType::L2BlockData), "l2-block-data");
+        assert_eq!(<&str>::from(HintType::L2PayloadWitness), "l2-payload-witness");
+    }
+
+    #[test]
+    fn test_hint_with_data() {
+        use super::HintType;
+        use alloy_primitives::Bytes;
+
+        let hint_data: &[u8] = &[1, 2];
+        let l1_block_header = HintType::L1BlockHeader.with_data(&[hint_data]);
+        assert_eq!(l1_block_header.data, Bytes::from(hint_data));
+    }
+
+    #[test]
+    fn test_hint_fmt() {
+        use super::HintType;
+        use alloc::format;
+
+        assert_eq!(format!("{}", HintType::L1BlockHeader), "l1-block-header");
+    }
+}

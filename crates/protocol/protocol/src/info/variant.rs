@@ -4,7 +4,7 @@
 use alloy_consensus::Header;
 use alloy_eips::{BlockNumHash, eip7840::BlobParams};
 use alloy_primitives::{Address, B256, Bytes, Sealable, Sealed, TxKind, U256, address};
-use kona_genesis::{RollupConfig, SystemConfig};
+use kona_genesis::{L1ChainConfig, RollupConfig, SystemConfig};
 use op_alloy_consensus::{DepositSourceDomain, L1InfoDepositSource, TxDeposit};
 
 use crate::{
@@ -39,6 +39,7 @@ impl L1BlockInfoTx {
     /// Creates a new [`L1BlockInfoTx`] from the given information.
     pub fn try_new(
         rollup_config: &RollupConfig,
+        l1_config: &L1ChainConfig,
         system_config: &SystemConfig,
         sequence_number: u64,
         l1_header: &Header,
@@ -77,25 +78,38 @@ impl L1BlockInfoTx {
             scalar[28..32].try_into().map_err(|_| BlockInfoError::BaseFeeScalar)?,
         );
 
-        // Use the `requests_hash` presence in the L1 header to determine if pectra has activated on
-        // L1.
-        //
-        // There was an incident on OP Stack Sepolia chains (03-05-2025) when L1 activated pectra,
-        // where the sequencer followed the incorrect chain, using the legacy Cancun blob fee
-        // schedule instead of the new Prague blob fee schedule. This portion of the chain was
-        // chosen to be canonicalized in favor of the prospect of a deep reorg imposed by the
-        // sequencers of the testnet chains. An optional hardfork was introduced for Sepolia only,
-        // where if present, activates the use of the Prague blob fee schedule. If the hardfork is
-        // not present, and L1 has activated pectra, the Prague blob fee schedule is used
-        // immediately.
-        let blob_fee_config = l1_header
-            .requests_hash
-            .and_then(|_| {
-                (rollup_config.hardforks.pectra_blob_schedule_time.is_none() ||
-                    rollup_config.is_pectra_blob_schedule_active(l1_header.timestamp))
-                .then_some(BlobParams::prague())
-            })
-            .unwrap_or(BlobParams::cancun());
+        // Determine the blob fee configuration based on the timestamp.
+        // We start with the scheduled blob fee parameters, and then check for the osaka and prague
+        // parameters.
+        let blob_fee_params = l1_config.blob_schedule_blob_params();
+
+        let blob_fee_config =
+            match blob_fee_params.active_scheduled_params_at_timestamp(l1_header.timestamp) {
+                Some(blob_fee_param) => *blob_fee_param,
+                None if l1_config.osaka_time.is_some_and(|time| time <= l1_header.timestamp) => {
+                    BlobParams::osaka()
+                }
+                None if l1_config
+                    .prague_time.is_some_and(|time| time <= l1_header.timestamp) &&
+                    // There was an incident on OP Stack Sepolia chains (03-05-2025) when L1 activated pectra,
+                    // where the sequencer followed the incorrect chain, using the legacy Cancun blob fee
+                    // schedule instead of the new Prague blob fee schedule. This portion of the chain was
+                    // chosen to be canonicalized in favor of the prospect of a deep reorg imposed by the
+                    // sequencers of the testnet chains. An optional hardfork was introduced for Sepolia only,
+                    // where if present, activates the use of the Prague blob fee schedule. If the hardfork is
+                    // not present, and L1 has activated pectra, the Prague blob fee schedule is used
+                    // immediately.
+                    (rollup_config.hardforks.pectra_blob_schedule_time.is_none() ||
+                        rollup_config.is_pectra_blob_schedule_active(l1_header.timestamp)) =>
+                {
+                    BlobParams::prague()
+                }
+                _ => BlobParams::cancun(),
+            };
+
+        let blob_base_fee = l1_header.blob_fee(blob_fee_config).unwrap_or(1);
+        let block_hash = l1_header.hash_slow();
+        let base_fee = l1_header.base_fee_per_gas.unwrap_or(0);
 
         if rollup_config.is_isthmus_active(l2_block_time) &&
             !rollup_config.is_first_isthmus_block(l2_block_time)
@@ -105,11 +119,11 @@ impl L1BlockInfoTx {
             return Ok(Self::Isthmus(L1BlockInfoIsthmus {
                 number: l1_header.number,
                 time: l1_header.timestamp,
-                base_fee: l1_header.base_fee_per_gas.unwrap_or(0),
-                block_hash: l1_header.hash_slow(),
+                base_fee,
+                block_hash,
                 sequence_number,
                 batcher_address: system_config.batcher_address,
-                blob_base_fee: l1_header.blob_fee(blob_fee_config).unwrap_or(1),
+                blob_base_fee,
                 blob_base_fee_scalar,
                 base_fee_scalar,
                 operator_fee_scalar,
@@ -120,11 +134,11 @@ impl L1BlockInfoTx {
         Ok(Self::Ecotone(L1BlockInfoEcotone {
             number: l1_header.number,
             time: l1_header.timestamp,
-            base_fee: l1_header.base_fee_per_gas.unwrap_or(0),
-            block_hash: l1_header.hash_slow(),
+            base_fee,
+            block_hash,
             sequence_number,
             batcher_address: system_config.batcher_address,
-            blob_base_fee: l1_header.blob_fee(blob_fee_config).unwrap_or(1),
+            blob_base_fee,
             blob_base_fee_scalar,
             base_fee_scalar,
             empty_scalars: false,
@@ -136,13 +150,20 @@ impl L1BlockInfoTx {
     /// to include at the top of a block.
     pub fn try_new_with_deposit_tx(
         rollup_config: &RollupConfig,
+        l1_config: &L1ChainConfig,
         system_config: &SystemConfig,
         sequence_number: u64,
         l1_header: &Header,
         l2_block_time: u64,
     ) -> Result<(Self, Sealed<TxDeposit>), BlockInfoError> {
-        let l1_info =
-            Self::try_new(rollup_config, system_config, sequence_number, l1_header, l2_block_time)?;
+        let l1_info = Self::try_new(
+            rollup_config,
+            l1_config,
+            system_config,
+            sequence_number,
+            l1_header,
+            l2_block_time,
+        )?;
 
         let source = DepositSourceDomain::L1Info(L1InfoDepositSource {
             l1_block_hash: l1_info.block_hash(),
@@ -322,6 +343,7 @@ mod test {
     use alloc::{string::ToString, vec::Vec};
     use alloy_primitives::{address, b256};
     use kona_genesis::HardForkConfig;
+    use kona_registry::L1Config;
     use rstest::rstest;
 
     #[test]
@@ -688,6 +710,7 @@ mod test {
     #[test]
     fn test_try_new_bedrock() {
         let rollup_config = RollupConfig::default();
+        let l1_config = L1Config::sepolia();
         let system_config = SystemConfig::default();
         let sequence_number = 0;
         let l1_header = Header::default();
@@ -695,6 +718,7 @@ mod test {
 
         let l1_info = L1BlockInfoTx::try_new(
             &rollup_config,
+            &l1_config,
             &system_config,
             sequence_number,
             &l1_header,
@@ -722,6 +746,7 @@ mod test {
             hardforks: HardForkConfig { ecotone_time: Some(1), ..Default::default() },
             ..Default::default()
         };
+        let l1_config = L1Config::sepolia();
         let system_config = SystemConfig::default();
         let sequence_number = 0;
         let l1_header = Header::default();
@@ -729,6 +754,7 @@ mod test {
 
         let l1_info = L1BlockInfoTx::try_new(
             &rollup_config,
+            &l1_config,
             &system_config,
             sequence_number,
             &l1_header,
@@ -783,6 +809,9 @@ mod test {
             },
             ..Default::default()
         };
+        let mut l1_genesis: L1ChainConfig = L1Config::sepolia().into();
+        l1_genesis.prague_time = Some(2);
+
         let system_config = SystemConfig::default();
         let sequence_number = 0;
         let l1_header = Header {
@@ -796,6 +825,7 @@ mod test {
 
         let l1_info = L1BlockInfoTx::try_new(
             &rollup_config,
+            &l1_genesis,
             &system_config,
             sequence_number,
             &l1_header,
@@ -850,6 +880,7 @@ mod test {
             },
             ..Default::default()
         };
+        let l1_config = L1Config::sepolia();
         let system_config = SystemConfig {
             batcher_address: address!("6887246668a3b87f54deb3b94ba47a6f63f32985"),
             operator_fee_scalar: Some(0xabcd),
@@ -869,6 +900,7 @@ mod test {
 
         let l1_info = L1BlockInfoTx::try_new(
             &rollup_config,
+            &l1_config,
             &system_config,
             sequence_number,
             &l1_header,
@@ -917,6 +949,7 @@ mod test {
             hardforks: HardForkConfig { isthmus_time: Some(1), ..Default::default() },
             ..Default::default()
         };
+        let l1_config = L1Config::sepolia();
         let system_config = SystemConfig {
             batcher_address: address!("6887246668a3b87f54deb3b94ba47a6f63f32985"),
             operator_fee_scalar: Some(0xabcd),
@@ -934,6 +967,7 @@ mod test {
 
         let l1_info = L1BlockInfoTx::try_new(
             &rollup_config,
+            &l1_config,
             &system_config,
             sequence_number,
             &l1_header,
@@ -980,6 +1014,7 @@ mod test {
             hardforks: HardForkConfig { isthmus_time: Some(1), ..Default::default() },
             ..Default::default()
         };
+        let l1_config = L1Config::sepolia();
         let system_config = SystemConfig {
             batcher_address: address!("6887246668a3b87f54deb3b94ba47a6f63f32985"),
             operator_fee_scalar: Some(0xabcd),
@@ -997,6 +1032,7 @@ mod test {
 
         let (l1_info, deposit_tx) = L1BlockInfoTx::try_new_with_deposit_tx(
             &rollup_config,
+            &l1_config,
             &system_config,
             sequence_number,
             &l1_header,

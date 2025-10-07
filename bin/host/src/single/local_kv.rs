@@ -7,8 +7,8 @@ use alloy_primitives::B256;
 use anyhow::Result;
 use kona_preimage::PreimageKey;
 use kona_proof::boot::{
-    L1_HEAD_KEY, L2_CHAIN_ID_KEY, L2_CLAIM_BLOCK_NUMBER_KEY, L2_CLAIM_KEY, L2_OUTPUT_ROOT_KEY,
-    L2_ROLLUP_CONFIG_KEY,
+    L1_CONFIG_KEY, L1_HEAD_KEY, L2_CHAIN_ID_KEY, L2_CLAIM_BLOCK_NUMBER_KEY, L2_CLAIM_KEY,
+    L2_OUTPUT_ROOT_KEY, L2_ROLLUP_CONFIG_KEY,
 };
 
 /// A simple, synchronous key-value store that returns data from a [SingleChainHost] config.
@@ -40,6 +40,11 @@ impl KeyValueStore for SingleChainLocalInputs {
             L2_ROLLUP_CONFIG_KEY => {
                 let rollup_config = self.cfg.read_rollup_config().ok()?;
                 let serialized = serde_json::to_vec(&rollup_config).ok()?;
+                Some(serialized)
+            }
+            L1_CONFIG_KEY => {
+                let l1_config = self.cfg.read_l1_config().ok()?;
+                let serialized = serde_json::to_vec(&l1_config).ok()?;
                 Some(serialized)
             }
             _ => None,

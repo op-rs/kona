@@ -6,9 +6,7 @@ use discv5::Enr;
 use lazy_static::lazy_static;
 use std::str::FromStr;
 
-use kona_genesis::{
-    BASE_MAINNET_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, OP_MAINNET_CHAIN_ID, OP_SEPOLIA_CHAIN_ID,
-};
+use kona_registry::CHAINS;
 
 /// Bootnodes for OP Stack chains.
 #[derive(Debug, Clone, Deref, PartialEq, Eq)]
@@ -19,9 +17,12 @@ impl BootNodes {
     ///
     /// If the chain id is not recognized, no bootnodes are returned.
     pub fn from_chain_id(id: u64) -> Self {
-        match id {
-            OP_MAINNET_CHAIN_ID | BASE_MAINNET_CHAIN_ID => Self::mainnet(),
-            OP_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID => Self::testnet(),
+        let Some(chain) = CHAINS.get_chain_by_id(id) else {
+            return Self(vec![]);
+        };
+        match chain.parent.chain_id() {
+            1 => Self::mainnet(),
+            11155111 => Self::testnet(),
             _ => Self(vec![]),
         }
     }
@@ -98,6 +99,9 @@ pub static OP_RAW_BOOTNODES: &[&str] = &[
     "enode://2d4e7e9d48f4dd4efe9342706dd1b0024681bd4c3300d021f86fc75eab7865d4e0cbec6fbc883f011cfd6a57423e7e2f6e104baad2b744c3cafaec6bc7dc92c1@34.65.43.171:0?discport=30305",
     "enode://9d7a3efefe442351217e73b3a593bcb8efffb55b4807699972145324eab5e6b382152f8d24f6301baebbfb5ecd4127bd3faab2842c04cd432bdf50ba092f6645@34.65.109.126:0?discport=30305",
     // Uniswap Labs
+    "enode://010800c668896c100e8d64abc388ac5a22a8134a96fb0107c5d0c56d79ba7225c12d9e9e012d3cc0ee2701d7f63dd45f8abf0bbcf6f3c541f91742b1d7a99355@3.134.214.169:9222",
+    "enode://b97abcc7011d06299c4bc44742be4a0e631a1a2925a2992adcfe80ed86bec5ff0ddf1b90d015f2dbb5e305560e12c9873b2dad72d84d131ac4be9f2a4c74b763@52.14.30.39:9222",
+    "enode://760230a662610620d6d2e4ad846a6dccbceaa4556872dfacf9cdca7c2f5b49e4c66e822ed2e8813debb5fb7391f0519b8d075e565a2a89c79a9e4092e81b3e5b@3.148.100.173:9222",
     "enode://b1a743328188dba3b2ed8c06abbb2688fabe64a3251e43bd77d4e5265bbd5cf03eca8ace4cde8ddb0c49c409b90bf941ebf556094638c6203edd6baa5ef0091b@3.134.214.169:30303",
     "enode://ea9eaaf695facbe53090beb7a5b0411a81459bbf6e6caac151e587ee77120a1b07f3b9f3a9550f797d73d69840a643b775fd1e40344dea11e7660b6a483fe80e@52.14.30.39:30303",
     "enode://77b6b1e72984d5d50e00ae934ffea982902226fe92fa50da42334c2750d8e405b55a5baabeb988c88125368142a64eda5096d0d4522d3b6eef75d166c7d303a9@3.148.100.173:30303",
@@ -122,11 +126,13 @@ pub static OP_RAW_TESTNET_BOOTNODES: &[&str] = &[
 mod tests {
     use discv5::enr::EnrPublicKey;
 
+    use kona_genesis::{BASE_MAINNET_CHAIN_ID, OP_MAINNET_CHAIN_ID, OP_SEPOLIA_CHAIN_ID};
+
     use super::*;
 
     #[test]
     fn test_validate_bootnode_lens() {
-        assert_eq!(OP_RAW_BOOTNODES.len(), 21);
+        assert_eq!(OP_RAW_BOOTNODES.len(), 24);
         assert_eq!(OP_RAW_TESTNET_BOOTNODES.len(), 8);
     }
 
@@ -144,9 +150,18 @@ mod tests {
     #[test]
     fn test_bootnodes_from_chain_id() {
         let mainnet = BootNodes::from_chain_id(OP_MAINNET_CHAIN_ID);
-        assert_eq!(mainnet.len(), 21);
+        assert_eq!(mainnet.len(), 24);
+
+        let mainnet = BootNodes::from_chain_id(BASE_MAINNET_CHAIN_ID);
+        assert_eq!(mainnet.len(), 24);
+
+        let mainnet = BootNodes::from_chain_id(130 /* Unichain Mainnet */);
+        assert_eq!(mainnet.len(), 24);
 
         let testnet = BootNodes::from_chain_id(OP_SEPOLIA_CHAIN_ID);
+        assert_eq!(testnet.len(), 8);
+
+        let testnet = BootNodes::from_chain_id(1301 /* Unichain Sepolia */);
         assert_eq!(testnet.len(), 8);
 
         let unknown = BootNodes::from_chain_id(0);
@@ -156,7 +171,7 @@ mod tests {
     #[test]
     fn test_bootnodes_len() {
         let bootnodes = BootNodes::mainnet();
-        assert_eq!(bootnodes.len(), 21);
+        assert_eq!(bootnodes.len(), 24);
 
         let bootnodes = BootNodes::testnet();
         assert_eq!(bootnodes.len(), 8);

@@ -10,7 +10,7 @@ use alloy_primitives::B256;
 use alloy_provider::RootProvider;
 use clap::Parser;
 use kona_cli::cli_styles;
-use kona_genesis::RollupConfig;
+use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_preimage::{
     BidirectionalChannel, Channel, HintReader, HintWriter, OracleReader, OracleServer,
 };
@@ -106,6 +106,10 @@ pub struct SingleChainHost {
         env
     )]
     pub rollup_config_path: Option<PathBuf>,
+    /// Path to l1 config. If provided, the host will use this config instead of attempting to
+    /// look up the config in the known l1 configs.
+    #[arg(long, alias = "l1-cfg", env)]
+    pub l1_config_path: Option<PathBuf>,
     /// Optionally enables the use of `debug_executePayload` to collect the execution witness from
     /// the execution layer.
     #[arg(long, env)]
@@ -127,6 +131,12 @@ pub enum SingleChainHostError {
     /// Task failed to execute to completion.
     #[error("Join error: {0}")]
     ExecutionError(#[from] tokio::task::JoinError),
+    /// No rollup config found.
+    #[error("No rollup config found")]
+    NoRollupConfig,
+    /// No l1 config found.
+    #[error("No l1 config found")]
+    NoL1Config,
     /// Any other error.
     #[error("Error: {0}")]
     Other(&'static str),
@@ -221,11 +231,19 @@ impl SingleChainHost {
 
     /// Reads the [RollupConfig] from the file system and returns the deserialized configuration.
     pub fn read_rollup_config(&self) -> Result<RollupConfig, SingleChainHostError> {
-        let path = self.rollup_config_path.as_ref().ok_or_else(|| {
-            SingleChainHostError::Other(
-                "No rollup config path provided. Please provide a path to the rollup config.",
-            )
-        })?;
+        let path =
+            self.rollup_config_path.as_ref().ok_or_else(|| SingleChainHostError::NoRollupConfig)?;
+
+        // Read the serialized config from the file system.
+        let ser_config = std::fs::read_to_string(path)?;
+
+        // Deserialize the config and return it.
+        serde_json::from_str(&ser_config).map_err(SingleChainHostError::ParseError)
+    }
+
+    /// Reads the [L1ChainConfig] from the file system and returns the deserialized configuration.
+    pub fn read_l1_config(&self) -> Result<L1ChainConfig, SingleChainHostError> {
+        let path = self.l1_config_path.as_ref().ok_or_else(|| SingleChainHostError::NoL1Config)?;
 
         // Read the serialized config from the file system.
         let ser_config = std::fs::read_to_string(path)?;
