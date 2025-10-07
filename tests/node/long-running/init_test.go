@@ -19,5 +19,14 @@ var (
 func TestMain(m *testing.M) {
 	flag.Parse()
 
-	presets.DoMain(m, node_utils.WithMixedOpKona(0, 1, 0, 2))
+	presets.DoMain(m, node_utils.WithMixedOpKona(node_utils.L2NodeConfig{
+		OpSequencerNodesWithGeth:   0,
+		OpSequencerNodesWithReth:   0,
+		KonaSequencerNodesWithGeth: 1,
+		KonaSequencerNodesWithReth: 0,
+		OpNodesWithGeth:            1,
+		OpNodesWithReth:            1,
+		KonaNodesWithGeth:          1,
+		KonaNodesWithReth:          1,
+	}))
 }
