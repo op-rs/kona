@@ -38,7 +38,15 @@ devnet DEVNET CUSTOM_DEVNET_PATH="":
 cleanup-kurtosis:
   kurtosis clean -a
 
-test-e2e-sysgo BINARY GO_PKG_NAME="" FILTER="" : unzip-contract-artifacts
+build-reth:
+  #!/bin/bash
+  cd {{SOURCE}}/reth/crates/optimism/bin && cargo build --bin op-reth
+
+build-kona:
+  #!/bin/bash
+  cd {{SOURCE}}/.. && cargo build --bin kona-node
+
+test-e2e-sysgo BINARY GO_PKG_NAME="" DEVNET="simple-kona" FILTER="" : unzip-contract-artifacts
     #!/bin/bash
     if [ -z "{{GO_PKG_NAME}}" ]; then
         export GO_PKG_NAME="..."
@@ -52,11 +60,57 @@ test-e2e-sysgo BINARY GO_PKG_NAME="" FILTER="" : unzip-contract-artifacts
 
     export OP_DEPLOYER_ARTIFACTS="{{SOURCE}}/artifacts"
     export DISABLE_OP_E2E_LEGACY=true
+
+    if [ "{{DEVNET}}" = "simple-kona" ]; then
+        export KONA_SEQUENCER_WITH_RETH=0
+        export KONA_VALIDATOR_WITH_RETH=1
+        export KONA_SEQUENCER_WITH_GETH=0
+        export KONA_VALIDATOR_WITH_GETH=0
+
+        export OP_SEQUENCER_WITH_RETH=1
+        export OP_VALIDATOR_WITH_RETH=1
+        export OP_SEQUENCER_WITH_GETH=0
+        export OP_VALIDATOR_WITH_GETH=0
+    elif [ "{{DEVNET}}" = "simple-kona-geth" ]; then
+        export KONA_SEQUENCER_WITH_RETH=0
+        export KONA_VALIDATOR_WITH_RETH=0
+        export KONA_SEQUENCER_WITH_GETH=0
+        export KONA_VALIDATOR_WITH_GETH=1
+
+        export OP_SEQUENCER_WITH_RETH=0
+        export OP_VALIDATOR_WITH_RETH=0
+        export OP_SEQUENCER_WITH_GETH=1
+        export OP_VALIDATOR_WITH_GETH=1
+    elif [ "{{DEVNET}}" = "simple-kona-sequencer" ]; then
+        export KONA_SEQUENCER_WITH_RETH=1
+        export KONA_VALIDATOR_WITH_RETH=1
+        export KONA_SEQUENCER_WITH_GETH=0
+        export KONA_VALIDATOR_WITH_GETH=1
+
+        export OP_SEQUENCER_WITH_RETH=0
+        export OP_VALIDATOR_WITH_RETH=0
+        export OP_SEQUENCER_WITH_GETH=0
+        export OP_VALIDATOR_WITH_GETH=0
+    elif [ "{{DEVNET}}" = "large-kona-sequencer" ]; then
+        export KONA_SEQUENCER_WITH_RETH=1
+        export KONA_VALIDATOR_WITH_RETH=4
+        export KONA_SEQUENCER_WITH_GETH=0
+        export KONA_VALIDATOR_WITH_GETH=4
+
+        export OP_SEQUENCER_WITH_RETH=0
+        export OP_VALIDATOR_WITH_RETH=0
+        export OP_SEQUENCER_WITH_GETH=0
+        export OP_VALIDATOR_WITH_GETH=0
+    fi
     
     if [ "{{BINARY}}" = "node" ]; then
         export KONA_NODE_EXEC_PATH="{{SOURCE}}/../target/debug/kona-node"
+        export OP_RETH_EXEC_PATH="{{SOURCE}}/reth/target/debug/op-reth"
         export DEVSTACK_ORCHESTRATOR=sysgo
-        cd {{SOURCE}}/.. && cargo build --bin kona-node
+        echo "Building kona-node..."
+        just build-kona
+        echo "Building op-reth..."
+        just build-reth
     elif [ "{{BINARY}}" = "supervisor" ]; then
         export DEVSTACK_SUPERVISOR_KIND=kona
         export KONA_SUPERVISOR_EXEC_PATH="{{SOURCE}}/../target/release/kona-supervisor"
@@ -121,6 +175,38 @@ long-running-test DEVNET FILTER DEVNET_CUSTOM_PATH="" OUTPUT_LOGS_DIR="":
     # Run the test with count=1 to avoid caching the test results.
     cd {{SOURCE}} && go test -count=1 -timeout 0 -v ./node/long-running $FILTER 
 
+# Run action tests for the single-chain client program on the native target
+action-tests-single test_name='Test_ProgramAction' *args='':
+  #!/bin/bash
+  echo "Building contract artifacts for the optimism"
+  just unzip-contract-artifacts {{SOURCE}}/optimism/packages/contracts-bedrock/forge-artifacts
+
+  echo "Building host program for the native target"
+  just build-native --bin kona-host
+  export KONA_HOST_PATH="{{SOURCE}}/../target/debug/kona-host"
+
+  # GitHub actions patch - do not print logs.
+  # https://github.com/gotestyourself/gotestsum/blob/b4b13345fee56744d80016a20b760d3599c13504/testjson/format.go#L442-L444
+  echo "Running action tests for the client program on the native target"
+
+  cd {{SOURCE}}/optimism/op-e2e/actions/proofs && GITHUB_ACTIONS=false gotestsum --format=testname -- -run "{{test_name}}" {{args}} -count=1 ./...
+
+# Run action tests for the interop client program on the native target
+action-tests-interop test_name='TestInteropFaultProofs' *args='':
+  #!/bin/bash
+  echo "Building contract artifacts for the optimism"
+  just unzip-contract-artifacts {{SOURCE}}/optimism/packages/contracts-bedrock/forge-artifacts
+
+  echo "Building host program for the native target"
+  just build-native --bin kona-host
+  export KONA_HOST_PATH="{{justfile_directory()}}/target/debug/kona-host"
+
+  # GitHub actions patch - do not print logs.
+  # https://github.com/gotestyourself/gotestsum/blob/b4b13345fee56744d80016a20b760d3599c13504/testjson/format.go#L442-L444
+  echo "Running action tests for the client program on the native target"
+
+  cd {{SOURCE}}/optimism/op-e2e/actions/interop && GITHUB_ACTIONS=false gotestsum --format=testname -- -run "{{test_name}}" {{args}} -count=1 ./...
+
 build-deploy-devnet BINARY DEVNET CUSTOM_DEVNET_PATH="": (build-devnet BINARY) (devnet DEVNET CUSTOM_DEVNET_PATH)
   
 deploy-devnet-and-test-e2e DEVNET GO_PKG_NAME CUSTOM_DEVNET_PATH="": (devnet DEVNET CUSTOM_DEVNET_PATH) (test-e2e-kurtosis DEVNET GO_PKG_NAME)
@@ -146,7 +232,26 @@ update-node-devnet DEVNET OP_PACKAGE_PATH="": (build-devnet "node")
         kurtosis service update {{DEVNET}} $service --image kona-node:local
     done
 
-unzip-contract-artifacts:
+unzip-contract-artifacts DEST_DIR="":
     #!/bin/bash
-    mkdir -p {{SOURCE}}/artifacts/src
-    tar -xzf {{SOURCE}}/artifacts/compressed/artifacts.tgz -C {{SOURCE}}/artifacts/src
+
+    export DEST_DIR="{{DEST_DIR}}"
+    if [ -z "{{DEST_DIR}}" ]; then
+        export DEST_DIR="{{SOURCE}}/artifacts/src"
+    fi
+
+    mkdir -p $DEST_DIR
+
+    tar -xzf {{SOURCE}}/artifacts/compressed/artifacts.tgz -C $DEST_DIR
+
+
+update-packages: 
+    #!/bin/bash
+    cd {{SOURCE}}/optimism/op-deployer && just build-contracts copy-contract-artifacts
+    cp {{SOURCE}}/optimism/op-deployer/pkg/deployer/artifacts/forge-artifacts/artifacts.tgz {{SOURCE}}/artifacts/compressed/artifacts.tgz
+
+# Updates the pinned version of the optimism
+update-optimism:
+  #!/bin/bash
+  git submodule update --remote --force
+

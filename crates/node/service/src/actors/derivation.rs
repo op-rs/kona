@@ -9,7 +9,7 @@ use kona_derive::{
     ActivationSignal, Pipeline, PipelineError, PipelineErrorKind, ResetError, ResetSignal, Signal,
     SignalReceiver, StepResult,
 };
-use kona_genesis::RollupConfig;
+use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use kona_providers_alloy::{
     AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, OnlineBlobProvider,
@@ -108,6 +108,8 @@ pub struct DerivationBuilder {
     pub l2_trust_rpc: bool,
     /// The rollup config.
     pub rollup_config: Arc<RollupConfig>,
+    /// The L1 chain configuration.
+    pub l1_config: Arc<L1ChainConfig>,
     /// The interop mode.
     pub interop_mode: InteropMode,
 }
@@ -133,12 +135,14 @@ impl PipelineBuilder for DerivationBuilder {
         let pipeline = match self.interop_mode {
             InteropMode::Polled => OnlinePipeline::new_polled(
                 self.rollup_config.clone(),
+                self.l1_config.clone(),
                 OnlineBlobProvider::init(self.l1_beacon.clone()).await,
                 l1_derivation_provider,
                 l2_derivation_provider,
             ),
             InteropMode::Indexed => OnlinePipeline::new_indexed(
                 self.rollup_config.clone(),
+                self.l1_config.clone(),
                 OnlineBlobProvider::init(self.l1_beacon.clone()).await,
                 l1_derivation_provider,
                 l2_derivation_provider,
