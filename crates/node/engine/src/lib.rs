@@ -52,6 +52,9 @@ pub use attributes::{AttributesMatch, AttributesMismatch};
 mod client;
 pub use client::{EngineClient, EngineClientError};
 
+mod rollup_boost;
+pub use rollup_boost::{RollupBoostError, RollupBoostServerLike};
+
 mod versions;
 pub use versions::{EngineForkchoiceVersion, EngineGetPayloadVersion, EngineNewPayloadVersion};
 
@@ -66,3 +69,5 @@ pub use query::{EngineQueries, EngineQueriesError, EngineQuerySender};
 
 mod metrics;
 pub use metrics::Metrics;
+
+pub mod compat;
