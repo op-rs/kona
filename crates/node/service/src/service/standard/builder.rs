@@ -32,8 +32,6 @@ pub struct RollupNodeBuilder {
     l1_trust_rpc: bool,
     /// The L1 beacon API URL.
     l1_beacon_api_url: Option<Url>,
-    /// Whether to skip blob verification.
-    l1_beacon_skip_blob_verification: bool,
     /// The L2 engine RPC URL.
     l2_engine_rpc_url: Option<Url>,
     /// Whether to trust the L2 RPC.
@@ -76,14 +74,6 @@ impl RollupNodeBuilder {
     /// Appends an L1 beacon API URL to the builder.
     pub fn with_l1_beacon_api_url(self, l1_beacon_api_url: Url) -> Self {
         Self { l1_beacon_api_url: Some(l1_beacon_api_url), ..self }
-    }
-
-    /// Sets whether to skip blob verification.
-    pub fn with_l1_beacon_skip_blob_verification(
-        self,
-        l1_beacon_skip_blob_verification: bool,
-    ) -> Self {
-        Self { l1_beacon_skip_blob_verification, ..self }
     }
 
     /// Appends an L2 engine RPC URL to the builder.
@@ -132,7 +122,6 @@ impl RollupNodeBuilder {
         let l1_provider = RootProvider::new_http(l1_rpc_url.clone());
         let l1_beacon = OnlineBeaconClient::new_http(
             self.l1_beacon_api_url.expect("l1 beacon api url not set").to_string(),
-            self.l1_beacon_skip_blob_verification,
         );
 
         let engine_url = self.l2_engine_rpc_url.expect("l2 engine rpc url not set");

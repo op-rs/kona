@@ -71,11 +71,6 @@ pub struct SingleChainHost {
         env
     )]
     pub l1_beacon_address: Option<String>,
-    /// Whether to skip blob verification.
-    /// WARNING: This should not be used in production unless necessary. This effectively trusts
-    /// the l1 beacon provider to provide valid blobs.
-    #[arg(long, env, requires = "l1_beacon_address", default_value = "false")]
-    pub l1_beacon_skip_blob_verification: bool,
     /// The Data Directory for preimage data storage. Optional if running in online mode,
     /// required if running in offline mode.
     #[arg(
@@ -285,7 +280,6 @@ impl SingleChainHost {
             self.l1_beacon_address
                 .clone()
                 .ok_or(SingleChainHostError::Other("Beacon API URL must be set"))?,
-            self.l1_beacon_skip_blob_verification,
         ))
         .await;
         let l2_provider = http_provider::<Optimism>(

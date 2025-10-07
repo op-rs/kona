@@ -15,9 +15,7 @@ const SPEC_METHOD: &str = "eth/v1/config/spec";
 const GENESIS_METHOD: &str = "eth/v1/beacon/genesis";
 
 /// The blob sidecars engine api method prefix.
-// Starting from Fusaka (Fulu), the "eth/v1/beacon/blob_sidecars" endpoint is not serving
-// kgz blob validation data.
-const SIDECARS_METHOD_PREFIX_DEPRECATED: &str = "eth/v1/beacon/blob_sidecars";
+const SIDECARS_METHOD_PREFIX: &str = "eth/v1/beacon/blob_sidecars";
 
 /// A reduced genesis data.
 #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -77,11 +75,6 @@ pub trait BeaconClient {
     /// Returns the beacon genesis.
     async fn beacon_genesis(&self) -> Result<APIGenesisResponse, Self::Error>;
 
-    /// Returns whether to skip blob validation.
-    /// Note: this is a temporary solution to skip blob validation since Fusaka does not serve kgz
-    /// blob validation data.
-    fn skip_blob_verification(&self) -> bool;
-
     /// Fetches blob sidecars that were confirmed in the specified L1 block with the given indexed
     /// hashes. Order of the returned sidecars is guaranteed to be that of the hashes. Blob data is
     /// not checked for validity.
@@ -99,18 +92,16 @@ pub struct OnlineBeaconClient {
     pub base: String,
     /// The inner reqwest client.
     pub inner: Client,
-    /// Whether to skip blob verification.
-    pub skip_blob_verification: bool,
 }
 
 impl OnlineBeaconClient {
     /// Creates a new [OnlineBeaconClient] from the provided [reqwest::Url].
-    pub fn new_http(mut base: String, skip_blob_verification: bool) -> Self {
+    pub fn new_http(mut base: String) -> Self {
         // If base ends with a slash, remove it
         if base.ends_with("/") {
             base.remove(base.len() - 1);
         }
-        Self { base, inner: Client::new(), skip_blob_verification }
+        Self { base, inner: Client::new() }
     }
 }
 
@@ -162,7 +153,7 @@ impl BeaconClient for OnlineBeaconClient {
         let result = async {
             let raw_response = self
                 .inner
-                .get(format!("{}/{}/{}", self.base, SIDECARS_METHOD_PREFIX_DEPRECATED, slot))
+                .get(format!("{}/{}/{}", self.base, SIDECARS_METHOD_PREFIX, slot))
                 .send()
                 .await?;
             let raw_response = raw_response.json::<BeaconBlobBundle>().await?;
@@ -187,9 +178,5 @@ impl BeaconClient for OnlineBeaconClient {
         }
 
         result
-    }
-
-    fn skip_blob_verification(&self) -> bool {
-        self.skip_blob_verification
     }
 }
