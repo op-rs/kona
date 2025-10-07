@@ -143,7 +143,7 @@ impl SignerArgs {
                     Ok(Some(key))
                 })
             }
-            (Some(_), Some(_)) => Err(SignerArgsParseError::ConflictingSequencerKeyInputs),
+            (Some(_), Some(_)) => unreachable!(),
             (None, None) => Ok(None),
         }
     }
