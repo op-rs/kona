@@ -67,6 +67,10 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 backon = { workspace = true, features = ["std", "tokio", "tokio-sleep"] }
 tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
 
+# rollup boost
+rollup-boost.workspace = true
+http.workspace = true
+
 [dev-dependencies]
 rstest.workspace = true
 

@@ -147,6 +147,7 @@ alloy-transport-http = { version = "1.0.38", default-features = false }
 alloy-rpc-types-engine = { version = "1.0.38", default-features = false }
 alloy-rpc-types-beacon = { version = "1.0.38", default-features = false }
 alloy-network-primitives = { version = "1.0.38", default-features = false }
+alloy-json-rpc = { version = "1.0.38", default-features = false }
 
 # OP Alloy
 op-alloy-network = { version = "0.21.0", default-features = false }
@@ -156,6 +157,7 @@ op-alloy-consensus = { version = "0.21.0", default-features = false }
 op-alloy-rpc-types = { version = "0.21.0", default-features = false }
 op-alloy-rpc-jsonrpsee = { version = "0.21.0", default-features = false }
 op-alloy-rpc-types-engine = { version = "0.21.0", default-features = false }
+op-alloy-rpc-types-engine-v20 = { package = "op-alloy-rpc-types-engine", version = "0.20.0" }
 
 # Execution
 revm = { version = "30.0.0", default-features = false }
@@ -268,6 +270,11 @@ c-kzg = { version = "2.1.1", default-features = false }
 ark-ff = { version = "0.5.0", default-features = false }
 secp256k1 = { version = "0.31.0", default-features = false }
 ark-bls12-381 = { version = "0.5.0", default-features = false }
+
+# Rollup Boost (required for rollup-boost integration)
+rollup-boost = { git = "https://github.com/teddyknox/rollup-boost.git", rev = "3a9b9a0da0b7b33646f3143a5d2f8afcc595aeaa" }
+parking_lot = "0.12.3"
+http = "1.0"
 
 [patch.crates-io]
 # revm

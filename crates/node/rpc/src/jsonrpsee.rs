@@ -13,6 +13,7 @@ use kona_genesis::RollupConfig;
 use kona_gossip::{PeerCount, PeerDump, PeerInfo, PeerStats};
 use kona_protocol::SyncStatus;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
+use rollup_boost::{GetExecutionModeResponse, SetExecutionModeRequest, SetExecutionModeResponse};
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), allow(unused_imports))]
 use getrandom as _; // required for compiling wasm32-unknown-unknown
@@ -193,4 +194,15 @@ pub trait AdminApi {
     /// Overrides the leader in the conductor.
     #[method(name = "overrideLeader")]
     async fn admin_override_leader(&self) -> RpcResult<()>;
+
+    /// Sets the rollup boost execution mode.
+    #[method(name = "setExecutionMode")]
+    async fn set_execution_mode(
+        &self,
+        request: SetExecutionModeRequest,
+    ) -> RpcResult<SetExecutionModeResponse>;
+
+    /// Gets the rollup boost execution mode.
+    #[method(name = "getExecutionMode")]
+    async fn get_execution_mode(&self) -> RpcResult<GetExecutionModeResponse>;
 }

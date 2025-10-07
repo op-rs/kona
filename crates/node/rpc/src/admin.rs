@@ -1,5 +1,7 @@
 //! Admin RPC Module
 
+use std::sync::Arc;
+
 use crate::AdminApiServer;
 use alloy_primitives::B256;
 use async_trait::async_trait;
@@ -8,6 +10,11 @@ use jsonrpsee::{
     types::{ErrorCode, ErrorObject},
 };
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
+use parking_lot::Mutex;
+use rollup_boost::{
+    ExecutionMode, GetExecutionModeResponse, SetExecutionModeRequest, SetExecutionModeResponse,
+    update_execution_mode_gauge,
+};
 use tokio::sync::oneshot;
 
 /// The query types to the sequencer actor for the admin api.
@@ -47,6 +54,37 @@ pub struct AdminRpc {
     pub sequencer_sender: Option<SequencerQuerySender>,
     /// The sender to the network actor.
     pub network_sender: NetworkAdminQuerySender,
+    /// RollupBoostServer reference for updating the execution mode
+    pub rollup_boost_execution_mode: Arc<Mutex<ExecutionMode>>,
+}
+
+impl AdminRpc {
+    /// Constructs a new [`AdminRpc`] given the sequencer sender, network sender, and execution mode.
+    ///
+    /// # Parameters
+    ///
+    /// - `sequencer_sender`: The sender to the sequencer actor.
+    /// - `network_sender`: The sender to the network actor.
+    /// - `execution_mode`: The rollup boost execution mode.
+    ///
+    /// # Returns
+    ///
+    /// A new [`AdminRpc`] instance.
+    pub fn new(sequencer_sender: Option<SequencerQuerySender>, network_sender: NetworkAdminQuerySender, rollup_boost_execution_mode: Arc<Mutex<ExecutionMode>>) -> Self {
+        update_execution_mode_gauge(*rollup_boost_execution_mode.lock());
+        Self { sequencer_sender, network_sender, rollup_boost_execution_mode }
+    }
+
+    /// Get the current execution mode.
+    pub fn execution_mode(&self) -> ExecutionMode {
+        *self.rollup_boost_execution_mode.lock()
+    }
+
+    /// Set the current execution mode.
+    pub fn set_execution_mode(&self, mode: ExecutionMode) {
+        *self.rollup_boost_execution_mode.lock() = mode;
+        update_execution_mode_gauge(mode);
+    }
 }
 
 #[async_trait]
@@ -140,5 +178,18 @@ impl AdminApiServer for AdminRpc {
             .send(SequencerAdminQuery::OverrideLeader)
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+    }
+
+    async fn set_execution_mode(
+        &self,
+        request: SetExecutionModeRequest,
+    ) -> RpcResult<SetExecutionModeResponse> {
+        self.set_execution_mode(request.execution_mode);
+        tracing::info!("Set execution mode to {:?}", request.execution_mode);
+        Ok(SetExecutionModeResponse { execution_mode: request.execution_mode })
+    }
+
+    async fn get_execution_mode(&self) -> RpcResult<GetExecutionModeResponse> {
+        Ok(GetExecutionModeResponse { execution_mode: self.execution_mode() })
     }
 }

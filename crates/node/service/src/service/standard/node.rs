@@ -19,7 +19,6 @@ use kona_rpc::RpcBuilder;
 
 /// The standard implementation of the [RollupNode] service, using the governance approved OP Stack
 /// configuration of components.
-#[derive(Debug)]
 pub struct RollupNode {
     /// The rollup configuration.
     pub(crate) config: Arc<RollupConfig>,
@@ -45,6 +44,22 @@ pub struct RollupNode {
     pub(crate) p2p_config: NetworkConfig,
     /// The [`SequencerConfig`] for the node.
     pub(crate) sequencer_config: SequencerConfig,
+}
+
+impl std::fmt::Debug for RollupNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RollupNode")
+            .field("config", &self.config)
+            .field("l1_config", &self.l1_config)
+            .field("interop_mode", &self.interop_mode)
+            .field("l1_trust_rpc", &self.l1_trust_rpc)
+            .field("l2_trust_rpc", &self.l2_trust_rpc)
+            .field("engine_builder", &"<dyn EngineApiExt>")
+            .field("rpc_builder", &self.rpc_builder)
+            .field("p2p_config", &self.p2p_config)
+            .field("sequencer_config", &self.sequencer_config)
+            .finish()
+    }
 }
 
 impl RollupNode {

@@ -1,6 +1,6 @@
 //! An Engine API Client.
 
-use crate::Metrics;
+use crate::{Metrics, RollupBoostServerLike};
 use alloy_eips::eip1898::BlockNumberOrTag;
 use alloy_network::Network;
 use alloy_primitives::{B256, BlockHash, Bytes};
@@ -30,7 +30,7 @@ use op_alloy_rpc_types_engine::{
     OpExecutionPayloadEnvelopeV3, OpExecutionPayloadEnvelopeV4, OpExecutionPayloadV4,
     OpPayloadAttributes, ProtocolVersion,
 };
-use std::{sync::Arc, time::Instant};
+use std::{future::Future, pin::Pin, sync::Arc, time::Instant};
 use thiserror::Error;
 use tower::ServiceBuilder;
 use url::Url;
@@ -74,7 +74,9 @@ type HyperAuthClient<B = Full<Bytes>> = HyperClient<B, AuthService<Client<HttpCo
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Debug, Deref, Clone)]
+
+/// Engine API client used to communicate with L1/L2 ELs and optional rollup-boost.
+#[derive(Deref, Clone)]
 pub struct EngineClient {
     /// The L2 engine provider for Engine API calls.
     #[deref]
@@ -83,19 +85,31 @@ pub struct EngineClient {
     l1_provider: RootProvider,
     /// The [`RollupConfig`] for determining Engine API versions based on hardfork activations.
     cfg: Arc<RollupConfig>,
+    // The rollup boost server
+    rollup_boost: Option<Arc<Box<dyn RollupBoostServerLike + Send + Sync>>>,
+}
+
+impl std::fmt::Debug for EngineClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EngineClient")
+            .field("engine", &"<RootProvider<Optimism>>")
+            .field("l1_provider", &"<RootProvider>")
+            .field("cfg", &"<RollupConfig>")
+            .field("rollup_boost", &if self.rollup_boost.is_some() { "Some(..)" } else { "None" })
+            .finish()
+    }
 }
 
 impl EngineClient {
     /// Creates a new RPC client for the given address and JWT secret.
-    fn rpc_client<T: Network>(addr: Url, jwt: JwtSecret) -> RootProvider<T> {
+    fn rpc_client<N: Network>(addr: Url, jwt: JwtSecret) -> RootProvider<N> {
         let hyper_client = Client::builder(TokioExecutor::new()).build_http::<Full<Bytes>>();
         let auth_layer = AuthLayer::new(jwt);
         let service = ServiceBuilder::new().layer(auth_layer).service(hyper_client);
         let layer_transport = HyperClient::with_service(service);
-
         let http_hyper = Http::with_client(layer_transport, addr);
         let rpc_client = RpcClient::new(http_hyper, false);
-        RootProvider::<T>::new(rpc_client)
+        RootProvider::<N>::new(rpc_client)
     }
 
     /// Creates a new [`EngineClient`] with authenticated HTTP connections.
@@ -109,11 +123,11 @@ impl EngineClient {
     /// * `l1_rpc` - L1 chain RPC endpoint URL
     /// * `cfg` - Rollup configuration for version selection
     /// * `jwt` - JWT secret for authentication
-    pub fn new_http(engine: Url, l1_rpc: Url, cfg: Arc<RollupConfig>, jwt: JwtSecret) -> Self {
+    /// * `rollup_boost` – Rollup boost engine API implementation
+    pub fn new_http(engine: Url, l1_rpc: Url, cfg: Arc<RollupConfig>, jwt: JwtSecret, rollup_boost: Option<Arc<Box<dyn RollupBoostServerLike + Send + Sync>>>) -> Self {
         let engine = Self::rpc_client::<Optimism>(engine, jwt);
         let l1_provider = RootProvider::new_http(l1_rpc);
-
-        Self { engine, l1_provider, cfg }
+        Self { engine, l1_provider, cfg, rollup_boost }
     }
 
     /// Returns a reference to the inner L2 [`RootProvider`].
@@ -172,11 +186,22 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
         payload: ExecutionPayloadV3,
         parent_beacon_block_root: B256,
     ) -> TransportResult<PayloadStatus> {
-        let call = <RootProvider<Optimism> as OpEngineApi<
-            Optimism,
-            Http<HyperAuthClient>,
-        >>::new_payload_v3(&self.engine, payload, parent_beacon_block_root);
-
+        let call: Pin<Box<dyn Future<Output = TransportResult<PayloadStatus>> + Send + '_>> =
+            match self.rollup_boost.as_ref() {
+                Some(rb) => {
+                    let rb = rb.clone();
+                    Box::pin(async move {
+                        rb.new_payload_v3(payload, vec![], parent_beacon_block_root)
+                            .await
+                            .map_err(|e| TransportErrorKind::custom(e))
+                    })
+                }
+                None => Box::pin(async move {
+                    <RootProvider<Optimism> as OpEngineApi<Optimism, Http<HyperAuthClient>>>
+                        ::new_payload_v3(&self.engine, payload, parent_beacon_block_root)
+                        .await
+                }),
+            };
         record_call_time(call, Metrics::NEW_PAYLOAD_METHOD).await
     }
 
@@ -185,10 +210,22 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
         payload: OpExecutionPayloadV4,
         parent_beacon_block_root: B256,
     ) -> TransportResult<PayloadStatus> {
-        let call = <RootProvider<Optimism> as OpEngineApi<
-            Optimism,
-            Http<HyperAuthClient>,
-        >>::new_payload_v4(&self.engine, payload, parent_beacon_block_root);
+        let call: Pin<Box<dyn Future<Output = TransportResult<PayloadStatus>> + Send + '_>> =
+            match self.rollup_boost.as_ref() {
+                Some(rb) => {
+                    let rb = rb.clone();
+                    Box::pin(async move {
+                        rb.new_payload_v4(payload.clone(), vec![], parent_beacon_block_root, vec![])
+                            .await
+                            .map_err(|e| TransportErrorKind::custom(e))
+                    })
+                }
+                None => Box::pin(async move {
+                    <RootProvider<Optimism> as OpEngineApi<Optimism, Http<HyperAuthClient>>>
+                            ::new_payload_v4(&self.engine, payload, parent_beacon_block_root)
+                            .await
+                }),
+            };
 
         record_call_time(call, Metrics::NEW_PAYLOAD_METHOD).await
     }
@@ -211,10 +248,22 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
         fork_choice_state: ForkchoiceState,
         payload_attributes: Option<OpPayloadAttributes>,
     ) -> TransportResult<ForkchoiceUpdated> {
-        let call = <RootProvider<Optimism> as OpEngineApi<
-            Optimism,
-            Http<HyperAuthClient>,
-        >>::fork_choice_updated_v3(&self.engine, fork_choice_state, payload_attributes);
+        let call: Pin<Box<dyn Future<Output = TransportResult<ForkchoiceUpdated>> + Send + '_>> =
+            match self.rollup_boost.as_ref() {
+                Some(rb) => {
+                    let rb = rb.clone();
+                    Box::pin(async move {
+                        rb.fork_choice_updated_v3(fork_choice_state, payload_attributes)
+                            .await
+                            .map_err(|e| TransportErrorKind::custom(e))
+                    })
+                }
+                None => Box::pin(async move {
+                    <RootProvider<Optimism> as OpEngineApi<Optimism, Http<HyperAuthClient>>>
+                            ::fork_choice_updated_v3(&self.engine, fork_choice_state, payload_attributes)
+                            .await
+                }),
+            };
 
         record_call_time(call, Metrics::FORKCHOICE_UPDATE_METHOD).await
     }
@@ -235,10 +284,21 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
         &self,
         payload_id: PayloadId,
     ) -> TransportResult<OpExecutionPayloadEnvelopeV3> {
-        let call = <RootProvider<Optimism> as OpEngineApi<
-            Optimism,
-            Http<HyperAuthClient>,
-        >>::get_payload_v3(&self.engine, payload_id);
+        let call: Pin<
+            Box<dyn Future<Output = TransportResult<OpExecutionPayloadEnvelopeV3>> + Send + '_>,
+        > = match self.rollup_boost.as_ref() {
+            Some(rb) => {
+                let rb = rb.clone();
+                Box::pin(async move {
+                    rb.get_payload_v3(payload_id).await.map_err(|e| TransportErrorKind::custom(e))
+                })
+            }
+            None => Box::pin(async move {
+                <RootProvider<Optimism> as OpEngineApi<Optimism, Http<HyperAuthClient>>>
+                            ::get_payload_v3(&self.engine, payload_id)
+                            .await
+            }),
+        };
 
         record_call_time(call, Metrics::GET_PAYLOAD_METHOD).await
     }
@@ -247,10 +307,21 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
         &self,
         payload_id: PayloadId,
     ) -> TransportResult<OpExecutionPayloadEnvelopeV4> {
-        let call = <RootProvider<Optimism> as OpEngineApi<
-            Optimism,
-            Http<HyperAuthClient>,
-        >>::get_payload_v4(&self.engine, payload_id);
+        let call: Pin<
+            Box<dyn Future<Output = TransportResult<OpExecutionPayloadEnvelopeV4>> + Send + '_>,
+        > = match self.rollup_boost.as_ref() {
+            Some(rb) => {
+                let rb = rb.clone();
+                Box::pin(async move {
+                    rb.get_payload_v4(payload_id).await.map_err(|e| TransportErrorKind::custom(e))
+                })
+            }
+            None => Box::pin(async move {
+                <RootProvider<Optimism> as OpEngineApi<Optimism, Http<HyperAuthClient>>>
+                            ::get_payload_v4(&self.engine, payload_id)
+                            .await
+            }),
+        };
 
         record_call_time(call, Metrics::GET_PAYLOAD_METHOD).await
     }

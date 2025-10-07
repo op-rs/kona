@@ -8,11 +8,13 @@ use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
     BuildTask, ConsolidateTask, Engine, EngineClient, EngineQueries,
     EngineState as InnerEngineState, EngineTask, EngineTaskError, EngineTaskErrorSeverity,
-    InsertTask,
+    InsertTask, RollupBoostServerLike,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
+use parking_lot::Mutex;
+use rollup_boost::ExecutionMode;
 use std::sync::Arc;
 use tokio::{
     sync::{mpsc, oneshot, watch},
@@ -47,6 +49,8 @@ pub struct EngineActor {
         Option<mpsc::Receiver<(OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>>,
     /// The [`L2Finalizer`], used to finalize L2 blocks.
     finalizer: L2Finalizer,
+    /// Shared execution mode handle (from rollup-boost), exposed for RPC wiring.
+    pub rollup_boost_execution_mode: Arc<Mutex<ExecutionMode>>,
 }
 
 /// The outbound data for the [`EngineActor`].
@@ -75,6 +79,8 @@ pub struct EngineInboundData {
     pub inbound_queries_tx: mpsc::Sender<EngineQueries>,
     /// A channel that sends new finalized L1 blocks intermittently.
     pub finalized_l1_block_tx: watch::Sender<Option<BlockInfo>>,
+    /// Rollup boost execution mode field
+    pub rollup_boost_execution_mode: Arc<Mutex<ExecutionMode>>,
 }
 
 /// Configuration for the Engine Actor.
@@ -92,6 +98,10 @@ pub struct EngineBuilder {
     /// When the node is in sequencer mode, the engine actor will receive requests to build blocks
     /// from the sequencer actor.
     pub mode: NodeMode,
+    /// The rollup boost server implementation
+    pub rollup_boost: Option<Arc<Box<dyn RollupBoostServerLike + Send + Sync>>>,
+    /// Rollup boost execution mode
+    pub rollup_boost_execution_mode: Arc<Mutex<ExecutionMode>>,
 }
 
 impl EngineBuilder {
@@ -117,6 +127,7 @@ impl EngineBuilder {
             self.l1_rpc_url.clone(),
             self.config.clone(),
             self.jwt_secret,
+            self.rollup_boost.clone(),
         )
         .into()
     }
@@ -174,6 +185,8 @@ impl EngineActor {
             (None, None)
         };
 
+        let rollup_boost_execution_mode = config.rollup_boost_execution_mode.clone();
+
         let actor = Self {
             builder: config,
             attributes_rx,
@@ -182,6 +195,7 @@ impl EngineActor {
             inbound_queries: inbound_queries_rx,
             build_request_rx,
             finalizer: L2Finalizer::new(finalized_l1_block_rx),
+            rollup_boost_execution_mode: rollup_boost_execution_mode.clone(),
         };
 
         let outbound_data = EngineInboundData {
@@ -191,6 +205,7 @@ impl EngineActor {
             attributes_tx,
             unsafe_block_tx,
             reset_request_tx,
+            rollup_boost_execution_mode,
         };
 
         (outbound_data, actor)
