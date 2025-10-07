@@ -4,17 +4,28 @@ use crate::{
     flags::{GlobalArgs, P2PArgs, RpcArgs, SequencerArgs},
     metrics::{CliMetrics, init_rollup_config_metrics},
 };
+use alloy_primitives::hex as alloy_hex;
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use backon::{ExponentialBuilder, Retryable};
 use clap::Parser;
+use http::Uri;
 use kona_cli::{LogConfig, MetricsArgs};
+use kona_engine::EngineClient;
 use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_node_service::{NodeMode, RollupNode, RollupNodeService};
 use kona_registry::{L1Config, scr_rollup_config_by_alloy_ident};
 use op_alloy_provider::ext::engine::OpEngineApi;
+use rollup_boost::{
+    BlockSelectionPolicy, BuilderArgs, ExecutionMode, FlashblocksArgs, L2ClientArgs,
+    RollupBoostArgs,
+};
 use serde_json::from_reader;
-use std::{fs::File, path::PathBuf, sync::Arc};
+use std::{
+    fs::File,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 use strum::IntoEnumIterator;
 use tracing::{debug, error, info};
 use url::Url;
@@ -79,6 +90,8 @@ pub struct NodeCommand {
         )
     )]
     pub node_mode: NodeMode,
+
+    // L1 config flags
     /// URL of the L1 execution client RPC API.
     #[arg(long, visible_alias = "l1", env = "KONA_NODE_L1_ETH_RPC")]
     pub l1_eth_rpc: Url,
@@ -94,6 +107,12 @@ pub struct NodeCommand {
     /// URL of the L1 beacon API.
     #[arg(long, visible_alias = "l1.beacon", env = "KONA_NODE_L1_BEACON")]
     pub l1_beacon: Url,
+    /// Path to a custom L1 rollup configuration file
+    /// (overrides the default rollup configuration from the registry)
+    #[arg(long, visible_alias = "rollup-l1-cfg", env = "KONA_NODE_L1_CHAIN_CONFIG")]
+    pub l1_config_file: Option<PathBuf>,
+
+    // L2 engine flags
     /// URL of the engine API endpoint of an L2 execution client.
     #[arg(long, visible_alias = "l2", env = "KONA_NODE_L2_ENGINE_RPC")]
     pub l2_engine_rpc: Url,
@@ -114,10 +133,87 @@ pub struct NodeCommand {
     /// (overrides the default rollup configuration from the registry)
     #[arg(long, visible_alias = "rollup-cfg", env = "KONA_NODE_ROLLUP_CONFIG")]
     pub l2_config_file: Option<PathBuf>,
-    /// Path to a custom L1 rollup configuration file
-    /// (overrides the default rollup configuration from the registry)
-    #[arg(long, visible_alias = "rollup-l1-cfg", env = "KONA_NODE_L1_CHAIN_CONFIG")]
-    pub l1_config_file: Option<PathBuf>,
+    /// Timeout for http calls in milliseconds
+    #[arg(long, visible_alias = "l2.client-timeout", env, default_value_t = 1000)]
+    pub l2_client_timeout: u64,
+
+    // Builder engine flags
+    /// URL of the engine API endpoint of an builder execution client.
+    #[arg(long, visible_alias = "builder", env = "KONA_NODE_BUILDER_ENGINE_RPC")]
+    pub builder_engine_rpc: Option<Url>,
+    /// JWT secret for the auth-rpc endpoint of the execution client.
+    /// This MUST be a valid path to a file containing the hex-encoded JWT secret.
+    /// If not provided defaults to the same as the l2_engine_jwt_secret.
+    #[arg(long, visible_alias = "builder.jwt-secret", env = "KONA_NODE_BUILDER_ENGINE_AUTH")]
+    pub builder_engine_jwt_secret: Option<PathBuf>,
+    /// Timeout for http calls in milliseconds
+    #[arg(long, visible_alias = "builder.client-timeout", env, default_value_t = 1000)]
+    pub builder_client_timeout: u64,
+    // /// Duration in seconds between async health checks on the builder
+    // #[arg(long, visible_alias = "builder.health-check-interval", env, default_value = "60")]
+    // pub builder_health_check_interval: u64,
+    // /// Max duration in seconds between the unsafe head block of the builder and the current
+    // time #[arg(long, visible_alias = "builder.max-unsafe-interval", env, default_value =
+    // "10")] pub builder_max_unsafe_interval: u64,
+
+    // Rollup boost flags
+    /// Execution mode to start rollup boost with
+    #[arg(long, visible_alias = "rollup-boost.execution-mode", env, default_value = "disabled")]
+    pub rollup_boost_execution_mode: ExecutionMode,
+    /// Block selection policy to use
+    #[arg(long, visible_alias = "rollup-boost.block-selection-policy", env)]
+    pub rollup_boost_block_selection_policy: Option<BlockSelectionPolicy>,
+    /// Should we use the l2 client for computing state root
+    #[arg(
+        long,
+        visible_alias = "rollup-boost.use-external-state-root",
+        env,
+        default_value = "false"
+    )]
+    pub rollup_boost_external_state_root: bool,
+    /// Allow all engine API calls to builder even when marked as unhealthy
+    /// This is default true assuming no builder CL set up
+    #[arg(
+        long,
+        visible_alias = "rollup-boost.ignore-unhealthy-builders",
+        env,
+        default_value = "false"
+    )]
+    pub rollup_boost_ignore_unhealthy_builders: bool,
+
+    // Rollup boost flashblocks flags
+    /// Enable Flashblocks client
+    #[arg(long, visible_alias = "rollup-boost.flashblocks.enabled", env, default_value = "false")]
+    pub flashblocks_enabled: bool,
+    /// Flashblocks Builder WebSocket URL
+    #[arg(long, visible_alias = "rollup-boost.flashblocks.builder-websocket-url", env)]
+    pub flashblocks_builder_websocket_url: Option<Url>,
+    /// Flashblocks WebSocket host for outbound connections
+    #[arg(
+        long,
+        visible_alias = "rollup-boost.flashblocks.builder-websocket-host",
+        env,
+        default_value = "127.0.0.1"
+    )]
+    pub flashblocks_builder_websocket_host: String,
+    /// Flashblocks WebSocket port for outbound connections
+    #[arg(
+        long,
+        visible_alias = "rollup-boost.flashblocks.builder-websocket-port",
+        env,
+        default_value = "1112"
+    )]
+    pub flashblocks_builder_websocket_port: u16,
+    /// Time used for timeout if builder disconnected
+    #[arg(
+        long,
+        visible_alias = "rollup-boost.flashblocks.builder-websocket-reconnect-ms",
+        env,
+        default_value = "5000"
+    )]
+    pub flashblocks_builder_websocket_reconnect_ms: u64,
+
+    // Subfeature flags
     /// P2P CLI arguments.
     #[command(flatten)]
     pub p2p_flags: P2PArgs,
@@ -132,15 +228,35 @@ pub struct NodeCommand {
 impl Default for NodeCommand {
     fn default() -> Self {
         Self {
-            l1_eth_rpc: Url::parse("http://localhost:8545").unwrap(),
-            l1_trust_rpc: true,
-            l1_beacon: Url::parse("http://localhost:5052").unwrap(),
-            l2_engine_rpc: Url::parse("http://localhost:8551").unwrap(),
-            l2_trust_rpc: true,
-            l2_engine_jwt_secret: None,
-            l2_config_file: None,
-            l1_config_file: None,
             node_mode: NodeMode::Validator,
+
+            l1_config_file: None,
+            l1_trust_rpc: true,
+            l1_eth_rpc: Url::parse("http://localhost:8545").unwrap(),
+            l1_beacon: Url::parse("http://localhost:5052").unwrap(),
+
+            l2_config_file: None,
+            l2_trust_rpc: true,
+            l2_engine_rpc: Url::parse("http://localhost:8551").unwrap(),
+            l2_engine_jwt_secret: None,
+            l2_client_timeout: 1000,
+
+            builder_engine_rpc: Some(Url::parse("http://localhost:8551").unwrap()),
+            builder_engine_jwt_secret: None,
+            builder_client_timeout: 1000,
+            // builder_health_check_interval: 60,
+            // builder_max_unsafe_interval: 10,
+            rollup_boost_execution_mode: ExecutionMode::Enabled,
+            rollup_boost_block_selection_policy: None,
+            rollup_boost_external_state_root: false,
+            rollup_boost_ignore_unhealthy_builders: false,
+
+            flashblocks_enabled: false,
+            flashblocks_builder_websocket_url: None,
+            flashblocks_builder_websocket_host: "127.0.0.1".to_string(),
+            flashblocks_builder_websocket_port: 1112,
+            flashblocks_builder_websocket_reconnect_ms: 5000,
+
             p2p_flags: P2PArgs::default(),
             rpc_flags: RpcArgs::default(),
             sequencer_flags: SequencerArgs::default(),
@@ -235,12 +351,13 @@ impl NodeCommand {
     /// Since the engine client will fail if the jwt token is invalid, this allows to ensure
     /// that the jwt token passed as a cli arg is correct.
     pub async fn validate_jwt(&self, config: &RollupConfig) -> anyhow::Result<JwtSecret> {
-        let jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
-        let engine_client = kona_engine::EngineClient::new_http(
+        let jwt_secret = self.l2_jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
+        let engine_client = EngineClient::new_http(
             self.l2_engine_rpc.clone(),
             self.l1_eth_rpc.clone(),
             Arc::new(config.clone()),
             jwt_secret,
+            None,
         );
 
         let exchange = || async {
@@ -273,8 +390,22 @@ impl NodeCommand {
             .await
     }
 
+    /// Validate that required builder flags are present when execution mode is enabled.
+    pub fn validate_builder_flags(&self) -> anyhow::Result<()> {
+        if self.flashblocks_enabled && self.flashblocks_builder_websocket_url.is_none() {
+            bail!(
+                "Flashblocks builder WebSocket URL is required when flashblocks is enabled. Either set --rollup-boost.flashblocks.builder-websocket-url or disable flashblocks with --rollup-boost.flashblocks.enabled=false"
+            );
+        }
+
+        Ok(())
+    }
+
     /// Run the Node subcommand.
     pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
+        // Validate builder configuration
+        self.validate_builder_flags()?;
+
         let cfg = self.get_l2_config(args)?;
         let l1_cfg = self.get_l1_config(cfg.l1_chain_id)?;
 
@@ -284,8 +415,9 @@ impl NodeCommand {
         let jwt_secret = self.validate_jwt(&cfg).await?;
 
         self.p2p_flags.check_ports()?;
-        let p2p_config = self.p2p_flags.config(&cfg, args, Some(self.l1_eth_rpc.clone())).await?;
-        let rpc_config = self.rpc_flags.into();
+        let p2p_config =
+            self.p2p_flags.clone().config(&cfg, args, Some(self.l1_eth_rpc.clone())).await?;
+        let rpc_config = self.rpc_flags.clone().into();
 
         info!(
             target: "rollup_node",
@@ -299,14 +431,15 @@ impl NodeCommand {
         RollupNode::builder(cfg, l1_cfg)
             .with_mode(self.node_mode)
             .with_jwt_secret(jwt_secret)
-            .with_l1_provider_rpc_url(self.l1_eth_rpc)
+            .with_l1_provider_rpc_url(self.l1_eth_rpc.clone())
             .with_l1_trust_rpc(self.l1_trust_rpc)
-            .with_l1_beacon_api_url(self.l1_beacon)
-            .with_l2_engine_rpc_url(self.l2_engine_rpc)
+            .with_l1_beacon_api_url(self.l1_beacon.clone())
+            .with_l2_engine_rpc_url(self.l2_engine_rpc.clone())
             .with_l2_trust_rpc(self.l2_trust_rpc)
             .with_p2p_config(p2p_config)
             .with_rpc_config(rpc_config)
             .with_sequencer_config(self.sequencer_flags.config())
+            .with_rollup_boost_args(self.get_rollup_boost_args())
             .build()
             .start()
             .await
@@ -356,16 +489,29 @@ impl NodeCommand {
         }
     }
 
-    /// Returns the JWT secret for the engine API
+    /// Returns the L2 JWT secret for the engine API
     /// using the provided [PathBuf]. If the file is not found,
     /// it will return the default JWT secret.
-    pub fn jwt_secret(&self) -> Option<JwtSecret> {
+    pub fn l2_jwt_secret(&self) -> Option<JwtSecret> {
         if let Some(path) = &self.l2_engine_jwt_secret {
             if let Ok(secret) = std::fs::read_to_string(path) {
                 return JwtSecret::from_hex(secret).ok();
             }
         }
         Self::default_jwt_secret()
+    }
+
+    /// Returns the builder JWT secret for the engine API
+    /// using the provided [PathBuf]. If the file is not found,
+    /// it will return the default JWT secret.
+    pub fn builder_jwt_secret(&self) -> Option<JwtSecret> {
+        if let Some(path) = &self.builder_engine_jwt_secret {
+            if let Ok(secret) = std::fs::read_to_string(path) {
+                return JwtSecret::from_hex(secret).ok();
+            }
+        }
+        // Sensible default: if builder jwt not provided, reuse L2 client jwt token
+        self.l2_jwt_secret()
     }
 
     /// Uses the current directory to attempt to read
@@ -388,6 +534,54 @@ impl NodeCommand {
             },
             |content| JwtSecret::from_hex(content).ok(),
         )
+    }
+
+    /// Get the rollup boost args, by packaging the various settings for the rollup boost server
+    /// into a single struct.
+    pub fn get_rollup_boost_args(&self) -> RollupBoostArgs {
+        // Use builder_engine_rpc if provided, otherwise fall back to l2_engine_rpc
+        let builder_url = self
+            .builder_engine_rpc
+            .as_ref()
+            .map(|url| url.to_string().parse::<Uri>().unwrap())
+            .unwrap_or_else(|| "http://127.0.0.1:8551".to_string().parse::<Uri>().unwrap());
+
+        // Build L2 client JWT: if a path is provided, read it robustly and also pass the path as
+        // fallback.
+        let l2_jwt_token = self.l2_jwt_secret();
+        let builder_jwt_token = self.builder_jwt_secret();
+
+        RollupBoostArgs {
+            builder: BuilderArgs {
+                builder_url,
+                builder_jwt_token,
+                builder_timeout: self.builder_client_timeout,
+                builder_jwt_path: None,
+            },
+            l2_client: L2ClientArgs {
+                l2_url: self.l2_engine_rpc.to_string().parse::<Uri>().unwrap(),
+                l2_jwt_token,
+                l2_jwt_path: None,
+                l2_timeout: self.l2_client_timeout,
+            },
+            execution_mode: self.rollup_boost_execution_mode,
+            block_selection_policy: self.rollup_boost_block_selection_policy,
+            external_state_root: self.rollup_boost_external_state_root,
+            ignore_unhealthy_builders: self.rollup_boost_ignore_unhealthy_builders,
+            // log_config.global_level == None when logging should be disabled, setting to error is
+            // closest to this
+            flashblocks: FlashblocksArgs {
+                flashblocks: self.flashblocks_enabled,
+                flashblocks_builder_url: self
+                    .flashblocks_builder_websocket_url
+                    .clone()
+                    .unwrap_or_else(|| "ws://127.0.0.1:1111".parse::<Url>().unwrap()),
+                flashblocks_host: self.flashblocks_builder_websocket_host.clone(),
+                flashblocks_port: self.flashblocks_builder_websocket_port,
+                flashblock_builder_ws_reconnect_ms: self.flashblocks_builder_websocket_reconnect_ms,
+            },
+            ..Default::default()
+        }
     }
 }
 
