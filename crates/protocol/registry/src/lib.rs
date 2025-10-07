@@ -10,6 +10,7 @@
 extern crate alloc;
 
 pub use alloy_primitives::map::HashMap;
+use kona_genesis::L1ChainConfig;
 pub use kona_genesis::{ChainConfig, RollupConfig};
 
 pub mod chain_list;
@@ -17,6 +18,10 @@ pub use chain_list::{Chain, ChainList};
 
 pub mod superchain;
 pub use superchain::Registry;
+
+/// L1 chain configurations.
+pub mod l1;
+pub use l1::L1Config;
 
 #[cfg(test)]
 pub mod test_utils;
@@ -33,6 +38,10 @@ lazy_static::lazy_static! {
 
     /// Rollup configurations exported from the registry
     pub static ref ROLLUP_CONFIGS: HashMap<u64, RollupConfig> = _INIT.rollup_configs.clone();
+
+    /// L1 chain configurations exported from the registry
+    /// Note: the l1 chain configurations are not exported from the superchain registry but rather from a genesis dump file.
+    pub static ref L1_CONFIGS: HashMap<u64, L1ChainConfig> = _INIT.l1_configs.clone();
 }
 
 /// Returns a [RollupConfig] by its identifier.

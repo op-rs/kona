@@ -464,6 +464,7 @@ impl OpHardforks for RollupConfig {
                 .interop_time
                 .map(ForkCondition::Timestamp)
                 .unwrap_or(ForkCondition::Never),
+            _ => ForkCondition::Never,
         }
     }
 }

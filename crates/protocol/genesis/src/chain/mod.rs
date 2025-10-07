@@ -16,7 +16,7 @@ mod addresses;
 pub use addresses::AddressList;
 
 mod config;
-pub use config::ChainConfig;
+pub use config::{ChainConfig, L1ChainConfig};
 
 mod altda;
 pub use altda::AltDAConfig;

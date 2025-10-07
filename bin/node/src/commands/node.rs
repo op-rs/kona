@@ -9,9 +9,9 @@ use anyhow::{Result, bail};
 use backon::{ExponentialBuilder, Retryable};
 use clap::Parser;
 use kona_cli::{LogConfig, MetricsArgs};
-use kona_genesis::RollupConfig;
+use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_node_service::{NodeMode, RollupNode, RollupNodeService};
-use kona_registry::scr_rollup_config_by_alloy_ident;
+use kona_registry::{L1Config, scr_rollup_config_by_alloy_ident};
 use op_alloy_provider::ext::engine::OpEngineApi;
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf, sync::Arc};
@@ -114,6 +114,10 @@ pub struct NodeCommand {
     /// (overrides the default rollup configuration from the registry)
     #[arg(long, visible_alias = "rollup-cfg", env = "KONA_NODE_ROLLUP_CONFIG")]
     pub l2_config_file: Option<PathBuf>,
+    /// Path to a custom L1 rollup configuration file
+    /// (overrides the default rollup configuration from the registry)
+    #[arg(long, visible_alias = "rollup-l1-cfg", env = "KONA_NODE_L1_CHAIN_CONFIG")]
+    pub l1_config_file: Option<PathBuf>,
     /// P2P CLI arguments.
     #[command(flatten)]
     pub p2p_flags: P2PArgs,
@@ -135,6 +139,7 @@ impl Default for NodeCommand {
             l2_trust_rpc: true,
             l2_engine_jwt_secret: None,
             l2_config_file: None,
+            l1_config_file: None,
             node_mode: NodeMode::Validator,
             p2p_flags: P2PArgs::default(),
             rpc_flags: RpcArgs::default(),
@@ -271,6 +276,7 @@ impl NodeCommand {
     /// Run the Node subcommand.
     pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
         let cfg = self.get_l2_config(args)?;
+        let l1_cfg = self.get_l1_config(cfg.l1_chain_id)?;
 
         // If metrics are enabled, initialize the global cli metrics.
         args.metrics.enabled.then(|| init_rollup_config_metrics(&cfg));
@@ -290,7 +296,7 @@ impl NodeCommand {
             info!(target: "rollup_node", "{hf}");
         }
 
-        RollupNode::builder(cfg)
+        RollupNode::builder(cfg, l1_cfg)
             .with_mode(self.node_mode)
             .with_jwt_secret(jwt_secret)
             .with_l1_provider_rpc_url(self.l1_eth_rpc)
@@ -310,6 +316,25 @@ impl NodeCommand {
             })?;
 
         Ok(())
+    }
+
+    /// Get the L1 config, either from a file or the known chains.
+    pub fn get_l1_config(&self, l1_chain_id: u64) -> Result<L1ChainConfig> {
+        match &self.l1_config_file {
+            Some(path) => {
+                debug!("Loading l1 config from file: {:?}", path);
+                let file = File::open(path)
+                    .map_err(|e| anyhow::anyhow!("Failed to open l1 config file: {}", e))?;
+                from_reader(file).map_err(|e| anyhow::anyhow!("Failed to parse l1 config: {}", e))
+            }
+            None => {
+                debug!("Loading l1 config from known chains");
+                let cfg = L1Config::get_l1_genesis(l1_chain_id).map_err(|e| {
+                    anyhow::anyhow!("Failed to find l1 config for chain ID {}: {}", l1_chain_id, e)
+                })?;
+                Ok(cfg.into())
+            }
+        }
     }
 
     /// Get the L2 rollup config, either from a file or the superchain registry.
