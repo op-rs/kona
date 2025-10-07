@@ -47,7 +47,7 @@ let l1_url = Url::parse("http://localhost:8545")?;
 let config = Arc::new(RollupConfig::default());
 let jwt = JwtSecret::from_hex("0xabcd")?;
 
-let client = EngineClient::new_http(engine_url, l1_url, config, jwt);
+let client = EngineClient::new_http(engine_url, l1_url, config, jwt, None);
 
 // Initialize engine state
 let state = EngineState::default();
