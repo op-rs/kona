@@ -175,7 +175,7 @@ where
                     .hash
                     .as_slice();
 
-                if sidecar.kzg_commitment.as_slice() != hash {
+                if sidecar.to_kzg_versioned_hash() != hash {
                     return Err(BlobProviderError::Backend("KZG commitment mismatch".to_string()));
                 }
 
