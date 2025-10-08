@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         kind: ["cannon"]
-        version: ["kona", "kona-int"]
+        version: ["kona-client", "kona-client-int"]
     steps: 
       - name: Checkout sources
         uses: actions/checkout@v5

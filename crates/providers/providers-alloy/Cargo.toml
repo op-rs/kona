@@ -47,6 +47,8 @@ reqwest = { workspace = true, features = ["json"] }
 tower.workspace = true
 http-body-util.workspace = true
 
+c-kzg.workspace = true
+
 # `metrics` feature
 metrics = { workspace = true, optional = true }
 
