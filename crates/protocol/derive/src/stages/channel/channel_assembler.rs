@@ -30,7 +30,7 @@ where
     pub cfg: Arc<RollupConfig>,
     /// The previous stage of the derivation pipeline.
     pub prev: P,
-    /// The current [Channel] being assembled.
+    /// The current [`Channel`] being assembled.
     pub channel: Option<Channel>,
 }
 
