@@ -11,7 +11,7 @@ use kona_genesis::RollupConfig;
 #[derive(Debug, Clone)]
 pub enum VariantCompressor {
     /// The brotli compressor.
-    Brotli(BrotliCompressor),
+    Brotli(Box<BrotliCompressor>),
     /// The zlib compressor.
     Zlib(ZlibCompressor),
 }
@@ -20,7 +20,7 @@ impl VariantCompressor {
     /// Constructs a [VariantCompressor] using the given [RollupConfig] and timestamp.
     pub fn from_timestamp(config: &RollupConfig, timestamp: u64) -> Self {
         if config.is_fjord_active(timestamp) {
-            Self::Brotli(BrotliCompressor::new(CompressionAlgo::Brotli10))
+            Self::Brotli(Box::new(BrotliCompressor::new(CompressionAlgo::Brotli10)))
         } else {
             Self::Zlib(ZlibCompressor::new())
         }
@@ -83,9 +83,9 @@ impl ChannelCompressor for VariantCompressor {
 impl From<CompressionAlgo> for VariantCompressor {
     fn from(algo: CompressionAlgo) -> Self {
         match algo {
-            lvl @ CompressionAlgo::Brotli9 => Self::Brotli(BrotliCompressor::new(lvl)),
-            lvl @ CompressionAlgo::Brotli10 => Self::Brotli(BrotliCompressor::new(lvl)),
-            lvl @ CompressionAlgo::Brotli11 => Self::Brotli(BrotliCompressor::new(lvl)),
+            lvl @ CompressionAlgo::Brotli9 => Self::Brotli(Box::new(BrotliCompressor::new(lvl))),
+            lvl @ CompressionAlgo::Brotli10 => Self::Brotli(Box::new(BrotliCompressor::new(lvl))),
+            lvl @ CompressionAlgo::Brotli11 => Self::Brotli(Box::new(BrotliCompressor::new(lvl))),
             CompressionAlgo::Zlib => Self::Zlib(ZlibCompressor::new()),
         }
     }
