@@ -158,8 +158,7 @@ impl CompressorWriter for BrotliCompressor {
 
     fn close(&mut self) -> CompressorResult<()> {
         if let Some(writer) = self.writer.take() {
-            let mut buf = writer.into_inner();
-            buf.flush().map_err(|_| CompressorError::Brotli)?;
+            drop(writer);
         }
         self.closed = true;
         Ok(())
