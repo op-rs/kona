@@ -1,7 +1,10 @@
 //! Contains brotli compression utilities.
 
 use crate::{ChannelCompressor, CompressorError, CompressorResult, CompressorWriter};
-use std::vec::Vec;
+use std::{cell::RefCell, io::Write, rc::Rc, vec::Vec};
+
+const DEFAULT_BROTLI_LGWIN: i32 = 22;
+const DEFAULT_BROTLI_BUFFER_SIZE: usize = 4096;
 
 /// The brotli encoding level used in Optimism.
 ///
@@ -33,24 +36,97 @@ pub enum BrotliCompressionError {
     CompressionError(#[from] std::io::Error),
 }
 
-/// The brotli compressor.
 #[derive(Debug, Clone)]
+struct BrotliBuffer(Rc<RefCell<Vec<u8>>>);
+
+impl BrotliBuffer {
+    /// Create a new BrotliBuffer.
+    pub(crate) fn new() -> Self {
+        Self(Rc::new(RefCell::new(Vec::new())))
+    }
+
+    /// Get the buffer.
+    pub(crate) fn get(&self) -> Rc<RefCell<Vec<u8>>> {
+        self.0.clone()
+    }
+
+    /// Returns the length of the buffer.
+    pub(crate) fn len(&self) -> usize {
+        self.0.borrow().len()
+    }
+}
+
+impl From<Vec<u8>> for BrotliBuffer {
+    fn from(vec: Vec<u8>) -> Self {
+        Self(Rc::new(RefCell::new(vec)))
+    }
+}
+
+impl Write for BrotliBuffer {
+    fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
+        self.0.borrow_mut().write(data)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.0.borrow_mut().flush()
+    }
+}
+
+/// The brotli compressor.
 pub struct BrotliCompressor {
-    /// The compressed bytes.
-    compressed: Vec<u8>,
-    /// The raw bytes (need to store on reset).
-    raw: Vec<u8>,
+    /// The buffer to store the compressed data.
+    buffer: BrotliBuffer,
     /// Marks that the compressor is closed.
     closed: bool,
     /// The compression level.
     pub level: BrotliLevel,
+    /// The brotli compressor writer.
+    writer: Option<brotli::CompressorWriter<BrotliBuffer>>,
+}
+
+impl std::fmt::Debug for BrotliCompressor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{{buffer:{:?}, closed:{}, level:{:?}}}",
+            self.buffer.get(),
+            self.closed,
+            self.level
+        )
+    }
+}
+
+impl Clone for BrotliCompressor {
+    fn clone(&self) -> Self {
+        let buffer = self.buffer.clone();
+
+        let writer = Some(Self::create_writer(&buffer, self.level));
+
+        Self { buffer, closed: false, level: self.level, writer }
+    }
 }
 
 impl BrotliCompressor {
     /// Creates a new brotli compressor with the given compression level.
     pub fn new(level: impl Into<BrotliLevel>) -> Self {
         let level = level.into();
-        Self { compressed: Vec::new(), raw: Vec::new(), closed: false, level }
+        let buffer = BrotliBuffer::new();
+        let writer = Some(Self::create_writer(&buffer, level));
+
+        Self { buffer, closed: false, level, writer }
+    }
+
+    fn create_writer(
+        buffer: &BrotliBuffer,
+        level: BrotliLevel,
+    ) -> brotli::CompressorWriter<BrotliBuffer> {
+        let params = brotli::enc::BrotliEncoderParams {
+            quality: level as i32,
+            lgwin: DEFAULT_BROTLI_LGWIN,
+            ..Default::default()
+        };
+
+        brotli::CompressorWriter::with_params(buffer.clone(), DEFAULT_BROTLI_BUFFER_SIZE, &params)
     }
 }
 
@@ -60,73 +136,55 @@ impl From<BrotliLevel> for BrotliCompressor {
     }
 }
 
-/// Compresses the given bytes data using the Brotli compressor implemented
-/// in the [`brotli`](https://crates.io/crates/brotli) crate.
-///
-/// Note: The level must be between 0 and 11. In Optimism, the levels 9, 10, and 11 are used.
-///       By default, [BrotliLevel::Brotli10] is used.
-#[allow(unused_variables)]
-#[allow(unused_mut)]
-pub fn compress_brotli(
-    mut input: &[u8],
-    level: BrotliLevel,
-) -> Result<Vec<u8>, BrotliCompressionError> {
-    use brotli::enc::{BrotliCompress, BrotliEncoderParams};
-    let mut output = alloc::vec![];
-    BrotliCompress(
-        &mut input,
-        &mut output,
-        &BrotliEncoderParams { quality: level as i32, ..Default::default() },
-    )?;
-    Ok(output)
-}
-
 impl CompressorWriter for BrotliCompressor {
     fn write(&mut self, data: &[u8]) -> CompressorResult<usize> {
         if self.closed {
             return Err(CompressorError::Brotli);
         }
 
-        // First append the new data to the raw buffer.
-        self.raw.extend_from_slice(data);
-
-        // Compress the raw buffer.
-        self.compressed =
-            compress_brotli(&self.raw, self.level).map_err(|_| CompressorError::Brotli)?;
-
-        Ok(data.len())
+        self.writer
+            .as_mut()
+            .ok_or(CompressorError::Brotli)?
+            .write(data)
+            .map_err(|_| CompressorError::Brotli)
     }
 
     fn flush(&mut self) -> CompressorResult<()> {
+        if let Some(writer) = self.writer.as_mut() {
+            writer.flush().map_err(|_| CompressorError::Brotli)?;
+        }
         Ok(())
     }
 
     fn close(&mut self) -> CompressorResult<()> {
-        self.flush()?;
+        if let Some(writer) = self.writer.take() {
+            let mut buf = writer.into_inner();
+            buf.flush().map_err(|_| CompressorError::Brotli)?;
+        }
         self.closed = true;
         Ok(())
     }
 
     fn reset(&mut self) {
         self.closed = false;
-        self.raw.clear();
-        self.compressed.clear();
+        self.buffer.get().borrow_mut().clear();
+        self.writer = Some(Self::create_writer(&self.buffer, self.level));
     }
 
     fn read(&mut self, buf: &mut [u8]) -> CompressorResult<usize> {
-        let len = self.compressed.len().min(buf.len());
-        buf[..len].copy_from_slice(&self.compressed[..len]);
+        let len = self.buffer.get().borrow().len().min(buf.len());
+        buf[..len].copy_from_slice(&self.buffer.get().borrow()[..len]);
         Ok(len)
     }
 
     fn len(&self) -> usize {
-        self.compressed.len()
+        self.buffer.len()
     }
 }
 
 impl ChannelCompressor for BrotliCompressor {
     fn get_compressed(&self) -> Vec<u8> {
-        self.compressed.clone()
+        self.buffer.get().borrow().to_vec()
     }
 }
 
