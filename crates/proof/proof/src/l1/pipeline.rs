@@ -10,7 +10,7 @@ use kona_derive::{
     ResetSignal, Signal, SignalReceiver, StatefulAttributesBuilder, StepResult,
 };
 use kona_driver::{DriverPipeline, PipelineCursor};
-use kona_genesis::{RollupConfig, SystemConfig};
+use kona_genesis::{L1ChainConfig, RollupConfig, SystemConfig};
 use kona_preimage::CommsClient;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use spin::RwLock;
@@ -50,6 +50,7 @@ where
     /// Constructs a new oracle-backed derivation pipeline.
     pub async fn new(
         cfg: Arc<RollupConfig>,
+        l1_cfg: Arc<L1ChainConfig>,
         sync_start: Arc<RwLock<PipelineCursor>>,
         caching_oracle: Arc<O>,
         da_provider: DA,
@@ -58,6 +59,7 @@ where
     ) -> PipelineResult<Self> {
         let attributes = StatefulAttributesBuilder::new(
             cfg.clone(),
+            l1_cfg.clone(),
             l2_chain_provider.clone(),
             chain_provider.clone(),
         );

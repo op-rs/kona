@@ -7,7 +7,7 @@ use crate::{
 use alloy_consensus::Header;
 use alloy_eips::{
     eip2718::Encodable2718,
-    eip4844::{FIELD_ELEMENTS_PER_BLOB, IndexedBlobHash},
+    eip4844::{BlobTransactionSidecarItem, FIELD_ELEMENTS_PER_BLOB, IndexedBlobHash},
 };
 use alloy_primitives::{Address, B256, Bytes, keccak256};
 use alloy_provider::Provider;
@@ -87,16 +87,21 @@ impl HintHandler for SingleChainHintHandler {
                 let partial_block_ref = BlockInfo { timestamp, ..Default::default() };
                 let indexed_hash = IndexedBlobHash { index, hash };
 
-                // Fetch the blob sidecar from the blob provider.
-                let mut sidecars = providers
+                // Fetch the blobs from the blob provider.
+                let mut blobs = providers
                     .blobs
-                    .fetch_filtered_sidecars(&partial_block_ref, &[indexed_hash])
+                    .fetch_filtered_blob_sidecars(&partial_block_ref, &[indexed_hash])
                     .await
                     .map_err(|e| anyhow!("Failed to fetch blob sidecars: {e}"))?;
-                if sidecars.len() != 1 {
-                    anyhow::bail!("Expected 1 sidecar, got {}", sidecars.len());
+                if blobs.len() != 1 {
+                    anyhow::bail!("Expected 1 blob, got {}", blobs.len());
                 }
-                let sidecar = sidecars.remove(0);
+                let BlobTransactionSidecarItem {
+                    blob,
+                    kzg_proof: proof,
+                    kzg_commitment: commitment,
+                    ..
+                } = blobs.pop().expect("Expected 1 blob");
 
                 // Acquire a lock on the key-value store and set the preimages.
                 let mut kv_lock = kv.write().await;
@@ -104,14 +109,14 @@ impl HintHandler for SingleChainHintHandler {
                 // Set the preimage for the blob commitment.
                 kv_lock.set(
                     PreimageKey::new(*hash, PreimageKeyType::Sha256).into(),
-                    sidecar.kzg_commitment.to_vec(),
+                    commitment.to_vec(),
                 )?;
 
                 // Write all the field elements to the key-value store. There should be 4096.
                 // The preimage oracle key for each field element is the keccak256 hash of
                 // `abi.encodePacked(sidecar.KZGCommitment, bytes32(ROOTS_OF_UNITY[i]))`.
                 let mut blob_key = [0u8; 80];
-                blob_key[..48].copy_from_slice(sidecar.kzg_commitment.as_ref());
+                blob_key[..48].copy_from_slice(commitment.as_ref());
                 for i in 0..FIELD_ELEMENTS_PER_BLOB {
                     blob_key[48..].copy_from_slice(
                         ROOTS_OF_UNITY[i as usize].into_bigint().to_bytes_be().as_ref(),
@@ -122,7 +127,7 @@ impl HintHandler for SingleChainHintHandler {
                         .set(PreimageKey::new_keccak256(*blob_key_hash).into(), blob_key.into())?;
                     kv_lock.set(
                         PreimageKey::new(*blob_key_hash, PreimageKeyType::Blob).into(),
-                        sidecar.blob[(i as usize) << 5..(i as usize + 1) << 5].to_vec(),
+                        blob[(i as usize) << 5..(i as usize + 1) << 5].to_vec(),
                     )?;
                 }
 
@@ -135,7 +140,7 @@ impl HintHandler for SingleChainHintHandler {
                 kv_lock.set(PreimageKey::new_keccak256(*blob_key_hash).into(), blob_key.into())?;
                 kv_lock.set(
                     PreimageKey::new(*blob_key_hash, PreimageKeyType::Blob).into(),
-                    sidecar.kzg_proof.to_vec(),
+                    proof.to_vec(),
                 )?;
             }
             HintType::L1Precompile => {

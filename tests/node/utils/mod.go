@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ethereum-optimism/optimism/op-devstack/devtest"
 	"github.com/ethereum-optimism/optimism/op-devstack/dsl"
 	"github.com/ethereum-optimism/optimism/op-service/client"
-	"github.com/kurtosis-tech/kurtosis/api/golang/engine/lib/kurtosis_context"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/retry"
+	"github.com/ethereum-optimism/optimism/op-supervisor/supervisor/types"
 )
 
 const DefaultL1ID = 900
@@ -21,54 +24,6 @@ const (
 	DEFAULT_TIMEOUT = 10 * time.Second
 )
 
-// rpcEndpoint gets the RPC endpoint URL for a specified service from Kurtosis
-func rpcEndpoint(ctx context.Context, serviceName string) (string, error) {
-	kurtosisCtx, err := kurtosis_context.NewKurtosisContextFromLocalEngine()
-	if err != nil {
-		return "", err
-	}
-
-	enclaves, err := kurtosisCtx.GetEnclaves(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	for enclave := range enclaves.GetEnclavesByName() {
-		enclaveCtx, err := kurtosisCtx.GetEnclaveContext(ctx, enclave)
-		if err != nil {
-			return "", err
-		}
-
-		serviceCtx, err := enclaveCtx.GetServiceContext(serviceName)
-		if err != nil {
-			return "", err
-		}
-
-		publicPorts := serviceCtx.GetPublicPorts()
-
-		// Get the port for the RPC endpoint
-		rpcPort, ok := publicPorts["rpc"]
-		if !ok {
-			return "", fmt.Errorf("rpc port not found")
-		}
-
-		// Get the RPC endpoint
-		applicationProtocol := rpcPort.GetMaybeApplicationProtocol()
-		if applicationProtocol == "" {
-			applicationProtocol = "http"
-		}
-
-		publicIPAddress := serviceCtx.GetMaybePublicIPAddress()
-		if publicIPAddress == "" {
-			return "", fmt.Errorf("public IP address not found")
-		}
-
-		return fmt.Sprintf("%s://%s:%d", applicationProtocol, publicIPAddress, rpcPort.GetNumber()), nil
-	}
-
-	return "", fmt.Errorf("no enclaves found")
-}
-
 func GetNodeRPCEndpoint(node *dsl.L2CLNode) client.RPC {
 	return node.Escape().ClientRPC()
 }
@@ -78,4 +33,46 @@ func SendRPCRequest[T any](clientRPC client.RPC, method string, resOutput *T, pa
 	defer cancel()
 
 	return clientRPC.CallContext(ctx, &resOutput, method, params...)
+}
+
+func MatchedWithinRange(t devtest.T, baseNode, refNode dsl.L2CLNode, delta uint64, lvl types.SafetyLevel, attempts int) dsl.CheckFunc {
+	logger := t.Logger()
+	chainID := baseNode.ChainID()
+
+	return func() error {
+		base := baseNode.ChainSyncStatus(chainID, lvl)
+		ref := refNode.ChainSyncStatus(chainID, lvl)
+		logger.Info("Expecting node to match with reference", "base", base.Number, "ref", ref.Number)
+		return retry.Do0(t.Ctx(), attempts, &retry.FixedStrategy{Dur: 2 * time.Second},
+			func() error {
+				base = baseNode.ChainSyncStatus(chainID, lvl)
+				ref = refNode.ChainSyncStatus(chainID, lvl)
+				if ref.Number <= base.Number+delta || ref.Number >= base.Number-delta {
+					logger.Info("Node matched", "ref_id", refNode, "base_id", baseNode, "ref", ref.Number, "base", base.Number, "delta", delta)
+
+					// We get the same block from the head and tail node
+					var headNode dsl.L2CLNode
+					var tailNode eth.BlockID
+					if ref.Number > base.Number {
+						headNode = refNode
+						tailNode = base
+					} else {
+						headNode = baseNode
+						tailNode = ref
+					}
+
+					baseBlock, err := headNode.Escape().RollupAPI().OutputAtBlock(t.Ctx(), tailNode.Number)
+					if err != nil {
+						return err
+					}
+
+					t.Require().Equal(baseBlock.BlockRef.Number, tailNode.Number, "expected block number to match")
+					t.Require().Equal(baseBlock.BlockRef.Hash, tailNode.Hash, "expected block hash to match")
+
+					return nil
+				}
+				logger.Info("Node sync status", "base", base.Number, "ref", ref.Number)
+				return fmt.Errorf("expected head to match: %s", lvl)
+			})
+	}
 }

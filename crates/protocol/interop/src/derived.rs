@@ -28,7 +28,7 @@ pub struct DerivedIdPair {
 ///
 /// - `source`: The [`BlockInfo`] of the source (L1) block.
 /// - `derived`: The [`BlockInfo`] of the derived (L2) block.
-// todo: link specs in docs once spec PR #708 is merged
+// See the interop control flow specification: https://github.com/ethereum-optimism/specs/blob/main/specs/interop/managed-node.md
 #[derive(Debug, Clone, Copy, Display, PartialEq, Eq)]
 #[display("source: {source}, derived: {derived}")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

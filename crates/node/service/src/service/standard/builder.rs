@@ -15,7 +15,7 @@ use std::sync::Arc;
 use tower::ServiceBuilder;
 use url::Url;
 
-use kona_genesis::RollupConfig;
+use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_providers_alloy::OnlineBeaconClient;
 use kona_rpc::RpcBuilder;
 
@@ -24,6 +24,8 @@ use kona_rpc::RpcBuilder;
 pub struct RollupNodeBuilder {
     /// The rollup configuration.
     config: RollupConfig,
+    /// The L1 chain configuration.
+    l1_config: L1ChainConfig,
     /// The L1 EL provider RPC URL.
     l1_provider_rpc_url: Option<Url>,
     /// Whether to trust the L1 RPC.
@@ -50,8 +52,8 @@ pub struct RollupNodeBuilder {
 
 impl RollupNodeBuilder {
     /// Creates a new [`RollupNodeBuilder`] with the given [`RollupConfig`].
-    pub fn new(config: RollupConfig) -> Self {
-        Self { config, ..Self::default() }
+    pub fn new(config: RollupConfig, l1_config: L1ChainConfig) -> Self {
+        Self { config, l1_config, ..Self::default() }
     }
 
     /// Sets the [`NodeMode`] on the [`RollupNodeBuilder`].
@@ -135,6 +137,7 @@ impl RollupNodeBuilder {
         let l2_provider = RootProvider::<Optimism>::new(rpc_client);
 
         let rollup_config = Arc::new(self.config);
+        let l1_config = Arc::new(self.l1_config);
         let engine_builder = EngineBuilder {
             config: Arc::clone(&rollup_config),
             l1_rpc_url,
@@ -148,6 +151,7 @@ impl RollupNodeBuilder {
 
         RollupNode {
             config: rollup_config,
+            l1_config,
             interop_mode: self.interop_mode,
             l1_provider,
             l1_trust_rpc: self.l1_trust_rpc,

@@ -8,7 +8,7 @@ use crate::{
 use alloy_consensus::{Header, Sealed};
 use alloy_eips::{
     eip2718::Encodable2718,
-    eip4844::{FIELD_ELEMENTS_PER_BLOB, IndexedBlobHash},
+    eip4844::{BlobTransactionSidecarItem, FIELD_ELEMENTS_PER_BLOB, IndexedBlobHash},
 };
 use alloy_op_evm::OpEvmFactory;
 use alloy_primitives::{Address, B256, Bytes, keccak256};
@@ -34,7 +34,7 @@ use kona_proof::{
 };
 use kona_proof_interop::{HintType, PreState};
 use kona_protocol::{BlockInfo, OutputRoot, Predeploys};
-use kona_registry::ROLLUP_CONFIGS;
+use kona_registry::{L1_CONFIGS, ROLLUP_CONFIGS};
 use std::sync::Arc;
 use tokio::task;
 use tracing::{Instrument, debug, info, info_span, warn};
@@ -107,13 +107,20 @@ impl HintHandler for InteropHintHandler {
                 // Fetch the blob sidecar from the blob provider.
                 let mut sidecars = providers
                     .blobs
-                    .fetch_filtered_sidecars(&partial_block_ref, &[indexed_hash])
+                    .fetch_filtered_blob_sidecars(&partial_block_ref, &[indexed_hash])
                     .await
                     .map_err(|e| anyhow!("Failed to fetch blob sidecars: {e}"))?;
+
                 if sidecars.len() != 1 {
                     anyhow::bail!("Expected 1 sidecar, got {}", sidecars.len());
                 }
-                let sidecar = sidecars.remove(0);
+
+                let BlobTransactionSidecarItem {
+                    blob,
+                    kzg_proof: proof,
+                    kzg_commitment: commitment,
+                    ..
+                } = sidecars.pop().expect("Expected 1 sidecar");
 
                 // Acquire a lock on the key-value store and set the preimages.
                 let mut kv_lock = kv.write().await;
@@ -121,14 +128,14 @@ impl HintHandler for InteropHintHandler {
                 // Set the preimage for the blob commitment.
                 kv_lock.set(
                     PreimageKey::new(*hash, PreimageKeyType::Sha256).into(),
-                    sidecar.kzg_commitment.to_vec(),
+                    commitment.to_vec(),
                 )?;
 
                 // Write all the field elements to the key-value store. There should be 4096.
                 // The preimage oracle key for each field element is the keccak256 hash of
                 // `abi.encodePacked(sidecar.KZGCommitment, bytes32(ROOTS_OF_UNITY[i]))`.
                 let mut blob_key = [0u8; 80];
-                blob_key[..48].copy_from_slice(sidecar.kzg_commitment.as_ref());
+                blob_key[..48].copy_from_slice(commitment.as_ref());
                 for i in 0..FIELD_ELEMENTS_PER_BLOB {
                     blob_key[48..].copy_from_slice(
                         ROOTS_OF_UNITY[i as usize].into_bigint().to_bytes_be().as_ref(),
@@ -139,7 +146,7 @@ impl HintHandler for InteropHintHandler {
                         .set(PreimageKey::new_keccak256(*blob_key_hash).into(), blob_key.into())?;
                     kv_lock.set(
                         PreimageKey::new(*blob_key_hash, PreimageKeyType::Blob).into(),
-                        sidecar.blob[(i as usize) << 5..(i as usize + 1) << 5].to_vec(),
+                        blob[(i as usize) << 5..(i as usize + 1) << 5].to_vec(),
                     )?;
                 }
 
@@ -152,7 +159,7 @@ impl HintHandler for InteropHintHandler {
                 kv_lock.set(PreimageKey::new_keccak256(*blob_key_hash).into(), blob_key.into())?;
                 kv_lock.set(
                     PreimageKey::new(*blob_key_hash, PreimageKeyType::Blob).into(),
-                    sidecar.kzg_proof.to_vec(),
+                    proof.to_vec(),
                 )?;
             }
             HintType::L1Precompile => {
@@ -213,13 +220,16 @@ impl HintHandler for InteropHintHandler {
 
                 // Convert the timestamp to an L2 block number, using the rollup config for the
                 // chain ID embedded within the hint.
-                let rollup_config = ROLLUP_CONFIGS
-                    .get(&chain_id)
-                    .cloned()
-                    .or_else(|| {
-                        let local_cfgs = cfg.read_rollup_configs().ok()?;
-                        local_cfgs.get(&chain_id).cloned()
-                    })
+                let rollup_config = cfg
+                    .read_rollup_configs()
+                    // If an error occurred while reading the rollup configs, return the error.
+                    .transpose()?
+                    // Try to find the appropriate rollup config for the chain ID.
+                    .and_then(|configs| configs.get(&chain_id).cloned())
+                    // If we can't find the rollup config, try to find it in the global rollup
+                    // configs.
+                    .or_else(|| ROLLUP_CONFIGS.get(&chain_id).cloned())
+                    .map(Arc::new)
                     .ok_or(anyhow!("No rollup config found for chain ID: {chain_id}"))?;
                 let block_number = rollup_config.block_number_from_timestamp(timestamp);
 
@@ -419,15 +429,31 @@ impl HintHandler for InteropHintHandler {
                 }
 
                 let l2_provider = providers.l2(&chain_id)?;
-                let rollup_config = ROLLUP_CONFIGS
-                    .get(&chain_id)
-                    .cloned()
-                    .or_else(|| {
-                        let local_cfgs = cfg.read_rollup_configs().ok()?;
-                        local_cfgs.get(&chain_id).cloned()
-                    })
+                let rollup_config = cfg
+                    .read_rollup_configs()
+                    // If an error occurred while reading the rollup configs, return the error.
+                    .transpose()?
+                    // Try to find the appropriate rollup config for the chain ID.
+                    .and_then(|configs| configs.get(&chain_id).cloned())
+                    // If we can't find the rollup config, try to find it in the global rollup
+                    // configs.
+                    .or_else(|| ROLLUP_CONFIGS.get(&chain_id).cloned())
                     .map(Arc::new)
                     .ok_or(anyhow!("No rollup config found for chain ID: {chain_id}"))?;
+
+                let l1_config = cfg
+                    .read_l1_configs()
+                    // If an error occurred while reading the l1 configs, return the error.
+                    .transpose()?
+                    // Try to find the appropriate l1 config for the chain ID.
+                    .and_then(|configs| configs.get(&rollup_config.l1_chain_id).cloned())
+                    // If we can't find the l1 config, try to find it in the global l1 configs.
+                    .or_else(|| L1_CONFIGS.get(&rollup_config.l1_chain_id).cloned())
+                    .map(Arc::new)
+                    .ok_or(anyhow!(
+                        "No l1 config found for chain ID: {}",
+                        rollup_config.l1_chain_id
+                    ))?;
 
                 // Check if the block is canonical before continuing.
                 let parent_block = l2_provider
@@ -512,6 +538,7 @@ impl HintHandler for InteropHintHandler {
                         );
                         let pipeline = OraclePipeline::new(
                             rollup_config.clone(),
+                            l1_config.clone(),
                             cursor.clone(),
                             oracle,
                             da_provider,

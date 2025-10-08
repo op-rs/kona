@@ -40,7 +40,7 @@ impl EngineTaskError for InsertTaskError {
         match self {
             Self::FromBlockError(_) => EngineTaskErrorSeverity::Critical,
             Self::InsertFailed(_) => EngineTaskErrorSeverity::Temporary,
-            Self::UnexpectedPayloadStatus(_) => EngineTaskErrorSeverity::Critical,
+            Self::UnexpectedPayloadStatus(_) => EngineTaskErrorSeverity::Temporary,
             Self::L2BlockInfoConstruction(_) => EngineTaskErrorSeverity::Critical,
             Self::InconsistentForkchoiceState => EngineTaskErrorSeverity::Reset,
             Self::ForkchoiceUpdateFailed(inner) => inner.severity(),
