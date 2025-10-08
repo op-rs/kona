@@ -8,8 +8,8 @@ use kona_preimage::{
     errors::{PreimageOracleError, PreimageOracleResult},
 };
 use kona_proof::{Hint, errors::HintParsingError};
-use std::{collections::HashSet, hash::Hash, str::FromStr, sync::Arc};
-use tokio::sync::RwLock;
+use std::{collections::HashSet, hash::Hash, str::FromStr, sync::Arc, time::Duration};
+use tokio::{sync::RwLock, time::timeout};
 use tracing::{debug, error, trace};
 
 /// The [OnlineHostBackendCfg] trait is used to define the type configuration for the
@@ -132,20 +132,25 @@ where
         drop(kv_lock);
 
         // Use a loop to keep retrying the prefetch as long as the key is not found
-        while preimage.is_none() {
-            if let Some(hint) = self.last_hint.read().await.as_ref() {
-                let value =
-                    H::fetch_hint(hint.clone(), &self.cfg, &self.providers, self.kv.clone()).await;
+        timeout(Duration::from_secs(10), async {
+            while preimage.is_none() {
+                if let Some(hint) = self.last_hint.read().await.as_ref() {
+                    let value =
+                        H::fetch_hint(hint.clone(), &self.cfg, &self.providers, self.kv.clone())
+                            .await;
 
-                if let Err(e) = value {
-                    error!(target: "host_backend", "Failed to prefetch hint: {e}");
-                    continue;
+                    if let Err(e) = value {
+                        error!(target: "host_backend", "Failed to prefetch hint: {e}");
+                        continue;
+                    }
+
+                    let kv_lock = self.kv.read().await;
+                    preimage = kv_lock.get(key.into());
                 }
-
-                let kv_lock = self.kv.read().await;
-                preimage = kv_lock.get(key.into());
             }
-        }
+        })
+        .await
+        .map_err(|_| PreimageOracleError::Timeout)?;
 
         preimage.ok_or(PreimageOracleError::KeyNotFound)
     }

@@ -148,6 +148,7 @@ where
             target: "client",
             number = safe_head.block_info.number,
             output_root = ?output_root,
+            claimed_output_root = ?boot.claimed_l2_output_root,
             "Failed to validate L2 block",
         );
         return Err(FaultProofProgramError::InvalidClaim(output_root, boot.claimed_l2_output_root));

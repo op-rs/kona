@@ -11,12 +11,12 @@ pub use metrics::Metrics;
 
 mod beacon_client;
 pub use beacon_client::{
-    APIConfigResponse, APIGenesisResponse, BeaconClient, OnlineBeaconClient, ReducedConfigData,
-    ReducedGenesisData,
+    APIConfigResponse, APIGenesisResponse, BeaconClient, BoxedBlob, BoxedBlobWithIndex,
+    OnlineBeaconClient, ReducedConfigData, ReducedGenesisData,
 };
 
 mod blobs;
-pub use blobs::{BlobSidecarProvider, OnlineBlobProvider};
+pub use blobs::OnlineBlobProvider;
 
 mod chain_provider;
 pub use chain_provider::{AlloyChainProvider, AlloyChainProviderError};
