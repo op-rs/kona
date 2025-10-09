@@ -1,5 +1,7 @@
 //! Contains brotli compression utilities.
 
+use derive_more::From;
+
 use crate::{ChannelCompressor, CompressorError, CompressorResult, CompressorWriter};
 use std::{cell::RefCell, io::Write, rc::Rc, vec::Vec};
 
@@ -36,7 +38,7 @@ pub enum BrotliCompressionError {
     CompressionError(#[from] std::io::Error),
 }
 
-#[derive(Debug, Clone, Default, derive_more::From)]
+#[derive(Debug, Clone, Default, From)]
 struct BrotliBuffer(Rc<RefCell<Vec<u8>>>);
 
 impl BrotliBuffer {
@@ -180,6 +182,16 @@ mod test {
     use alloy_primitives::hex;
     use kona_genesis::MAX_RLP_BYTES_PER_CHANNEL_FJORD;
     use kona_protocol::decompress_brotli;
+
+    #[test]
+    fn test_brotli_compressor_debug() {
+        let compressor = BrotliCompressor::new(BrotliLevel::Brotli9);
+        let debug = format!("{:?}", compressor);
+
+        assert!(debug.contains("BrotliCompressor"));
+        assert!(debug.contains("closed: false"));
+        assert!(debug.contains("Brotli9"));
+    }
 
     #[test]
     fn test_compress_brotli() {
