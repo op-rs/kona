@@ -41,7 +41,7 @@ struct BrotliBuffer(Rc<RefCell<Vec<u8>>>);
 
 impl BrotliBuffer {
     /// Get a reference to the buffer.
-    pub(crate) fn get(&self) -> &Rc<RefCell<Vec<u8>>> {
+    pub(crate) const fn get(&self) -> &Rc<RefCell<Vec<u8>>> {
         &self.0
     }
 
@@ -158,7 +158,7 @@ impl CompressorWriter for BrotliCompressor {
     }
 
     fn read(&mut self, buf: &mut [u8]) -> CompressorResult<usize> {
-        let len = self.buffer.get().borrow().len().min(buf.len());
+        let len = self.buffer.len().min(buf.len());
         buf[..len].copy_from_slice(&self.buffer.get().borrow()[..len]);
         Ok(len)
     }
