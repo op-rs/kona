@@ -36,29 +36,18 @@ pub enum BrotliCompressionError {
     CompressionError(#[from] std::io::Error),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default, derive_more::From)]
 struct BrotliBuffer(Rc<RefCell<Vec<u8>>>);
 
 impl BrotliBuffer {
-    /// Create a new BrotliBuffer.
-    pub(crate) fn new() -> Self {
-        Self(Rc::new(RefCell::new(Vec::new())))
-    }
-
-    /// Get the buffer.
-    pub(crate) fn get(&self) -> Rc<RefCell<Vec<u8>>> {
-        self.0.clone()
+    /// Get a reference to the buffer.
+    pub(crate) fn get(&self) -> &Rc<RefCell<Vec<u8>>> {
+        &self.0
     }
 
     /// Returns the length of the buffer.
     pub(crate) fn len(&self) -> usize {
         self.0.borrow().len()
-    }
-}
-
-impl From<Vec<u8>> for BrotliBuffer {
-    fn from(vec: Vec<u8>) -> Self {
-        Self(Rc::new(RefCell::new(vec)))
     }
 }
 
@@ -86,13 +75,11 @@ pub struct BrotliCompressor {
 
 impl std::fmt::Debug for BrotliCompressor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{{buffer:{:?}, closed:{}, level:{:?}}}",
-            self.buffer.get(),
-            self.closed,
-            self.level
-        )
+        f.debug_struct("BrotliCompressor")
+            .field("buffer", self.buffer.get())
+            .field("closed", &self.closed)
+            .field("level", &self.level)
+            .finish()
     }
 }
 
@@ -110,7 +97,7 @@ impl BrotliCompressor {
     /// Creates a new brotli compressor with the given compression level.
     pub fn new(level: impl Into<BrotliLevel>) -> Self {
         let level = level.into();
-        let buffer = BrotliBuffer::new();
+        let buffer = BrotliBuffer::default();
         let writer = Some(Self::create_writer(&buffer, level));
 
         Self { buffer, closed: false, level, writer }
