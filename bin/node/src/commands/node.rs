@@ -1,7 +1,8 @@
 //! Node Subcommand.
 
 use crate::{
-    flags::{GlobalArgs, P2PArgs, RpcArgs, SequencerArgs},
+    engine::RollupBoostEngineClient,
+    flags::{GlobalArgs, P2PArgs, RpcArgs, RollupBoostArgs, SequencerArgs},
     metrics::{CliMetrics, init_rollup_config_metrics},
 };
 use alloy_rpc_types_engine::JwtSecret;
@@ -127,6 +128,9 @@ pub struct NodeCommand {
     /// SEQUENCER CLI arguments.
     #[command(flatten)]
     pub sequencer_flags: SequencerArgs,
+    /// Rollup-boost configuration.
+    #[command(flatten)]
+    pub rollup_boost_flags: RollupBoostArgs,
 }
 
 impl Default for NodeCommand {
@@ -144,6 +148,7 @@ impl Default for NodeCommand {
             p2p_flags: P2PArgs::default(),
             rpc_flags: RpcArgs::default(),
             sequencer_flags: SequencerArgs::default(),
+            rollup_boost_flags: RollupBoostArgs::default(),
         }
     }
 }
@@ -283,6 +288,9 @@ impl NodeCommand {
 
         let jwt_secret = self.validate_jwt(&cfg).await?;
 
+        // Validate rollup-boost configuration
+        self.rollup_boost_flags.validate()?;
+
         self.p2p_flags.check_ports()?;
         let p2p_config = self.p2p_flags.config(&cfg, args, Some(self.l1_eth_rpc.clone())).await?;
         let rpc_config = self.rpc_flags.into();
@@ -307,6 +315,7 @@ impl NodeCommand {
             .with_p2p_config(p2p_config)
             .with_rpc_config(rpc_config)
             .with_sequencer_config(self.sequencer_flags.config())
+            .with_rollup_boost_config(self.rollup_boost_flags.clone())
             .build()
             .start()
             .await

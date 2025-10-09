@@ -18,5 +18,8 @@ pub use metrics::init_unified_metrics;
 mod sequencer;
 pub use sequencer::SequencerArgs;
 
+mod rollup_boost;
+pub use rollup_boost::{RollupBoostArgs, RollupBoostExecutionMode, RollupBoostBlockSelectionPolicy};
+
 mod signer;
 pub use signer::{SignerArgs, SignerArgsParseError};

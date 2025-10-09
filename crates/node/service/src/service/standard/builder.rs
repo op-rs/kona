@@ -19,6 +19,10 @@ use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_providers_alloy::OnlineBeaconClient;
 use kona_rpc::RpcBuilder;
 
+// Rollup-boost integration
+use kona_node::engine::RollupBoostEngineClient;
+use kona_node::flags::RollupBoostArgs;
+
 /// The [`RollupNodeBuilder`] is used to construct a [`RollupNode`] service.
 #[derive(Debug, Default)]
 pub struct RollupNodeBuilder {
@@ -48,6 +52,8 @@ pub struct RollupNodeBuilder {
     mode: NodeMode,
     /// Whether to run the node in interop mode.
     interop_mode: InteropMode,
+    /// Rollup-boost configuration.
+    rollup_boost_config: Option<RollupBoostArgs>,
 }
 
 impl RollupNodeBuilder {
@@ -106,6 +112,11 @@ impl RollupNodeBuilder {
         Self { sequencer_config: Some(sequencer_config), ..self }
     }
 
+    /// Sets the rollup-boost configuration.
+    pub fn with_rollup_boost_config(self, rollup_boost_config: RollupBoostArgs) -> Self {
+        Self { rollup_boost_config: Some(rollup_boost_config), ..self }
+    }
+
     /// Assembles the [`RollupNode`] service.
     ///
     /// ## Panics
@@ -138,12 +149,64 @@ impl RollupNodeBuilder {
 
         let rollup_config = Arc::new(self.config);
         let l1_config = Arc::new(self.l1_config);
+
+        // Create the engine client, using rollup-boost if enabled
+        let engine_client = if let Some(rollup_boost_config) = &self.rollup_boost_config {
+            if rollup_boost_config.enabled {
+                // Try to use rollup-boost enhanced client, fall back to regular if it fails
+                match tokio::runtime::Handle::current()
+                    .block_on(async {
+                        RollupBoostEngineClient::new(
+                            rollup_boost_config.clone(),
+                            engine_url.clone(),
+                            l1_rpc_url.clone(),
+                            jwt_secret,
+                            rollup_config.clone(),
+                        ).await
+                    })
+                {
+                    Ok(client) => {
+                        tracing::info!("Successfully initialized rollup-boost engine client");
+                        Arc::new(client) as Arc<dyn kona_engine::EngineClient>
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            "Failed to create rollup-boost engine client: {}. Falling back to standard engine client",
+                            e
+                        );
+                        Arc::new(kona_engine::EngineClient::new_http(
+                            engine_url.clone(),
+                            l1_rpc_url.clone(),
+                            rollup_config.clone(),
+                            jwt_secret,
+                        )) as Arc<dyn kona_engine::EngineClient>
+                    }
+                }
+            } else {
+                // Use regular engine client
+                Arc::new(kona_engine::EngineClient::new_http(
+                    engine_url.clone(),
+                    l1_rpc_url.clone(),
+                    rollup_config.clone(),
+                    jwt_secret,
+                )) as Arc<dyn kona_engine::EngineClient>
+            }
+        } else {
+            // Use regular engine client (default)
+            Arc::new(kona_engine::EngineClient::new_http(
+                engine_url.clone(),
+                l1_rpc_url.clone(),
+                rollup_config.clone(),
+                jwt_secret,
+            )) as Arc<dyn kona_engine::EngineClient>
+        };
         let engine_builder = EngineBuilder {
             config: Arc::clone(&rollup_config),
             l1_rpc_url,
             engine_url,
             jwt_secret,
             mode: self.mode,
+            engine_client,
         };
 
         let p2p_config = self.p2p_config.expect("P2P config not set");
