@@ -89,7 +89,7 @@ impl<T: CommsClient> OracleBlobProvider<T> {
 impl<T: CommsClient + Sync + Send> BlobProvider for OracleBlobProvider<T> {
     type Error = OracleProviderError;
 
-    async fn get_blobs(
+    async fn get_and_validate_blobs(
         &mut self,
         block_ref: &BlockInfo,
         blob_hashes: &[IndexedBlobHash],
