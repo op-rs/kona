@@ -49,11 +49,14 @@ benches:
   cargo bench --no-run --workspace --features test-utils --exclude example-gossip --exclude example-discovery
 
 # Lint the workspace for all available targets
-lint-all: lint-native lint-cannon lint-asterisc lint-docs lint-typos
+lint-all: lint-native lint-cannon lint-asterisc lint-docs lint-typos lint-go
 
 # Check spelling with typos (`cargo install typos-cli`)
 lint-typos:
   typos
+
+lint-go:
+    cd tests && go mod tidy -diff && cd -
 
 # Runs `cargo hack check` against the workspace
 hack:
