@@ -2,12 +2,12 @@
 
 #[cfg(feature = "metrics")]
 use crate::Metrics;
-use alloy_consensus::Blob;
-use alloy_eips::eip4844::{IndexedBlobHash, deserialize_blob};
-use alloy_rpc_types_beacon::sidecar::BeaconBlobBundle;
+use crate::blobs::BoxedBlobWithIndex;
+use alloy_eips::eip4844::IndexedBlobHash;
+use alloy_rpc_types_beacon::sidecar::{BeaconBlobBundle, GetBlobsResponse};
 use async_trait::async_trait;
 use reqwest::Client;
-use std::{boxed::Box, format, ops::Deref, string::String, vec::Vec};
+use std::{boxed::Box, format, string::String, vec::Vec};
 
 /// The config spec engine api method.
 const SPEC_METHOD: &str = "eth/v1/config/spec";
@@ -106,95 +106,15 @@ impl OnlineBeaconClient {
         }
         Self { base, inner: Client::builder().build().expect("Failed to create beacon client") }
     }
-}
-
-/// A boxed blob. This is used to deserialize the blobs endpoint response.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct BoxedBlob {
-    /// The blob data.
-    #[serde(deserialize_with = "deserialize_blob")]
-    pub blob: Box<Blob>,
-}
-
-/// A boxed blob with index.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BoxedBlobWithIndex {
-    /// The index of the blob.
-    pub index: u64,
-    /// The blob data.
-    pub blob: Box<Blob>,
-}
-
-impl Deref for BoxedBlob {
-    type Target = Blob;
-
-    fn deref(&self) -> &Self::Target {
-        &self.blob
-    }
-}
-
-/// A blobs bundle. This is used to deserialize the blobs endpoint response.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-struct BlobsBundle {
-    pub data: Vec<BoxedBlob>,
-}
-
-impl From<BeaconBlobBundle> for BlobsBundle {
-    fn from(value: BeaconBlobBundle) -> Self {
-        let blobs = value.data.into_iter().map(|blob| BoxedBlob { blob: blob.blob }).collect();
-        Self { data: blobs }
-    }
-}
-
-#[async_trait]
-impl BeaconClient for OnlineBeaconClient {
-    type Error = reqwest::Error;
-
-    async fn config_spec(&self) -> Result<APIConfigResponse, Self::Error> {
-        kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_REQUESTS, "method" => "spec");
-
-        let result = async {
-            let first = self.inner.get(format!("{}/{}", self.base, SPEC_METHOD)).send().await?;
-            first.json::<APIConfigResponse>().await
-        }
-        .await;
-
-        #[cfg(feature = "metrics")]
-        if result.is_err() {
-            kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_ERRORS, "method" => "spec");
-        }
-
-        result
-    }
-
-    async fn beacon_genesis(&self) -> Result<APIGenesisResponse, Self::Error> {
-        kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_REQUESTS, "method" => "genesis");
-
-        let result = async {
-            let first = self.inner.get(format!("{}/{}", self.base, GENESIS_METHOD)).send().await?;
-            first.json::<APIGenesisResponse>().await
-        }
-        .await;
-
-        #[cfg(feature = "metrics")]
-        if result.is_err() {
-            kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_ERRORS, "method" => "genesis");
-        }
-
-        result
-    }
 
     async fn filtered_beacon_blobs(
         &self,
         slot: u64,
         blob_hashes: &[IndexedBlobHash],
-    ) -> Result<Vec<BoxedBlobWithIndex>, Self::Error> {
-        kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_REQUESTS, "method" => "blob_sidecars");
-
+    ) -> Result<Vec<BoxedBlobWithIndex>, reqwest::Error> {
         let blob_indexes = blob_hashes.iter().map(|blob| blob.index).collect::<Vec<_>>();
 
         Ok(
-            // Try to get the blobs from the blobs endpoint.
             match self
                 .inner
                 .get(format!("{}/{}/{}", self.base, BLOBS_METHOD_PREFIX, slot))
@@ -202,7 +122,7 @@ impl BeaconClient for OnlineBeaconClient {
                 .await
             {
                 Ok(response) if response.status().is_success() => {
-                    let bundle = response.json::<BlobsBundle>().await?;
+                    let bundle = response.json::<GetBlobsResponse>().await?;
 
                     bundle
                         .data
@@ -212,7 +132,7 @@ impl BeaconClient for OnlineBeaconClient {
                             let index = index as u64;
                             blob_indexes
                                 .contains(&index)
-                                .then_some(BoxedBlobWithIndex { index, blob: blob.blob })
+                                .then_some(BoxedBlobWithIndex { index, blob: Box::new(blob) })
                         })
                         .collect::<Vec<_>>()
                 }
@@ -234,5 +154,59 @@ impl BeaconClient for OnlineBeaconClient {
                     .collect::<Vec<_>>(),
             },
         )
+    }
+}
+
+#[async_trait]
+impl BeaconClient for OnlineBeaconClient {
+    type Error = reqwest::Error;
+
+    async fn config_spec(&self) -> Result<APIConfigResponse, Self::Error> {
+        kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_REQUESTS, "method" => "spec");
+
+        let result = async {
+            let first = self.inner.get(format!("{}/{}", self.base, SPEC_METHOD)).send().await?;
+            first.json::<APIConfigResponse>().await
+        }
+        .await;
+
+        if result.is_err() {
+            kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_ERRORS, "method" => "spec");
+        }
+
+        result
+    }
+
+    async fn beacon_genesis(&self) -> Result<APIGenesisResponse, Self::Error> {
+        kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_REQUESTS, "method" => "genesis");
+
+        let result = async {
+            let first = self.inner.get(format!("{}/{}", self.base, GENESIS_METHOD)).send().await?;
+            first.json::<APIGenesisResponse>().await
+        }
+        .await;
+
+        if result.is_err() {
+            kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_ERRORS, "method" => "genesis");
+        }
+
+        result
+    }
+
+    async fn filtered_beacon_blobs(
+        &self,
+        slot: u64,
+        blob_hashes: &[IndexedBlobHash],
+    ) -> Result<Vec<BoxedBlobWithIndex>, Self::Error> {
+        kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_REQUESTS, "method" => "blobs");
+
+        // Try to get the blobs from the blobs endpoint.
+        let result = self.filtered_beacon_blobs(slot, blob_hashes).await;
+
+        if result.is_err() {
+            kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_ERRORS, "method" => "blobs");
+        }
+
+        result
     }
 }

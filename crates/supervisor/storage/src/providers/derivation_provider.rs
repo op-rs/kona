@@ -1136,7 +1136,7 @@ mod tests {
 
         // Try to save a block with a lower number
         let result = insert_source_block(&db, &source0);
-        assert!(result.is_ok(), "Should allow saving a old source block");
+        assert!(result.is_ok(), "Should allow saving an old source block");
     }
 
     #[test]
