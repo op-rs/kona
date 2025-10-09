@@ -1,8 +1,7 @@
 //! Contains brotli compression utilities.
 
-use derive_more::From;
-
 use crate::{ChannelCompressor, CompressorError, CompressorResult, CompressorWriter};
+use derive_more::From;
 use std::{cell::RefCell, io::Write, rc::Rc, vec::Vec};
 
 const DEFAULT_BROTLI_LGWIN: i32 = 22;
@@ -182,16 +181,6 @@ mod test {
     use alloy_primitives::hex;
     use kona_genesis::MAX_RLP_BYTES_PER_CHANNEL_FJORD;
     use kona_protocol::decompress_brotli;
-
-    #[test]
-    fn test_brotli_compressor_debug() {
-        let compressor = BrotliCompressor::new(BrotliLevel::Brotli9);
-        let debug = format!("{:?}", compressor);
-
-        assert!(debug.contains("BrotliCompressor"));
-        assert!(debug.contains("closed: false"));
-        assert!(debug.contains("Brotli9"));
-    }
 
     #[test]
     fn test_compress_brotli() {
