@@ -63,9 +63,9 @@ default = [ "client-tracing" ]
 client-tracing = [ "kona-std-fpvm/tracing" ]
 
 [[bin]]
-name = "kona"
+name = "kona-client"
 path = "src/kona.rs"
 
 [[bin]]
-name = "kona-int"
+name = "kona-client-int"
 path = "src/kona_interop.rs"

@@ -20,6 +20,10 @@ on:
       # matches tags like `service/v1.0.0`
       - '*/v*'
 
+permissions:
+  contents: read
+  packages: write
+
 env:
   REGISTRY: ghcr.io
   REGISTRY_IMAGE: ghcr.io/op-rs/kona
