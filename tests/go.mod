@@ -1,6 +1,6 @@
 module github.com/op-rs/kona
 
-go 1.24.3
+go 1.23.8
 
 // We're using the "develop" branch of the Optimism repo to include the latest changes to the `devstack` package.
 require github.com/ethereum-optimism/optimism v1.13.8-0.20250924162823-d10392338bb9
@@ -228,7 +228,6 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.8.0 // indirect
-	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	github.com/urfave/cli/v2 v2.27.6 // indirect
 	github.com/wlynxg/anet v0.0.4 // indirect
