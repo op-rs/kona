@@ -32,7 +32,7 @@ impl TestBlobProvider {
 impl BlobProvider for TestBlobProvider {
     type Error = BlobProviderError;
 
-    async fn get_blobs(
+    async fn get_and_validate_blobs(
         &mut self,
         _block_ref: &BlockInfo,
         blob_hashes: &[IndexedBlobHash],

@@ -105,7 +105,7 @@ build-cannon-client:
     --rm \
     -v `pwd`/:/workdir \
     -w="/workdir" \
-    ghcr.io/op-rs/kona/cannon-builder:0.3.0 cargo build -Zbuild-std=core,alloc -p kona-client --bin kona --profile release-client-lto
+    ghcr.io/op-rs/kona/cannon-builder:0.3.0 cargo build -Zbuild-std=core,alloc -p kona-client --bin kona-client --profile release-client-lto
 
 # Build `kona-client` for the `asterisc` target.
 build-asterisc-client:
@@ -113,7 +113,7 @@ build-asterisc-client:
     --rm \
     -v `pwd`/:/workdir \
     -w="/workdir" \
-    ghcr.io/op-rs/kona/asterisc-builder:0.3.0 cargo build -Zbuild-std=core,alloc -p kona-client --bin kona --profile release-client-lto
+    ghcr.io/op-rs/kona/asterisc-builder:0.3.0 cargo build -Zbuild-std=core,alloc -p kona-client --bin kona-client --profile release-client-lto
 
 # Check for unused dependencies in the crate graph.
 check-udeps:

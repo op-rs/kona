@@ -137,10 +137,13 @@ where
             return Ok(());
         }
 
-        let blobs = self.blob_fetcher.get_blobs(block_ref, &blob_hashes).await.map_err(|e| {
-            warn!(target: "blob_source", "Failed to fetch blobs: {e}");
-            BlobProviderError::Backend(e.to_string())
-        })?;
+        let blobs =
+            self.blob_fetcher.get_and_validate_blobs(block_ref, &blob_hashes).await.map_err(
+                |e| {
+                    warn!(target: "blob_source", "Failed to fetch blobs: {e}");
+                    BlobProviderError::Backend(e.to_string())
+                },
+            )?;
 
         // Fill the blob pointers.
         let mut blob_index = 0;

@@ -16,7 +16,7 @@ pub trait BlobProvider {
     type Error: Display + ToString + Into<PipelineErrorKind>;
 
     /// Fetches blobs for a given block ref and the blob hashes.
-    async fn get_blobs(
+    async fn get_and_validate_blobs(
         &mut self,
         block_ref: &BlockInfo,
         blob_hashes: &[IndexedBlobHash],

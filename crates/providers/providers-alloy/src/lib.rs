@@ -16,7 +16,7 @@ pub use beacon_client::{
 };
 
 mod blobs;
-pub use blobs::{BlobSidecarProvider, OnlineBlobProvider};
+pub use blobs::{BoxedBlobWithIndex, OnlineBlobProvider};
 
 mod chain_provider;
 pub use chain_provider::{AlloyChainProvider, AlloyChainProviderError};
