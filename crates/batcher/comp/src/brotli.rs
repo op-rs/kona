@@ -80,7 +80,7 @@ impl std::fmt::Debug for BrotliCompressor {
             .field("buffer", self.buffer.get())
             .field("closed", &self.closed)
             .field("level", &self.level)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
