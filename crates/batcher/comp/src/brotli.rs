@@ -71,7 +71,7 @@ pub struct BrotliCompressor {
     /// The compression level.
     pub level: BrotliLevel,
     /// The brotli compressor writer.
-    writer: Option<brotli::CompressorWriter<BrotliBuffer>>,
+    writer: Option<Box<brotli::CompressorWriter<BrotliBuffer>>>,
 }
 
 impl std::fmt::Debug for BrotliCompressor {
@@ -104,17 +104,22 @@ impl BrotliCompressor {
         Self { buffer, closed: false, level, writer }
     }
 
+    /// Creates a new boxed brotli compressor writer with the given compression level.
     fn create_writer(
         buffer: &BrotliBuffer,
         level: BrotliLevel,
-    ) -> brotli::CompressorWriter<BrotliBuffer> {
+    ) -> Box<brotli::CompressorWriter<BrotliBuffer>> {
         let params = brotli::enc::BrotliEncoderParams {
             quality: level as i32,
             lgwin: DEFAULT_BROTLI_LGWIN,
             ..Default::default()
         };
 
-        brotli::CompressorWriter::with_params(buffer.clone(), DEFAULT_BROTLI_BUFFER_SIZE, &params)
+        Box::new(brotli::CompressorWriter::with_params(
+            buffer.clone(),
+            DEFAULT_BROTLI_BUFFER_SIZE,
+            &params,
+        ))
     }
 }
 
