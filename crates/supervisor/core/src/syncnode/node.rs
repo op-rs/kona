@@ -189,12 +189,12 @@ where
 
     async fn handle_derivation_origin_update(
         &self,
-        origin: &BlockInfo,
+        origin: &DerivedRefPair,
     ) -> Result<(), ManagedNodeError> {
         let chain_id = self.chain_id().await?;
         trace!(target: "supervisor::managed_node", %chain_id, %origin, "Derivation origin update received");
 
-        self.chain_event_sender.send(ChainEvent::DerivationOriginUpdate { origin: *origin }).await.map_err(|err| {
+        self.chain_event_sender.send(ChainEvent::DerivationCurrentL1Update { derived_ref_pair: *origin }).await.map_err(|err| {
             warn!(target: "supervisor::managed_node", %chain_id, %err, "Failed to send derivation origin update event");
             ManagedNodeError::ChannelSendFailed(err.to_string())
         })?;
@@ -525,15 +525,32 @@ mod tests {
         let (tx, mut rx) = mpsc::channel(10);
         let node = ManagedNode::new(client.clone(), db, l1_provider, tx);
 
-        let origin =
-            BlockInfo { hash: B256::ZERO, number: 10, parent_hash: B256::ZERO, timestamp: 12345 };
+        let derived_ref_pair = DerivedRefPair {
+            source: BlockInfo {
+                hash: B256::from_hex(
+                    "0x1f68ac259155e2f38211ddad0f0a15394d55417b185a93923e2abe71bb7a4d6d",
+                )
+                .unwrap(),
+                number: 5,
+                parent_hash: B256::from([14u8; 32]),
+                timestamp: 300,
+            },
+            derived: BlockInfo {
+                hash: B256::from([11u8; 32]),
+                number: 40,
+                parent_hash: B256::from([12u8; 32]),
+                timestamp: 301,
+            },
+        };
 
-        let result = node.handle_derivation_origin_update(&origin).await;
+        let result = node.handle_derivation_origin_update(&derived_ref_pair).await;
         assert!(result.is_ok());
 
         let event = rx.recv().await.unwrap();
         match event {
-            ChainEvent::DerivationOriginUpdate { origin: block } => assert_eq!(block.number, 10),
+            ChainEvent::DerivationCurrentL1Update { derived_ref_pair: block } => {
+                assert_eq!(block.source.number, 5)
+            }
             _ => panic!("Wrong event"),
         }
     }

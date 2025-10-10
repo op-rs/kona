@@ -37,7 +37,7 @@ pub trait SubscriptionHandler: Send + Sync {
     /// Handles the derivation origin update event from the node.
     async fn handle_derivation_origin_update(
         &self,
-        origin: &BlockInfo,
+        origin: &DerivedRefPair,
     ) -> Result<(), ManagedNodeError>;
 }
 

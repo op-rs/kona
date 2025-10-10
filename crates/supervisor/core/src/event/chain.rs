@@ -21,9 +21,9 @@ pub enum ChainEvent {
     },
 
     /// A derivation origin update event, indicating that the origin for derived blocks has changed.
-    DerivationOriginUpdate {
-        /// The [`BlockInfo`] of the block that is the new derivation origin.
-        origin: BlockInfo,
+    DerivationCurrentL1Update {
+        /// The [`DerivedRefPair`] containing the Newly observed L1 and its L2's BlockRef.
+        derived_ref_pair: DerivedRefPair,
     },
 
     /// An invalidate Block event, indicating that a block has been invalidated.

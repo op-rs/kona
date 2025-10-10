@@ -114,8 +114,8 @@ where
             ChainEvent::DerivedBlock { derived_ref_pair } => {
                 self.safe_handler.handle(derived_ref_pair, &mut self.state).await
             }
-            ChainEvent::DerivationOriginUpdate { origin } => {
-                self.origin_handler.handle(origin, &mut self.state).await
+            ChainEvent::DerivationCurrentL1Update { derived_ref_pair } => {
+                self.origin_handler.handle(derived_ref_pair.source, &mut self.state).await
             }
             ChainEvent::InvalidateBlock { block } => {
                 self.invalidation_handler.handle(block, &mut self.state).await
