@@ -159,7 +159,7 @@ op-alloy-rpc-types-engine = { version = "0.20.0", default-features = false }
 
 # Execution
 revm = { version = "29.0.1", default-features = false }
-op-revm = { version = "10.1.0", default-features = false }
+op-revm = { version = "10.1.1", default-features = false }
 alloy-evm = { version = "0.21.0", default-features = false }
 alloy-op-evm = { version = "0.21.0", default-features = false }
 
