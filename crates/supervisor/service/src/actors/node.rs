@@ -204,7 +204,7 @@ async fn handle_subscription_event<N: SubscriptionHandler>(handler: &Arc<N>, eve
     }
 
     if let Some(derived_ref_pair) = &event.derivation_update {
-        if event.derivation_origin_update.is_none() {
+        if event.derivation_current_l1_update.is_none() {
             if let Err(err) = handler.handle_derivation_update(derived_ref_pair).await {
                 warn!(
                     target: "supervisor::syncnode",
@@ -216,7 +216,7 @@ async fn handle_subscription_event<N: SubscriptionHandler>(handler: &Arc<N>, eve
         }
     }
 
-    if let Some(origin) = &event.derivation_origin_update {
+    if let Some(origin) = &event.derivation_current_l1_update {
         if let Err(err) = handler.handle_derivation_origin_update(origin).await {
             warn!(
                 target: "supervisor::syncnode",
@@ -296,7 +296,7 @@ mod tests {
             async fn handle_unsafe_block(&self, block: &BlockInfo) -> Result<(), ManagedNodeError>;
             async fn handle_derivation_update(&self, derived_ref_pair: &DerivedRefPair) -> Result<(), ManagedNodeError>;
             async fn handle_replace_block(&self, replacement: &BlockReplacement) -> Result<(), ManagedNodeError>;
-            async fn handle_derivation_origin_update(&self, origin: &BlockInfo) -> Result<(), ManagedNodeError>;
+            async fn handle_derivation_origin_update(&self, origin: &DerivedRefPair) -> Result<(), ManagedNodeError>;
         }
     }
 
