@@ -20,6 +20,8 @@ pub enum SystemConfigUpdateKind {
     OperatorFee = 5,
     /// Min base fee parameter update
     MinBaseFee = 6,
+    /// DA footprint gas scalar update type
+    DaFootprintGasScalar = 7,
 }
 
 impl TryFrom<u64> for SystemConfigUpdateKind {

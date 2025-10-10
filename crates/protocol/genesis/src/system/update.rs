@@ -2,7 +2,8 @@
 
 use crate::{
     BatcherUpdate, Eip1559Update, GasConfigUpdate, GasLimitUpdate, OperatorFeeUpdate, SystemConfig,
-    SystemConfigUpdateKind, UnsafeBlockSignerUpdate, updates::MinBaseFeeUpdate,
+    SystemConfigUpdateKind, UnsafeBlockSignerUpdate,
+    updates::{DaFootprintGasScalarUpdate, MinBaseFeeUpdate},
 };
 
 /// The system config update is an update
@@ -24,6 +25,8 @@ pub enum SystemConfigUpdate {
     OperatorFee(OperatorFeeUpdate),
     /// Min base fee parameter update.
     MinBaseFee(MinBaseFeeUpdate),
+    /// DA footprint gas scalar update.
+    DaFootprintGasScalar(DaFootprintGasScalarUpdate),
 }
 
 impl SystemConfigUpdate {
@@ -37,6 +40,7 @@ impl SystemConfigUpdate {
             Self::Eip1559(update) => update.apply(config),
             Self::OperatorFee(update) => update.apply(config),
             Self::MinBaseFee(update) => update.apply(config),
+            Self::DaFootprintGasScalar(update) => update.apply(config),
         }
     }
 
@@ -50,6 +54,7 @@ impl SystemConfigUpdate {
             Self::Eip1559(_) => SystemConfigUpdateKind::Eip1559,
             Self::OperatorFee(_) => SystemConfigUpdateKind::OperatorFee,
             Self::MinBaseFee(_) => SystemConfigUpdateKind::MinBaseFee,
+            Self::DaFootprintGasScalar(_) => SystemConfigUpdateKind::DaFootprintGasScalar,
         }
     }
 }
