@@ -1,53 +1,53 @@
-//! The min base fee update type.
+//! The da footprint gas scalar update type.
 
 use alloy_primitives::LogData;
 use alloy_sol_types::{SolType, sol};
 
-use crate::{SystemConfig, SystemConfigLog, system::MinBaseFeeUpdateError};
+use crate::{SystemConfig, SystemConfigLog, system::DaFootprintGasScalarUpdateError};
 
-/// The min base fee update type.
+/// The da footprint gas scalar update type.
 #[derive(Debug, Default, Clone, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct MinBaseFeeUpdate {
-    /// The min base fee.
-    pub min_base_fee: u64,
+pub struct DaFootprintGasScalarUpdate {
+    /// The da footprint gas scalar.
+    pub da_footprint_gas_scalar: u16,
 }
 
-impl MinBaseFeeUpdate {
+impl DaFootprintGasScalarUpdate {
     /// Applies the update to the [`SystemConfig`].
     pub const fn apply(&self, config: &mut SystemConfig) {
-        config.min_base_fee = Some(self.min_base_fee);
+        config.da_footprint_gas_scalar = Some(self.da_footprint_gas_scalar);
     }
 }
 
-impl TryFrom<&SystemConfigLog> for MinBaseFeeUpdate {
-    type Error = MinBaseFeeUpdateError;
+impl TryFrom<&SystemConfigLog> for DaFootprintGasScalarUpdate {
+    type Error = DaFootprintGasScalarUpdateError;
 
     fn try_from(log: &SystemConfigLog) -> Result<Self, Self::Error> {
         let LogData { data, .. } = &log.log.data;
         if data.len() != 96 {
-            return Err(MinBaseFeeUpdateError::InvalidDataLen(data.len()));
+            return Err(DaFootprintGasScalarUpdateError::InvalidDataLen(data.len()));
         }
 
         let Ok(pointer) = <sol!(uint64)>::abi_decode_validate(&data[0..32]) else {
-            return Err(MinBaseFeeUpdateError::PointerDecodingError);
+            return Err(DaFootprintGasScalarUpdateError::PointerDecodingError);
         };
         if pointer != 32 {
-            return Err(MinBaseFeeUpdateError::InvalidDataPointer(pointer));
+            return Err(DaFootprintGasScalarUpdateError::InvalidDataPointer(pointer));
         }
 
         let Ok(length) = <sol!(uint64)>::abi_decode_validate(&data[32..64]) else {
-            return Err(MinBaseFeeUpdateError::LengthDecodingError);
+            return Err(DaFootprintGasScalarUpdateError::LengthDecodingError);
         };
         if length != 32 {
-            return Err(MinBaseFeeUpdateError::InvalidDataLength(length));
+            return Err(DaFootprintGasScalarUpdateError::InvalidDataLength(length));
         }
 
-        let Ok(min_base_fee) = <sol!(uint64)>::abi_decode_validate(&data[64..96]) else {
-            return Err(MinBaseFeeUpdateError::MinBaseFeeDecodingError);
+        let Ok(da_footprint_gas_scalar) = <sol!(uint16)>::abi_decode_validate(&data[64..96]) else {
+            return Err(DaFootprintGasScalarUpdateError::DaFootprintGasScalarDecodingError);
         };
 
-        Ok(Self { min_base_fee })
+        Ok(Self { da_footprint_gas_scalar })
     }
 }
 
@@ -59,7 +59,7 @@ mod tests {
     use alloy_primitives::{Address, B256, Bytes, Log, LogData, hex};
 
     #[test]
-    fn test_min_base_fee_update_try_from() {
+    fn test_da_footprint_update_try_from() {
         let update_type = B256::ZERO;
 
         let log = Log {
@@ -75,22 +75,22 @@ mod tests {
         };
 
         let system_log = SystemConfigLog::new(log, false);
-        let update = MinBaseFeeUpdate::try_from(&system_log).unwrap();
+        let update = DaFootprintGasScalarUpdate::try_from(&system_log).unwrap();
 
-        assert_eq!(update.min_base_fee, 0xbeef_u64);
+        assert_eq!(update.da_footprint_gas_scalar, 0xbeef_u16);
     }
 
     #[test]
-    fn test_min_base_fee_update_invalid_data_len() {
+    fn test_da_footprint_update_invalid_data_len() {
         let log =
             Log { address: Address::ZERO, data: LogData::new_unchecked(vec![], Bytes::default()) };
         let system_log = SystemConfigLog::new(log, false);
-        let err = MinBaseFeeUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, MinBaseFeeUpdateError::InvalidDataLen(0));
+        let err = DaFootprintGasScalarUpdate::try_from(&system_log).unwrap_err();
+        assert_eq!(err, DaFootprintGasScalarUpdateError::InvalidDataLen(0));
     }
 
     #[test]
-    fn test_min_base_fee_update_pointer_decoding_error() {
+    fn test_da_footprint_update_pointer_decoding_error() {
         let log = Log {
             address: Address::ZERO,
             data: LogData::new_unchecked(
@@ -104,12 +104,12 @@ mod tests {
         };
 
         let system_log = SystemConfigLog::new(log, false);
-        let err = MinBaseFeeUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, MinBaseFeeUpdateError::PointerDecodingError);
+        let err = DaFootprintGasScalarUpdate::try_from(&system_log).unwrap_err();
+        assert_eq!(err, DaFootprintGasScalarUpdateError::PointerDecodingError);
     }
 
     #[test]
-    fn test_min_base_fee_update_invalid_pointer_length() {
+    fn test_da_footprint_update_invalid_pointer_length() {
         let log = Log {
             address: Address::ZERO,
             data: LogData::new_unchecked(
@@ -123,12 +123,12 @@ mod tests {
         };
 
         let system_log = SystemConfigLog::new(log, false);
-        let err = MinBaseFeeUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, MinBaseFeeUpdateError::InvalidDataPointer(33));
+        let err = DaFootprintGasScalarUpdate::try_from(&system_log).unwrap_err();
+        assert_eq!(err, DaFootprintGasScalarUpdateError::InvalidDataPointer(33));
     }
 
     #[test]
-    fn test_min_base_fee_update_length_decoding_error() {
+    fn test_da_footprint_update_length_decoding_error() {
         let log = Log {
             address: Address::ZERO,
             data: LogData::new_unchecked(
@@ -142,12 +142,12 @@ mod tests {
         };
 
         let system_log = SystemConfigLog::new(log, false);
-        let err = MinBaseFeeUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, MinBaseFeeUpdateError::LengthDecodingError);
+        let err = DaFootprintGasScalarUpdate::try_from(&system_log).unwrap_err();
+        assert_eq!(err, DaFootprintGasScalarUpdateError::LengthDecodingError);
     }
 
     #[test]
-    fn test_min_base_fee_update_invalid_data_length() {
+    fn test_da_footprint_update_invalid_data_length() {
         let log = Log {
             address: Address::ZERO,
             data: LogData::new_unchecked(
@@ -161,12 +161,12 @@ mod tests {
         };
 
         let system_log = SystemConfigLog::new(log, false);
-        let err = MinBaseFeeUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, MinBaseFeeUpdateError::InvalidDataLength(33));
+        let err = DaFootprintGasScalarUpdate::try_from(&system_log).unwrap_err();
+        assert_eq!(err, DaFootprintGasScalarUpdateError::InvalidDataLength(33));
     }
 
     #[test]
-    fn test_min_base_fee_update_min_base_fee_decoding_error() {
+    fn test_da_footprint_update_da_footprint_decoding_error() {
         let log = Log {
             address: Address::ZERO,
             data: LogData::new_unchecked(
@@ -180,7 +180,7 @@ mod tests {
         };
 
         let system_log = SystemConfigLog::new(log, false);
-        let err = MinBaseFeeUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, MinBaseFeeUpdateError::MinBaseFeeDecodingError);
+        let err = DaFootprintGasScalarUpdate::try_from(&system_log).unwrap_err();
+        assert_eq!(err, DaFootprintGasScalarUpdateError::DaFootprintGasScalarDecodingError);
     }
 }

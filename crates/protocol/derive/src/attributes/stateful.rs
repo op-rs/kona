@@ -154,6 +154,11 @@ where
         {
             upgrade_transactions.append(&mut Hardforks::ISTHMUS.txs().collect());
         }
+        if self.rollup_cfg.is_jovian_active(next_l2_time) &&
+            !self.rollup_cfg.is_jovian_active(l2_parent.block_info.timestamp)
+        {
+            // TODO(@theochap, `<https://github.com/op-rs/kona/issues/2931>`): Add Jovian upgrade transactions.
+        }
         if self.rollup_cfg.is_interop_active(next_l2_time) &&
             !self.rollup_cfg.is_interop_active(l2_parent.block_info.timestamp)
         {

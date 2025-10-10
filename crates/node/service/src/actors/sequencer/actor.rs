@@ -337,6 +337,13 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
             attributes.no_tx_pool = Some(true);
         }
 
+        // Do not include transactions in the first Jovian block.
+        // See: `<https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/jovian/derivation.md#activation-block-rules>`
+        if self.cfg.is_first_jovian_block(attributes.payload_attributes.timestamp) {
+            info!(target: "sequencer", "Sequencing jovian upgrade block");
+            attributes.no_tx_pool = Some(true);
+        }
+
         // Do not include transactions in the first Interop block.
         if self.cfg.is_first_interop_block(attributes.payload_attributes.timestamp) {
             info!(target: "sequencer", "Sequencing interop upgrade block");
