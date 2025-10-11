@@ -36,7 +36,7 @@ where
         )));
     }
 
-    if input_len % PAIRING_INPUT_LENGTH != 0 {
+    if !input_len.is_multiple_of(PAIRING_INPUT_LENGTH) {
         return Err(PrecompileError::Other(alloc::format!(
             "Pairing input length should be multiple of {PAIRING_INPUT_LENGTH}, was {input_len}"
         )));

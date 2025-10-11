@@ -642,7 +642,8 @@ impl SpanBatch {
                 warn!(target: "batch_span", "batch has misaligned timestamp, block time is too short");
                 return (BatchValidity::Drop, None);
             }
-            if (l2_safe_head.block_info.timestamp - self.starting_timestamp()) % cfg.block_time != 0
+            if !(l2_safe_head.block_info.timestamp - self.starting_timestamp())
+                .is_multiple_of(cfg.block_time)
             {
                 warn!(target: "batch_span", "batch has misaligned timestamp, not overlapped exactly");
                 return (BatchValidity::Drop, None);
