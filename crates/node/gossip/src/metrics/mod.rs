@@ -77,7 +77,7 @@ impl Metrics {
         metrics::describe_gauge!(Self::DIAL_PEER, "Number of peers dialed by the libp2p Swarm");
         metrics::describe_gauge!(
             Self::UNSAFE_BLOCK_PUBLISHED,
-            "Number of OpNetworkPayloadEnvelope gossipped out through the libp2p Swarm"
+            "Number of OpNetworkPayloadEnvelope gossiped out through the libp2p Swarm"
         );
         metrics::describe_gauge!(
             Self::GOSSIP_PEER_COUNT,

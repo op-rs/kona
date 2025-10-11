@@ -32,7 +32,7 @@ Kona has been extended to be _the monorepo_ for <a href="https://specs.optimism.
 types, components, and services built in Rust. Kona provides an ecosystem of extensible, low-level
 crates that compose into components and services required for the OP Stack.
 
-The [docs][site] contains a more in-depth overview of the project, contributor guidelines, tutorials for
+The [docs][site] contain a more in-depth overview of the project, contributor guidelines, tutorials for
 getting started with building your own programs, and a reference for the libraries and tools provided by Kona.
 
 ## Overview
@@ -107,7 +107,7 @@ see the [SDK section of the docs](https://rollup.yoga/node/design/intro).
 
 ## MSRV
 
-The current MSRV (minimum supported rust version) is `1.88`.
+The current MSRV (minimum supported Rust version) is `1.88`.
 
 The MSRV is not increased automatically, and will be updated
 only as part of a patch (pre-1.0) or minor (post-1.0) release.
