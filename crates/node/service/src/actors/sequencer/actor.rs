@@ -24,7 +24,7 @@ use tokio::{
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
 /// The [`SequencerActor`] is responsible for building L2 blocks on top of the current unsafe head
-/// and scheduling them to be signed and gossipped by the P2P layer, extending the L2 chain with new
+/// and scheduling them to be signed and gossiped by the P2P layer, extending the L2 chain with new
 /// blocks.
 #[derive(Debug)]
 pub struct SequencerActor<AB: AttributesBuilderConfig> {
@@ -414,15 +414,15 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         })
     }
 
-    /// Schedules a built [`OpExecutionPayloadEnvelope`] to be signed and gossipped.
+    /// Schedules a built [`OpExecutionPayloadEnvelope`] to be signed and gossiped.
     async fn schedule_gossip(
         &mut self,
         ctx: &mut SequencerContext,
         payload: OpExecutionPayloadEnvelope,
     ) -> Result<(), SequencerActorError> {
-        // Send the payload to the P2P layer to be signed and gossipped.
+        // Send the payload to the P2P layer to be signed and gossiped.
         if let Err(err) = ctx.gossip_payload_tx.send(payload).await {
-            error!(target: "sequencer", ?err, "Failed to send payload to be signed and gossipped");
+            error!(target: "sequencer", ?err, "Failed to send payload to be signed and gossiped");
             ctx.cancellation.cancel();
             return Err(SequencerActorError::ChannelClosed);
         }
