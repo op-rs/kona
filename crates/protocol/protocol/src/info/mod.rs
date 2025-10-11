@@ -14,3 +14,6 @@ pub use ecotone::L1BlockInfoEcotone;
 
 mod errors;
 pub use errors::{BlockInfoError, DecodeError};
+
+mod common;
+pub(crate) use common::CommonL1BlockFields;

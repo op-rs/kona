@@ -1,5 +1,7 @@
 //! Contains all updates to the [crate::SystemConfig] type.
 
+mod common;
+
 mod batcher;
 pub use batcher::BatcherUpdate;
 

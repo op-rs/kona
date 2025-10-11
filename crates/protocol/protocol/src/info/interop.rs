@@ -1,6 +1,6 @@
 //! Contains interop-specific L1 block info types.
 
-use crate::DecodeError;
+use crate::{info::CommonL1BlockFields, DecodeError};
 use alloc::vec::Vec;
 use alloy_primitives::{Address, B256, Bytes, U256};
 
@@ -58,15 +58,20 @@ impl L1BlockInfoInterop {
     pub fn encode_calldata(&self) -> Bytes {
         let mut buf = Vec::with_capacity(Self::L1_INFO_TX_LEN);
         buf.extend_from_slice(Self::L1_INFO_TX_SELECTOR.as_ref());
-        buf.extend_from_slice(self.base_fee_scalar.to_be_bytes().as_ref());
-        buf.extend_from_slice(self.blob_base_fee_scalar.to_be_bytes().as_ref());
-        buf.extend_from_slice(self.sequence_number.to_be_bytes().as_ref());
-        buf.extend_from_slice(self.time.to_be_bytes().as_ref());
-        buf.extend_from_slice(self.number.to_be_bytes().as_ref());
-        buf.extend_from_slice(U256::from(self.base_fee).to_be_bytes::<32>().as_ref());
-        buf.extend_from_slice(U256::from(self.blob_base_fee).to_be_bytes::<32>().as_ref());
-        buf.extend_from_slice(self.block_hash.as_ref());
-        buf.extend_from_slice(self.batcher_address.into_word().as_ref());
+        
+        let common = CommonL1BlockFields {
+            base_fee_scalar: self.base_fee_scalar,
+            blob_base_fee_scalar: self.blob_base_fee_scalar,
+            sequence_number: self.sequence_number,
+            time: self.time,
+            number: self.number,
+            base_fee: self.base_fee,
+            blob_base_fee: self.blob_base_fee,
+            block_hash: self.block_hash,
+            batcher_address: self.batcher_address,
+        };
+        common.encode_into(&mut buf);
+        
         buf.into()
     }
 
@@ -78,55 +83,19 @@ impl L1BlockInfoInterop {
 
         // SAFETY: For all below slice operations, the full
         //         length is validated above to be `164`.
-
-        // SAFETY: 4 bytes are copied directly into the array
-        let mut base_fee_scalar = [0u8; 4];
-        base_fee_scalar.copy_from_slice(&r[4..8]);
-        let base_fee_scalar = u32::from_be_bytes(base_fee_scalar);
-
-        // SAFETY: 4 bytes are copied directly into the array
-        let mut blob_base_fee_scalar = [0u8; 4];
-        blob_base_fee_scalar.copy_from_slice(&r[8..12]);
-        let blob_base_fee_scalar = u32::from_be_bytes(blob_base_fee_scalar);
-
-        // SAFETY: 8 bytes are copied directly into the array
-        let mut sequence_number = [0u8; 8];
-        sequence_number.copy_from_slice(&r[12..20]);
-        let sequence_number = u64::from_be_bytes(sequence_number);
-
-        // SAFETY: 8 bytes are copied directly into the array
-        let mut time = [0u8; 8];
-        time.copy_from_slice(&r[20..28]);
-        let time = u64::from_be_bytes(time);
-
-        // SAFETY: 8 bytes are copied directly into the array
-        let mut number = [0u8; 8];
-        number.copy_from_slice(&r[28..36]);
-        let number = u64::from_be_bytes(number);
-
-        // SAFETY: 8 bytes are copied directly into the array
-        let mut base_fee = [0u8; 8];
-        base_fee.copy_from_slice(&r[60..68]);
-        let base_fee = u64::from_be_bytes(base_fee);
-
-        // SAFETY: 16 bytes are copied directly into the array
-        let mut blob_base_fee = [0u8; 16];
-        blob_base_fee.copy_from_slice(&r[84..100]);
-        let blob_base_fee = u128::from_be_bytes(blob_base_fee);
-
-        let block_hash = B256::from_slice(r[100..132].as_ref());
-        let batcher_address = Address::from_slice(r[144..164].as_ref());
+        
+        let common = CommonL1BlockFields::decode_from(r);
 
         Ok(Self {
-            number,
-            time,
-            base_fee,
-            block_hash,
-            sequence_number,
-            batcher_address,
-            blob_base_fee,
-            blob_base_fee_scalar,
-            base_fee_scalar,
+            number: common.number,
+            time: common.time,
+            base_fee: common.base_fee,
+            block_hash: common.block_hash,
+            sequence_number: common.sequence_number,
+            batcher_address: common.batcher_address,
+            blob_base_fee: common.blob_base_fee,
+            blob_base_fee_scalar: common.blob_base_fee_scalar,
+            base_fee_scalar: common.base_fee_scalar,
         })
     }
 }
