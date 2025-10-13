@@ -38,16 +38,16 @@ where
     BF: L2ChainProvider + Debug,
 {
     /// The previous stage in the derivation pipeline.
-    prev: P,
+    pub prev: P,
     /// There can only be a single staged span batch.
-    span: Option<SpanBatch>,
+    pub span: Option<SpanBatch>,
     /// A buffer of single batches derived from the [`SpanBatch`].
-    buffer: VecDeque<SingleBatch>,
+    pub buffer: VecDeque<SingleBatch>,
     /// A reference to the rollup config, used to check
     /// if the [`BatchStream`] stage should be activated.
-    config: Arc<RollupConfig>,
+    pub config: Arc<RollupConfig>,
     /// Used to validate the batches.
-    fetcher: BF,
+    pub fetcher: BF,
 }
 
 impl<P, BF> BatchStream<P, BF>

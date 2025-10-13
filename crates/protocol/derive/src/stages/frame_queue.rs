@@ -35,9 +35,9 @@ where
     /// The previous stage in the pipeline.
     pub prev: P,
     /// The current frame queue.
-    queue: VecDeque<Frame>,
+    pub queue: VecDeque<Frame>,
     /// The rollup config.
-    rollup_config: Arc<RollupConfig>,
+    pub rollup_config: Arc<RollupConfig>,
 }
 
 impl<P> FrameQueue<P>

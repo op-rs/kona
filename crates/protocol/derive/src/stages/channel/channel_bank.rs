@@ -34,13 +34,13 @@ where
     P: NextFrameProvider + OriginAdvancer + OriginProvider + SignalReceiver + Debug,
 {
     /// The rollup configuration.
-    pub(crate) cfg: Arc<RollupConfig>,
+    pub cfg: Arc<RollupConfig>,
     /// Map of channels by ID.
-    pub(crate) channels: HashMap<ChannelId, Channel>,
+    pub channels: HashMap<ChannelId, Channel>,
     /// Channels in FIFO order.
-    pub(crate) channel_queue: VecDeque<ChannelId>,
+    pub channel_queue: VecDeque<ChannelId>,
     /// The previous stage of the derivation pipeline.
-    pub(crate) prev: P,
+    pub prev: P,
 }
 
 impl<P> ChannelBank<P>

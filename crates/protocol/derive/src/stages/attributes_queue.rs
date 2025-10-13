@@ -35,15 +35,15 @@ where
     AB: AttributesBuilder + Debug,
 {
     /// The rollup config.
-    cfg: Arc<RollupConfig>,
+    pub cfg: Arc<RollupConfig>,
     /// The previous stage of the derivation pipeline.
-    prev: P,
+    pub prev: P,
     /// Whether the current batch is the last in its span.
-    is_last_in_span: bool,
+    pub is_last_in_span: bool,
     /// The current batch being processed.
-    batch: Option<SingleBatch>,
+    pub batch: Option<SingleBatch>,
     /// The attributes builder.
-    builder: AB,
+    pub builder: AB,
 }
 
 impl<P, AB> AttributesQueue<P, AB>

@@ -27,11 +27,11 @@ where
     P: NextFrameProvider + OriginAdvancer + OriginProvider + SignalReceiver + Debug,
 {
     /// The rollup configuration.
-    pub(crate) cfg: Arc<RollupConfig>,
+    pub cfg: Arc<RollupConfig>,
     /// The previous stage of the derivation pipeline.
-    pub(crate) prev: P,
+    pub prev: P,
     /// The current [`Channel`] being assembled.
-    pub(crate) channel: Option<Channel>,
+    pub channel: Option<Channel>,
 }
 
 impl<P> ChannelAssembler<P>
