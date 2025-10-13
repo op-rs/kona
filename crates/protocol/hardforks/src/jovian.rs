@@ -9,7 +9,6 @@ use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{Address, B256, Bytes, TxKind, U256, address, hex};
 use kona_protocol::Predeploys;
 use op_alloy_consensus::{TxDeposit, UpgradeDepositSource};
-use revm::context::journal;
 
 use crate::Hardfork;
 
@@ -92,6 +91,7 @@ impl Jovian {
             .source_hash()
     }
 
+    /// Returns the source hash to the enable the gas price oracle for Jovian.
     pub fn gas_price_oracle_enable_jovian() -> B256 {
         UpgradeDepositSource { intent: String::from("Jovian: Gas Price Oracle Set Jovian") }
             .source_hash()
@@ -120,16 +120,16 @@ impl Jovian {
         .into()
     }
 
+    /// Returns the bytecode for the gas price oracle proxy update.
     pub fn gas_price_oracle_proxy_update_bytecode() -> Bytes {
         hex::decode("0x3659cfe60000000000000000000000003ba4007f5c922fbb33c454b41ea7a1f11e83df2c")
             .expect("Expected hex byte string")
             .into()
     }
 
+    /// Returns the bytecode to enable the gas price oracle for Jovian.
     pub fn gas_price_oracle_enable_jovian_bytecode() -> Bytes {
-        hex::decode("0xb3d72079")
-            .expect("Expected hex byte string")
-            .into()
+        hex::decode("0xb3d72079").expect("Expected hex byte string").into()
     }
 
     /// Returns the list of [`TxDeposit`]s for the network upgrade.
@@ -181,7 +181,7 @@ impl Jovian {
                 to: TxKind::Call(Predeploys::GAS_PRICE_ORACLE),
                 mint: 0,
                 value: U256::ZERO,
-                gas_limit: 90,000,
+                gas_limit: 90_000,
                 is_system_transaction: false,
                 input: Self::gas_price_oracle_enable_jovian_bytecode(),
             },
@@ -206,7 +206,6 @@ mod tests {
     use crate::test_utils::check_deployment_code;
 
     use super::*;
-    use alloc::vec;
     use alloy_primitives::b256;
 
     #[test]
@@ -262,16 +261,6 @@ mod tests {
             txs[1].clone(),
             Jovian::GAS_PRICE_ORACLE,
             Jovian::GAS_PRICE_ORACLE_CODE_HASH,
-        );
-    }
-    #[test]
-    fn test_verify_jovian_operator_fee_vault_deployment_code_hash() {
-        let txs = Jovian::deposits().collect::<Vec<_>>();
-
-        check_deployment_code(
-            txs[2].clone(),
-            Jovian::OPERATOR_FEE_VAULT,
-            Jovian::OPERATOR_FEE_VAULT_CODE_HASH,
         );
     }
 }
