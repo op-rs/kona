@@ -136,8 +136,6 @@ where
               source_block_number,
               "source block not found"
             );
-
-            // todo: replace with a more specific error
             EntryNotFoundError::SourceBlockNotFound(source_block_number)
         })?)
     }
@@ -298,7 +296,6 @@ where
         &self,
         incoming_pair: DerivedRefPair,
     ) -> Result<(), StorageError> {
-        // todo: use cursor to get the last block(performance improvement)
         let latest_derivation_state = match self.latest_derivation_state() {
             Ok(pair) => pair,
             Err(StorageError::EntryNotFound(_)) => {
