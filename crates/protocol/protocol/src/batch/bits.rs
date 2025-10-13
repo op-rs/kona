@@ -8,7 +8,7 @@ use core::cmp::Ordering;
 
 /// Type for span batch bits.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct SpanBatchBits(Vec<u8>);
+pub struct SpanBatchBits(pub Vec<u8>);
 
 impl AsRef<[u8]> for SpanBatchBits {
     fn as_ref(&self) -> &[u8] {

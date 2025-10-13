@@ -25,22 +25,22 @@ where
     P: NextFrameProvider + OriginAdvancer + OriginProvider + SignalReceiver + Debug,
 {
     /// The rollup configuration.
-    cfg: Arc<RollupConfig>,
+    pub cfg: Arc<RollupConfig>,
     /// The previous stage of the derivation pipeline.
     ///
     /// If this is set to [`None`], the multiplexer has been activated and the active stage
     /// owns the previous stage.
     ///
     /// Must be [`None`] if `channel_bank` or `channel_assembler` is [`Some`].
-    prev: Option<P>,
+    pub prev: Option<P>,
     /// The channel bank stage of the provider.
     ///
     /// Must be [`None`] if `prev` or `channel_assembler` is [`Some`].
-    channel_bank: Option<ChannelBank<P>>,
+    pub channel_bank: Option<ChannelBank<P>>,
     /// The channel assembler stage of the provider.
     ///
     /// Must be [`None`] if `prev` or `channel_bank` is [`Some`].
-    channel_assembler: Option<ChannelAssembler<P>>,
+    pub channel_assembler: Option<ChannelAssembler<P>>,
 }
 
 impl<P> ChannelProvider<P>
