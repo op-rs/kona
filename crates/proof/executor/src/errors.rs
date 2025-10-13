@@ -25,7 +25,7 @@ use thiserror::Error;
 /// - Invalid block header parameters
 /// - Unsupported transaction types
 ///
-/// ## Execution Errors  
+/// ## Execution Errors
 /// - Block gas limit violations
 /// - Transaction execution failures
 /// - EVM-level execution errors

@@ -43,7 +43,7 @@ use crate::{
 /// SpanBatch {
 ///   prefix: {
 ///     rel_timestamp,     // Relative to genesis
-///     l1_origin_num,     // Final L1 block number  
+///     l1_origin_num,     // Final L1 block number
 ///     parent_check,      // First 20 bytes of parent hash
 ///     l1_origin_check,   // First 20 bytes of L1 origin hash
 ///   },

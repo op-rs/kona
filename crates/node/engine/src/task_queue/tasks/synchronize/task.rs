@@ -31,7 +31,7 @@ use tokio::time::Instant;
 /// forkchoice management in most user scenarios.
 ///
 /// [`InsertTask`]: crate::InsertTask
-/// [`ConsolidateTask`]: crate::ConsolidateTask  
+/// [`ConsolidateTask`]: crate::ConsolidateTask
 /// [`FinalizeTask`]: crate::FinalizeTask
 /// [`BuildTask`]: crate::BuildTask
 #[derive(Debug, Clone)]
