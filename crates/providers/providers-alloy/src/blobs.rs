@@ -1,8 +1,8 @@
 //! Contains an online implementation of the `BlobProvider` trait.
 
+use crate::BeaconClient;
 #[cfg(feature = "metrics")]
 use crate::Metrics;
-use crate::{BeaconClient, beacon_client::BoxedBlobWithIndex};
 use alloy_eips::eip4844::{
     Blob, BlobTransactionSidecarItem, IndexedBlobHash, env_settings::EnvKzgSettings,
 };
@@ -11,6 +11,15 @@ use async_trait::async_trait;
 use kona_derive::{BlobProvider, BlobProviderError};
 use kona_protocol::BlockInfo;
 use std::{boxed::Box, string::ToString, vec::Vec};
+
+/// A boxed blob with index.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BoxedBlobWithIndex {
+    /// The index of the blob.
+    pub index: u64,
+    /// The blob data.
+    pub blob: Box<Blob>,
+}
 
 /// An online implementation of the [BlobProvider] trait.
 #[derive(Debug, Clone)]

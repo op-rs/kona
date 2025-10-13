@@ -26,24 +26,24 @@ where
     F: L2ChainProvider + Clone + Debug,
 {
     /// The rollup configuration.
-    cfg: Arc<RollupConfig>,
+    pub cfg: Arc<RollupConfig>,
     /// The L2 chain provider.
-    provider: F,
+    pub provider: F,
     /// The previous stage of the derivation pipeline.
     ///
     /// If this is set to [`None`], the multiplexer has been activated and the active stage
     /// owns the previous stage.
     ///
     /// Must be [`None`] if `batch_queue` or `batch_validator` is [`Some`].
-    prev: Option<P>,
+    pub prev: Option<P>,
     /// The batch queue stage of the provider.
     ///
     /// Must be [`None`] if `prev` or `batch_validator` is [`Some`].
-    batch_queue: Option<BatchQueue<P, F>>,
+    pub batch_queue: Option<BatchQueue<P, F>>,
     /// The batch validator stage of the provider.
     ///
     /// Must be [`None`] if `prev` or `batch_queue` is [`Some`].
-    batch_validator: Option<BatchValidator<P>>,
+    pub batch_validator: Option<BatchValidator<P>>,
 }
 
 impl<P, F> BatchProvider<P, F>

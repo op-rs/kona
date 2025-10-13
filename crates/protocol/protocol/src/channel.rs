@@ -44,22 +44,22 @@ pub enum ChannelError {
 #[derive(Debug, Clone, Default)]
 pub struct Channel {
     /// The unique identifier for this channel
-    id: ChannelId,
+    pub id: ChannelId,
     /// The block that the channel is currently open at
-    open_block: BlockInfo,
+    pub open_block: BlockInfo,
     /// Estimated memory size, used to drop the channel if we have too much data
-    estimated_size: usize,
+    pub estimated_size: usize,
     /// True if the last frame has been buffered
-    closed: bool,
+    pub closed: bool,
     /// The highest frame number that has been ingested
-    highest_frame_number: u16,
+    pub highest_frame_number: u16,
     /// The frame number of the frame where `is_last` is true
     /// No other frame number may be higher than this
-    last_frame_number: u16,
+    pub last_frame_number: u16,
     /// Store a map of frame number to frame for constant time ordering
-    inputs: HashMap<u16, Frame>,
+    pub inputs: HashMap<u16, Frame>,
     /// The highest L1 inclusion block that a frame was included in
-    highest_l1_inclusion_block: BlockInfo,
+    pub highest_l1_inclusion_block: BlockInfo,
 }
 
 impl Channel {
