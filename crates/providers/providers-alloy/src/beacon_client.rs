@@ -141,14 +141,19 @@ impl OnlineBeaconClient {
                 // If the blobs endpoint fails, try the deprecated sidecars endpoint. CL Clients
                 // only support the blobs endpoint from Fusaka (Fulu) onwards.
                 _ => {
-                    tracing::info!(target: "beacon_client", "Trying deprecated sidecars endpoint");
-                    self.inner
+                    tracing::info!(target: "beacon_client", slot, "Trying deprecated sidecars endpoint");
+                    let response = self
+                        .inner
                         .get(format!(
                             "{}/{}/{}",
                             self.base, SIDECARS_METHOD_PREFIX_DEPRECATED, slot
                         ))
                         .send()
-                        .await?
+                        .await;
+
+                    tracing::info!(target: "beacon_client", slot, ?response, "Sidecars endpoint returned");
+
+                    response?
                         .json::<BeaconBlobBundle>()
                         .await?
                         .into_iter()
