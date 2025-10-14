@@ -578,8 +578,8 @@ mod tests {
             })
             .collect();
 
-        // There should be 13 valid ENRs for the mainnet.
-        assert_eq!(mainnet.len(), 13);
+        // There should be 16 valid ENRs for the mainnet.
+        assert_eq!(mainnet.len(), 16);
 
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
 
@@ -605,7 +605,7 @@ mod tests {
 
         // Now add the ENODEs
         discovery.enode_bootstrap().await;
-        assert_eq!(discovery.disc.table_entries_enr().len(), 13);
+        assert_eq!(discovery.disc.table_entries_enr().len(), 16);
 
         // Those 13 ENRs should be in the discovery table.
         let disc_enrs = discovery.disc.table_entries_enr();

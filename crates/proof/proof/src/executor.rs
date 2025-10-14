@@ -3,6 +3,7 @@
 use alloc::boxed::Box;
 use alloy_consensus::{Header, Sealed};
 use alloy_evm::{EvmFactory, FromRecoveredTx, FromTxWithEncoded};
+use alloy_op_evm::block::OpTxEnv;
 use alloy_primitives::B256;
 use async_trait::async_trait;
 use core::fmt::Debug;
@@ -58,7 +59,8 @@ where
     P: TrieDBProvider + Debug + Send + Sync + Clone,
     H: TrieHinter + Debug + Send + Sync + Clone,
     Evm: EvmFactory<Spec = OpSpecId> + Send + Sync + Clone + 'static,
-    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope>,
+    <Evm as EvmFactory>::Tx:
+        FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope> + OpTxEnv,
 {
     type Error = kona_executor::ExecutorError;
 

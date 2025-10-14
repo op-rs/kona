@@ -158,10 +158,10 @@ op-alloy-rpc-jsonrpsee = { version = "0.20.0", default-features = false }
 op-alloy-rpc-types-engine = { version = "0.20.0", default-features = false }
 
 # Execution
-revm = { version = "29.0.1", default-features = false }
-op-revm = { version = "10.1.0", default-features = false }
-alloy-evm = { version = "0.21.0", default-features = false }
-alloy-op-evm = { version = "0.21.0", default-features = false }
+revm = { version = "30.0.0", default-features = false }
+op-revm = { version = "11.0.0", default-features = false }
+alloy-evm = { version = "0.21.2", default-features = false }
+alloy-op-evm = { version = "0.21.2", default-features = false }
 
 # Reth (pinned to v1.6.0 for kona-supervisor-storage)
 reth-db-api = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
@@ -268,3 +268,13 @@ c-kzg = { version = "2.1.1", default-features = false }
 ark-ff = { version = "0.5.0", default-features = false }
 secp256k1 = { version = "0.31.0", default-features = false }
 ark-bls12-381 = { version = "0.5.0", default-features = false }
+
+[patch.crates-io]
+# OP Alloy
+op-alloy-network = { git = "https://github.com/alloy-rs/op-alloy", rev = "82f86bbb1242b726ece3e0735a602ee5752f2565" }
+op-alloy-provider = { git = "https://github.com/alloy-rs/op-alloy", rev = "82f86bbb1242b726ece3e0735a602ee5752f2565" }
+op-alloy-consensus = { git = "https://github.com/alloy-rs/op-alloy", rev = "82f86bbb1242b726ece3e0735a602ee5752f2565" }
+op-alloy-rpc-types = { git = "https://github.com/alloy-rs/op-alloy", rev = "82f86bbb1242b726ece3e0735a602ee5752f2565" }
+op-alloy-rpc-jsonrpsee = { git = "https://github.com/alloy-rs/op-alloy", rev = "82f86bbb1242b726ece3e0735a602ee5752f2565" }
+op-alloy-rpc-types-engine = { git = "https://github.com/alloy-rs/op-alloy", rev = "82f86bbb1242b726ece3e0735a602ee5752f2565" }
+
