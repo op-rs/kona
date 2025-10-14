@@ -22,6 +22,7 @@ use kona_proof::{
 use kona_proof_interop::{BootInfo, INVALID_TRANSITION_HASH, OptimisticBlock, PreState};
 use op_alloy_consensus::OpTxEnvelope;
 use op_revm::OpSpecId;
+use revm::context::BlockEnv;
 use tracing::{error, info, warn};
 
 /// Executes a sub-transition of the interop proof with the given [PreimageOracleClient] and
@@ -34,7 +35,7 @@ pub(crate) async fn sub_transition<P, H, Evm>(
 where
     P: PreimageOracleClient + Send + Sync + Debug + Clone,
     H: HintWriterClient + Send + Sync + Debug + Clone,
-    Evm: EvmFactory<Spec = OpSpecId> + Send + Sync + Debug + Clone + 'static,
+    Evm: EvmFactory<Spec = OpSpecId, BlockEnv = BlockEnv> + Send + Sync + Debug + Clone + 'static,
     <Evm as EvmFactory>::Tx:
         FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope> + OpTxEnv,
 {

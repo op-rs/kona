@@ -15,6 +15,7 @@ use kona_proof_interop::{
 use kona_registry::{HashMap, ROLLUP_CONFIGS};
 use op_alloy_consensus::OpTxEnvelope;
 use op_revm::OpSpecId;
+use revm::context::BlockEnv;
 use tracing::{error, info};
 
 /// Executes the consolidation phase of the interop proof with the given [PreimageOracleClient] and
@@ -32,7 +33,7 @@ pub(crate) async fn consolidate_dependencies<P, H, Evm>(
 where
     P: PreimageOracleClient + Send + Sync + Debug + Clone,
     H: HintWriterClient + Send + Sync + Debug + Clone,
-    Evm: EvmFactory<Spec = OpSpecId> + Send + Sync + Debug + Clone + 'static,
+    Evm: EvmFactory<Spec = OpSpecId, BlockEnv = BlockEnv> + Send + Sync + Debug + Clone + 'static,
     <Evm as EvmFactory>::Tx:
         FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope> + OpTxEnv,
 {

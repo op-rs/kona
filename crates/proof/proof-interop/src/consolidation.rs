@@ -19,6 +19,7 @@ use kona_registry::{HashMap, ROLLUP_CONFIGS};
 use op_alloy_consensus::{InteropBlockReplacementDepositSource, OpTxEnvelope, OpTxType, TxDeposit};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use op_revm::OpSpecId;
+use revm::context::BlockEnv;
 use thiserror::Error;
 use tracing::{error, info};
 
@@ -44,7 +45,7 @@ where
 impl<'a, C, Evm> SuperchainConsolidator<'a, C, Evm>
 where
     C: CommsClient + Debug + Send + Sync,
-    Evm: EvmFactory<Spec = OpSpecId> + Send + Sync + Debug + Clone + 'static,
+    Evm: EvmFactory<Spec = OpSpecId, BlockEnv = BlockEnv> + Send + Sync + Debug + Clone + 'static,
     <Evm as EvmFactory>::Tx:
         FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope> + OpTxEnv,
 {

@@ -21,7 +21,10 @@ use kona_mpt::TrieHinter;
 use op_alloy_consensus::{OpReceiptEnvelope, OpTxEnvelope};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use op_revm::OpSpecId;
-use revm::database::{State, states::bundle_state::BundleRetention};
+use revm::{
+    context::BlockEnv,
+    database::{State, states::bundle_state::BundleRetention},
+};
 
 /// Stateless OP Stack L2 block builder that derives state from trie proofs during execution.
 ///
@@ -100,7 +103,7 @@ impl<'a, P, H, Evm> StatelessL2Builder<'a, P, H, Evm>
 where
     P: TrieDBProvider + Debug,
     H: TrieHinter + Debug,
-    Evm: EvmFactory<Spec = OpSpecId> + 'static,
+    Evm: EvmFactory<Spec = OpSpecId, BlockEnv = BlockEnv> + 'static,
     <Evm as EvmFactory>::Tx:
         FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope> + OpTxEnv,
 {

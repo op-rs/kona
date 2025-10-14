@@ -10,7 +10,7 @@ use op_revm::{
 };
 use revm::{
     Context, Inspector,
-    context::{Evm as RevmEvm, FrameStack, TxEnv, result::EVMError},
+    context::{BlockEnv, Evm as RevmEvm, FrameStack, TxEnv, result::EVMError},
     handler::instructions::EthInstructions,
     inspector::NoOpInspector,
 };
@@ -58,6 +58,7 @@ where
     type HaltReason = OpHaltReason;
     type Spec = OpSpecId;
     type Precompiles = OpFpvmPrecompiles<H, O>;
+    type BlockEnv = BlockEnv;
 
     fn create_evm<DB: Database>(
         &self,
