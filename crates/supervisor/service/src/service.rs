@@ -435,12 +435,12 @@ impl Service {
                         Some(Ok(Err(err))) => {
                             error!(target: "supervisor::service", %err, "A task encountered an error.");
                             self.cancel_token.cancel();
-                            return Err(anyhow::anyhow!("A service task failed: {}", err));
+                            return Err(anyhow::anyhow!("A service task failed: {err}"));
                         }
                         Some(Err(err)) => {
                             error!(target: "supervisor::service", %err, "A task encountered an error.");
                             self.cancel_token.cancel();
-                            return Err(anyhow::anyhow!("A service task failed: {}", err));
+                            return Err(anyhow::anyhow!("A service task failed: {err}"));
                         }
                         None => break, // all tasks finished
                     }

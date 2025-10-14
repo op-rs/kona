@@ -312,7 +312,7 @@ impl NodeCommand {
             .await
             .map_err(|e| {
                 error!(target: "rollup_node", "Failed to start rollup node service: {e}");
-                anyhow::anyhow!("{}", e)
+                anyhow::anyhow!("{e}")
             })?;
 
         Ok(())
@@ -324,13 +324,13 @@ impl NodeCommand {
             Some(path) => {
                 debug!("Loading l1 config from file: {:?}", path);
                 let file = File::open(path)
-                    .map_err(|e| anyhow::anyhow!("Failed to open l1 config file: {}", e))?;
-                from_reader(file).map_err(|e| anyhow::anyhow!("Failed to parse l1 config: {}", e))
+                    .map_err(|e| anyhow::anyhow!("Failed to open l1 config file: {e}"))?;
+                from_reader(file).map_err(|e| anyhow::anyhow!("Failed to parse l1 config: {e}"))
             }
             None => {
                 debug!("Loading l1 config from known chains");
                 let cfg = L1Config::get_l1_genesis(l1_chain_id).map_err(|e| {
-                    anyhow::anyhow!("Failed to find l1 config for chain ID {}: {}", l1_chain_id, e)
+                    anyhow::anyhow!("Failed to find l1 config for chain ID {l1_chain_id}: {e}")
                 })?;
                 Ok(cfg.into())
             }
@@ -343,8 +343,8 @@ impl NodeCommand {
             Some(path) => {
                 debug!("Loading l2 config from file: {:?}", path);
                 let file = File::open(path)
-                    .map_err(|e| anyhow::anyhow!("Failed to open l2 config file: {}", e))?;
-                from_reader(file).map_err(|e| anyhow::anyhow!("Failed to parse l2 config: {}", e))
+                    .map_err(|e| anyhow::anyhow!("Failed to open l2 config file: {e}"))?;
+                from_reader(file).map_err(|e| anyhow::anyhow!("Failed to parse l2 config: {e}"))
             }
             None => {
                 debug!("Loading l2 config from superchain registry");
