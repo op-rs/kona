@@ -5151,6 +5151,7 @@ dependencies = [
  "thiserror 2.0.16",
  "tokio",
  "tower",
+ "tracing",
 ]
 
 [[package]]

@@ -122,6 +122,7 @@ impl OnlineBeaconClient {
                 .await
             {
                 Ok(response) if response.status().is_success() => {
+                    tracing::info!(target: "beacon_client", slot, ?response, "Blobs endpoint returned success");
                     let bundle = response.json::<GetBlobsResponse>().await?;
 
                     bundle
