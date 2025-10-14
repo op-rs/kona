@@ -140,20 +140,26 @@ impl OnlineBeaconClient {
                 }
                 // If the blobs endpoint fails, try the deprecated sidecars endpoint. CL Clients
                 // only support the blobs endpoint from Fusaka (Fulu) onwards.
-                _ => self
-                    .inner
-                    .get(format!("{}/{}/{}", self.base, SIDECARS_METHOD_PREFIX_DEPRECATED, slot))
-                    .send()
-                    .await?
-                    .json::<BeaconBlobBundle>()
-                    .await?
-                    .into_iter()
-                    .filter_map(|blob| {
-                        blob_indexes
-                            .contains(&blob.index)
-                            .then_some(BoxedBlobWithIndex { index: blob.index, blob: blob.blob })
-                    })
-                    .collect::<Vec<_>>(),
+                _ => {
+                    tracing::info!(target: "beacon_client", "Trying deprecated sidecars endpoint");
+                    self.inner
+                        .get(format!(
+                            "{}/{}/{}",
+                            self.base, SIDECARS_METHOD_PREFIX_DEPRECATED, slot
+                        ))
+                        .send()
+                        .await?
+                        .json::<BeaconBlobBundle>()
+                        .await?
+                        .into_iter()
+                        .filter_map(|blob| {
+                            blob_indexes.contains(&blob.index).then_some(BoxedBlobWithIndex {
+                                index: blob.index,
+                                blob: blob.blob,
+                            })
+                        })
+                        .collect::<Vec<_>>()
+                }
             },
         )
     }
