@@ -27,7 +27,7 @@ alloy-genesis.workspace = true
 
 # Misc
 thiserror.workspace = true
-derive_more = { workspace = true, features = ["from"] }
+derive_more = { workspace = true, features = ["from", "try_from"] }
 
 # `revm` feature
 op-revm = { workspace = true, optional = true }

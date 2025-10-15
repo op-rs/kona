@@ -39,7 +39,7 @@ where
         )));
     }
 
-    if input_len == 0 || input_len % G2_MSM_INPUT_LENGTH != 0 {
+    if input_len == 0 || !input_len.is_multiple_of(G2_MSM_INPUT_LENGTH) {
         return Err(PrecompileError::Other(alloc::format!(
             "G2MSM input length should be multiple of {G2_MSM_INPUT_LENGTH}, was {input_len}"
         )));

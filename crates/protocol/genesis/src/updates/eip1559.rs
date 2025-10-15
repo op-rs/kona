@@ -3,7 +3,10 @@
 use alloy_primitives::LogData;
 use alloy_sol_types::{SolType, sol};
 
-use crate::{EIP1559UpdateError, SystemConfig, SystemConfigLog};
+use crate::{
+    EIP1559UpdateError, SystemConfig, SystemConfigLog,
+    updates::common::{ValidationError, validate_update_data},
+};
 
 /// The EIP-1559 update type.
 #[derive(Debug, Default, Clone, Hash, PartialEq, Eq)]
@@ -28,25 +31,22 @@ impl TryFrom<&SystemConfigLog> for Eip1559Update {
 
     fn try_from(log: &SystemConfigLog) -> Result<Self, Self::Error> {
         let LogData { data, .. } = &log.log.data;
-        if data.len() != 96 {
-            return Err(EIP1559UpdateError::InvalidDataLen(data.len()));
-        }
 
-        let Ok(pointer) = <sol!(uint64)>::abi_decode_validate(&data[0..32]) else {
-            return Err(EIP1559UpdateError::PointerDecodingError);
-        };
-        if pointer != 32 {
-            return Err(EIP1559UpdateError::InvalidDataPointer(pointer));
-        }
+        let validated = validate_update_data(data).map_err(|e| match e {
+            ValidationError::InvalidDataLen(_expected, actual) => {
+                EIP1559UpdateError::InvalidDataLen(actual)
+            }
+            ValidationError::PointerDecodingError => EIP1559UpdateError::PointerDecodingError,
+            ValidationError::InvalidDataPointer(pointer) => {
+                EIP1559UpdateError::InvalidDataPointer(pointer)
+            }
+            ValidationError::LengthDecodingError => EIP1559UpdateError::LengthDecodingError,
+            ValidationError::InvalidDataLength(length) => {
+                EIP1559UpdateError::InvalidDataLength(length)
+            }
+        })?;
 
-        let Ok(length) = <sol!(uint64)>::abi_decode_validate(&data[32..64]) else {
-            return Err(EIP1559UpdateError::LengthDecodingError);
-        };
-        if length != 32 {
-            return Err(EIP1559UpdateError::InvalidDataLength(length));
-        }
-
-        let Ok(eip1559_params) = <sol!(uint64)>::abi_decode_validate(&data[64..96]) else {
+        let Ok(eip1559_params) = <sol!(uint64)>::abi_decode_validate(validated.payload()) else {
             return Err(EIP1559UpdateError::EIP1559DecodingError);
         };
 
