@@ -1,6 +1,9 @@
 //! This module contains the `ClientIO` struct, which is a system call interface for the kernel.
 
-use crate::{BasicKernelInterface, FileDescriptor, errors::{IOResult, EBADF}};
+use crate::{
+    BasicKernelInterface, FileDescriptor,
+    errors::{EBADF, IOResult},
+};
 use cfg_if::cfg_if;
 
 cfg_if! {
