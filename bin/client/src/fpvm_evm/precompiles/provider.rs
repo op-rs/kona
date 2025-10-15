@@ -13,7 +13,7 @@ use op_revm::{
 use revm::{
     context::{Cfg, ContextTr},
     handler::{EthPrecompiles, PrecompileProvider},
-    interpreter::{Gas, InputsImpl, InstructionResult, InterpreterResult},
+    interpreter::{CallInputs, Gas, InstructionResult, InterpreterResult},
     precompile::{PrecompileError, PrecompileResult, Precompiles, bls12_381_const, bn254},
     primitives::{hardfork::SpecId, hash_map::HashMap},
 };
@@ -48,7 +48,7 @@ where
             OpSpecId::ECOTONE) => Precompiles::new(spec.into_eth_spec().into()),
             OpSpecId::FJORD => fjord(),
             OpSpecId::GRANITE | OpSpecId::HOLOCENE => granite(),
-            OpSpecId::ISTHMUS | OpSpecId::INTEROP | OpSpecId::OSAKA => isthmus(),
+            OpSpecId::ISTHMUS | OpSpecId::INTEROP | OpSpecId::OSAKA | OpSpecId::JOVIAN => isthmus(),
         };
 
         let accelerated_precompiles = match spec {
@@ -57,7 +57,7 @@ where
             }
             OpSpecId::ECOTONE | OpSpecId::FJORD => accelerated_ecotone::<H, O>(),
             OpSpecId::GRANITE | OpSpecId::HOLOCENE => accelerated_granite::<H, O>(),
-            OpSpecId::ISTHMUS | OpSpecId::INTEROP | OpSpecId::OSAKA => {
+            OpSpecId::ISTHMUS | OpSpecId::INTEROP | OpSpecId::OSAKA | OpSpecId::JOVIAN => {
                 accelerated_isthmus::<H, O>()
             }
         };
@@ -96,14 +96,11 @@ where
     fn run(
         &mut self,
         context: &mut CTX,
-        address: &Address,
-        inputs: &InputsImpl,
-        _is_static: bool,
-        gas_limit: u64,
+        inputs: &CallInputs,
     ) -> Result<Option<Self::Output>, String> {
         let mut result = InterpreterResult {
             result: InstructionResult::Return,
-            gas: Gas::new(gas_limit),
+            gas: Gas::new(inputs.gas_limit),
             output: Bytes::new(),
         };
 
@@ -121,13 +118,14 @@ where
         // 1. If the precompile has an accelerated version, use that.
         // 2. If the precompile is not accelerated, use the default version.
         // 3. If the precompile is not found, return None.
-        let output = if let Some(accelerated) = self.accelerated_precompiles.get(address) {
-            (accelerated)(&input, gas_limit, &self.hint_writer, &self.oracle_reader)
-        } else if let Some(precompile) = self.inner.precompiles.get(address) {
-            precompile.execute(&input, gas_limit)
-        } else {
-            return Ok(None);
-        };
+        let output =
+            if let Some(accelerated) = self.accelerated_precompiles.get(&inputs.target_address) {
+                (accelerated)(&input, inputs.gas_limit, &self.hint_writer, &self.oracle_reader)
+            } else if let Some(precompile) = self.inner.precompiles.get(&inputs.target_address) {
+                precompile.execute(&input, inputs.gas_limit)
+            } else {
+                return Ok(None);
+            };
 
         match output {
             Ok(output) => {

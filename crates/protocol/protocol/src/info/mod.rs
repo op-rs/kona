@@ -12,6 +12,9 @@ pub use bedrock::L1BlockInfoBedrock;
 mod ecotone;
 pub use ecotone::L1BlockInfoEcotone;
 
+mod jovian;
+pub use jovian::L1BlockInfoJovian;
+
 mod errors;
 pub use errors::{BlockInfoError, DecodeError};
 

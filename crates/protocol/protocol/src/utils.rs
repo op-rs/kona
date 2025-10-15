@@ -9,7 +9,7 @@ use op_alloy_consensus::{OpBlock, decode_holocene_extra_data, decode_jovian_extr
 
 use crate::{
     L1BlockInfoBedrock, L1BlockInfoEcotone, L1BlockInfoIsthmus, L1BlockInfoTx,
-    OpBlockConversionError, SpanBatchError, SpanDecodingError,
+    OpBlockConversionError, SpanBatchError, SpanDecodingError, info::L1BlockInfoJovian,
 };
 
 /// Converts the [`OpBlock`] to a partial [`SystemConfig`].
@@ -49,6 +49,9 @@ pub fn to_system_config(
             base_fee_scalar,
             blob_base_fee_scalar,
             ..
+        }) |
+        L1BlockInfoTx::Jovian(L1BlockInfoJovian {
+            base_fee_scalar, blob_base_fee_scalar, ..
         }) => {
             // Translate Ecotone values back into encoded scalar if needed.
             // We do not know if it was derived from a v0 or v1 scalar,
@@ -85,6 +88,10 @@ pub fn to_system_config(
     if rollup_config.is_isthmus_active(block.header.timestamp) {
         cfg.operator_fee_scalar = Some(l1_info.operator_fee_scalar());
         cfg.operator_fee_constant = Some(l1_info.operator_fee_constant());
+    }
+
+    if let Some(da_footprint) = l1_info.da_footprint() {
+        cfg.da_footprint_gas_scalar = Some(da_footprint);
     }
 
     Ok(cfg)
@@ -269,6 +276,7 @@ mod tests {
             operator_fee_scalar: None,
             operator_fee_constant: None,
             min_base_fee: None,
+            da_footprint_gas_scalar: None,
         };
         assert_eq!(config, expected);
     }
@@ -317,6 +325,7 @@ mod tests {
             operator_fee_scalar: None,
             operator_fee_constant: None,
             min_base_fee: None,
+            da_footprint_gas_scalar: None,
         };
         assert_eq!(config, expected);
     }
@@ -369,6 +378,7 @@ mod tests {
             operator_fee_scalar: Some(0xabcd),
             operator_fee_constant: Some(0xdcba),
             min_base_fee: None,
+            da_footprint_gas_scalar: None,
         };
         assert_eq!(config, expected);
     }
