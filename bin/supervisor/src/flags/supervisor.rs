@@ -177,11 +177,11 @@ impl SupervisorArgs {
             let secret_path = self.l2_consensus_jwt_secret.get(i).unwrap_or(default_secret_path);
 
             let secret = std::fs::read_to_string(secret_path).map_err(|err| {
-                anyhow::anyhow!("Failed to read JWT secret from '{}': {}", secret_path, err)
+                anyhow::anyhow!("Failed to read JWT secret from '{secret_path}': {err}")
             })?;
 
             let jwt_secret = JwtSecret::from_hex(secret).map_err(|err| {
-                anyhow::anyhow!("Failed to parse JWT secret from '{}': {}", secret_path, err)
+                anyhow::anyhow!("Failed to parse JWT secret from '{secret_path}': {err}")
             })?;
 
             managed_nodes.push(ClientConfig { url: rpc_url.clone(), jwt_secret });

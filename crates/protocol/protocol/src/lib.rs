@@ -58,7 +58,7 @@ pub use deposits::{
 mod info;
 pub use info::{
     BlockInfoError, DecodeError, L1BlockInfoBedrock, L1BlockInfoEcotone, L1BlockInfoIsthmus,
-    L1BlockInfoTx,
+    L1BlockInfoJovian, L1BlockInfoTx,
 };
 
 mod predeploys;
