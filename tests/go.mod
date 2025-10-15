@@ -1,6 +1,6 @@
 module github.com/op-rs/kona
 
-go 1.24.3
+go 1.23.8
 
 // We're using the "develop" branch of the Optimism repo to include the latest changes to the `devstack` package.
 require github.com/ethereum-optimism/optimism v1.13.8-0.20250924162823-d10392338bb9
