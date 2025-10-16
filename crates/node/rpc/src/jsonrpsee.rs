@@ -32,13 +32,6 @@ pub trait RollupNodeApi {
     async fn op_output_at_block(&self, block_number: BlockNumberOrTag)
     -> RpcResult<OutputResponse>;
 
-    /// Gets the safe head at an L1 block height.
-    #[method(name = "safeHeadAtL1Block")]
-    async fn op_safe_head_at_l1_block(
-        &self,
-        block_number: BlockNumberOrTag,
-    ) -> RpcResult<SafeHeadResponse>;
-
     /// Get the synchronization status.
     #[method(name = "syncStatus")]
     async fn op_sync_status(&self) -> RpcResult<SyncStatus>;
