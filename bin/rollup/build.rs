@@ -54,7 +54,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     // - The latest version from Cargo.toml
     // - The short SHA of the latest commit.
     // Example: 0.1.0 (defa64b2)
-    println!("cargo:rustc-env=KONA_ROLLUP_SHORT_VERSION={pkg_version}{version_suffix} ({sha_short})");
+    println!(
+        "cargo:rustc-env=KONA_ROLLUP_SHORT_VERSION={pkg_version}{version_suffix} ({sha_short})"
+    );
 
     let features = env::var("VERGEN_CARGO_FEATURES")?;
 
