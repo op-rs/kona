@@ -27,6 +27,9 @@ pub use isthmus::Isthmus;
 mod interop;
 pub use interop::Interop;
 
+mod jovian;
+pub use jovian::Jovian;
+
 mod utils;
 pub(crate) use utils::upgrade_to_calldata;
 
