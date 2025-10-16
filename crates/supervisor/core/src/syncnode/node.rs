@@ -1,4 +1,4 @@
-//! [`ManagedNode`] implementation for subscribing to the events from managed node.
+//! [`ManagedNode`] implementation for handling events from the managed node.
 
 use super::{
     BlockProvider, ManagedNodeClient, ManagedNodeController, ManagedNodeDataProvider,
@@ -19,9 +19,12 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
 use tracing::{debug, error, trace, warn};
 
-/// [`ManagedNode`] handles the subscription to managed node events.
+/// [`ManagedNode`] processes events dispatched from the managed node.
 ///
-/// It manages the WebSocket connection lifecycle and processes incoming events.
+/// It implements `SubscriptionHandler`, forwards resulting `ChainEvent`s to the chain
+/// processor, and delegates control operations to the underlying client/resetter.
+/// The WebSocket subscription lifecycle (subscription creation, reconnection/restart)
+/// is managed by the supervisor actor and the client, not by this type.
 #[derive(Debug)]
 pub struct ManagedNode<DB, C> {
     /// The attached web socket client
