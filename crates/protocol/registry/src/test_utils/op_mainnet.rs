@@ -36,6 +36,7 @@ pub const OP_MAINNET_CONFIG: RollupConfig = RollupConfig {
             operator_fee_scalar: None,
             operator_fee_constant: None,
             min_base_fee: None,
+            da_footprint_gas_scalar: None,
         }),
     },
     block_time: 2_u64,

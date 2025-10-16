@@ -3,7 +3,10 @@
 use alloy_primitives::{Address, LogData};
 use alloy_sol_types::{SolType, sol};
 
-use crate::{BatcherUpdateError, SystemConfig, SystemConfigLog};
+use crate::{
+    BatcherUpdateError, SystemConfig, SystemConfigLog,
+    updates::common::{ValidationError, validate_update_data},
+};
 
 /// The batcher update type.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -25,25 +28,22 @@ impl TryFrom<&SystemConfigLog> for BatcherUpdate {
 
     fn try_from(log: &SystemConfigLog) -> Result<Self, Self::Error> {
         let LogData { data, .. } = &log.log.data;
-        if data.len() != 96 {
-            return Err(BatcherUpdateError::InvalidDataLen(data.len()));
-        }
 
-        let Ok(pointer) = <sol!(uint64)>::abi_decode_validate(&data[0..32]) else {
-            return Err(BatcherUpdateError::PointerDecodingError);
-        };
-        if pointer != 32 {
-            return Err(BatcherUpdateError::InvalidDataPointer(pointer));
-        }
+        let validated = validate_update_data(data).map_err(|e| match e {
+            ValidationError::InvalidDataLen(_expected, actual) => {
+                BatcherUpdateError::InvalidDataLen(actual)
+            }
+            ValidationError::PointerDecodingError => BatcherUpdateError::PointerDecodingError,
+            ValidationError::InvalidDataPointer(pointer) => {
+                BatcherUpdateError::InvalidDataPointer(pointer)
+            }
+            ValidationError::LengthDecodingError => BatcherUpdateError::LengthDecodingError,
+            ValidationError::InvalidDataLength(length) => {
+                BatcherUpdateError::InvalidDataLength(length)
+            }
+        })?;
 
-        let Ok(length) = <sol!(uint64)>::abi_decode_validate(&data[32..64]) else {
-            return Err(BatcherUpdateError::LengthDecodingError);
-        };
-        if length != 32 {
-            return Err(BatcherUpdateError::InvalidDataLength(length));
-        }
-
-        let Ok(batcher_address) = <sol!(address)>::abi_decode_validate(&data[64..96]) else {
+        let Ok(batcher_address) = <sol!(address)>::abi_decode_validate(validated.payload()) else {
             return Err(BatcherUpdateError::BatcherAddressDecodingError);
         };
 

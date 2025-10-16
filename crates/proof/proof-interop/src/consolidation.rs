@@ -5,6 +5,7 @@ use alloc::vec::Vec;
 use alloy_consensus::{Header, Sealed};
 use alloy_eips::Encodable2718;
 use alloy_evm::{EvmFactory, FromRecoveredTx, FromTxWithEncoded};
+use alloy_op_evm::block::OpTxEnv;
 use alloy_primitives::{Address, B256, Bytes, Sealable, TxKind, U256, address};
 use alloy_rpc_types_engine::PayloadAttributes;
 use core::fmt::Debug;
@@ -18,6 +19,7 @@ use kona_registry::{HashMap, ROLLUP_CONFIGS};
 use op_alloy_consensus::{InteropBlockReplacementDepositSource, OpTxEnvelope, OpTxType, TxDeposit};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use op_revm::OpSpecId;
+use revm::context::BlockEnv;
 use thiserror::Error;
 use tracing::{error, info};
 
@@ -43,8 +45,9 @@ where
 impl<'a, C, Evm> SuperchainConsolidator<'a, C, Evm>
 where
     C: CommsClient + Debug + Send + Sync,
-    Evm: EvmFactory<Spec = OpSpecId> + Send + Sync + Debug + Clone + 'static,
-    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope>,
+    Evm: EvmFactory<Spec = OpSpecId, BlockEnv = BlockEnv> + Send + Sync + Debug + Clone + 'static,
+    <Evm as EvmFactory>::Tx:
+        FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope> + OpTxEnv,
 {
     /// Creates a new [SuperchainConsolidator] with the given providers and [Header]s.
     ///

@@ -64,6 +64,7 @@ mod tests {
                 operator_fee_scalar: None,
                 operator_fee_constant: None,
                 min_base_fee: None,
+                da_footprint_gas_scalar: Some(10),
             }),
         }
     }
@@ -84,7 +85,8 @@ mod tests {
               "batcherAddress": "0x6887246668a3b87F54DeB3b94Ba47a6f63F32985",
               "overhead": "0x00000000000000000000000000000000000000000000000000000000000000bc",
               "scalar": "0x00000000000000000000000000000000000000000000000000000000000a6fe0",
-              "gasLimit": 30000000
+              "gasLimit": 30000000,
+              "daFootprintGasScalar": 10
             }
           }"#;
         let genesis: ChainGenesis = serde_json::from_str(genesis_str).unwrap();

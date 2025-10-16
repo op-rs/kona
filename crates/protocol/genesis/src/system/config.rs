@@ -41,6 +41,10 @@ pub struct SystemConfig {
     /// Note: according to the [spec](https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/jovian/system-config.md#initialization), as long as the MinBaseFee is not
     /// explicitly set, the default value (`0`) will be systematically applied.
     pub min_base_fee: Option<u64>,
+    /// DA footprint gas scalar (Jovian hardfork)
+    /// Note: according to the [spec](https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/jovian/system-config.md#initialization), as long as the DAFootprintGasScalar is not
+    /// explicitly set, the default value (`400`) will be systematically applied.
+    pub da_footprint_gas_scalar: Option<u16>,
 }
 
 /// Custom EIP-1559 parameter decoding is needed here for holocene encoding.
@@ -75,6 +79,7 @@ impl<'a> serde::Deserialize<'a> for SystemConfig {
             operator_fee_scalar: Option<u32>,
             operator_fee_constant: Option<u64>,
             min_base_fee: Option<u64>,
+            da_footprint_gas_scalar: Option<u16>,
         }
 
         let mut alias = SystemConfigAlias::deserialize(deserializer)?;
@@ -105,6 +110,7 @@ impl<'a> serde::Deserialize<'a> for SystemConfig {
             operator_fee_scalar: alias.operator_fee_scalar,
             operator_fee_constant: alias.operator_fee_constant,
             min_base_fee: alias.min_base_fee,
+            da_footprint_gas_scalar: alias.da_footprint_gas_scalar,
         })
     }
 }
@@ -216,6 +222,21 @@ mod test {
     use crate::{CONFIG_UPDATE_EVENT_VERSION_0, HardForkConfig};
     use alloc::vec;
     use alloy_primitives::{B256, LogData, address, b256, hex};
+
+    #[test]
+    #[cfg(feature = "serde")]
+    fn test_system_config_da_footprint_gas_scalar() {
+        let raw = r#"{
+        "batcherAddress": "0x6887246668a3b87F54DeB3b94Ba47a6f63F32985",
+          "overhead": "0x00000000000000000000000000000000000000000000000000000000000000bc",
+          "scalar": "0x00000000000000000000000000000000000000000000000000000000000a6fe0",
+          "gasLimit": 30000000,
+          "eip1559Params": "0x000000ab000000cd",
+          "daFootprintGasScalar": 10
+        }"#;
+        let system_config: SystemConfig = serde_json::from_str(raw).unwrap();
+        assert_eq!(system_config.da_footprint_gas_scalar, Some(10), "da_footprint_gas_scalar");
+    }
 
     #[test]
     #[cfg(feature = "serde")]

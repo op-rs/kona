@@ -233,11 +233,11 @@ impl P2PArgs {
         let udp_socket = std::net::UdpSocket::bind((ip_addr, udp_port));
         if let Err(e) = tcp_socket {
             tracing::error!(target: "p2p::flags", tcp_port, "Error binding TCP socket: {e}");
-            anyhow::bail!("Error binding TCP socket on port {}: {}", tcp_port, e);
+            anyhow::bail!("Error binding TCP socket on port {tcp_port}: {e}");
         }
         if let Err(e) = udp_socket {
             tracing::error!(target: "p2p::flags", udp_port, "Error binding UDP socket: {e}");
-            anyhow::bail!("Error binding UDP socket on port {}: {}", udp_port, e);
+            anyhow::bail!("Error binding UDP socket on port {udp_port}: {e}");
         }
 
         Ok(())

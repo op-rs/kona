@@ -57,8 +57,8 @@ impl BootstoreCommand {
     pub fn info(&self, chain_id: u64) -> anyhow::Result<()> {
         let chain = kona_registry::OPCHAINS
             .get(&chain_id)
-            .ok_or(anyhow::anyhow!("Chain ID {} not found in the registry", chain_id))?;
-        println!("{} Bootstore (Chain ID: {})", chain.name, chain_id);
+            .ok_or(anyhow::anyhow!("Chain ID {chain_id} not found in the registry"))?;
+        println!("{} Bootstore (Chain ID: {chain_id})", chain.name);
         let bootstore: BootStoreFile = self
             .bootstore
             .clone()
