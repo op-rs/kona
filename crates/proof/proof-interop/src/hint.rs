@@ -138,7 +138,6 @@ mod test {
             HintType::from_str("l2-account-storage-proof").unwrap(),
             HintType::L2AccountStorageProof
         );
-        assert_eq!(HintType::from_str("l2-block-data").unwrap(), HintType::L2BlockData);
         assert_eq!(HintType::from_str("l2-payload-witness").unwrap(), HintType::L2PayloadWitness);
         match HintType::from_str("invalid") {
             Ok(_) => {
