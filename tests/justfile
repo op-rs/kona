@@ -207,7 +207,6 @@ long-running-test FILTER="" OUTPUT_LOGS_DIR="":
 
     export OP_DEPLOYER_ARTIFACTS="{{SOURCE}}/artifacts"
     export DISABLE_OP_E2E_LEGACY=true
-    export DEVSTACK_ORCHESTRATOR=sysgo
 
     # Run the test with count=1 to avoid caching the test results.
     cd {{SOURCE}} && go test -count=1 -timeout 0 -v ./node/long-running $FILTER 
