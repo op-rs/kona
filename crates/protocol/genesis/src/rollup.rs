@@ -171,6 +171,8 @@ impl RollupConfig {
     pub fn spec_id(&self, timestamp: u64) -> op_revm::OpSpecId {
         if self.is_interop_active(timestamp) {
             op_revm::OpSpecId::INTEROP
+        } else if self.is_jovian_active(timestamp) {
+            op_revm::OpSpecId::JOVIAN
         } else if self.is_isthmus_active(timestamp) {
             op_revm::OpSpecId::ISTHMUS
         } else if self.is_holocene_active(timestamp) {
@@ -453,7 +455,7 @@ impl OpHardforks for RollupConfig {
                 .hardforks
                 .isthmus_time
                 .map(ForkCondition::Timestamp)
-                .unwrap_or(self.op_fork_activation(OpHardfork::Interop)),
+                .unwrap_or(self.op_fork_activation(OpHardfork::Jovian)),
             OpHardfork::Jovian => self
                 .hardforks
                 .jovian_time
