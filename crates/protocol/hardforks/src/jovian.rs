@@ -124,7 +124,7 @@ impl Jovian {
                 to: TxKind::Create,
                 mint: 0,
                 value: U256::ZERO,
-                gas_limit: 1_625_000,
+                gas_limit: 1_750_714,
                 is_system_transaction: false,
                 input: Self::gas_price_oracle_deployment_bytecode(),
             },
@@ -233,15 +233,14 @@ mod tests {
         assert_eq!(hash, hex!("0xb3d72079"))
     }
 
-    // #[test]
-    // TODO: it seems this contract is running out of gas, so we need to fix it.
-    // fn test_verify_jovian_gas_price_oracle_deployment_code_hash() {
-    //     let txs = Jovian::deposits().collect::<Vec<_>>();
+    #[test]
+    fn test_verify_jovian_gas_price_oracle_deployment_code_hash() {
+        let txs = Jovian::deposits().collect::<Vec<_>>();
 
-    //     check_deployment_code(
-    //         txs[2].clone(),
-    //         Jovian::gas_price_oracle_address(),
-    //         hex!("a7fd95526766fc3ba40ed64aa1b55ad051cb2930df64e11c4a848b81d3a8deaf").into(),
-    //     );
-    // }
+        check_deployment_code(
+            txs[2].clone(),
+            Jovian::gas_price_oracle_address(),
+            hex!("e9fc7c96c4db0d6078e3d359d7e8c982c350a513cb2c31121adf5e1e8a446614").into(),
+        );
+    }
 }

@@ -19,7 +19,7 @@ impl DaFootprintGasScalarUpdate {
     pub const DEFAULT_DA_FOOTPRINT_GAS_SCALAR: u16 = 400;
 
     /// Applies the update to the [`SystemConfig`].
-    pub fn apply(&self, config: &mut SystemConfig) {
+    pub const fn apply(&self, config: &mut SystemConfig) {
         let mut da_footprint_gas_scalar = self.da_footprint_gas_scalar;
 
         // If the da footprint gas scalar is 0, use the default value
