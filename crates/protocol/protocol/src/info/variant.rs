@@ -118,9 +118,13 @@ impl L1BlockInfoTx {
         {
             let operator_fee_scalar = system_config.operator_fee_scalar.unwrap_or_default();
             let operator_fee_constant = system_config.operator_fee_constant.unwrap_or_default();
-            let da_footprint_gas_scalar = system_config
+            let mut da_footprint_gas_scalar = system_config
                 .da_footprint_gas_scalar
                 .unwrap_or(L1BlockInfoJovian::DEFAULT_DA_FOOTPRINT_GAS_SCALAR);
+
+            if da_footprint_gas_scalar == 0 {
+                da_footprint_gas_scalar = L1BlockInfoJovian::DEFAULT_DA_FOOTPRINT_GAS_SCALAR;
+            }
 
             return Ok(Self::Jovian(L1BlockInfoJovian {
                 number: l1_header.number,
