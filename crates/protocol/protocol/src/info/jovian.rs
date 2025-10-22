@@ -150,7 +150,7 @@ impl L1BlockInfoJovian {
         da_footprint_gas_scalar.copy_from_slice(&r[176..178]);
         let mut da_footprint_gas_scalar = u16::from_be_bytes(da_footprint_gas_scalar);
 
-        // If the da footprint gas scalar is 0, use the default value (`https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/jovian/l1-attributes.md#overview`).
+        // If the da footprint gas scalar is 0, use the default value (`https://github.com/ethereum-optimism/specs/blob/664cba65ab9686b0e70ad19fdf2ad054d6295986/specs/protocol/jovian/l1-attributes.md#overview`).
         if da_footprint_gas_scalar == 0 {
             da_footprint_gas_scalar = Self::DEFAULT_DA_FOOTPRINT_GAS_SCALAR;
         }
