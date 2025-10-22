@@ -9,7 +9,7 @@ use std::array::TryFromSliceError;
 use thiserror::Error;
 
 /// Result type for host operations.
-pub type Result<T> = std::result::Result<T, HostError>;
+pub type HostResult<T> = std::result::Result<T, HostError>;
 
 /// Error type for host operations.
 #[derive(Debug, Error)]
