@@ -41,8 +41,14 @@ where
 
         let local_safe = match self.get_latest_valid_local_safe(chain_id).await {
             Ok(block) => block,
-            // todo: require refactor and corner case handling
-            Err(ManagedNodeError::StorageError(StorageError::DatabaseNotInitialised)) => {
+            Err(ManagedNodeError::StorageError(StorageError::DatabaseNotInitialised)) |
+            Err(ManagedNodeError::StorageError(StorageError::EntryNotFound(_))) |
+            Err(ManagedNodeError::StorageError(StorageError::FutureData)) => {
+                warn!(
+                    target: "supervisor::syncnode_resetter",
+                    %chain_id,
+                    "Storage not initialised or incomplete — resetting to pre-interop state"
+                );
                 self.reset_pre_interop(chain_id).await?;
                 return Ok(());
             }
