@@ -6,6 +6,9 @@ no_progress = false
 
 exclude_all_private = false
 
+# Accept status codes - 403 is often returned by private repos instead of 404
+accept = [200, 403]
+
 exclude = [
     'foo.bar',
     'localhost',

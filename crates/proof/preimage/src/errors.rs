@@ -19,6 +19,9 @@ pub enum PreimageOracleError {
     /// Key not found.
     #[error("Key not found.")]
     KeyNotFound,
+    /// Timeout while waiting for preimage.
+    #[error("Timeout while waiting for preimage.")]
+    Timeout,
     /// Buffer length mismatch.
     #[error("Buffer length mismatch. Expected {0}, got {1}.")]
     BufferLengthMismatch(usize, usize),

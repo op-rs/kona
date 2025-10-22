@@ -171,6 +171,8 @@ impl RollupConfig {
     pub fn spec_id(&self, timestamp: u64) -> op_revm::OpSpecId {
         if self.is_interop_active(timestamp) {
             op_revm::OpSpecId::INTEROP
+        } else if self.is_jovian_active(timestamp) {
+            op_revm::OpSpecId::JOVIAN
         } else if self.is_isthmus_active(timestamp) {
             op_revm::OpSpecId::ISTHMUS
         } else if self.is_holocene_active(timestamp) {
@@ -453,7 +455,7 @@ impl OpHardforks for RollupConfig {
                 .hardforks
                 .isthmus_time
                 .map(ForkCondition::Timestamp)
-                .unwrap_or(self.op_fork_activation(OpHardfork::Interop)),
+                .unwrap_or(self.op_fork_activation(OpHardfork::Jovian)),
             OpHardfork::Jovian => self
                 .hardforks
                 .jovian_time
@@ -464,6 +466,7 @@ impl OpHardforks for RollupConfig {
                 .interop_time
                 .map(ForkCondition::Timestamp)
                 .unwrap_or(ForkCondition::Never),
+            _ => ForkCondition::Never,
         }
     }
 }
@@ -792,7 +795,15 @@ mod tests {
               "batcherAddr": "0xc81f87a644b41e49b3221f41251f15c6cb00ce03",
               "overhead": "0x0000000000000000000000000000000000000000000000000000000000000000",
               "scalar": "0x00000000000000000000000000000000000000000000000000000000000f4240",
-              "gasLimit": 30000000
+              "gasLimit": 30000000,
+              "baseFeeScalar": 1234,
+              "blobBaseFeeScalar": 5678,
+              "eip1559Denominator": 10,
+              "eip1559Elasticity": 20,
+              "operatorFeeScalar": 30,
+              "operatorFeeConstant": 40,
+              "minBaseFee": 50,
+              "daFootprintGasScalar": 10
             }
           },
           "block_time": 2,
@@ -835,12 +846,14 @@ mod tests {
                     overhead: U256::ZERO,
                     scalar: U256::from(0xf4240),
                     gas_limit: 30_000_000,
-                    base_fee_scalar: None,
-                    blob_base_fee_scalar: None,
-                    eip1559_denominator: None,
-                    eip1559_elasticity: None,
-                    operator_fee_scalar: None,
-                    operator_fee_constant: None,
+                    base_fee_scalar: Some(1234),
+                    blob_base_fee_scalar: Some(5678),
+                    eip1559_denominator: Some(10),
+                    eip1559_elasticity: Some(20),
+                    operator_fee_scalar: Some(30),
+                    operator_fee_constant: Some(40),
+                    min_base_fee: Some(50),
+                    da_footprint_gas_scalar: Some(10),
                 }),
             },
             block_time: 2,

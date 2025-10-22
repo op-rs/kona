@@ -1,9 +1,8 @@
 //! Contains the kind of system config update.
 
-use crate::{LogProcessingError, SystemConfigUpdateError};
-
 /// Represents type of update to the system config.
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, derive_more::TryFrom)]
+#[try_from(repr)]
 #[repr(u64)]
 pub enum SystemConfigUpdateKind {
     /// Batcher update type
@@ -18,22 +17,8 @@ pub enum SystemConfigUpdateKind {
     Eip1559 = 4,
     /// Operator fee parameter update
     OperatorFee = 5,
-}
-
-impl TryFrom<u64> for SystemConfigUpdateKind {
-    type Error = SystemConfigUpdateError;
-
-    fn try_from(value: u64) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(Self::Batcher),
-            1 => Ok(Self::GasConfig),
-            2 => Ok(Self::GasLimit),
-            3 => Ok(Self::UnsafeBlockSigner),
-            4 => Ok(Self::Eip1559),
-            5 => Ok(Self::OperatorFee),
-            _ => Err(SystemConfigUpdateError::LogProcessing(
-                LogProcessingError::InvalidSystemConfigUpdateType(value),
-            )),
-        }
-    }
+    /// Min base fee parameter update
+    MinBaseFee = 6,
+    /// DA footprint gas scalar update type
+    DaFootprintGasScalar = 7,
 }

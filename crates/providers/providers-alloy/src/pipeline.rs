@@ -9,7 +9,7 @@ use kona_derive::{
     PolledAttributesQueueStage, ResetSignal, Signal, SignalReceiver, StatefulAttributesBuilder,
     StepResult,
 };
-use kona_genesis::{RollupConfig, SystemConfig};
+use kona_genesis::{L1ChainConfig, RollupConfig, SystemConfig};
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use std::sync::Arc;
 
@@ -56,14 +56,20 @@ impl OnlinePipeline {
     /// Constructs a new polled derivation pipeline that is initialized.
     pub async fn new(
         cfg: Arc<RollupConfig>,
+        l1_cfg: Arc<L1ChainConfig>,
         l2_safe_head: L2BlockInfo,
         l1_origin: BlockInfo,
         blob_provider: OnlineBlobProvider<OnlineBeaconClient>,
         chain_provider: AlloyChainProvider,
         mut l2_chain_provider: AlloyL2ChainProvider,
     ) -> PipelineResult<Self> {
-        let mut pipeline =
-            Self::new_polled(cfg.clone(), blob_provider, chain_provider, l2_chain_provider.clone());
+        let mut pipeline = Self::new_polled(
+            cfg.clone(),
+            l1_cfg.clone(),
+            blob_provider,
+            chain_provider,
+            l2_chain_provider.clone(),
+        );
 
         // Reset the pipeline to populate the initial L1/L2 cursor and system configuration in L1
         // Traversal.
@@ -93,12 +99,14 @@ impl OnlinePipeline {
     /// constructs a new online pipeline and sends the reset signal.
     pub fn new_polled(
         cfg: Arc<RollupConfig>,
+        l1_cfg: Arc<L1ChainConfig>,
         blob_provider: OnlineBlobProvider<OnlineBeaconClient>,
         chain_provider: AlloyChainProvider,
         l2_chain_provider: AlloyL2ChainProvider,
     ) -> Self {
         let attributes = StatefulAttributesBuilder::new(
             cfg.clone(),
+            l1_cfg,
             l2_chain_provider.clone(),
             chain_provider.clone(),
         );
@@ -125,12 +133,14 @@ impl OnlinePipeline {
     /// constructs a new online pipeline and sends the reset signal.
     pub fn new_indexed(
         cfg: Arc<RollupConfig>,
+        l1_cfg: Arc<L1ChainConfig>,
         blob_provider: OnlineBlobProvider<OnlineBeaconClient>,
         chain_provider: AlloyChainProvider,
         l2_chain_provider: AlloyL2ChainProvider,
     ) -> Self {
         let attributes = StatefulAttributesBuilder::new(
             cfg.clone(),
+            l1_cfg,
             l2_chain_provider.clone(),
             chain_provider.clone(),
         );

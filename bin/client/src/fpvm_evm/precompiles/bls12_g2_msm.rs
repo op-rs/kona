@@ -39,7 +39,7 @@ where
         )));
     }
 
-    if input_len == 0 || input_len % G2_MSM_INPUT_LENGTH != 0 {
+    if input_len == 0 || !input_len.is_multiple_of(G2_MSM_INPUT_LENGTH) {
         return Err(PrecompileError::Other(alloc::format!(
             "G2MSM input length should be multiple of {G2_MSM_INPUT_LENGTH}, was {input_len}"
         )));
@@ -51,10 +51,12 @@ where
         return Err(PrecompileError::OutOfGas);
     }
 
+    let precompile = bls12_381::g2_msm::PRECOMPILE;
+
     let result_data = kona_proof::block_on(precompile_run! {
         hint_writer,
         oracle_reader,
-        &[bls12_381::g2_msm::PRECOMPILE.address().as_slice(), &required_gas.to_be_bytes(), input]
+        &[precompile.address().as_slice(), &required_gas.to_be_bytes(), input]
     })
     .map_err(|e| PrecompileError::Other(e.to_string()))?;
 

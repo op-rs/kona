@@ -38,7 +38,7 @@ impl KeyValueStore for DiskKeyValueStore {
     }
 
     fn set(&mut self, key: alloy_primitives::B256, value: Vec<u8>) -> Result<()> {
-        self.db.put(*key, value).map_err(|e| anyhow!("Failed to set key-value pair: {}", e))
+        self.db.put(*key, value).map_err(|e| anyhow!("Failed to set key-value pair: {e}"))
     }
 }
 

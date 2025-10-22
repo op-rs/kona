@@ -4,12 +4,12 @@
 use alloy_consensus::Header;
 use alloy_eips::{BlockNumHash, eip7840::BlobParams};
 use alloy_primitives::{Address, B256, Bytes, Sealable, Sealed, TxKind, U256, address};
-use kona_genesis::{RollupConfig, SystemConfig};
+use kona_genesis::{L1ChainConfig, RollupConfig, SystemConfig};
 use op_alloy_consensus::{DepositSourceDomain, L1InfoDepositSource, TxDeposit};
 
 use crate::{
     BlockInfoError, DecodeError, L1BlockInfoBedrock, L1BlockInfoEcotone, L1BlockInfoIsthmus,
-    Predeploys,
+    Predeploys, info::L1BlockInfoJovian,
 };
 
 /// The system transaction gas limit post-Regolith
@@ -33,12 +33,15 @@ pub enum L1BlockInfoTx {
     Ecotone(L1BlockInfoEcotone),
     /// An Isthmus L1 info transaction
     Isthmus(L1BlockInfoIsthmus),
+    /// A Jovian L1 info transaction
+    Jovian(L1BlockInfoJovian),
 }
 
 impl L1BlockInfoTx {
     /// Creates a new [`L1BlockInfoTx`] from the given information.
     pub fn try_new(
         rollup_config: &RollupConfig,
+        l1_config: &L1ChainConfig,
         system_config: &SystemConfig,
         sequence_number: u64,
         l1_header: &Header,
@@ -77,25 +80,67 @@ impl L1BlockInfoTx {
             scalar[28..32].try_into().map_err(|_| BlockInfoError::BaseFeeScalar)?,
         );
 
-        // Use the `requests_hash` presence in the L1 header to determine if pectra has activated on
-        // L1.
-        //
-        // There was an incident on OP Stack Sepolia chains (03-05-2025) when L1 activated pectra,
-        // where the sequencer followed the incorrect chain, using the legacy Cancun blob fee
-        // schedule instead of the new Prague blob fee schedule. This portion of the chain was
-        // chosen to be canonicalized in favor of the prospect of a deep reorg imposed by the
-        // sequencers of the testnet chains. An optional hardfork was introduced for Sepolia only,
-        // where if present, activates the use of the Prague blob fee schedule. If the hardfork is
-        // not present, and L1 has activated pectra, the Prague blob fee schedule is used
-        // immediately.
-        let blob_fee_config = l1_header
-            .requests_hash
-            .and_then(|_| {
-                (rollup_config.hardforks.pectra_blob_schedule_time.is_none() ||
-                    rollup_config.is_pectra_blob_schedule_active(l1_header.timestamp))
-                .then_some(BlobParams::prague())
-            })
-            .unwrap_or(BlobParams::cancun());
+        // Determine the blob fee configuration based on the timestamp.
+        // We start with the scheduled blob fee parameters, and then check for the osaka and prague
+        // parameters.
+        let blob_fee_params = l1_config.blob_schedule_blob_params();
+
+        let blob_fee_config =
+            match blob_fee_params.active_scheduled_params_at_timestamp(l1_header.timestamp) {
+                Some(blob_fee_param) => *blob_fee_param,
+                None if l1_config.osaka_time.is_some_and(|time| time <= l1_header.timestamp) => {
+                    BlobParams::osaka()
+                }
+                None if l1_config
+                    .prague_time.is_some_and(|time| time <= l1_header.timestamp) &&
+                    // There was an incident on OP Stack Sepolia chains (03-05-2025) when L1 activated pectra,
+                    // where the sequencer followed the incorrect chain, using the legacy Cancun blob fee
+                    // schedule instead of the new Prague blob fee schedule. This portion of the chain was
+                    // chosen to be canonicalized in favor of the prospect of a deep reorg imposed by the
+                    // sequencers of the testnet chains. An optional hardfork was introduced for Sepolia only,
+                    // where if present, activates the use of the Prague blob fee schedule. If the hardfork is
+                    // not present, and L1 has activated pectra, the Prague blob fee schedule is used
+                    // immediately.
+                    (rollup_config.hardforks.pectra_blob_schedule_time.is_none() ||
+                        rollup_config.is_pectra_blob_schedule_active(l1_header.timestamp)) =>
+                {
+                    BlobParams::prague()
+                }
+                _ => BlobParams::cancun(),
+            };
+
+        let blob_base_fee = l1_header.blob_fee(blob_fee_config).unwrap_or(1);
+        let block_hash = l1_header.hash_slow();
+        let base_fee = l1_header.base_fee_per_gas.unwrap_or(0);
+
+        if rollup_config.is_jovian_active(l2_block_time) &&
+            !rollup_config.is_first_jovian_block(l2_block_time)
+        {
+            let operator_fee_scalar = system_config.operator_fee_scalar.unwrap_or_default();
+            let operator_fee_constant = system_config.operator_fee_constant.unwrap_or_default();
+            let mut da_footprint_gas_scalar = system_config
+                .da_footprint_gas_scalar
+                .unwrap_or(L1BlockInfoJovian::DEFAULT_DA_FOOTPRINT_GAS_SCALAR);
+
+            if da_footprint_gas_scalar == 0 {
+                da_footprint_gas_scalar = L1BlockInfoJovian::DEFAULT_DA_FOOTPRINT_GAS_SCALAR;
+            }
+
+            return Ok(Self::Jovian(L1BlockInfoJovian {
+                number: l1_header.number,
+                time: l1_header.timestamp,
+                base_fee,
+                block_hash,
+                sequence_number,
+                batcher_address: system_config.batcher_address,
+                blob_base_fee,
+                blob_base_fee_scalar,
+                base_fee_scalar,
+                operator_fee_scalar,
+                operator_fee_constant,
+                da_footprint_gas_scalar,
+            }));
+        }
 
         if rollup_config.is_isthmus_active(l2_block_time) &&
             !rollup_config.is_first_isthmus_block(l2_block_time)
@@ -105,11 +150,11 @@ impl L1BlockInfoTx {
             return Ok(Self::Isthmus(L1BlockInfoIsthmus {
                 number: l1_header.number,
                 time: l1_header.timestamp,
-                base_fee: l1_header.base_fee_per_gas.unwrap_or(0),
-                block_hash: l1_header.hash_slow(),
+                base_fee,
+                block_hash,
                 sequence_number,
                 batcher_address: system_config.batcher_address,
-                blob_base_fee: l1_header.blob_fee(blob_fee_config).unwrap_or(1),
+                blob_base_fee,
                 blob_base_fee_scalar,
                 base_fee_scalar,
                 operator_fee_scalar,
@@ -120,11 +165,11 @@ impl L1BlockInfoTx {
         Ok(Self::Ecotone(L1BlockInfoEcotone {
             number: l1_header.number,
             time: l1_header.timestamp,
-            base_fee: l1_header.base_fee_per_gas.unwrap_or(0),
-            block_hash: l1_header.hash_slow(),
+            base_fee,
+            block_hash,
             sequence_number,
             batcher_address: system_config.batcher_address,
-            blob_base_fee: l1_header.blob_fee(blob_fee_config).unwrap_or(1),
+            blob_base_fee,
             blob_base_fee_scalar,
             base_fee_scalar,
             empty_scalars: false,
@@ -136,13 +181,20 @@ impl L1BlockInfoTx {
     /// to include at the top of a block.
     pub fn try_new_with_deposit_tx(
         rollup_config: &RollupConfig,
+        l1_config: &L1ChainConfig,
         system_config: &SystemConfig,
         sequence_number: u64,
         l1_header: &Header,
         l2_block_time: u64,
     ) -> Result<(Self, Sealed<TxDeposit>), BlockInfoError> {
-        let l1_info =
-            Self::try_new(rollup_config, system_config, sequence_number, l1_header, l2_block_time)?;
+        let l1_info = Self::try_new(
+            rollup_config,
+            l1_config,
+            system_config,
+            sequence_number,
+            l1_header,
+            l2_block_time,
+        )?;
 
         let source = DepositSourceDomain::L1Info(L1InfoDepositSource {
             l1_block_hash: l1_info.block_hash(),
@@ -170,7 +222,7 @@ impl L1BlockInfoTx {
         Ok((l1_info, deposit_tx.seal_slow()))
     }
 
-    /// Decodes the [`L1BlockInfoEcotone`] object from Ethereum transaction calldata.
+    /// Decodes the [`L1BlockInfoTx`] object from Ethereum transaction calldata.
     pub fn decode_calldata(r: &[u8]) -> Result<Self, DecodeError> {
         if r.len() < 4 {
             return Err(DecodeError::MissingSelector);
@@ -188,6 +240,9 @@ impl L1BlockInfoTx {
             L1BlockInfoIsthmus::L1_INFO_TX_SELECTOR => {
                 L1BlockInfoIsthmus::decode_calldata(r).map(Self::Isthmus)
             }
+            L1BlockInfoJovian::L1_INFO_TX_SELECTOR => {
+                L1BlockInfoJovian::decode_calldata(r).map(Self::Jovian)
+            }
             _ => Err(DecodeError::InvalidSelector),
         }
     }
@@ -195,7 +250,7 @@ impl L1BlockInfoTx {
     /// Returns whether the scalars are empty.
     pub const fn empty_scalars(&self) -> bool {
         match self {
-            Self::Bedrock(_) | Self::Isthmus(..) => false,
+            Self::Bedrock(_) | Self::Isthmus(..) | Self::Jovian(_) => false,
             Self::Ecotone(L1BlockInfoEcotone { empty_scalars, .. }) => *empty_scalars,
         }
     }
@@ -206,6 +261,7 @@ impl L1BlockInfoTx {
             Self::Bedrock(tx) => tx.block_hash,
             Self::Ecotone(tx) => tx.block_hash,
             Self::Isthmus(tx) => tx.block_hash,
+            Self::Jovian(tx) => tx.block_hash,
         }
     }
 
@@ -215,6 +271,7 @@ impl L1BlockInfoTx {
             Self::Bedrock(bedrock_tx) => bedrock_tx.encode_calldata(),
             Self::Ecotone(ecotone_tx) => ecotone_tx.encode_calldata(),
             Self::Isthmus(isthmus_tx) => isthmus_tx.encode_calldata(),
+            Self::Jovian(jovian_tx) => jovian_tx.encode_calldata(),
         }
     }
 
@@ -223,7 +280,8 @@ impl L1BlockInfoTx {
         match self {
             Self::Ecotone(L1BlockInfoEcotone { number, block_hash, .. }) |
             Self::Bedrock(L1BlockInfoBedrock { number, block_hash, .. }) |
-            Self::Isthmus(L1BlockInfoIsthmus { number, block_hash, .. }) => {
+            Self::Isthmus(L1BlockInfoIsthmus { number, block_hash, .. }) |
+            Self::Jovian(L1BlockInfoJovian { number, block_hash, .. }) => {
                 BlockNumHash { number: *number, hash: *block_hash }
             }
         }
@@ -232,6 +290,7 @@ impl L1BlockInfoTx {
     /// Returns the operator fee scalar.
     pub const fn operator_fee_scalar(&self) -> u32 {
         match self {
+            Self::Jovian(L1BlockInfoJovian { operator_fee_scalar, .. }) |
             Self::Isthmus(L1BlockInfoIsthmus { operator_fee_scalar, .. }) => *operator_fee_scalar,
             _ => 0,
         }
@@ -240,10 +299,21 @@ impl L1BlockInfoTx {
     /// Returns the operator fee constant.
     pub const fn operator_fee_constant(&self) -> u64 {
         match self {
+            Self::Jovian(L1BlockInfoJovian { operator_fee_constant, .. }) |
             Self::Isthmus(L1BlockInfoIsthmus { operator_fee_constant, .. }) => {
                 *operator_fee_constant
             }
             _ => 0,
+        }
+    }
+
+    /// Returns the da footprint
+    pub const fn da_footprint(&self) -> Option<u16> {
+        match self {
+            Self::Jovian(L1BlockInfoJovian { da_footprint_gas_scalar, .. }) => {
+                Some(*da_footprint_gas_scalar)
+            }
+            _ => None,
         }
     }
 
@@ -252,7 +322,8 @@ impl L1BlockInfoTx {
         match self {
             Self::Bedrock(L1BlockInfoBedrock { base_fee, .. }) |
             Self::Ecotone(L1BlockInfoEcotone { base_fee, .. }) |
-            Self::Isthmus(L1BlockInfoIsthmus { base_fee, .. }) => U256::from(*base_fee),
+            Self::Isthmus(L1BlockInfoIsthmus { base_fee, .. }) |
+            Self::Jovian(L1BlockInfoJovian { base_fee, .. }) => U256::from(*base_fee),
         }
     }
 
@@ -261,9 +332,8 @@ impl L1BlockInfoTx {
         match self {
             Self::Bedrock(L1BlockInfoBedrock { l1_fee_scalar, .. }) => *l1_fee_scalar,
             Self::Ecotone(L1BlockInfoEcotone { base_fee_scalar, .. }) |
-            Self::Isthmus(L1BlockInfoIsthmus { base_fee_scalar, .. }) => {
-                U256::from(*base_fee_scalar)
-            }
+            Self::Isthmus(L1BlockInfoIsthmus { base_fee_scalar, .. }) |
+            Self::Jovian(L1BlockInfoJovian { base_fee_scalar, .. }) => U256::from(*base_fee_scalar),
         }
     }
 
@@ -272,7 +342,8 @@ impl L1BlockInfoTx {
         match self {
             Self::Bedrock(_) => U256::ZERO,
             Self::Ecotone(L1BlockInfoEcotone { blob_base_fee, .. }) |
-            Self::Isthmus(L1BlockInfoIsthmus { blob_base_fee, .. }) => U256::from(*blob_base_fee),
+            Self::Isthmus(L1BlockInfoIsthmus { blob_base_fee, .. }) |
+            Self::Jovian(L1BlockInfoJovian { blob_base_fee, .. }) => U256::from(*blob_base_fee),
         }
     }
 
@@ -281,7 +352,8 @@ impl L1BlockInfoTx {
         match self {
             Self::Bedrock(_) => U256::ZERO,
             Self::Ecotone(L1BlockInfoEcotone { blob_base_fee_scalar, .. }) |
-            Self::Isthmus(L1BlockInfoIsthmus { blob_base_fee_scalar, .. }) => {
+            Self::Isthmus(L1BlockInfoIsthmus { blob_base_fee_scalar, .. }) |
+            Self::Jovian(L1BlockInfoJovian { blob_base_fee_scalar, .. }) => {
                 U256::from(*blob_base_fee_scalar)
             }
         }
@@ -292,7 +364,7 @@ impl L1BlockInfoTx {
         match self {
             Self::Bedrock(L1BlockInfoBedrock { l1_fee_overhead, .. }) => *l1_fee_overhead,
             Self::Ecotone(L1BlockInfoEcotone { l1_fee_overhead, .. }) => *l1_fee_overhead,
-            Self::Isthmus(_) => U256::ZERO,
+            Self::Isthmus(_) | Self::Jovian(_) => U256::ZERO,
         }
     }
 
@@ -301,7 +373,8 @@ impl L1BlockInfoTx {
         match self {
             Self::Bedrock(L1BlockInfoBedrock { batcher_address, .. }) |
             Self::Ecotone(L1BlockInfoEcotone { batcher_address, .. }) |
-            Self::Isthmus(L1BlockInfoIsthmus { batcher_address, .. }) => *batcher_address,
+            Self::Isthmus(L1BlockInfoIsthmus { batcher_address, .. }) |
+            Self::Jovian(L1BlockInfoJovian { batcher_address, .. }) => *batcher_address,
         }
     }
 
@@ -310,7 +383,8 @@ impl L1BlockInfoTx {
         match self {
             Self::Bedrock(L1BlockInfoBedrock { sequence_number, .. }) |
             Self::Ecotone(L1BlockInfoEcotone { sequence_number, .. }) |
-            Self::Isthmus(L1BlockInfoIsthmus { sequence_number, .. }) => *sequence_number,
+            Self::Isthmus(L1BlockInfoIsthmus { sequence_number, .. }) |
+            Self::Jovian(L1BlockInfoJovian { sequence_number, .. }) => *sequence_number,
         }
     }
 }
@@ -322,6 +396,7 @@ mod test {
     use alloc::{string::ToString, vec::Vec};
     use alloy_primitives::{address, b256};
     use kona_genesis::HardForkConfig;
+    use kona_registry::L1Config;
     use rstest::rstest;
 
     #[test]
@@ -688,6 +763,7 @@ mod test {
     #[test]
     fn test_try_new_bedrock() {
         let rollup_config = RollupConfig::default();
+        let l1_config = L1Config::sepolia();
         let system_config = SystemConfig::default();
         let sequence_number = 0;
         let l1_header = Header::default();
@@ -695,6 +771,7 @@ mod test {
 
         let l1_info = L1BlockInfoTx::try_new(
             &rollup_config,
+            &l1_config,
             &system_config,
             sequence_number,
             &l1_header,
@@ -722,6 +799,7 @@ mod test {
             hardforks: HardForkConfig { ecotone_time: Some(1), ..Default::default() },
             ..Default::default()
         };
+        let l1_config = L1Config::sepolia();
         let system_config = SystemConfig::default();
         let sequence_number = 0;
         let l1_header = Header::default();
@@ -729,6 +807,7 @@ mod test {
 
         let l1_info = L1BlockInfoTx::try_new(
             &rollup_config,
+            &l1_config,
             &system_config,
             sequence_number,
             &l1_header,
@@ -783,6 +862,9 @@ mod test {
             },
             ..Default::default()
         };
+        let mut l1_genesis: L1ChainConfig = L1Config::sepolia().into();
+        l1_genesis.prague_time = Some(2);
+
         let system_config = SystemConfig::default();
         let sequence_number = 0;
         let l1_header = Header {
@@ -796,6 +878,7 @@ mod test {
 
         let l1_info = L1BlockInfoTx::try_new(
             &rollup_config,
+            &l1_genesis,
             &system_config,
             sequence_number,
             &l1_header,
@@ -850,6 +933,7 @@ mod test {
             },
             ..Default::default()
         };
+        let l1_config = L1Config::sepolia();
         let system_config = SystemConfig {
             batcher_address: address!("6887246668a3b87f54deb3b94ba47a6f63f32985"),
             operator_fee_scalar: Some(0xabcd),
@@ -869,6 +953,7 @@ mod test {
 
         let l1_info = L1BlockInfoTx::try_new(
             &rollup_config,
+            &l1_config,
             &system_config,
             sequence_number,
             &l1_header,
@@ -917,6 +1002,7 @@ mod test {
             hardforks: HardForkConfig { isthmus_time: Some(1), ..Default::default() },
             ..Default::default()
         };
+        let l1_config = L1Config::sepolia();
         let system_config = SystemConfig {
             batcher_address: address!("6887246668a3b87f54deb3b94ba47a6f63f32985"),
             operator_fee_scalar: Some(0xabcd),
@@ -934,6 +1020,7 @@ mod test {
 
         let l1_info = L1BlockInfoTx::try_new(
             &rollup_config,
+            &l1_config,
             &system_config,
             sequence_number,
             &l1_header,
@@ -980,6 +1067,7 @@ mod test {
             hardforks: HardForkConfig { isthmus_time: Some(1), ..Default::default() },
             ..Default::default()
         };
+        let l1_config = L1Config::sepolia();
         let system_config = SystemConfig {
             batcher_address: address!("6887246668a3b87f54deb3b94ba47a6f63f32985"),
             operator_fee_scalar: Some(0xabcd),
@@ -997,6 +1085,7 @@ mod test {
 
         let (l1_info, deposit_tx) = L1BlockInfoTx::try_new_with_deposit_tx(
             &rollup_config,
+            &l1_config,
             &system_config,
             sequence_number,
             &l1_header,

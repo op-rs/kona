@@ -2,7 +2,7 @@
 edition = "2024"
 license = "MIT"
 rust-version = "1.88"
-authors = ["clabby", "refcell", "theochap"]
+authors = ["clabby", "refcell", "theochap", "emhane"]
 homepage = "https://github.com/op-rs/kona"
 repository = "https://github.com/op-rs/kona"
 keywords = ["ethereum", "optimism", "crypto"]
@@ -126,41 +126,42 @@ kona-macros = { path = "crates/utilities/macros", version = "0.1.2", default-fea
 # Alloy
 alloy-rlp = { version = "0.3.12", default-features = false }
 alloy-trie = { version = "0.9.1", default-features = false }
-alloy-eips = { version = "1.0.25", default-features = false }
-alloy-serde = { version = "1.0.25", default-features = false }
-alloy-signer = { version = "1.0.25", default-features = false }
+alloy-eips = { version = "1.0.38", default-features = false }
+alloy-serde = { version = "1.0.38", default-features = false }
+alloy-signer = { version = "1.0.38", default-features = false }
 alloy-chains = { version = "0.2.7", default-features = false }
-alloy-network = { version = "1.0.25", default-features = false }
-alloy-provider = { version = "1.0.25", default-features = false }
-alloy-hardforks = { version = "0.2.13", default-features = false }
+alloy-network = { version = "1.0.38", default-features = false }
+alloy-genesis = { version = "1.0.38", default-features = false }
+alloy-provider = { version = "1.0.38", default-features = false }
+alloy-hardforks = { version = "0.4.0", default-features = false }
 alloy-sol-types = { version = "1.3.1", default-features = false }
-alloy-consensus = { version = "1.0.25", default-features = false }
-alloy-transport = { version = "1.0.25", default-features = false }
-alloy-rpc-types = { version = "1.0.25", default-features = false }
-alloy-rpc-client = { version = "1.0.25", default-features = false }
+alloy-consensus = { version = "1.0.38", default-features = false }
+alloy-transport = { version = "1.0.38", default-features = false }
+alloy-rpc-types = { version = "1.0.38", default-features = false }
+alloy-rpc-client = { version = "1.0.38", default-features = false }
 alloy-primitives = { version = "1.3.1", default-features = false }
-alloy-signer-local = { version = "1.0.25", default-features = false }
-alloy-node-bindings = { version = "1.0.25", default-features = false }
-alloy-rpc-types-eth = { version = "1.0.25", default-features = false }
-alloy-transport-http = { version = "1.0.25", default-features = false }
-alloy-rpc-types-engine = { version = "1.0.25", default-features = false }
-alloy-rpc-types-beacon = { version = "1.0.25", default-features = false }
-alloy-network-primitives = { version = "1.0.25", default-features = false }
+alloy-signer-local = { version = "1.0.38", default-features = false }
+alloy-node-bindings = { version = "1.0.38", default-features = false }
+alloy-rpc-types-eth = { version = "1.0.38", default-features = false }
+alloy-transport-http = { version = "1.0.38", default-features = false }
+alloy-rpc-types-engine = { version = "1.0.38", default-features = false }
+alloy-rpc-types-beacon = { version = "1.0.38", default-features = false }
+alloy-network-primitives = { version = "1.0.38", default-features = false }
 
 # OP Alloy
-op-alloy-network = { version = "0.18.14", default-features = false }
-op-alloy-provider = { version = "0.18.14", default-features = false }
-alloy-op-hardforks = { version = "0.2.13", default-features = false }
-op-alloy-consensus = { version = "0.18.14", default-features = false }
-op-alloy-rpc-types = { version = "0.18.14", default-features = false }
-op-alloy-rpc-jsonrpsee = { version = "0.18.14", default-features = false }
-op-alloy-rpc-types-engine = { version = "0.18.14", default-features = false }
+op-alloy-network = { version = "0.21.0", default-features = false }
+op-alloy-provider = { version = "0.21.0", default-features = false }
+alloy-op-hardforks = { version = "0.4.0", default-features = false }
+op-alloy-consensus = { version = "0.21.0", default-features = false }
+op-alloy-rpc-types = { version = "0.21.0", default-features = false }
+op-alloy-rpc-jsonrpsee = { version = "0.21.0", default-features = false }
+op-alloy-rpc-types-engine = { version = "0.21.0", default-features = false }
 
 # Execution
-revm = { version = "28.0.1", default-features = false }
-op-revm = { version = "9.0.1", default-features = false }
-alloy-evm = { version = "0.18.3", default-features = false }
-alloy-op-evm = { version = "0.18.3", default-features = false }
+revm = { version = "30.0.0", default-features = false }
+op-revm = { version = "11.2.0", default-features = false }
+alloy-evm = { version = "0.22.4", default-features = false }
+alloy-op-evm = { version = "0.22.4", default-features = false }
 
 # Reth (pinned to v1.6.0 for kona-supervisor-storage)
 reth-db-api = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
@@ -168,7 +169,7 @@ reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
 reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
 
 # General
-notify = "6.1"
+notify = "8.2"
 url = "2.5.4"
 lru = "0.16.0"
 glob = "0.3.2"

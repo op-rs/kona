@@ -106,7 +106,7 @@ impl ChainDbFactory {
     /// * `Ok(Arc<ChainDb>)` if the database exists.
     /// * `Err(StorageError)` if the database does not exist.
     pub fn get_db(&self, chain_id: ChainId) -> Result<Arc<ChainDb>, StorageError> {
-        let dbs = self.dbs.read().unwrap_or_else(|e| e.into_inner());
+        let dbs = self.dbs.read().map_err(|_| StorageError::LockPoisoned)?;
         dbs.get(&chain_id).cloned().ok_or_else(|| StorageError::DatabaseNotInitialised)
     }
 }
@@ -116,8 +116,13 @@ impl MetricsReporter for ChainDbFactory {
         let metrics_enabled = self.metrics_enabled.unwrap_or(false);
         if metrics_enabled {
             let dbs: Vec<Arc<ChainDb>> = {
-                let dbs_guard = self.dbs.read().unwrap_or_else(|e| e.into_inner());
-                dbs_guard.values().cloned().collect()
+                match self.dbs.read() {
+                    Ok(dbs_guard) => dbs_guard.values().cloned().collect(),
+                    Err(_) => {
+                        error!(target: "supervisor::storage", "Failed to acquire read lock for metrics reporting");
+                        return;
+                    }
+                }
             };
             for db in dbs {
                 db.report_metrics();

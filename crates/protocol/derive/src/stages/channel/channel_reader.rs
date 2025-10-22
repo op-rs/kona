@@ -39,11 +39,11 @@ where
     P: ChannelReaderProvider + OriginAdvancer + OriginProvider + SignalReceiver + Debug,
 {
     /// The previous stage of the derivation pipeline.
-    prev: P,
+    pub prev: P,
     /// The batch reader.
-    next_batch: Option<BatchReader>,
+    pub next_batch: Option<BatchReader>,
     /// The rollup configuration.
-    cfg: Arc<RollupConfig>,
+    pub cfg: Arc<RollupConfig>,
 }
 
 impl<P> ChannelReader<P>

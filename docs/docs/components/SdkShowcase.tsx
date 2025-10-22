@@ -30,7 +30,7 @@ const projects: SdkProject[] = [
     name: 'Kailua',
     description: 'zkVM-based proof system using Kona',
     linesOfCode: '~5K LoC',
-    githubUrl: 'https://github.com/op-rs/kailua'
+    githubUrl: 'https://github.com/boundless-xyz/kailua'
   }
 ]
 

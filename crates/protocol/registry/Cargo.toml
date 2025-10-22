@@ -20,6 +20,9 @@ kona-genesis = { workspace = true, features = ["serde"] }
 
 # Alloy
 alloy-primitives = { workspace = true, features = ["map"] }
+alloy-genesis.workspace = true
+alloy-eips.workspace = true 
+alloy-hardforks.workspace = true
 alloy-chains = { workspace = true, features = ["serde"] }
 alloy-op-hardforks = { workspace = true }
 
@@ -46,6 +49,8 @@ default = []
 tabled = [ "dep:tabled", "std" ]
 std = [
 	"alloy-chains/std",
+	"alloy-eips/std",
+	"alloy-genesis/std",
 	"alloy-primitives/std",
 	"kona-genesis/std",
 	"serde/std",

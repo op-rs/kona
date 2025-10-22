@@ -11,7 +11,7 @@ use alloy_primitives::{Address, B256, Bytes};
 use alloy_rlp::Encodable;
 use alloy_rpc_types_engine::PayloadAttributes;
 use async_trait::async_trait;
-use kona_genesis::RollupConfig;
+use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_hardforks::{Hardfork, Hardforks};
 use kona_protocol::{
     DEPOSIT_EVENT_ABI_HASH, L1BlockInfoTx, L2BlockInfo, Predeploys, decode_deposit,
@@ -27,6 +27,8 @@ where
 {
     /// The rollup config.
     rollup_cfg: Arc<RollupConfig>,
+    /// The L1 config.
+    l1_cfg: Arc<L1ChainConfig>,
     /// The system config fetcher.
     config_fetcher: L2P,
     /// The L1 receipts fetcher.
@@ -39,8 +41,18 @@ where
     L2P: L2ChainProvider + Debug,
 {
     /// Create a new [`StatefulAttributesBuilder`] with the given epoch.
-    pub const fn new(rcfg: Arc<RollupConfig>, sys_cfg_fetcher: L2P, receipts: L1P) -> Self {
-        Self { rollup_cfg: rcfg, config_fetcher: sys_cfg_fetcher, receipts_fetcher: receipts }
+    pub const fn new(
+        rcfg: Arc<RollupConfig>,
+        l1_cfg: Arc<L1ChainConfig>,
+        sys_cfg_fetcher: L2P,
+        receipts: L1P,
+    ) -> Self {
+        Self {
+            rollup_cfg: rcfg,
+            l1_cfg,
+            config_fetcher: sys_cfg_fetcher,
+            receipts_fetcher: receipts,
+        }
     }
 }
 
@@ -142,6 +154,11 @@ where
         {
             upgrade_transactions.append(&mut Hardforks::ISTHMUS.txs().collect());
         }
+        if self.rollup_cfg.is_jovian_active(next_l2_time) &&
+            !self.rollup_cfg.is_jovian_active(l2_parent.block_info.timestamp)
+        {
+            upgrade_transactions.append(&mut Hardforks::JOVIAN.txs().collect());
+        }
         if self.rollup_cfg.is_interop_active(next_l2_time) &&
             !self.rollup_cfg.is_interop_active(l2_parent.block_info.timestamp)
         {
@@ -151,6 +168,7 @@ where
         // Build and encode the L1 info transaction for the current payload.
         let (_, l1_info_tx_envelope) = L1BlockInfoTx::try_new_with_deposit_tx(
             &self.rollup_cfg,
+            &self.l1_cfg,
             &sys_config,
             sequence_number,
             &l1_header,
@@ -197,6 +215,11 @@ where
                 l2_parent.block_info.timestamp,
                 next_l2_time,
             ),
+            min_base_fee: self
+                .rollup_cfg
+                .is_jovian_active(next_l2_time)
+                .then(|| sys_config.min_base_fee.unwrap_or_default()), /* Default to zero if not
+                                                                        * set at Jovian */
         })
     }
 }
@@ -245,6 +268,7 @@ mod tests {
     use alloy_primitives::{B256, Log, LogData, U64, U256, address};
     use kona_genesis::{HardForkConfig, SystemConfig};
     use kona_protocol::{BlockInfo, DepositError};
+    use kona_registry::L1Config;
 
     fn generate_valid_log() -> Log {
         let deposit_contract = address!("1111111111111111111111111111111111111111");
@@ -347,6 +371,7 @@ mod tests {
     #[tokio::test]
     async fn test_prepare_payload_block_mismatch_epoch_reset() {
         let cfg = Arc::new(RollupConfig::default());
+        let l1_cfg = Arc::new(L1Config::sepolia().into());
         let l2_number = 1;
         let mut fetcher = TestSystemConfigL2Fetcher::default();
         fetcher.insert(l2_number, SystemConfig::default());
@@ -354,7 +379,7 @@ mod tests {
         let header = Header::default();
         let hash = header.hash_slow();
         provider.insert_header(hash, header);
-        let mut builder = StatefulAttributesBuilder::new(cfg, fetcher, provider);
+        let mut builder = StatefulAttributesBuilder::new(cfg, l1_cfg, fetcher, provider);
         let epoch = BlockNumHash { hash, number: l2_number };
         let l2_parent = L2BlockInfo {
             block_info: BlockInfo { hash: B256::ZERO, number: l2_number, ..Default::default() },
@@ -372,6 +397,7 @@ mod tests {
     #[tokio::test]
     async fn test_prepare_payload_block_mismatch() {
         let cfg = Arc::new(RollupConfig::default());
+        let l1_cfg = Arc::new(L1Config::sepolia().into());
         let l2_number = 1;
         let mut fetcher = TestSystemConfigL2Fetcher::default();
         fetcher.insert(l2_number, SystemConfig::default());
@@ -379,7 +405,7 @@ mod tests {
         let header = Header::default();
         let hash = header.hash_slow();
         provider.insert_header(hash, header);
-        let mut builder = StatefulAttributesBuilder::new(cfg, fetcher, provider);
+        let mut builder = StatefulAttributesBuilder::new(cfg, l1_cfg, fetcher, provider);
         let epoch = BlockNumHash { hash, number: l2_number };
         let l2_parent = L2BlockInfo {
             block_info: BlockInfo { hash: B256::ZERO, number: l2_number, ..Default::default() },
@@ -398,6 +424,7 @@ mod tests {
         let block_time = 10;
         let timestamp = 100;
         let cfg = Arc::new(RollupConfig { block_time, ..Default::default() });
+        let l1_cfg = Arc::new(L1Config::sepolia().into());
         let l2_number = 1;
         let mut fetcher = TestSystemConfigL2Fetcher::default();
         fetcher.insert(l2_number, SystemConfig::default());
@@ -405,7 +432,7 @@ mod tests {
         let header = Header { timestamp, ..Default::default() };
         let hash = header.hash_slow();
         provider.insert_header(hash, header);
-        let mut builder = StatefulAttributesBuilder::new(cfg, fetcher, provider);
+        let mut builder = StatefulAttributesBuilder::new(cfg, l1_cfg, fetcher, provider);
         let epoch = BlockNumHash { hash, number: l2_number };
         let l2_parent = L2BlockInfo {
             block_info: BlockInfo { hash: B256::ZERO, number: l2_number, ..Default::default() },
@@ -429,6 +456,7 @@ mod tests {
         let block_time = 10;
         let timestamp = 100;
         let cfg = Arc::new(RollupConfig { block_time, ..Default::default() });
+        let l1_cfg = Arc::new(L1Config::sepolia().into());
         let l2_number = 1;
         let mut fetcher = TestSystemConfigL2Fetcher::default();
         fetcher.insert(l2_number, SystemConfig::default());
@@ -437,7 +465,7 @@ mod tests {
         let prev_randao = header.mix_hash;
         let hash = header.hash_slow();
         provider.insert_header(hash, header);
-        let mut builder = StatefulAttributesBuilder::new(cfg, fetcher, provider);
+        let mut builder = StatefulAttributesBuilder::new(cfg, l1_cfg, fetcher, provider);
         let epoch = BlockNumHash { hash, number: l2_number };
         let l2_parent = L2BlockInfo {
             block_info: BlockInfo {
@@ -465,6 +493,7 @@ mod tests {
                 alloy_primitives::U64::from(SystemConfig::default().gas_limit).to_be_bytes(),
             )),
             eip_1559_params: None,
+            min_base_fee: None,
         };
         assert_eq!(payload, expected);
         assert_eq!(payload.transactions.unwrap().len(), 1);
@@ -479,6 +508,7 @@ mod tests {
             hardforks: HardForkConfig { canyon_time: Some(0), ..Default::default() },
             ..Default::default()
         });
+        let l1_cfg = Arc::new(L1Config::sepolia().into());
         let l2_number = 1;
         let mut fetcher = TestSystemConfigL2Fetcher::default();
         fetcher.insert(l2_number, SystemConfig::default());
@@ -487,7 +517,7 @@ mod tests {
         let prev_randao = header.mix_hash;
         let hash = header.hash_slow();
         provider.insert_header(hash, header);
-        let mut builder = StatefulAttributesBuilder::new(cfg, fetcher, provider);
+        let mut builder = StatefulAttributesBuilder::new(cfg, l1_cfg, fetcher, provider);
         let epoch = BlockNumHash { hash, number: l2_number };
         let l2_parent = L2BlockInfo {
             block_info: BlockInfo {
@@ -515,6 +545,7 @@ mod tests {
                 alloy_primitives::U64::from(SystemConfig::default().gas_limit).to_be_bytes(),
             )),
             eip_1559_params: None,
+            min_base_fee: None,
         };
         assert_eq!(payload, expected);
         assert_eq!(payload.transactions.unwrap().len(), 1);
@@ -529,6 +560,7 @@ mod tests {
             hardforks: HardForkConfig { ecotone_time: Some(102), ..Default::default() },
             ..Default::default()
         });
+        let l1_cfg = Arc::new(L1Config::sepolia().into());
         let l2_number = 1;
         let mut fetcher = TestSystemConfigL2Fetcher::default();
         fetcher.insert(l2_number, SystemConfig::default());
@@ -538,7 +570,7 @@ mod tests {
         let prev_randao = header.mix_hash;
         let hash = header.hash_slow();
         provider.insert_header(hash, header);
-        let mut builder = StatefulAttributesBuilder::new(cfg, fetcher, provider);
+        let mut builder = StatefulAttributesBuilder::new(cfg, l1_cfg, fetcher, provider);
         let epoch = BlockNumHash { hash, number: l2_number };
         let l2_parent = L2BlockInfo {
             block_info: BlockInfo {
@@ -566,6 +598,7 @@ mod tests {
                 alloy_primitives::U64::from(SystemConfig::default().gas_limit).to_be_bytes(),
             )),
             eip_1559_params: None,
+            min_base_fee: None,
         };
         assert_eq!(payload, expected);
         assert_eq!(payload.transactions.unwrap().len(), 7);
@@ -580,6 +613,7 @@ mod tests {
             hardforks: HardForkConfig { fjord_time: Some(102), ..Default::default() },
             ..Default::default()
         });
+        let l1_cfg = Arc::new(L1Config::sepolia().into());
         let l2_number = 1;
         let mut fetcher = TestSystemConfigL2Fetcher::default();
         fetcher.insert(l2_number, SystemConfig::default());
@@ -588,7 +622,7 @@ mod tests {
         let prev_randao = header.mix_hash;
         let hash = header.hash_slow();
         provider.insert_header(hash, header);
-        let mut builder = StatefulAttributesBuilder::new(cfg, fetcher, provider);
+        let mut builder = StatefulAttributesBuilder::new(cfg, l1_cfg, fetcher, provider);
         let epoch = BlockNumHash { hash, number: l2_number };
         let l2_parent = L2BlockInfo {
             block_info: BlockInfo {
@@ -616,6 +650,7 @@ mod tests {
                 alloy_primitives::U64::from(SystemConfig::default().gas_limit).to_be_bytes(),
             )),
             eip_1559_params: None,
+            min_base_fee: None,
         };
         assert_eq!(payload.transactions.as_ref().unwrap().len(), 10);
         assert_eq!(payload, expected);

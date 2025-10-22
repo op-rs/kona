@@ -5,6 +5,7 @@ use crate::interop::util::fetch_l2_safe_head_hash;
 use alloc::{boxed::Box, sync::Arc};
 use alloy_consensus::Sealed;
 use alloy_evm::{EvmFactory, FromRecoveredTx, FromTxWithEncoded};
+use alloy_op_evm::block::OpTxEnv;
 use alloy_primitives::B256;
 use core::fmt::Debug;
 use kona_derive::{EthereumDataSource, PipelineError, PipelineErrorKind};
@@ -21,6 +22,7 @@ use kona_proof::{
 use kona_proof_interop::{BootInfo, INVALID_TRANSITION_HASH, OptimisticBlock, PreState};
 use op_alloy_consensus::OpTxEnvelope;
 use op_revm::OpSpecId;
+use revm::context::BlockEnv;
 use tracing::{error, info, warn};
 
 /// Executes a sub-transition of the interop proof with the given [PreimageOracleClient] and
@@ -33,8 +35,9 @@ pub(crate) async fn sub_transition<P, H, Evm>(
 where
     P: PreimageOracleClient + Send + Sync + Debug + Clone,
     H: HintWriterClient + Send + Sync + Debug + Clone,
-    Evm: EvmFactory<Spec = OpSpecId> + Send + Sync + Debug + Clone + 'static,
-    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope>,
+    Evm: EvmFactory<Spec = OpSpecId, BlockEnv = BlockEnv> + Send + Sync + Debug + Clone + 'static,
+    <Evm as EvmFactory>::Tx:
+        FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope> + OpTxEnv,
 {
     // Check if we can short-circuit the transition, if we are within padding.
     if let PreState::TransitionState(ref transition_state) = boot.agreed_pre_state {
@@ -56,6 +59,8 @@ where
         .active_rollup_config()
         .map(Arc::new)
         .ok_or(FaultProofProgramError::StateTransitionFailed)?;
+
+    let l1_config = boot.active_l1_config();
 
     // Instantiate the L1 EL + CL provider and the L2 EL provider.
     let mut l1_provider = OracleL1ChainProvider::new(boot.l1_head, oracle.clone());
@@ -106,6 +111,7 @@ where
         EthereumDataSource::new_from_parts(l1_provider.clone(), beacon, &rollup_config);
     let pipeline = OraclePipeline::new(
         rollup_config.clone(),
+        l1_config.into(),
         cursor.clone(),
         oracle.clone(),
         da_provider,

@@ -53,6 +53,7 @@ where
     let oracle =
         Arc::new(CachingOracle::new(ORACLE_LRU_SIZE, oracle_client.clone(), hint_client.clone()));
     let boot = BootInfo::load(oracle.as_ref()).await?;
+    let l1_config = boot.l1_config;
     let rollup_config = Arc::new(boot.rollup_config);
     let safe_head_hash = fetch_safe_head_hash(oracle.as_ref(), boot.agreed_l2_output_root).await?;
 
@@ -102,7 +103,11 @@ where
         &mut l1_provider,
         &mut l2_provider,
     )
-    .await?;
+    .await
+    .map_err(|e| {
+        error!(target: "client", "Failed to create pipeline cursor: {:?}", e);
+        e
+    })?;
     l2_provider.set_cursor(cursor.clone());
 
     let evm_factory = FpvmOpEvmFactory::new(hint_client, oracle_client);
@@ -110,6 +115,7 @@ where
         EthereumDataSource::new_from_parts(l1_provider.clone(), beacon, &rollup_config);
     let pipeline = OraclePipeline::new(
         rollup_config.clone(),
+        l1_config.into(),
         cursor.clone(),
         oracle.clone(),
         da_provider,
@@ -117,6 +123,7 @@ where
         l2_provider.clone(),
     )
     .await?;
+
     let executor = KonaExecutor::new(
         rollup_config.as_ref(),
         l2_provider.clone(),
@@ -141,6 +148,7 @@ where
             target: "client",
             number = safe_head.block_info.number,
             output_root = ?output_root,
+            claimed_output_root = ?boot.claimed_l2_output_root,
             "Failed to validate L2 block",
         );
         return Err(FaultProofProgramError::InvalidClaim(output_root, boot.claimed_l2_output_root));

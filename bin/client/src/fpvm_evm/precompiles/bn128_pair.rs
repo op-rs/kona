@@ -31,14 +31,16 @@ where
         return Err(PrecompileError::OutOfGas);
     }
 
-    if input.len() % PAIR_ELEMENT_LEN != 0 {
+    if !input.len().is_multiple_of(PAIR_ELEMENT_LEN) {
         return Err(PrecompileError::Bn254PairLength);
     }
+
+    let precompile = pair::ISTANBUL;
 
     let result_data = kona_proof::block_on(precompile_run! {
         hint_writer,
         oracle_reader,
-        &[pair::ISTANBUL.address().as_slice(), &gas_used.to_be_bytes(), input]
+        &[precompile.address().as_slice(), &gas_used.to_be_bytes(), input]
     })
     .map_err(|e| PrecompileError::Other(e.to_string()))?;
 

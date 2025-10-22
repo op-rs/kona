@@ -6,6 +6,7 @@ use crate::{
     BatcherUpdate, CONFIG_UPDATE_EVENT_VERSION_0, CONFIG_UPDATE_TOPIC, Eip1559Update,
     GasConfigUpdate, GasLimitUpdate, LogProcessingError, OperatorFeeUpdate, SystemConfigUpdate,
     SystemConfigUpdateError, SystemConfigUpdateKind, UnsafeBlockSignerUpdate,
+    updates::{DaFootprintGasScalarUpdate, MinBaseFeeUpdate},
 };
 
 /// The system config log is an EVM log entry emitted
@@ -63,7 +64,11 @@ impl SystemConfigLog {
         let topic_bytes = <&[u8; 8]>::try_from(&topic.as_slice()[24..])
             .map_err(|_| LogProcessingError::UpdateTypeDecodingError)?;
         let ty = u64::from_be_bytes(*topic_bytes);
-        ty.try_into()
+        ty.try_into().map_err(|_| {
+            SystemConfigUpdateError::LogProcessing(
+                LogProcessingError::InvalidSystemConfigUpdateType(ty),
+            )
+        })
     }
 
     /// Builds the [`SystemConfigUpdate`] from the log.
@@ -94,6 +99,14 @@ impl SystemConfigLog {
             SystemConfigUpdateKind::UnsafeBlockSigner => {
                 let update = UnsafeBlockSignerUpdate::try_from(self)?;
                 Ok(SystemConfigUpdate::UnsafeBlockSigner(update))
+            }
+            SystemConfigUpdateKind::MinBaseFee => {
+                let update = MinBaseFeeUpdate::try_from(self)?;
+                Ok(SystemConfigUpdate::MinBaseFee(update))
+            }
+            SystemConfigUpdateKind::DaFootprintGasScalar => {
+                let update = DaFootprintGasScalarUpdate::try_from(self)?;
+                Ok(SystemConfigUpdate::DaFootprintGasScalar(update))
             }
         }
     }

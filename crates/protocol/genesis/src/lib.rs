@@ -36,22 +36,23 @@ pub use superchain::{
 
 mod updates;
 pub use updates::{
-    BatcherUpdate, Eip1559Update, GasConfigUpdate, GasLimitUpdate, OperatorFeeUpdate,
-    UnsafeBlockSignerUpdate,
+    BatcherUpdate, DaFootprintGasScalarUpdate, Eip1559Update, GasConfigUpdate, GasLimitUpdate,
+    MinBaseFeeUpdate, OperatorFeeUpdate, UnsafeBlockSignerUpdate,
 };
 
 mod system;
 pub use system::{
-    BatcherUpdateError, CONFIG_UPDATE_EVENT_VERSION_0, CONFIG_UPDATE_TOPIC, EIP1559UpdateError,
-    GasConfigUpdateError, GasLimitUpdateError, LogProcessingError, OperatorFeeUpdateError,
-    SystemConfig, SystemConfigLog, SystemConfigUpdate, SystemConfigUpdateError,
-    SystemConfigUpdateKind, UnsafeBlockSignerUpdateError,
+    BatcherUpdateError, CONFIG_UPDATE_EVENT_VERSION_0, CONFIG_UPDATE_TOPIC,
+    DaFootprintGasScalarUpdateError, EIP1559UpdateError, GasConfigUpdateError, GasLimitUpdateError,
+    LogProcessingError, MinBaseFeeUpdateError, OperatorFeeUpdateError, SystemConfig,
+    SystemConfigLog, SystemConfigUpdate, SystemConfigUpdateError, SystemConfigUpdateKind,
+    UnsafeBlockSignerUpdateError,
 };
 
 mod chain;
 pub use chain::{
     AddressList, AltDAConfig, BASE_MAINNET_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, ChainConfig,
-    HardForkConfig, OP_MAINNET_CHAIN_ID, OP_SEPOLIA_CHAIN_ID, Roles,
+    HardForkConfig, L1ChainConfig, OP_MAINNET_CHAIN_ID, OP_SEPOLIA_CHAIN_ID, Roles,
 };
 
 mod genesis;
