@@ -14,9 +14,21 @@ pub struct DaFootprintGasScalarUpdate {
 }
 
 impl DaFootprintGasScalarUpdate {
+    /// The default DA footprint gas scalar
+    /// <https://github.com/ethereum-optimism/specs/blob/664cba65ab9686b0e70ad19fdf2ad054d6295986/specs/protocol/jovian/l1-attributes.md#overview>
+    pub const DEFAULT_DA_FOOTPRINT_GAS_SCALAR: u16 = 400;
+
     /// Applies the update to the [`SystemConfig`].
     pub const fn apply(&self, config: &mut SystemConfig) {
-        config.da_footprint_gas_scalar = Some(self.da_footprint_gas_scalar);
+        let mut da_footprint_gas_scalar = self.da_footprint_gas_scalar;
+
+        // If the da footprint gas scalar is 0, use the default value
+        // <https://github.com/ethereum-optimism/specs/blob/664cba65ab9686b0e70ad19fdf2ad054d6295986/specs/protocol/jovian/l1-attributes.md#overview>
+        if da_footprint_gas_scalar == 0 {
+            da_footprint_gas_scalar = Self::DEFAULT_DA_FOOTPRINT_GAS_SCALAR;
+        };
+
+        config.da_footprint_gas_scalar = Some(da_footprint_gas_scalar);
     }
 }
 

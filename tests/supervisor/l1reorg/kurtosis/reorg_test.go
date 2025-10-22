@@ -27,7 +27,7 @@ func TestL1Reorg(gt *testing.T) {
 			gt.Logf("Pre:: CrossSafe: %s, LocalSafe: %s, Unsafe: %s", crossSafeRef, localSafeRef, unsafeRef)
 
 			// Calculate the divergent block
-			blockRef, err := sys.Supervisor.Escape().QueryAPI().CrossDerivedToSource(gt.Context(), sys.L2ChainA.ChainID(), localSafeRef)
+			blockRef, err := sys.Supervisor.Escape().QueryAPI().CrossDerivedToSource(t.Ctx(), sys.L2ChainA.ChainID(), localSafeRef)
 			assert.Nil(gt, err, "Failed to query cross derived to source")
 			reorgAfter = blockRef.ID()
 		}

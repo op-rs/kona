@@ -59,7 +59,7 @@ jobs:
           if [ "${{ matrix.client }}" = "kona" ]; then
             source <(cargo llvm-cov show-env --export-prefix)
           fi
-          just acceptance-tests "${{ matrix.client }}" "${{ matrix.engine }}"
+          just acceptance-tests "${{ matrix.client }}" "${{ matrix.engine }}" 
           if [ "${{ matrix.client }}" = "kona" ]; then
             cargo llvm-cov report --lcov --output-path "acceptance_tests_${{ matrix.devnet-config }}.lcov"
           fi

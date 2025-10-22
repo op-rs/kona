@@ -29,17 +29,18 @@ func TestL2TransactionInclusion(gt *testing.T) {
 	// Ensure the block containing the transaction has propagated to the rest of the network.
 	for _, node := range out.L2ELNodes() {
 		block := node.WaitForBlockNumber(inclusionBlock.Number)
-		blockID := block.ID()
+		blockID := block.Hash()
+		blockNumber := block.NumberU64()
 
 		// It's possible that the block has already been included, and `WaitForBlockNumber` returns a block
 		// at a taller height.
-		if block.Number > inclusionBlock.Number {
-			blockID = node.BlockRefByNumber(inclusionBlock.Number).ID()
+		if blockNumber > inclusionBlock.Number {
+			blockID = node.BlockRefByNumber(inclusionBlock.Number).Hash
 		}
 
 		// Ensure that the block ID matches the expected inclusion block hash.
-		if blockID.Hash != inclusionBlock.Hash {
-			gt.Fatal("transaction not included in block", "node", node.String(), "expectedBlockHash", inclusionBlock.Hash, "actualBlockHash", blockID.Hash)
+		if blockID != inclusionBlock.Hash {
+			gt.Fatal("transaction not included in block", "node", node.String(), "expectedBlockHash", inclusionBlock.Hash, "actualBlockHash", blockID)
 		}
 
 		// Ensure that the recipient's balance has been updated in the eyes of the EL node.
