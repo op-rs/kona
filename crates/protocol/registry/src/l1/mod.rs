@@ -127,6 +127,12 @@ impl L1Config {
 
     /// Parse the sepolia genesis.
     pub fn sepolia() -> Self {
+        /// BPO1 hardfork activation timestamp
+        const SEPOLIA_BPO1_TIMESTAMP: u64 = 1761017184;
+
+        /// BPO2 hardfork activation timestamp
+        const SEPOLIA_BPO2_TIMESTAMP: u64 = 1761607008;
+
         Self(L1ChainConfig {
             chain_id: NamedChain::Sepolia.into(),
             homestead_block: alloy_hardforks::EthereumHardfork::Homestead
@@ -157,8 +163,8 @@ impl L1Config {
             cancun_time: alloy_hardforks::EthereumHardfork::Cancun.sepolia_activation_timestamp(),
             prague_time: alloy_hardforks::EthereumHardfork::Prague.sepolia_activation_timestamp(),
             osaka_time: alloy_hardforks::EthereumHardfork::Osaka.sepolia_activation_timestamp(),
-            bpo1_time: alloy_hardforks::EthereumHardfork::Bpo1.sepolia_activation_timestamp(),
-            bpo2_time: alloy_hardforks::EthereumHardfork::Bpo2.sepolia_activation_timestamp(),
+            bpo1_time: Some(SEPOLIA_BPO1_TIMESTAMP),
+            bpo2_time: Some(SEPOLIA_BPO2_TIMESTAMP),
             bpo3_time: alloy_hardforks::EthereumHardfork::Bpo3.sepolia_activation_timestamp(),
             bpo4_time: alloy_hardforks::EthereumHardfork::Bpo4.sepolia_activation_timestamp(),
             bpo5_time: alloy_hardforks::EthereumHardfork::Bpo5.sepolia_activation_timestamp(),
@@ -180,6 +186,12 @@ impl L1Config {
 
     /// Parse the holesky genesis.
     pub fn holesky() -> Self {
+        /// BPO1 hardfork activation timestamp
+        const HOLESKY_BPO1_TIMESTAMP: u64 = 1759800000;
+
+        /// BPO2 hardfork activation timestamp
+        const HOLESKY_BPO2_TIMESTAMP: u64 = 1760389824;
+
         Self(L1ChainConfig {
             chain_id: NamedChain::Holesky.into(),
             homestead_block: Some(0),
@@ -201,8 +213,8 @@ impl L1Config {
             cancun_time: alloy_hardforks::EthereumHardfork::Cancun.holesky_activation_timestamp(),
             prague_time: alloy_hardforks::EthereumHardfork::Prague.holesky_activation_timestamp(),
             osaka_time: alloy_hardforks::EthereumHardfork::Osaka.holesky_activation_timestamp(),
-            bpo1_time: alloy_hardforks::EthereumHardfork::Bpo1.holesky_activation_timestamp(),
-            bpo2_time: alloy_hardforks::EthereumHardfork::Bpo2.holesky_activation_timestamp(),
+            bpo1_time: Some(HOLESKY_BPO1_TIMESTAMP),
+            bpo2_time: Some(HOLESKY_BPO2_TIMESTAMP),
             bpo3_time: alloy_hardforks::EthereumHardfork::Bpo3.holesky_activation_timestamp(),
             bpo4_time: alloy_hardforks::EthereumHardfork::Bpo4.holesky_activation_timestamp(),
             bpo5_time: alloy_hardforks::EthereumHardfork::Bpo5.holesky_activation_timestamp(),
