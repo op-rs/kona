@@ -86,6 +86,12 @@ impl L1BlockInfoTx {
         let blob_fee_config =
             match blob_fee_params.active_scheduled_params_at_timestamp(l1_header.timestamp) {
                 Some(blob_fee_param) => *blob_fee_param,
+                None if l1_config.bpo2_time.is_some_and(|time| time <= l1_header.timestamp) => {
+                    BlobParams::bpo2()
+                }
+                None if l1_config.bpo1_time.is_some_and(|time| time <= l1_header.timestamp) => {
+                    BlobParams::bpo1()
+                }
                 None if l1_config.osaka_time.is_some_and(|time| time <= l1_header.timestamp) => {
                     BlobParams::osaka()
                 }
