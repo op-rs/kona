@@ -270,6 +270,8 @@ impl From<serde_json::Error> for L1GenesisGetterErrors {
 
 #[cfg(test)]
 mod tests {
+    use alloy_hardforks::EthereumHardfork;
+
     use super::*;
 
     #[test]
@@ -285,5 +287,61 @@ mod tests {
 
         let l1_config = L1Config::get_l1_genesis(1000000).unwrap_err();
         assert!(matches!(l1_config, L1GenesisGetterErrors::ChainIDDoesNotExist(1000000)));
+    }
+
+    #[test]
+    fn test_get_l1_bpo_sepolia() {
+        /// BPO1 hardfork activation timestamp
+        const SEPOLIA_BPO1_TIMESTAMP: u64 = 1761017184;
+
+        /// BPO2 hardfork activation timestamp
+        const SEPOLIA_BPO2_TIMESTAMP: u64 = 1761607008;
+
+        let sepolia = L1Config::sepolia();
+
+        assert_eq!(sepolia.blob_schedule.len(), 5);
+        assert_eq!(
+            sepolia.blob_schedule.get(EthereumHardfork::Bpo1.name()).unwrap(),
+            &BlobParams::bpo1()
+        );
+        assert_eq!(
+            sepolia.blob_schedule.get(EthereumHardfork::Bpo2.name()).unwrap(),
+            &BlobParams::bpo2()
+        );
+
+        let blob_schedule = sepolia.blob_schedule_blob_params();
+        assert_eq!(blob_schedule.scheduled.len(), 2);
+        assert_eq!(blob_schedule.scheduled[0].0, SEPOLIA_BPO1_TIMESTAMP);
+        assert_eq!(blob_schedule.scheduled[1].0, SEPOLIA_BPO2_TIMESTAMP);
+        assert_eq!(blob_schedule.scheduled[0].1, BlobParams::bpo1());
+        assert_eq!(blob_schedule.scheduled[1].1, BlobParams::bpo2());
+    }
+
+    #[test]
+    fn test_get_l1_bpo_holesky() {
+        /// BPO1 hardfork activation timestamp
+        const HOLESKY_BPO1_TIMESTAMP: u64 = 1759800000;
+
+        /// BPO2 hardfork activation timestamp
+        const HOLESKY_BPO2_TIMESTAMP: u64 = 1760389824;
+
+        let holesky = L1Config::holesky();
+
+        assert_eq!(holesky.blob_schedule.len(), 5);
+        assert_eq!(
+            holesky.blob_schedule.get(EthereumHardfork::Bpo1.name()).unwrap(),
+            &BlobParams::bpo1()
+        );
+        assert_eq!(
+            holesky.blob_schedule.get(EthereumHardfork::Bpo2.name()).unwrap(),
+            &BlobParams::bpo2()
+        );
+
+        let blob_schedule = holesky.blob_schedule_blob_params();
+        assert_eq!(blob_schedule.scheduled.len(), 2);
+        assert_eq!(blob_schedule.scheduled[0].0, HOLESKY_BPO1_TIMESTAMP);
+        assert_eq!(blob_schedule.scheduled[1].0, HOLESKY_BPO2_TIMESTAMP);
+        assert_eq!(blob_schedule.scheduled[0].1, BlobParams::bpo1());
+        assert_eq!(blob_schedule.scheduled[1].1, BlobParams::bpo2());
     }
 }
