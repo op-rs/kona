@@ -113,6 +113,35 @@ impl L1BlockInfoTx {
         let block_hash = l1_header.hash_slow();
         let base_fee = l1_header.base_fee_per_gas.unwrap_or(0);
 
+        if rollup_config.is_jovian_active(l2_block_time) &&
+            !rollup_config.is_first_jovian_block(l2_block_time)
+        {
+            let operator_fee_scalar = system_config.operator_fee_scalar.unwrap_or_default();
+            let operator_fee_constant = system_config.operator_fee_constant.unwrap_or_default();
+            let mut da_footprint_gas_scalar = system_config
+                .da_footprint_gas_scalar
+                .unwrap_or(L1BlockInfoJovian::DEFAULT_DA_FOOTPRINT_GAS_SCALAR);
+
+            if da_footprint_gas_scalar == 0 {
+                da_footprint_gas_scalar = L1BlockInfoJovian::DEFAULT_DA_FOOTPRINT_GAS_SCALAR;
+            }
+
+            return Ok(Self::Jovian(L1BlockInfoJovian {
+                number: l1_header.number,
+                time: l1_header.timestamp,
+                base_fee,
+                block_hash,
+                sequence_number,
+                batcher_address: system_config.batcher_address,
+                blob_base_fee,
+                blob_base_fee_scalar,
+                base_fee_scalar,
+                operator_fee_scalar,
+                operator_fee_constant,
+                da_footprint_gas_scalar,
+            }));
+        }
+
         if rollup_config.is_isthmus_active(l2_block_time) &&
             !rollup_config.is_first_isthmus_block(l2_block_time)
         {
@@ -130,30 +159,6 @@ impl L1BlockInfoTx {
                 base_fee_scalar,
                 operator_fee_scalar,
                 operator_fee_constant,
-            }));
-        }
-
-        if rollup_config.is_jovian_active(l2_block_time) &&
-            !rollup_config.is_first_jovian_block(l2_block_time)
-        {
-            let operator_fee_scalar = system_config.operator_fee_scalar.unwrap_or_default();
-            let operator_fee_constant = system_config.operator_fee_constant.unwrap_or_default();
-            let da_footprint_gas_scalar = system_config
-                .da_footprint_gas_scalar
-                .unwrap_or(L1BlockInfoJovian::DEFAULT_DA_FOOTPRINT_GAS_SCALAR);
-            return Ok(Self::Jovian(L1BlockInfoJovian {
-                number: l1_header.number,
-                time: l1_header.timestamp,
-                base_fee,
-                block_hash,
-                sequence_number,
-                batcher_address: system_config.batcher_address,
-                blob_base_fee,
-                blob_base_fee_scalar,
-                base_fee_scalar,
-                operator_fee_scalar,
-                operator_fee_constant,
-                da_footprint_gas_scalar,
             }));
         }
 
@@ -217,7 +222,7 @@ impl L1BlockInfoTx {
         Ok((l1_info, deposit_tx.seal_slow()))
     }
 
-    /// Decodes the [`L1BlockInfoEcotone`] object from Ethereum transaction calldata.
+    /// Decodes the [`L1BlockInfoTx`] object from Ethereum transaction calldata.
     pub fn decode_calldata(r: &[u8]) -> Result<Self, DecodeError> {
         if r.len() < 4 {
             return Err(DecodeError::MissingSelector);
@@ -285,6 +290,7 @@ impl L1BlockInfoTx {
     /// Returns the operator fee scalar.
     pub const fn operator_fee_scalar(&self) -> u32 {
         match self {
+            Self::Jovian(L1BlockInfoJovian { operator_fee_scalar, .. }) |
             Self::Isthmus(L1BlockInfoIsthmus { operator_fee_scalar, .. }) => *operator_fee_scalar,
             _ => 0,
         }
@@ -293,6 +299,7 @@ impl L1BlockInfoTx {
     /// Returns the operator fee constant.
     pub const fn operator_fee_constant(&self) -> u64 {
         match self {
+            Self::Jovian(L1BlockInfoJovian { operator_fee_constant, .. }) |
             Self::Isthmus(L1BlockInfoIsthmus { operator_fee_constant, .. }) => {
                 *operator_fee_constant
             }

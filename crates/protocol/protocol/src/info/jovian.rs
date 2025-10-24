@@ -148,7 +148,12 @@ impl L1BlockInfoJovian {
         // SAFETY: 2 bytes are copied directly into the array
         let mut da_footprint_gas_scalar = [0u8; 2];
         da_footprint_gas_scalar.copy_from_slice(&r[176..178]);
-        let da_footprint_gas_scalar = u16::from_be_bytes(da_footprint_gas_scalar);
+        let mut da_footprint_gas_scalar = u16::from_be_bytes(da_footprint_gas_scalar);
+
+        // If the da footprint gas scalar is 0, use the default value (`https://github.com/ethereum-optimism/specs/blob/664cba65ab9686b0e70ad19fdf2ad054d6295986/specs/protocol/jovian/l1-attributes.md#overview`).
+        if da_footprint_gas_scalar == 0 {
+            da_footprint_gas_scalar = Self::DEFAULT_DA_FOOTPRINT_GAS_SCALAR;
+        }
 
         Ok(Self {
             number,
@@ -171,6 +176,7 @@ impl L1BlockInfoJovian {
 mod tests {
     use super::*;
     use alloc::vec;
+    use alloy_primitives::keccak256;
 
     #[test]
     fn test_decode_calldata_jovian_invalid_length() {
@@ -178,6 +184,14 @@ mod tests {
         assert_eq!(
             L1BlockInfoJovian::decode_calldata(&r),
             Err(DecodeError::InvalidJovianLength(L1BlockInfoJovian::L1_INFO_TX_LEN, r.len()))
+        );
+    }
+
+    #[test]
+    fn test_function_selector() {
+        assert_eq!(
+            keccak256("setL1BlockValuesJovian()")[..4].to_vec(),
+            L1BlockInfoJovian::L1_INFO_TX_SELECTOR
         );
     }
 
