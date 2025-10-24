@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 /// Represents a sealed block with its hash, number, and timestamp.
 ///
-/// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/managed-node.md#types>
+/// Spec: <https://specs.optimism.io/interop/managed-node.html#types>
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockSeal {
