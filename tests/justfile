@@ -210,6 +210,13 @@ long-running-test FILTER="" OUTPUT_LOGS_DIR="":
     export OP_DEPLOYER_ARTIFACTS="{{SOURCE}}/artifacts"
     export DISABLE_OP_E2E_LEGACY=true
 
+    ## Serve prometheus metrics
+    export KONA_METRICS_ENABLED=true
+
+    export SYSGO_DOCKER_EXEC_PATH="/usr/local/bin/docker"
+    export SYSGO_GRAFANA_PROVISIONING_DIR="{{SOURCE}}/.temp/grafana/"
+    export SYSGO_GRAFANA_DATA_DIR="{{SOURCE}}/.temp/grafana-data/"
+
     # Run the test with count=1 to avoid caching the test results.
     cd {{SOURCE}} && go test -count=1 -timeout 0 -v ./node/long-running $FILTER 
 

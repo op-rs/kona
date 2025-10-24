@@ -208,10 +208,10 @@ func (m *MixedOpKonaPreset) L2CLKonaNodes() []dsl.L2CLNode {
 }
 
 func L2NodeMatcher[
-	I interface {
-		comparable
-		Key() string
-	}, E stack.Identifiable[I]](value ...string) stack.Matcher[I, E] {
+I interface {
+	comparable
+	Key() string
+}, E stack.Identifiable[I]](value ...string) stack.Matcher[I, E] {
 	return match.MatchElemFn[I, E](func(elem E) bool {
 		for _, v := range value {
 			if !strings.Contains(elem.ID().Key(), v) {
@@ -574,6 +574,8 @@ func DefaultMixedOpKonaSystem(dest *DefaultMixedOpKonaSystemIDs, l2NodeConfig L2
 	opt.Add(sysgo.WithProposer(ids.L2Proposer, ids.L1EL, &CLNodeIDs[0], nil))
 
 	opt.Add(sysgo.WithFaucets([]stack.L1ELNodeID{ids.L1EL}, []stack.L2ELNodeID{ELNodeIDs[0]}))
+
+	opt.Add(sysgo.WithL2MetricsDashboard())
 
 	opt.Add(stack.Finally(func(orch *sysgo.Orchestrator) {
 		*dest = ids

@@ -51,9 +51,6 @@ pub struct Cli {
 impl Cli {
     /// Runs the CLI.
     pub fn run(self) -> Result<()> {
-        // Initialize unified metrics
-        init_unified_metrics(&self.global.metrics)?;
-
         // Initialize telemetry - allow subcommands to customize the filter.
         match self.subcommand {
             Commands::Node(ref node) => node.init_logs(&self.global)?,
@@ -62,6 +59,9 @@ impl Cli {
             Commands::Bootstore(ref bootstore) => bootstore.init_logs(&self.global)?,
             Commands::Info(ref info) => info.init_logs(&self.global)?,
         }
+
+        // Initialize unified metrics
+        init_unified_metrics(&self.global.metrics)?;
 
         // Allow subcommands to initialize cli metrics.
         match self.subcommand {

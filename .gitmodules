@@ -4,6 +4,7 @@
 [submodule "tests/optimism"]
 	path = tests/optimism
 	url = https://github.com/ethereum-optimism/optimism
+	branch = op-will/fix-devstack_and_observability
 [submodule "tests/reth"]
 	path = tests/reth
 	url = https://github.com/paradigmxyz/reth.git
