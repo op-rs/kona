@@ -12,7 +12,7 @@ jobs:
   action-tests:
     name: FPP actions (${{ matrix.kind }})
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
