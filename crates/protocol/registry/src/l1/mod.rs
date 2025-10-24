@@ -270,7 +270,10 @@ impl From<serde_json::Error> for L1GenesisGetterErrors {
 
 #[cfg(test)]
 mod tests {
-    use alloy_hardforks::EthereumHardfork;
+    use alloy_hardforks::{
+        EthereumHardfork,
+        sepolia::{SEPOLIA_BPO1_TIMESTAMP, SEPOLIA_BPO2_TIMESTAMP},
+    };
 
     use super::*;
 
@@ -343,5 +346,31 @@ mod tests {
         assert_eq!(blob_schedule.scheduled[1].0, HOLESKY_BPO2_TIMESTAMP);
         assert_eq!(blob_schedule.scheduled[0].1, BlobParams::bpo1());
         assert_eq!(blob_schedule.scheduled[1].1, BlobParams::bpo2());
+    }
+
+    #[test]
+    fn test_get_l1_blob_active_scheduled_params_at_timestamp() {
+        let sepolia = L1Config::sepolia();
+        let blob_schedule = sepolia.blob_schedule_blob_params();
+        assert_eq!(
+            blob_schedule.active_scheduled_params_at_timestamp(SEPOLIA_BPO1_TIMESTAMP),
+            Some(&BlobParams::bpo1())
+        );
+        assert_eq!(
+            blob_schedule.active_scheduled_params_at_timestamp(SEPOLIA_BPO1_TIMESTAMP + 1),
+            Some(&BlobParams::bpo1())
+        );
+        assert_eq!(
+            blob_schedule.active_scheduled_params_at_timestamp(SEPOLIA_BPO2_TIMESTAMP),
+            Some(&BlobParams::bpo2())
+        );
+        assert_eq!(
+            blob_schedule.active_scheduled_params_at_timestamp(SEPOLIA_BPO2_TIMESTAMP + 1),
+            Some(&BlobParams::bpo2())
+        );
+        assert_eq!(
+            blob_schedule.active_scheduled_params_at_timestamp(SEPOLIA_BPO1_TIMESTAMP - 1),
+            None
+        );
     }
 }
