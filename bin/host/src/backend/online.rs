@@ -1,6 +1,7 @@
 //! Contains the [OnlineHostBackend] definition.
 
-use crate::{Result, SharedKeyValueStore};
+use crate::SharedKeyValueStore;
+use anyhow::Result;
 use async_trait::async_trait;
 use kona_preimage::{
     HintRouter, PreimageFetcher, PreimageKey,

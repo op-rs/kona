@@ -4,9 +4,9 @@
 #![deny(unused_must_use, rust_2018_idioms)]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
+use anyhow::Result;
 use clap::{Parser, Subcommand};
 use kona_cli::{LogArgs, LogConfig, cli_styles};
-use kona_host::Result;
 use serde::Serialize;
 use tracing::info;
 use tracing_subscriber::EnvFilter;

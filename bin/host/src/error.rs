@@ -1,15 +1,13 @@
 //! Error types for the host binary.
 
-use alloy_primitives::B256;
 use alloy_rlp::Error as RlpError;
 use alloy_transport::TransportError;
-use kona_cli::ParseError;
 use kona_preimage::errors::PreimageOracleError;
 use std::array::TryFromSliceError;
 use thiserror::Error;
 
 /// Result type for host operations.
-pub type HostResult<T> = std::result::Result<T, HostError>;
+pub type Result<T> = std::result::Result<T, HostError>;
 
 /// Error type for host operations.
 #[derive(Debug, Error)]
@@ -120,10 +118,6 @@ pub enum HostError {
     #[error("Kona executor error: {0}")]
     KonaExecutor(String),
 
-    /// Parse error.
-    #[error("Parse error: {0}")]
-    Parse(#[from] ParseError),
-
     /// IO error.
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
@@ -135,11 +129,8 @@ impl From<rocksdb::Error> for HostError {
     }
 }
 
-impl<T> From<kona_derive::errors::PipelineError<T>> for HostError
-where
-    T: std::fmt::Display,
-{
-    fn from(err: kona_derive::errors::PipelineError<T>) -> Self {
+impl From<kona_derive::PipelineError> for HostError {
+    fn from(err: kona_derive::PipelineError) -> Self {
         HostError::KonaDerive(err.to_string())
     }
 }
@@ -149,4 +140,3 @@ impl From<kona_executor::ExecutorError> for HostError {
         HostError::KonaExecutor(err.to_string())
     }
 }
-
