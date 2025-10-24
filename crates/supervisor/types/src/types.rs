@@ -33,7 +33,7 @@ impl BlockSeal {
 
 /// Output data for version 0 of the protocol.
 ///
-/// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/managed-node.md#types>
+/// Spec: <https://specs.optimism.io/interop/managed-node.html#types>
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct OutputV0 {
