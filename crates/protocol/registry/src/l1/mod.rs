@@ -62,11 +62,26 @@ impl L1Config {
 
     fn default_blob_schedule() -> BTreeMap<String, BlobParams> {
         BTreeMap::from([
-            (alloy_hardforks::EthereumHardfork::Cancun.name().to_string(), BlobParams::cancun()),
-            (alloy_hardforks::EthereumHardfork::Prague.name().to_string(), BlobParams::prague()),
-            (alloy_hardforks::EthereumHardfork::Osaka.name().to_string(), BlobParams::osaka()),
-            (alloy_hardforks::EthereumHardfork::Bpo1.name().to_string(), BlobParams::bpo1()),
-            (alloy_hardforks::EthereumHardfork::Bpo2.name().to_string(), BlobParams::bpo2()),
+            (
+                alloy_hardforks::EthereumHardfork::Cancun.name().to_string().to_lowercase(),
+                BlobParams::cancun(),
+            ),
+            (
+                alloy_hardforks::EthereumHardfork::Prague.name().to_string().to_lowercase(),
+                BlobParams::prague(),
+            ),
+            (
+                alloy_hardforks::EthereumHardfork::Osaka.name().to_string().to_lowercase(),
+                BlobParams::osaka(),
+            ),
+            (
+                alloy_hardforks::EthereumHardfork::Bpo1.name().to_string().to_lowercase(),
+                BlobParams::bpo1(),
+            ),
+            (
+                alloy_hardforks::EthereumHardfork::Bpo2.name().to_string().to_lowercase(),
+                BlobParams::bpo2(),
+            ),
         ])
     }
 
@@ -270,7 +285,10 @@ impl From<serde_json::Error> for L1GenesisGetterErrors {
 
 #[cfg(test)]
 mod tests {
-    use alloy_hardforks::EthereumHardfork;
+    use alloy_hardforks::{
+        EthereumHardfork,
+        sepolia::{SEPOLIA_BPO1_TIMESTAMP, SEPOLIA_BPO2_TIMESTAMP},
+    };
 
     use super::*;
 
@@ -301,11 +319,11 @@ mod tests {
 
         assert_eq!(sepolia.blob_schedule.len(), 5);
         assert_eq!(
-            sepolia.blob_schedule.get(EthereumHardfork::Bpo1.name()).unwrap(),
+            sepolia.blob_schedule.get(&EthereumHardfork::Bpo1.name().to_lowercase()).unwrap(),
             &BlobParams::bpo1()
         );
         assert_eq!(
-            sepolia.blob_schedule.get(EthereumHardfork::Bpo2.name()).unwrap(),
+            sepolia.blob_schedule.get(&EthereumHardfork::Bpo2.name().to_lowercase()).unwrap(),
             &BlobParams::bpo2()
         );
 
@@ -329,11 +347,11 @@ mod tests {
 
         assert_eq!(holesky.blob_schedule.len(), 5);
         assert_eq!(
-            holesky.blob_schedule.get(EthereumHardfork::Bpo1.name()).unwrap(),
+            holesky.blob_schedule.get(&EthereumHardfork::Bpo1.name().to_lowercase()).unwrap(),
             &BlobParams::bpo1()
         );
         assert_eq!(
-            holesky.blob_schedule.get(EthereumHardfork::Bpo2.name()).unwrap(),
+            holesky.blob_schedule.get(&EthereumHardfork::Bpo2.name().to_lowercase()).unwrap(),
             &BlobParams::bpo2()
         );
 
@@ -343,5 +361,31 @@ mod tests {
         assert_eq!(blob_schedule.scheduled[1].0, HOLESKY_BPO2_TIMESTAMP);
         assert_eq!(blob_schedule.scheduled[0].1, BlobParams::bpo1());
         assert_eq!(blob_schedule.scheduled[1].1, BlobParams::bpo2());
+    }
+
+    #[test]
+    fn test_get_l1_blob_active_scheduled_params_at_timestamp() {
+        let sepolia = L1Config::sepolia();
+        let blob_schedule = sepolia.blob_schedule_blob_params();
+        assert_eq!(
+            blob_schedule.active_scheduled_params_at_timestamp(SEPOLIA_BPO1_TIMESTAMP),
+            Some(&BlobParams::bpo1())
+        );
+        assert_eq!(
+            blob_schedule.active_scheduled_params_at_timestamp(SEPOLIA_BPO1_TIMESTAMP + 1),
+            Some(&BlobParams::bpo1())
+        );
+        assert_eq!(
+            blob_schedule.active_scheduled_params_at_timestamp(SEPOLIA_BPO2_TIMESTAMP),
+            Some(&BlobParams::bpo2())
+        );
+        assert_eq!(
+            blob_schedule.active_scheduled_params_at_timestamp(SEPOLIA_BPO2_TIMESTAMP + 1),
+            Some(&BlobParams::bpo2())
+        );
+        assert_eq!(
+            blob_schedule.active_scheduled_params_at_timestamp(SEPOLIA_BPO1_TIMESTAMP - 1),
+            None
+        );
     }
 }
