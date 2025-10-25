@@ -2,6 +2,9 @@
 
 use thiserror::Error;
 
+/// Bad file descriptor error code
+pub const EBADF: i32 = -9;
+
 /// An error that can occur when reading from or writing to a file descriptor.
 #[derive(Error, Debug, PartialEq, Eq)]
 #[error("IO error (errno: {_0})")]
