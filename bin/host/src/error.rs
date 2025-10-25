@@ -125,18 +125,18 @@ pub enum HostError {
 
 impl From<rocksdb::Error> for HostError {
     fn from(err: rocksdb::Error) -> Self {
-        HostError::RocksDb(err.to_string())
+        Self::RocksDb(err.to_string())
     }
 }
 
 impl From<kona_derive::PipelineError> for HostError {
     fn from(err: kona_derive::PipelineError) -> Self {
-        HostError::KonaDerive(err.to_string())
+        Self::KonaDerive(err.to_string())
     }
 }
 
 impl From<kona_executor::ExecutorError> for HostError {
     fn from(err: kona_executor::ExecutorError) -> Self {
-        HostError::KonaExecutor(err.to_string())
+        Self::KonaExecutor(err.to_string())
     }
 }
