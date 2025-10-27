@@ -230,9 +230,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-evm"
-version = "0.22.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83ce19ea6140497670b1b7e721f9a9ce88022fe475a5e4e6a68a403499cca209"
+version = "0.22.5"
+source = "git+https://github.com/alloy-rs/evm?rev=a69f0b45a6b0286e16072cb8399e02ce6ceca353#a69f0b45a6b0286e16072cb8399e02ce6ceca353"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -267,9 +266,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-hardforks"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b16ee6b2c7d39da592d30a5f9607a83f50ee5ec2a2c301746cc81e91891f4ca"
+checksum = "cd78f8e1c274581c663d7949c863b10c8b015e48f2774a4b8e8efc82d43ea95c"
 dependencies = [
  "alloy-chains",
  "alloy-eip2124",
@@ -347,9 +346,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-op-evm"
-version = "0.22.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d7aeaf6051f53880a65b547c43e3b05ee42f68236b1f43f013abfe4eadc47bb"
+version = "0.22.5"
+source = "git+https://github.com/alloy-rs/evm?rev=a69f0b45a6b0286e16072cb8399e02ce6ceca353#a69f0b45a6b0286e16072cb8399e02ce6ceca353"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -365,9 +363,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-op-hardforks"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af8bb236fc008fd3b83b2792e30ae79617a99ffc4c3f584f0c9b4ce0a2da52de"
+checksum = "777759314eaa14fb125c1deba5cbc06eee953bbe77bc7cc60b4e8685bd03479e"
 dependencies = [
  "alloy-chains",
  "alloy-hardforks",
@@ -11278,13 +11276,3 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
-
-[[patch.unused]]
-name = "alloy-evm"
-version = "0.22.5"
-source = "git+https://github.com/alloy-rs/evm?rev=a69f0b45a6b0286e16072cb8399e02ce6ceca353#a69f0b45a6b0286e16072cb8399e02ce6ceca353"
-
-[[patch.unused]]
-name = "alloy-op-evm"
-version = "0.22.5"
-source = "git+https://github.com/alloy-rs/evm?rev=a69f0b45a6b0286e16072cb8399e02ce6ceca353#a69f0b45a6b0286e16072cb8399e02ce6ceca353"

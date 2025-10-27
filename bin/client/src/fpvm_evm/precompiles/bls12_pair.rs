@@ -172,7 +172,8 @@ mod test {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_accelerated_bls12_381_pairing_bad_input_len_jovian() {
         test_accelerated_precompile(|hint_writer, oracle_reader| {
-            // Calculate the next aligned size (multiple of PAIRING_INPUT_LENGTH) that exceeds BLS12_MAX_PAIRING_SIZE_JOVIAN
+            // Calculate the next aligned size (multiple of PAIRING_INPUT_LENGTH) that exceeds
+            // BLS12_MAX_PAIRING_SIZE_JOVIAN
             const INPUT_SIZE: usize =
                 ((BLS12_MAX_PAIRING_SIZE_JOVIAN / PAIRING_INPUT_LENGTH) + 1) * PAIRING_INPUT_LENGTH;
             let input = [0u8; INPUT_SIZE];

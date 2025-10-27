@@ -160,7 +160,8 @@ mod test {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_accelerated_bn128_pairing_bad_input_len_granite() {
         test_accelerated_precompile(|hint_writer, oracle_reader| {
-            // Calculate the next aligned size (multiple of PAIR_ELEMENT_LEN) that exceeds BN256_MAX_PAIRING_SIZE_GRANITE
+            // Calculate the next aligned size (multiple of PAIR_ELEMENT_LEN) that exceeds
+            // BN256_MAX_PAIRING_SIZE_GRANITE
             const INPUT_SIZE: usize =
                 ((BN256_MAX_PAIRING_SIZE_GRANITE / PAIR_ELEMENT_LEN) + 1) * PAIR_ELEMENT_LEN;
             let input = [0u8; INPUT_SIZE];
@@ -191,7 +192,8 @@ mod test {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_accelerated_bn128_pairing_bad_input_len_jovian() {
         test_accelerated_precompile(|hint_writer, oracle_reader| {
-            // Calculate the next aligned size (multiple of PAIR_ELEMENT_LEN) that exceeds BN256_MAX_PAIRING_SIZE_JOVIAN
+            // Calculate the next aligned size (multiple of PAIR_ELEMENT_LEN) that exceeds
+            // BN256_MAX_PAIRING_SIZE_JOVIAN
             const INPUT_SIZE: usize =
                 ((BN256_MAX_PAIRING_SIZE_JOVIAN / PAIR_ELEMENT_LEN) + 1) * PAIR_ELEMENT_LEN;
             let input = [0u8; INPUT_SIZE];

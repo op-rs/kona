@@ -268,10 +268,10 @@ where
 
     // Replace the 4 variable-input precompiles with Jovian versions (reduced limits)
     base.retain(|p| {
-        p.address != bn254::pair::ADDRESS
-            && p.address != bls12_381_const::G1_MSM_ADDRESS
-            && p.address != bls12_381_const::G2_MSM_ADDRESS
-            && p.address != bls12_381_const::PAIRING_ADDRESS
+        p.address != bn254::pair::ADDRESS &&
+            p.address != bls12_381_const::G1_MSM_ADDRESS &&
+            p.address != bls12_381_const::G2_MSM_ADDRESS &&
+            p.address != bls12_381_const::PAIRING_ADDRESS
     });
 
     base.push(AcceleratedPrecompile::new(

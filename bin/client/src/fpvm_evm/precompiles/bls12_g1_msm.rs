@@ -190,7 +190,8 @@ mod test {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_accelerated_bls12_381_g1_msm_bad_input_len_jovian() {
         test_accelerated_precompile(|hint_writer, oracle_reader| {
-            // Next aligned size (multiple of G1_MSM_INPUT_LENGTH) that exceeds BLS12_MAX_G1_MSM_SIZE_JOVIAN
+            // Next aligned size (multiple of G1_MSM_INPUT_LENGTH) that exceeds
+            // BLS12_MAX_G1_MSM_SIZE_JOVIAN
             const INPUT_SIZE: usize =
                 ((BLS12_MAX_G1_MSM_SIZE_JOVIAN / G1_MSM_INPUT_LENGTH) + 1) * G1_MSM_INPUT_LENGTH;
             let input = [0u8; INPUT_SIZE];
