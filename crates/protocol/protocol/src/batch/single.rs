@@ -156,12 +156,14 @@ impl SingleBatch {
             }
         }
 
-        // If this is the first block in the interop hardfork, and the batch contains any
+        // If this is the first block in the jovian or interop hardfork, and the batch contains any
         // transactions, it must be dropped.
-        if cfg.is_first_interop_block(self.timestamp) && !self.transactions.is_empty() {
+        if (cfg.is_first_jovian_block(self.timestamp) || cfg.is_first_interop_block(self.timestamp)) &&
+            !self.transactions.is_empty()
+        {
             warn!(
                 target: "single_batch",
-                "Sequencer included user transactions in interop transition block. Dropping batch."
+                "Sequencer included user transactions in jovian or interop transition block. Dropping batch."
             );
             return BatchValidity::Drop;
         }
@@ -632,8 +634,11 @@ mod tests {
             BatchValidity::Drop
         );
 
-        assert!(trace_store.get_by_level(Level::WARN).iter().any(|s| {
-            s.contains("Sequencer included user transactions in interop transition block.")
-        }))
+        assert!(
+            trace_store
+                .get_by_level(Level::WARN)
+                .iter()
+                .any(|s| { s.contains("Sequencer included user transactions") })
+        )
     }
 }
