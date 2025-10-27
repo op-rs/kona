@@ -63,7 +63,7 @@ skip-tree = []
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-allow-git = ["https://github.com/paradigmxyz/reth"]
+allow-git = ["https://github.com/paradigmxyz/reth", "https://github.com/bluealloy/revm", "https://github.com/alloy-rs/evm"]
 
 [sources.allow-org]
 github = []
