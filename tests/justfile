@@ -211,8 +211,7 @@ long-running-test FILTER="" OUTPUT_LOGS_DIR="":
     export DISABLE_OP_E2E_LEGACY=true
 
     ## Serve prometheus metrics
-    export KONA_METRICS_ENABLED=true
-    export OP_RETH_METRICS_ENABLED=true
+    export SYSGO_METRICS_ENABLED=true
 
     export SYSGO_DOCKER_EXEC_PATH="/usr/local/bin/docker"
     export SYSGO_GRAFANA_PROVISIONING_DIR="{{SOURCE}}/.temp/grafana/"
