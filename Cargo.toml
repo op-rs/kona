@@ -276,3 +276,6 @@ op-revm = { git = "https://github.com/bluealloy/revm", rev = "437b18ff43253b71b6
 
 alloy-evm = { git = "https://github.com/alloy-rs/evm", rev = "a69f0b45a6b0286e16072cb8399e02ce6ceca353" }
 alloy-op-evm = { git = "https://github.com/alloy-rs/evm", rev = "a69f0b45a6b0286e16072cb8399e02ce6ceca353" }
+
+alloy-hardforks = { git = "https://github.com/alloy-rs/hardforks", rev = "b45961a" }
+alloy-op-hardforks = { git = "https://github.com/alloy-rs/hardforks", rev = "b45961a" }

@@ -267,8 +267,7 @@ dependencies = [
 [[package]]
 name = "alloy-hardforks"
 version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd78f8e1c274581c663d7949c863b10c8b015e48f2774a4b8e8efc82d43ea95c"
+source = "git+https://github.com/alloy-rs/hardforks?rev=b45961a#b45961a17ebf517c65def49f5183dd7fd1030b54"
 dependencies = [
  "alloy-chains",
  "alloy-eip2124",
@@ -364,8 +363,7 @@ dependencies = [
 [[package]]
 name = "alloy-op-hardforks"
 version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "777759314eaa14fb125c1deba5cbc06eee953bbe77bc7cc60b4e8685bd03479e"
+source = "git+https://github.com/alloy-rs/hardforks?rev=b45961a#b45961a17ebf517c65def49f5183dd7fd1030b54"
 dependencies = [
  "alloy-chains",
  "alloy-hardforks",
@@ -3863,7 +3861,7 @@ checksum = "4b0f83760fb341a774ed326568e19f5a863af4a952def8c39f9ab92fd95b88e5"
 dependencies = [
  "arbitrary",
  "equivalent",
- "hashbrown 0.16.0",
+ "hashbrown 0.15.5",
  "serde",
  "serde_core",
 ]
