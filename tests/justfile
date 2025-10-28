@@ -129,7 +129,7 @@ test-e2e-sysgo BINARY GO_PKG_NAME="" DEVNET="simple-kona" FILTER="" : unzip-cont
         export OP_SEQUENCER_WITH_GETH=0
         export OP_VALIDATOR_WITH_GETH=0
     fi
-    
+
     if [ "{{BINARY}}" = "node" ]; then
         export KONA_NODE_EXEC_PATH="{{SOURCE}}/../target/debug/kona-node"
         export OP_RETH_EXEC_PATH="{{SOURCE}}/reth/target/debug/op-reth"
@@ -174,7 +174,7 @@ test-e2e-kurtosis DEVNET GO_PKG_NAME="" FILTER="" DEVNET_CUSTOM_PATH="" :
     export DEVSTACK_ORCHESTRATOR=sysext
 
     # Run the test with count=1 to avoid caching the test results.
-    cd {{SOURCE}} && go test -count=1 -timeout 40m -v ./$GO_PKG_NAME $FILTER 
+    cd {{SOURCE}} && go test -count=1 -timeout 40m -v ./$GO_PKG_NAME $FILTER
 
 long-running-test FILTER="" OUTPUT_LOGS_DIR="":
     #!/bin/bash
@@ -199,7 +199,7 @@ long-running-test FILTER="" OUTPUT_LOGS_DIR="":
     just build-kona
     echo "Building op-reth..."
     just build-reth
-    
+
     export OP_TESTLOG_FILE_LOGGER_OUTDIR="{{OUTPUT_LOGS_DIR}}"
     if [ -z "{{OUTPUT_LOGS_DIR}}" ]; then
         export OP_TESTLOG_FILE_LOGGER_OUTDIR="{{CURRENT_DIR}}/kona-test-logs"
@@ -211,23 +211,29 @@ long-running-test FILTER="" OUTPUT_LOGS_DIR="":
     export DISABLE_OP_E2E_LEGACY=true
 
     # Run the test with count=1 to avoid caching the test results.
-    cd {{SOURCE}} && go test -count=1 -timeout 0 -v ./node/long-running $FILTER 
+    cd {{SOURCE}} && go test -count=1 -timeout 0 -v ./node/long-running $FILTER
 
 # Run action tests for the single-chain client program on the native target
-action-tests-single test_name='Test_ProgramAction' *args='':
+action-tests-single test_name='Test_ProgramAction' *args='': action-tests-single-build (action-tests-single-run test_name args)
+
+# Build action tests for the single-chain client program on the native target
+action-tests-single-build:
   #!/bin/bash
   echo "Building contract artifacts for the optimism"
   just unzip-contract-artifacts {{SOURCE}}/optimism/packages/contracts-bedrock
 
   echo "Building host program for the native target"
   just build-native --bin kona-host
-  export KONA_HOST_PATH="{{SOURCE}}/../target/debug/kona-host"
 
+# Run action tests for the single-chain client program on the native target
+action-tests-single-run test_name='Test_ProgramAction' *args='':
+  #!/bin/bash
+  export KONA_HOST_PATH="{{SOURCE}}/../target/debug/kona-host"
   # GitHub actions patch - do not print logs.
   # https://github.com/gotestyourself/gotestsum/blob/b4b13345fee56744d80016a20b760d3599c13504/testjson/format.go#L442-L444
   echo "Running action tests for the client program on the native target"
 
-  cd {{SOURCE}}/optimism/op-e2e/actions/proofs && GITHUB_ACTIONS=false gotestsum --format=testname -- -timeout 60m -run "{{test_name}}" {{args}} -count=1 ./...
+  cd {{SOURCE}}/optimism/op-e2e/actions/proofs && GITHUB_ACTIONS=false gotestsum --junitfile node-summary.xml --format=short-verbose -- -count=1 -timeout 60m -run "{{test_name}}" {{args}}
 
 # Run action tests for the interop client program on the native target
 action-tests-interop test_name='TestInteropFaultProofs' *args='':
@@ -245,8 +251,16 @@ action-tests-interop test_name='TestInteropFaultProofs' *args='':
 
   cd {{SOURCE}}/optimism/op-e2e/actions/interop && GITHUB_ACTIONS=false gotestsum --format=testname -- -run "{{test_name}}" {{args}} -count=1 ./...
 
+action-tests-interop-build test_name='TestInteropFaultProofs' *args='':
+  #!/bin/bash
+  echo "Not implemented. See https://github.com/op-rs/kona/issues/3010"
+
+action-tests-interop-run test_name='TestInteropFaultProofs' *args='':
+  #!/bin/bash
+  echo "Not implemented.  See https://github.com/op-rs/kona/issues/3010"
+
 build-deploy-devnet BINARY DEVNET CUSTOM_DEVNET_PATH="": (build-devnet BINARY) (devnet DEVNET CUSTOM_DEVNET_PATH)
-  
+
 deploy-devnet-and-test-e2e DEVNET GO_PKG_NAME CUSTOM_DEVNET_PATH="": (devnet DEVNET CUSTOM_DEVNET_PATH) (test-e2e-kurtosis DEVNET GO_PKG_NAME)
 
 build-devnet-and-test-e2e BINARY DEVNET GO_PKG_NAME CUSTOM_DEVNET_PATH="": (build-devnet BINARY) (deploy-devnet-and-test-e2e DEVNET GO_PKG_NAME CUSTOM_DEVNET_PATH)
@@ -283,7 +297,7 @@ unzip-contract-artifacts DEST_DIR="":
     tar --zstd -xf {{SOURCE}}/artifacts/compressed/artifacts.tzst -C $DEST_DIR
 
 
-update-packages: 
+update-packages:
     #!/bin/bash
     cd {{SOURCE}}/optimism/op-deployer && just build-contracts copy-contract-artifacts
     cp {{SOURCE}}/optimism/op-deployer/pkg/deployer/artifacts/forge-artifacts/artifacts.tzst {{SOURCE}}/artifacts/compressed/artifacts.tzst

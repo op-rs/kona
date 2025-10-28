@@ -8,17 +8,23 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   action-tests:
     name: FPP actions (${{ matrix.kind }})
     runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         kind: ["single", "interop"]
+        parallel: [4]
+        index: [0, 1, 2, 3]  # Remember to update step 'Merge reports' as well.
         exclude:
-          - kind: interop
+          - kind: "interop"  # See https://github.com/op-rs/kona/issues/3010
     steps:
       - name: Checkout sources
         uses: actions/checkout@v5
@@ -44,11 +50,44 @@ jobs:
         uses: autero1/action-gotestsum@v2.0.0
         with:
           gotestsum_version: 1.12.1
-      - name: Run Action Tests (${{ matrix.kind }})
+
+      - name: Download JUnit Summary from Previous Workflow
+        id: download-artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          workflow_conclusion: success
+          name: junit-test-summary
+          if_no_artifact_found: warn
+          use_unzip: true
+          # todo: uncomment this before merging to main
+          # branch: main
+
+      - name: Build Action Tests
         run: |
           source <(cargo llvm-cov show-env --export-prefix)
-          just "action-tests-${{ matrix.kind }}"
+          just "action-tests-${{ matrix.kind }}-build"
           cargo llvm-cov report --lcov --output-path actions_cov.lcov
+
+      - name: Split Action Tests
+        id: test_split
+        uses: hashicorp-forge/go-test-split-action@v2.0.0
+        with:
+          total: ${{ matrix.parallel }}
+          index: ${{ matrix.index }}
+          junit-summary: ./junit-test-summary.xml
+          working-directory: ./tests/optimism/op-e2e/actions/proofs
+
+      - name: Run Action Tests
+        run: |
+          just "action-tests-${{ matrix.kind }}-run" "${{ steps.test_split.outputs.run }}"
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-test-summary-${{ matrix.index }}
+          path: tests/optimism/op-e2e/actions/proofs/node-summary.xml
+          retention-days: 1
+
       - name: Upload coverage to codecov.io
         uses: codecov/codecov-action@v5
         with:
@@ -58,6 +97,32 @@ jobs:
           files: actions_cov.lcov
           flags: proof
           verbose: true
+
+
+  tests-combine-summaries:
+    name: Combine Test Reports
+    needs: [action-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Install junit-report-merger
+        run: npm install -g junit-report-merger
+
+      - name: Merge reports
+        run: jrm ./junit-test-summary.xml "junit-test-summary-0/*.xml" "junit-test-summary-1/*.xml" "junit-test-summary-2/*.xml" "junit-test-summary-3/*.xml"
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-test-summary
+          path: ./junit-test-summary.xml
+
 
   host-client-offline-runs:
     name: FPP e2e - ${{ matrix.target}} | ${{ matrix.name }}
