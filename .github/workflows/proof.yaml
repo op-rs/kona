@@ -1,7 +1,7 @@
 name: Proof
 on:
   push:
-    branches: [main]
+    branches: [main, 2983-parallelize-action-tests-execution-over-several-runners-in-ci]
   merge_group:
   pull_request:
 
