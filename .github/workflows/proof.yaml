@@ -16,9 +16,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kind: ["single", "interop"]
+        kind: ["single", "interop", "single-parallel"]
+        parallel: [4]
+        index: [0,1,2,3]
         exclude:
-          - kind: interop
+          - kind: ["single", "interop"]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v5
@@ -44,11 +46,34 @@ jobs:
         uses: autero1/action-gotestsum@v2.0.0
         with:
           gotestsum_version: 1.12.1
+
+      - name: Split action tests
+        id: test_split
+        uses: hashicorp-forge/go-test-split-action@v1
+        with:
+          total: ${{ matrix.parallel }}
+          index: ${{ matrix.index }}
+          unit-summary: ./junit-test-summary.xml
+
+      - name: Go test
+        run: |
+          gotestsum --junitfile node-summary.xml --format short-verbose -- -run "${{ steps.test_split.outputs.run }}"
+      
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-test-summary-${{ matrix.index }}
+          path: node-summary.xml
+          retention-days: 1
+
+
       - name: Run Action Tests (${{ matrix.kind }})
+        if: false
         run: |
           source <(cargo llvm-cov show-env --export-prefix)
           just "action-tests-${{ matrix.kind }}"
           cargo llvm-cov report --lcov --output-path actions_cov.lcov
+      
       - name: Upload coverage to codecov.io
         uses: codecov/codecov-action@v5
         with:
@@ -58,6 +83,32 @@ jobs:
           files: actions_cov.lcov
           flags: proof
           verbose: true
+
+  tests-combine-summaries:
+    name: Combine Test Reports
+    needs: [ action-tests ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Install junit-report-merger
+        run: npm install -g junit-report-merger
+
+      - name: Merge reports
+        run: jrm ./junit-test-summary.xml "junit-test-summary-0/*.xml" "junit-test-summary-1/*.xml" "junit-test-summary-2/*.xml" "junit-test-summary-3/*.xml"
+
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-test-summary
+          path: ./junit-test-summary.xml
+
 
   host-client-offline-runs:
     name: FPP e2e - ${{ matrix.target}} | ${{ matrix.name }}
