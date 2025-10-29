@@ -18,7 +18,7 @@ jobs:
       matrix:
         kind: [single, interop, single-parallel]
         parallel: [4]
-        index: [0, 1, 2, 3] # Update step Merge reports on change
+        index: [0, 1, 2, 3] # Update step 'Merge reports' when changing this.
         exclude:
           - kind: interop
           - kind: single
@@ -65,7 +65,7 @@ jobs:
 
       - name: Run Action Tests
         run: |
-          just "action-tests-single-parallel-run "${{ steps.test_split.outputs.run }}"
+          just "action-tests-single-parallel-run" "${{ steps.test_split.outputs.run }}"
       
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4
