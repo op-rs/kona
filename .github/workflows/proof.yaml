@@ -48,6 +48,10 @@ jobs:
         with:
           gotestsum_version: 1.12.1
 
+      - name: Split pre
+        run: |
+          just "action-tets-single-parallel-pre"
+
       - name: Split action tests
         id: test_split
         uses: hashicorp-forge/go-test-split-action@v2.0.0

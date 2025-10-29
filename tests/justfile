@@ -230,6 +230,16 @@ action-tests-single test_name='Test_ProgramAction' *args='':
   cd {{SOURCE}}/optimism/op-e2e/actions/proofs && GITHUB_ACTIONS=false gotestsum --format=testname -- -timeout 60m -run "{{test_name}}" {{args}} -count=1 ./...
 
 # Run action tests for the single-chain client program on the native target
+action-tests-single-parallel-pre test_name='Test_ProgramAction' *args='':
+  #!/bin/bash
+  echo "Building contract artifacts for the optimism"
+  just unzip-contract-artifacts {{SOURCE}}/optimism/packages/contracts-bedrock/forge-artifacts
+
+  echo "Building host program for the native target"
+  just build-native --bin kona-host
+  export KONA_HOST_PATH="{{SOURCE}}/../target/debug/kona-host"
+
+# Run action tests for the single-chain client program on the native target
 action-tests-single-parallel test_name='Test_ProgramAction' *args='':
   #!/bin/bash
   echo "Building contract artifacts for the optimism"
