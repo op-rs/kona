@@ -3,9 +3,11 @@ module github.com/op-rs/kona
 go 1.23.8
 
 // We're using the "develop" branch of the Optimism repo to include the latest changes to the `devstack` package.
-require github.com/ethereum-optimism/optimism v1.13.8-0.20250924162823-d10392338bb9
+require github.com/ethereum-optimism/optimism v1.14.4-0.20251029150829-353d03da781d
 
 require (
+	github.com/BurntSushi/toml v1.5.0
+	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/ethereum/go-ethereum v1.16.3
 	github.com/gorilla/websocket v1.5.3
 	github.com/kurtosis-tech/kurtosis/api/golang v1.8.2-0.20250602144112-2b7d06430e48
@@ -16,7 +18,6 @@ require (
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
-	github.com/BurntSushi/toml v1.5.0 // indirect
 	github.com/DataDog/zstd v1.5.6-0.20230824185856-869dae002e5e // indirect
 	github.com/Masterminds/semver/v3 v3.3.1 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
@@ -276,6 +277,6 @@ require (
 	lukechampine.com/blake3 v1.3.0 // indirect
 )
 
-replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101603.2-0.20251016091451-5c6d276814f2
+replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101603.3-rc.3
 
 replace github.com/ethereum-optimism/optimism => ./optimism
