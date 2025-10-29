@@ -7,7 +7,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  CACHE_ON_FAILURE: false
 
 jobs:
   action-tests:
@@ -91,33 +90,32 @@ jobs:
           flags: proof
           verbose: true
 
-#  tests-combine-summaries:
-#    if: false
-#    name: Combine Test Reports
-#    needs: [ action-tests ]
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/setup-node@v4
-#        with:
-#          node-version: 20
-#
-#      - name: Download artifacts
-#        uses: actions/download-artifact@v4
-#
-#      - name: Install junit-report-merger
-#        run: npm install -g junit-report-merger
-#
-#      - name: Merge reports
-#        run: jrm ./junit-test-summary.xml "junit-test-summary-0/*.xml" "junit-test-summary-1/*.xml" "junit-test-summary-2/*.xml" "junit-test-summary-3/*.xml"
-#
-#
-#      - name: Upload test artifacts
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: junit-test-summary
-#          path: ./junit-test-summary.xml
-#
-#
+  tests-combine-summaries:
+    name: Combine Test Reports
+    needs: [ action-tests ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Install junit-report-merger
+        run: npm install -g junit-report-merger
+
+      - name: Merge reports
+        run: jrm ./junit-test-summary.xml "junit-test-summary-0/*.xml" "junit-test-summary-1/*.xml" "junit-test-summary-2/*.xml" "junit-test-summary-3/*.xml"
+
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-test-summary
+          path: ./junit-test-summary.xml
+
+
 #  host-client-offline-runs:
 #    name: FPP e2e - ${{ matrix.target}} | ${{ matrix.name }}
 #    strategy:
