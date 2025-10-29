@@ -57,7 +57,8 @@ jobs:
 
       - name: Go test
         run: |
-          gotestsum --junitfile node-summary.xml --format short-verbose -- -run "${{ steps.test_split.outputs.run }}"
+          just "action-tests-${{ matrix.kind }}"
+          # gotestsum --junitfile node-summary.xml --format short-verbose -- -run "${{ steps.test_split.outputs.run }}"
       
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4
@@ -66,13 +67,13 @@ jobs:
           path: node-summary.xml
           retention-days: 1
 
-      - name: Run Action Tests (${{ matrix.kind }})
-        if: false
-        run: |
-          source <(cargo llvm-cov show-env --export-prefix)
-          just "action-tests-${{ matrix.kind }}"
-          cargo llvm-cov report --lcov --output-path actions_cov.lcov
-      
+#      - name: Run Action Tests (${{ matrix.kind }})
+#        if: false
+#        run: |
+#          source <(cargo llvm-cov show-env --export-prefix)
+#          just "action-tests-${{ matrix.kind }}"
+#          cargo llvm-cov report --lcov --output-path actions_cov.lcov
+#      
       - name: Upload coverage to codecov.io
         uses: codecov/codecov-action@v5
         with:
