@@ -16,12 +16,12 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        kind: [single, interop, single-parallel]
+        kind: [single-sequential, single-parallel, interop]
         parallel: [4]
         index: [0, 1, 2, 3] # Update step 'Merge reports' when changing this.
         exclude:
           - kind: interop
-          - kind: single
+          - kind: single-sequential
     steps:
       - name: Checkout sources
         uses: actions/checkout@v5

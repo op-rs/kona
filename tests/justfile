@@ -214,7 +214,7 @@ long-running-test FILTER="" OUTPUT_LOGS_DIR="":
     cd {{SOURCE}} && go test -count=1 -timeout 0 -v ./node/long-running $FILTER 
 
 # Run action tests for the single-chain client program on the native target
-action-tests-single test_name='Test_ProgramAction' *args='':
+action-tests-single-sequential test_name='Test_ProgramAction' *args='':
   #!/bin/bash
   echo "Building contract artifacts for the optimism"
   just unzip-contract-artifacts {{SOURCE}}/optimism/packages/contracts-bedrock/forge-artifacts
@@ -229,7 +229,7 @@ action-tests-single test_name='Test_ProgramAction' *args='':
 
   cd {{SOURCE}}/optimism/op-e2e/actions/proofs && GITHUB_ACTIONS=false gotestsum --format=testname -- -timeout 60m -run "{{test_name}}" {{args}} -count=1 ./...
 
-# Run action tests for the single-chain client program on the native target
+# Build action tests for the single-chain client program on the native target
 action-tests-single-parallel-build:
   #!/bin/bash
   echo "Building contract artifacts for the optimism"
@@ -237,16 +237,16 @@ action-tests-single-parallel-build:
 
   echo "Building host program for the native target"
   just build-native --bin kona-host
-  export KONA_HOST_PATH="{{SOURCE}}/../target/debug/kona-host"
 
-# Run action tests for the single-chain client program on the native target
+# Run action tests in parallel for the single-chain client program on the native target
 action-tests-single-parallel-run test_name='Test_ProgramAction' *args='':
   #!/bin/bash
+  export KONA_HOST_PATH="{{SOURCE}}/../target/debug/kona-host"
   # GitHub actions patch - do not print logs.
   # https://github.com/gotestyourself/gotestsum/blob/b4b13345fee56744d80016a20b760d3599c13504/testjson/format.go#L442-L444
   echo "Running action tests for the client program on the native target"
 
-  cd {{SOURCE}}/optimism/op-e2e/actions/proofs && GITHUB_ACTIONS=false gotestsum --junitfile node-summary.xml --format=short-verbose -- -timeout 60m -run "{{test_name}}" {{args}}
+  cd {{SOURCE}}/optimism/op-e2e/actions/proofs && GITHUB_ACTIONS=false gotestsum --junitfile node-summary.xml --format=short-verbose -- -count=1 -timeout 60m -run "{{test_name}}" {{args}}
 
 # Run action tests for the interop client program on the native target
 action-tests-interop test_name='TestInteropFaultProofs' *args='':
