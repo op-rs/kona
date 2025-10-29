@@ -16,11 +16,11 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        kind: ["single", "interop", "single-parallel"]
+        kind: [single, interop, single-parallel]
         parallel: [4]
-        index: [0,1,2,3]
+        index: [0, 1, 2, 3]
         exclude:
-          - kind: ["single", "interop"]
+          - kind: [single, interop]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v5
@@ -50,6 +50,7 @@ jobs:
       - name: Split action tests
         id: test_split
         uses: hashicorp-forge/go-test-split-action@v1
+        working-directory: ./tests/optimism/op-e2e/actions/proofs
         with:
           total: ${{ matrix.parallel }}
           index: ${{ matrix.index }}
