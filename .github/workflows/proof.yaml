@@ -50,8 +50,8 @@ jobs:
       - name: Split action tests
         id: test_split
         uses: hashicorp-forge/go-test-split-action@v1
-        working-directory: ./tests/optimism/op-e2e/actions/proofs
         with:
+          working-directory: ./tests/optimism/op-e2e/actions/proofs
           total: ${{ matrix.parallel }}
           index: ${{ matrix.index }}
           junit-summary: ./junit-test-summary.xml
