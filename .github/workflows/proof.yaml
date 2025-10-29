@@ -92,6 +92,7 @@ jobs:
           verbose: true
 
   tests-combine-summaries:
+    if: false
     name: Combine Test Reports
     needs: [ action-tests ]
     runs-on: ubuntu-latest
