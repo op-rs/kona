@@ -50,7 +50,9 @@ jobs:
 
       - name: Split pre
         run: |
+          source <(cargo llvm-cov show-env --export-prefix)
           just "action-tests-single-parallel-pre"
+          cargo llvm-cov report --lcov --output-path actions_cov.lcov
 
       - name: Split action tests
         id: test_split
@@ -63,9 +65,7 @@ jobs:
 
       - name: Go test
         run: |
-          source <(cargo llvm-cov show-env --export-prefix)
           just "action-tests-${{ matrix.kind }}" "${{ steps.test_split.outputs.run }}"
-          cargo llvm-cov report --lcov --output-path actions_cov.lcov
           # gotestsum --junitfile node-summary.xml --format short-verbose -- -run "${{ steps.test_split.outputs.run }}"
       
       - name: Upload test artifacts
