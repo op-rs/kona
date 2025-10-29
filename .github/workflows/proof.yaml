@@ -50,7 +50,7 @@ jobs:
 
       - name: Split pre
         run: |
-          just "action-tets-single-parallel-pre"
+          just "action-tests-single-parallel-pre"
 
       - name: Split action tests
         id: test_split
