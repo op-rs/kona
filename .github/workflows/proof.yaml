@@ -54,7 +54,6 @@ jobs:
           total: ${{ matrix.parallel }}
           index: ${{ matrix.index }}
           junit-summary: ./junit-test-summary.xml
-        inputs:
           working-directory: ./tests/optimism/op-e2e/actions/proofs
 
       - name: Go test
