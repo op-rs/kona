@@ -21,8 +21,8 @@ jobs:
         parallel: [4]
         index: [0, 1, 2, 3]
         exclude:
-          - kind: single
           - kind: interop
+          - kind: single
     steps:
       - name: Checkout sources
         uses: actions/checkout@v5
@@ -64,7 +64,7 @@ jobs:
 
       - name: Go test
         run: |
-          just "action-tests-${{ matrix.kind }}"
+          just "action-tests-${{ matrix.kind }}" "${{ steps.test_split.outputs.run }}"
           # gotestsum --junitfile node-summary.xml --format short-verbose -- -run "${{ steps.test_split.outputs.run }}"
       
       - name: Upload test artifacts
