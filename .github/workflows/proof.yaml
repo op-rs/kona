@@ -49,7 +49,7 @@ jobs:
 
       - name: Split action tests
         id: test_split
-        uses: hashicorp-forge/go-test-split-action@v1
+        uses: hashicorp-forge/go-test-split-action@v2
         with:
           total: ${{ matrix.parallel }}
           index: ${{ matrix.index }}
