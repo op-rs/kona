@@ -7,6 +7,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CACHE_ON_FAILURE: false
 
 jobs:
   action-tests:
@@ -54,7 +55,7 @@ jobs:
           total: ${{ matrix.parallel }}
           index: ${{ matrix.index }}
           junit-summary: ./junit-test-summary.xml
-          working-directory: ../tests/optimism/op-e2e/actions/proofs
+          working-directory: ./tests/optimism/op-e2e/actions/proofs
 
       - name: Go test
         run: |
