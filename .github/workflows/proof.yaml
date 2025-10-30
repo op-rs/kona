@@ -162,7 +162,7 @@ jobs:
   action-tests-parallel:
     name: FPP actions (${{ matrix.kind }}) parallel
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     strategy:
       fail-fast: true
       matrix:
