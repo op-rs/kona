@@ -2,6 +2,7 @@ name: Publish Prestate Artifacts
 on:
   push:
     branches: [main]
+    tags: ['kona-client/v*']
 
 permissions:
   contents: read
@@ -56,7 +57,7 @@ jobs:
 
           BRANCH_NAME=$(echo "${{ github.ref_name }}" | tr '/' '-') 
           echo "Publishing ${PRESTATE_HASH} as ${BRANCH_NAME}" 
-          if [[ "" != "${{ github.ref_name }}" ]] 
+          if [[ "main" == "${{ github.ref_name }}" ]] 
           then 
             echo "Publishing commit hash data" 
             INFO_FILE=$(mktemp) 
@@ -74,7 +75,6 @@ jobs:
             PRESTATE_HASH="${BRANCH_NAME}-${{ matrix.version }}" 
           fi 
 
-
-          gsutil cp ./prestate-artifacts-${{ matrix.kind }}/prestate.bin.gz "gs://kona-proof-prestates/${{ matrix.kind }}/${PRESTATE_HASH}-prestate.bin.gz" 
+          gsutil cp ./prestate-artifacts-${{ matrix.kind }}/prestate.bin.gz "gs://kona-proof-prestates/${{ matrix.kind }}/${PRESTATE_HASH}.bin.gz" 
 
           echo "Successfully published prestates artifacts to GCS"
