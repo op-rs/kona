@@ -137,11 +137,14 @@ impl SignerArgs {
             (None, Some(path)) => {
                 let keypair = SecretKeyLoader::load(path)?;
                 // Extract the private key bytes from the secp256k1 keypair
-                keypair.try_into_secp256k1().map_or_else(|_| Err(SignerArgsParseError::SequencerKeyInvalid(ecdsa::Error::new())), |secp256k1_keypair| {
-                    let private_key_bytes = secp256k1_keypair.secret().to_bytes();
-                    let key = B256::from_slice(&private_key_bytes);
-                    Ok(Some(key))
-                })
+                keypair.try_into_secp256k1().map_or_else(
+                    |_| Err(SignerArgsParseError::SequencerKeyInvalid(ecdsa::Error::new())),
+                    |secp256k1_keypair| {
+                        let private_key_bytes = secp256k1_keypair.secret().to_bytes();
+                        let key = B256::from_slice(&private_key_bytes);
+                        Ok(Some(key))
+                    },
+                )
             }
             (Some(_), Some(_)) => Err(SignerArgsParseError::ConflictingSequencerKeyInputs),
             (None, None) => Ok(None),
