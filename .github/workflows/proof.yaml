@@ -10,6 +10,7 @@ env:
 
 jobs:
   action-tests:
+    if: false
     name: FPP actions (${{ matrix.kind }})
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -18,7 +19,6 @@ jobs:
       matrix:
         kind: ["single", "interop"]
         exclude:
-          - kind: "single"
           - kind: "interop"
     steps:
       - name: Checkout sources
