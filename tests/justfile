@@ -265,9 +265,11 @@ action-tests-interop test_name='TestInteropFaultProofs' *args='':
   cd {{SOURCE}}/optimism/op-e2e/actions/interop && GITHUB_ACTIONS=false gotestsum --format=testname -- -run "{{test_name}}" {{args}} -count=1 ./...
 
 action-tests-interop-parallel-build test_name='TestInteropFaultProofs' *args='':
+  #!/bin/bash
   echo "Not implemented."
 
 action-tests-interop-parallel-run test_name='TestInteropFaultProofs' *args='':
+  #!/bin/bash
   echo "Not implemented."
 
 build-deploy-devnet BINARY DEVNET CUSTOM_DEVNET_PATH="": (build-devnet BINARY) (devnet DEVNET CUSTOM_DEVNET_PATH)

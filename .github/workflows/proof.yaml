@@ -18,8 +18,8 @@ jobs:
       matrix:
         kind: ["single", "interop"]
         exclude:
-          - kind: single
-          - kind: interop
+          - kind: "single"
+          - kind: "interop"
     steps:
       - name: Checkout sources
         uses: actions/checkout@v5
@@ -162,11 +162,11 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        kind: [single, interop]
+        kind: ["single", "interop"]
         parallel: [4]
         index: [0, 1, 2, 3]  # Remember to update step 'Merge reports' as well.
         exclude:
-          - kind: interop
+          - kind: "interop"
     steps:
       - name: Checkout sources
         uses: actions/checkout@v5
