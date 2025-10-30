@@ -220,7 +220,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: junit-test-summary-${{ matrix.index }}
-          path: node-summary.xml
+          path: tests/optimism/op-e2e/actions/proofs/node-summary.xml
           retention-days: 1
 
       - name: Upload coverage to codecov.io
