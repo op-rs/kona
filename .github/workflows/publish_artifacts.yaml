@@ -57,7 +57,7 @@ jobs:
 
           BRANCH_NAME=$(echo "${{ github.ref_name }}" | tr '/' '-') 
           echo "Publishing ${PRESTATE_HASH} as ${BRANCH_NAME}" 
-          if [[ "main" == "${{ github.ref_name }}" ]] 
+          if [[ "${{ github.ref_type }}" == 'branch' ]]
           then 
             echo "Publishing commit hash data" 
             INFO_FILE=$(mktemp) 
