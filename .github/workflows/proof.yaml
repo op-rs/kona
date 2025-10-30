@@ -197,6 +197,17 @@ jobs:
         with:
           gotestsum_version: 1.12.1
 
+      - name: Download JUnit Summary from Previous Workflow
+        id: download-artifact
+        uses: dawidd6/action-download-artifact@v4
+        with:
+          workflow_conclusion: success
+          name: junit-test-summary
+          if_no_artifact_found: warn
+          # Uncomment the next line before pushing to main branch, that way all branches can
+          # benefit from timing data once it's established there.
+          # branch: main
+
       - name: Build Action Tests
         run: |
           source <(cargo llvm-cov show-env --export-prefix)
