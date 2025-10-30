@@ -214,7 +214,7 @@ long-running-test FILTER="" OUTPUT_LOGS_DIR="":
     cd {{SOURCE}} && go test -count=1 -timeout 0 -v ./node/long-running $FILTER 
 
 # Run action tests for the single-chain client program on the native target
-action-tests-single-sequential test_name='Test_ProgramAction' *args='':
+action-tests-single test_name='Test_ProgramAction' *args='':
   #!/bin/bash
   echo "Building contract artifacts for the optimism"
   just unzip-contract-artifacts {{SOURCE}}/optimism/packages/contracts-bedrock/forge-artifacts
@@ -263,6 +263,12 @@ action-tests-interop test_name='TestInteropFaultProofs' *args='':
   echo "Running action tests for the client program on the native target"
 
   cd {{SOURCE}}/optimism/op-e2e/actions/interop && GITHUB_ACTIONS=false gotestsum --format=testname -- -run "{{test_name}}" {{args}} -count=1 ./...
+
+action-tests-interop-parallel-build test_name='TestInteropFaultProofs' *args='':
+  echo "Not implemented."
+
+action-tests-interop-parallel-run test_name='TestInteropFaultProofs' *args='':
+  echo "Not implemented."
 
 build-deploy-devnet BINARY DEVNET CUSTOM_DEVNET_PATH="": (build-devnet BINARY) (devnet DEVNET CUSTOM_DEVNET_PATH)
   
