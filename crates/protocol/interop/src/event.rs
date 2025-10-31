@@ -35,7 +35,7 @@ pub struct ManagedEvent {
 
     /// Signals that an L2 block is now local-safe because of the given L1 traversal.
     /// This would be accompanied with [`Self::derivation_update`].
-    pub derivation_origin_update: Option<BlockInfo>,
+    pub derivation_current_l1_update: Option<DerivedRefPair>,
 }
 
 impl core::fmt::Display for ManagedEvent {
@@ -56,8 +56,8 @@ impl core::fmt::Display for ManagedEvent {
         if let Some(ref replacement) = self.replace_block {
             parts.push(format!("replace_block: {replacement}"));
         }
-        if let Some(ref origin) = self.derivation_origin_update {
-            parts.push(format!("derivation_origin_update: {origin}"));
+        if let Some(ref pair) = self.derivation_current_l1_update {
+            parts.push(format!("derivation_origin_update: {pair}"));
         }
 
         if parts.is_empty() { write!(f, "none") } else { write!(f, "{}", parts.join(", ")) }
