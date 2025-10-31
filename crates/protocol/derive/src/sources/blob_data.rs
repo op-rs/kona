@@ -156,7 +156,7 @@ impl BlobData {
             return Err(BlobDecodingError::InvalidLength);
         }
 
-        if blobs[index].is_empty() || blobs[index].is_zero() {
+        if blobs[index].is_empty() {
             return Err(BlobDecodingError::MissingData);
         }
 
