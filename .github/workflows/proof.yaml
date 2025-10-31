@@ -1,7 +1,7 @@
 name: Proof
 on:
   push:
-    branches: [main, 2983-parallelize-action-tests-execution-over-several-runners-in-ci]
+    branches: [main]
   merge_group:
   pull_request:
 
@@ -15,7 +15,7 @@ concurrency:
 jobs:
   action-tests:
     if: false
-    name: FPP actions (${{ matrix.kind }})
+    name: FPP actions (${{ matrix.kind }}) sequential
     runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:
@@ -204,11 +204,8 @@ jobs:
           workflow_conclusion: success
           name: junit-test-summary
           if_no_artifact_found: warn
-          # path: ./tests/optimism/op-e2e/actions/proofs
           use_unzip: true
-          # Uncomment the next line before pushing to main branch, that way all branches can
-          # benefit from timing data once it's established there.
-          # branch: main
+          branch: main
 
       - name: Build Action Tests
         run: |
