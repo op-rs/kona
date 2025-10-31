@@ -13,7 +13,7 @@ use kona_genesis::RollupConfig;
 use kona_protocol::SyncStatus;
 
 use crate::{
-    L1State, L1WatcherQueries, OutputResponse, RollupNodeApiServer, SafeHeadResponse,
+    L1State, L1WatcherQueries, OutputResponse, RollupNodeApiServer,
     l1_watcher::L1WatcherQuerySender,
 };
 
@@ -93,15 +93,7 @@ impl RollupNodeApiServer for RollupRpc {
         Ok(OutputResponse::from_v0(output_root, sync_status, l2_block_info))
     }
 
-    /// This RPC endpoint is not supported. It is not necessary to track the safe head for every L1
-    /// block post-interop anymore so we can remove this method from the rpc interface.
-    async fn op_safe_head_at_l1_block(
-        &self,
-        _block_num: BlockNumberOrTag,
-    ) -> RpcResult<SafeHeadResponse> {
-        kona_macros::inc!(gauge, Self::RPC_IDENT, "method" => "op_safeHeadAtL1Block");
-        return Err(ErrorObject::from(ErrorCode::MethodNotFound));
-    }
+    // Removed unsupported endpoint `safeHeadAtL1Block`; it is no longer required post-interop.
 
     async fn op_sync_status(&self) -> RpcResult<SyncStatus> {
         kona_macros::inc!(gauge, Self::RPC_IDENT, "method" => "op_syncStatus");
