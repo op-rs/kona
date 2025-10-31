@@ -4,7 +4,6 @@ use crate::{
     flags::{GlobalArgs, P2PArgs, RpcArgs, SequencerArgs},
     metrics::{CliMetrics, init_rollup_config_metrics},
 };
-use alloy_primitives::hex as alloy_hex;
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use backon::{ExponentialBuilder, Retryable};
@@ -21,11 +20,7 @@ use rollup_boost::{
     RollupBoostArgs,
 };
 use serde_json::from_reader;
-use std::{
-    fs::File,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{fs::File, path::PathBuf, sync::Arc};
 use strum::IntoEnumIterator;
 use tracing::{debug, error, info};
 use url::Url;
