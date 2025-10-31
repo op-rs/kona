@@ -6,6 +6,7 @@ use alloy_consensus::Block;
 use alloy_eips::eip7685::EMPTY_REQUESTS_HASH;
 use alloy_primitives::{Address, B256};
 use alloy_rpc_types_engine::{ExecutionPayloadV3, PayloadError};
+use kona_genesis::RollupConfig;
 use libp2p::gossipsub::MessageAcceptance;
 use op_alloy_consensus::OpTxEnvelope;
 use op_alloy_rpc_types_engine::{
@@ -220,7 +221,7 @@ impl BlockHandler {
         }
 
         // CHECK: The payload is valid for the specific version of this block.
-        Self::validate_version_specific_payload(envelope)?;
+        self.validate_version_specific_payload(envelope)?;
 
         if let Some(seen_hashes_at_height) =
             self.seen_hashes.get_mut(&envelope.payload.block_number())
@@ -269,7 +270,8 @@ impl BlockHandler {
     }
 
     /// Validate version specific contents of the payload.
-    const fn validate_version_specific_payload(
+    fn validate_version_specific_payload(
+        &self,
         envelope: &OpNetworkPayloadEnvelope,
     ) -> Result<(), BlockInvalidError> {
         // Validation for v1 payloads are mostly ensured by type-safety, by decoding the
@@ -290,11 +292,13 @@ impl BlockHandler {
         // 1. The block should have a zero blob gas used
         // 2. The block should have a zero excess blob gas
         // 3. The block should have a non empty parent beacon block root
-        const fn validate_v3(
+        fn validate_v3(
+            rollup_config: &RollupConfig,
             block: &ExecutionPayloadV3,
             parent_beacon_block_root: Option<B256>,
         ) -> Result<(), BlockInvalidError> {
-            if block.blob_gas_used != 0 {
+            // If Jovian is not active, the blob gas used should be zero.
+            if !rollup_config.is_jovian_active(block.timestamp()) && block.blob_gas_used != 0 {
                 return Err(BlockInvalidError::BlobGasUsed);
             }
 
@@ -311,21 +315,22 @@ impl BlockHandler {
 
         // Same as v3, except:
         // 1. The block should have an non-empty withdrawals root (checked by type-safety)
-        const fn validate_v4(
+        fn validate_v4(
+            rollup_config: &RollupConfig,
             block: &OpExecutionPayloadV4,
             parent_beacon_block_root: Option<B256>,
         ) -> Result<(), BlockInvalidError> {
-            validate_v3(&block.payload_inner, parent_beacon_block_root)
+            validate_v3(rollup_config, &block.payload_inner, parent_beacon_block_root)
         }
 
         match &envelope.payload {
             OpExecutionPayload::V1(_) => Ok(()),
             OpExecutionPayload::V2(_) => Ok(()),
             OpExecutionPayload::V3(payload) => {
-                validate_v3(payload, envelope.parent_beacon_block_root)
+                validate_v3(&self.rollup_config, payload, envelope.parent_beacon_block_root)
             }
             OpExecutionPayload::V4(payload) => {
-                validate_v4(payload, envelope.parent_beacon_block_root)
+                validate_v4(&self.rollup_config, payload, envelope.parent_beacon_block_root)
             }
         }
     }

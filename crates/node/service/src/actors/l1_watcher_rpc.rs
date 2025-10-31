@@ -170,7 +170,7 @@ impl NodeActor for L1WatcherRpc {
         let mut head_stream = BlockStream::new(
             &self.state.l1_provider,
             BlockNumberOrTag::Latest,
-            Duration::from_secs(13),
+            Duration::from_secs(4),
         )
         .into_stream();
         let mut finalized_stream = BlockStream::new(

@@ -389,22 +389,36 @@ impl NodeActor for EngineActor {
         let mut sync_complete_tx = Some(sync_complete_tx);
 
         loop {
-            // Attempt to drain all outstanding tasks from the engine queue before adding new ones.
-            state
-                .drain(
-                    &derivation_signal_tx,
-                    &mut sync_complete_tx,
-                    &engine_l2_safe_head_tx,
-                    &mut self.finalizer,
-                )
-                .await?;
+            tokio::select! {
+                _ = cancellation.cancelled() => {
+                    warn!(target: "engine", "EngineActor received shutdown signal. Aborting engine query task.");
+                    handle.abort();
+                    return Ok(());
+                },
 
-            // If the unsafe head has updated, propagate it to the outbound channels.
-            if let Some(unsafe_head_tx) = engine_unsafe_head_tx.as_mut() {
-                unsafe_head_tx.send_if_modified(|val| {
-                    let new_head = state.engine.state().sync_state.unsafe_head();
-                    (*val != new_head).then(|| *val = new_head).is_some()
-                });
+                drain_result = // Attempt to drain all outstanding tasks from the engine queue before adding new ones.
+                    state
+                        .drain(
+                            &derivation_signal_tx,
+                            &mut sync_complete_tx,
+                            &engine_l2_safe_head_tx,
+                            &mut self.finalizer,
+                        )
+                         => {
+                        if let Err(err) = drain_result {
+                            error!(target: "engine", ?err, "Failed to drain engine tasks");
+                            cancellation.cancel();
+                            return Err(err);
+                        }
+
+                        // If the unsafe head has updated, propagate it to the outbound channels.
+                        if let Some(unsafe_head_tx) = engine_unsafe_head_tx.as_mut() {
+                            unsafe_head_tx.send_if_modified(|val| {
+                                let new_head = state.engine.state().sync_state.unsafe_head();
+                                (*val != new_head).then(|| *val = new_head).is_some()
+                            });
+                        }
+                }
             }
 
             tokio::select! {

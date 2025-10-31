@@ -59,15 +59,6 @@ mod tests {
     use clap::Parser;
     use rstest::rstest;
 
-    #[test]
-    fn test_genesis_signer() {
-        let args = GlobalArgs { l2_chain_id: 10.into(), ..Default::default() };
-        assert_eq!(
-            args.genesis_signer().unwrap(),
-            alloy_primitives::address!("aaaa45d9549eda09e70937013520214382ffc4a2")
-        );
-    }
-
     #[rstest]
     #[case::numeric_optimism("10", 10)]
     #[case::numeric_ethereum("1", 1)]

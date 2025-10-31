@@ -17,7 +17,10 @@ use revm::precompile::{
 /// The max pairing size for BLS12-381 input given a 20M gas limit.
 const BLS12_MAX_PAIRING_SIZE_ISTHMUS: usize = 235_008;
 
-/// Performs an FPVM-accelerated BLS12-381 pairing check.
+/// The max pairing size for BLS12-381 input after the Jovian Hardfork.
+const BLS12_MAX_PAIRING_SIZE_JOVIAN: usize = 156_672;
+
+/// Performs an FPVM-accelerated BLS12-381 pairing check after the Isthmus Hardfork.
 pub(crate) fn fpvm_bls12_pairing<H, O>(
     input: &[u8],
     gas_limit: u64,
@@ -60,6 +63,26 @@ where
     Ok(PrecompileOutput::new(required_gas, result_data.into()))
 }
 
+/// Performs an FPVM-accelerated BLS12-381 pairing check after the Jovian Hardfork.
+pub(crate) fn fpvm_bls12_pairing_jovian<H, O>(
+    input: &[u8],
+    gas_limit: u64,
+    hint_writer: &H,
+    oracle_reader: &O,
+) -> PrecompileResult
+where
+    H: HintWriterClient + Send + Sync,
+    O: PreimageOracleClient + Send + Sync,
+{
+    if input.len() > BLS12_MAX_PAIRING_SIZE_JOVIAN {
+        return Err(PrecompileError::Other(alloc::format!(
+            "Pairing input length must be at most {BLS12_MAX_PAIRING_SIZE_JOVIAN}"
+        )));
+    }
+
+    fpvm_bls12_pairing(input, gas_limit, hint_writer, oracle_reader)
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -68,17 +91,26 @@ mod test {
     };
     use alloy_primitives::hex;
 
+    // https://github.com/ethereum/execution-spec-tests/blob/a1c4eeff347a64ad6c5aedd51314d4ffc067346b/tests/prague/eip2537_bls_12_381_precompiles/vectors/pairing_check_bls.json
+    const TEST_INPUT: [u8; 384] = hex!(
+        "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    );
+    const EXPECTED_OUTPUT: [u8; 32] =
+        hex!("0000000000000000000000000000000000000000000000000000000000000001");
+
     #[tokio::test(flavor = "multi_thread")]
     async fn test_accelerated_bls12_381_pairing() {
         test_accelerated_precompile(|hint_writer, oracle_reader| {
-            // https://github.com/ethereum/execution-spec-tests/blob/a1c4eeff347a64ad6c5aedd51314d4ffc067346b/tests/prague/eip2537_bls_12_381_precompiles/vectors/pairing_check_bls.json
-            let input = hex!("000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
-            let expected = hex!("0000000000000000000000000000000000000000000000000000000000000001");
+            let accelerated_result =
+                fpvm_bls12_pairing(TEST_INPUT.as_ref(), 70300, hint_writer, oracle_reader).unwrap();
+            let native_result = execute_native_precompile(
+                *bls12_381::pairing::PRECOMPILE.address(),
+                TEST_INPUT.as_ref(),
+                70300,
+            )
+            .unwrap();
 
-            let accelerated_result = fpvm_bls12_pairing(&input, 70300, hint_writer, oracle_reader).unwrap();
-            let native_result = execute_native_precompile(*bls12_381::pairing::PRECOMPILE.address(), input, 70300).unwrap();
-
-            assert_eq!(accelerated_result.bytes.as_ref(), expected.as_ref());
+            assert_eq!(accelerated_result.bytes.as_ref(), EXPECTED_OUTPUT.as_ref());
             assert_eq!(accelerated_result.bytes, native_result.bytes);
             assert_eq!(accelerated_result.gas_used, native_result.gas_used);
         })
@@ -118,6 +150,37 @@ mod test {
                 fpvm_bls12_pairing(&[0u8; PAIRING_INPUT_LENGTH], 0, hint_writer, oracle_reader)
                     .unwrap_err();
             assert!(matches!(accelerated_result, PrecompileError::OutOfGas));
+        })
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_accelerated_bls12_381_pairing_jovian() {
+        test_accelerated_precompile(|hint_writer, oracle_reader| {
+            let base_result =
+                fpvm_bls12_pairing(TEST_INPUT.as_ref(), 70300, hint_writer, oracle_reader).unwrap();
+            let jovian_result =
+                fpvm_bls12_pairing_jovian(TEST_INPUT.as_ref(), 70300, hint_writer, oracle_reader)
+                    .unwrap();
+
+            assert_eq!(base_result.bytes, jovian_result.bytes);
+            assert_eq!(base_result.gas_used, jovian_result.gas_used);
+        })
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_accelerated_bls12_381_pairing_bad_input_len_jovian() {
+        test_accelerated_precompile(|hint_writer, oracle_reader| {
+            // Calculate the next aligned size (multiple of PAIRING_INPUT_LENGTH) that exceeds
+            // BLS12_MAX_PAIRING_SIZE_JOVIAN
+            const INPUT_SIZE: usize =
+                ((BLS12_MAX_PAIRING_SIZE_JOVIAN / PAIRING_INPUT_LENGTH) + 1) * PAIRING_INPUT_LENGTH;
+            let input = [0u8; INPUT_SIZE];
+            let accelerated_result =
+                fpvm_bls12_pairing_jovian(&input, u64::MAX, hint_writer, oracle_reader)
+                    .unwrap_err();
+            assert!(matches!(accelerated_result, PrecompileError::Other(_)));
         })
         .await;
     }

@@ -10,6 +10,7 @@ use async_trait::async_trait;
 use derive_more::Display;
 use std::cmp::Ordering;
 use thiserror::Error;
+use tokio::task::yield_now;
 
 /// The severity of an engine task error.
 ///
@@ -194,6 +195,10 @@ impl EngineTaskExt for EngineTask {
             match severity {
                 EngineTaskErrorSeverity::Temporary => {
                     trace!(target: "engine", "{e}");
+
+                    // Yield the task to allow other tasks to execute to avoid starvation.
+                    yield_now().await;
+
                     continue;
                 }
                 EngineTaskErrorSeverity::Critical => {

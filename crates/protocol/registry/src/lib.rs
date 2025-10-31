@@ -59,6 +59,14 @@ pub fn scr_rollup_config_by_alloy_ident(chain: &alloy_chains::Chain) -> Option<&
 mod tests {
     use super::*;
     use alloy_chains::Chain as AlloyChain;
+    use alloy_hardforks::{
+        holesky::{HOLESKY_BPO1_TIMESTAMP, HOLESKY_BPO2_TIMESTAMP},
+        sepolia::{SEPOLIA_BPO1_TIMESTAMP, SEPOLIA_BPO2_TIMESTAMP},
+    };
+    use alloy_op_hardforks::{
+        BASE_MAINNET_JOVIAN_TIMESTAMP, BASE_SEPOLIA_JOVIAN_TIMESTAMP, OP_MAINNET_JOVIAN_TIMESTAMP,
+        OP_SEPOLIA_JOVIAN_TIMESTAMP,
+    };
 
     #[test]
     fn test_hardcoded_rollup_configs() {
@@ -98,5 +106,43 @@ mod tests {
 
         assert_eq!(rollup_config_by_ident, rollup_config_by_id);
         assert_eq!(rollup_config_by_alloy_ident, rollup_config_by_id);
+    }
+
+    #[test]
+    fn test_jovian_timestamps() {
+        let base_mainnet_config_by_ident = scr_rollup_config_by_ident("mainnet/base").unwrap();
+        assert_eq!(
+            base_mainnet_config_by_ident.hardforks.jovian_time,
+            Some(BASE_MAINNET_JOVIAN_TIMESTAMP)
+        );
+
+        let base_sepolia_config_by_ident = scr_rollup_config_by_ident("sepolia/base").unwrap();
+        assert_eq!(
+            base_sepolia_config_by_ident.hardforks.jovian_time,
+            Some(BASE_SEPOLIA_JOVIAN_TIMESTAMP)
+        );
+
+        let op_mainnet_config_by_ident = scr_rollup_config_by_ident("mainnet/op").unwrap();
+        assert_eq!(
+            op_mainnet_config_by_ident.hardforks.jovian_time,
+            Some(OP_MAINNET_JOVIAN_TIMESTAMP)
+        );
+
+        let op_sepolia_config_by_ident = scr_rollup_config_by_ident("sepolia/op").unwrap();
+        assert_eq!(
+            op_sepolia_config_by_ident.hardforks.jovian_time,
+            Some(OP_SEPOLIA_JOVIAN_TIMESTAMP)
+        );
+    }
+
+    #[test]
+    fn test_bpo_timestamps() {
+        let sepolia_config = L1_CONFIGS.get(&11155111).unwrap();
+        assert_eq!(sepolia_config.bpo1_time, Some(SEPOLIA_BPO1_TIMESTAMP));
+        assert_eq!(sepolia_config.bpo2_time, Some(SEPOLIA_BPO2_TIMESTAMP));
+
+        let holesky_config = L1_CONFIGS.get(&17000).unwrap();
+        assert_eq!(holesky_config.bpo1_time, Some(HOLESKY_BPO1_TIMESTAMP));
+        assert_eq!(holesky_config.bpo2_time, Some(HOLESKY_BPO2_TIMESTAMP));
     }
 }
