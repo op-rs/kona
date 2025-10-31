@@ -21,6 +21,7 @@ kona-sources.workspace = true
 # alloy
 alloy-eips.workspace = true
 alloy-consensus.workspace = true
+alloy-json-rpc.workspace = true
 alloy-network.workspace = true
 alloy-network-primitives.workspace = true
 alloy-transport.workspace = true
@@ -38,6 +39,9 @@ op-alloy-provider.workspace = true
 op-alloy-rpc-types.workspace = true
 op-alloy-rpc-types-engine.workspace = true
 
+# op-alloy v0.20.0 for compatibility with rollup-boost/reth
+op-alloy-rpc-types-engine-v20.workspace = true
+
 # general
 serde.workspace = true
 tokio.workspace = true
@@ -53,6 +57,9 @@ serde_json.workspace = true
 
 # metrics
 metrics = { workspace = true, optional = true }
+
+# rollup boost
+rollup-boost.workspace = true
 
 [dev-dependencies]
 kona-registry.workspace = true
