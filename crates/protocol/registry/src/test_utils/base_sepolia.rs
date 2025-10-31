@@ -5,7 +5,7 @@ use alloy_eips::BlockNumHash;
 use alloy_op_hardforks::{
     BASE_SEPOLIA_CANYON_TIMESTAMP, BASE_SEPOLIA_ECOTONE_TIMESTAMP, BASE_SEPOLIA_FJORD_TIMESTAMP,
     BASE_SEPOLIA_GRANITE_TIMESTAMP, BASE_SEPOLIA_HOLOCENE_TIMESTAMP,
-    BASE_SEPOLIA_ISTHMUS_TIMESTAMP,
+    BASE_SEPOLIA_ISTHMUS_TIMESTAMP, BASE_SEPOLIA_JOVIAN_TIMESTAMP,
 };
 use alloy_primitives::{address, b256, uint};
 use kona_genesis::{
@@ -59,7 +59,7 @@ pub const BASE_SEPOLIA_CONFIG: RollupConfig = RollupConfig {
         holocene_time: Some(BASE_SEPOLIA_HOLOCENE_TIMESTAMP),
         pectra_blob_schedule_time: Some(1742486400),
         isthmus_time: Some(BASE_SEPOLIA_ISTHMUS_TIMESTAMP),
-        jovian_time: None,
+        jovian_time: Some(BASE_SEPOLIA_JOVIAN_TIMESTAMP),
         interop_time: None,
     },
     batch_inbox_address: address!("ff00000000000000000000000000000000084532"),

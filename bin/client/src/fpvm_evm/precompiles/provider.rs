@@ -57,9 +57,10 @@ where
             }
             OpSpecId::ECOTONE | OpSpecId::FJORD => accelerated_ecotone::<H, O>(),
             OpSpecId::GRANITE | OpSpecId::HOLOCENE => accelerated_granite::<H, O>(),
-            OpSpecId::ISTHMUS | OpSpecId::INTEROP | OpSpecId::OSAKA | OpSpecId::JOVIAN => {
+            OpSpecId::ISTHMUS | OpSpecId::INTEROP | OpSpecId::OSAKA => {
                 accelerated_isthmus::<H, O>()
             }
+            OpSpecId::JOVIAN => accelerated_jovian::<H, O>(),
         };
 
         Self {
@@ -254,5 +255,41 @@ where
         bls12_381_const::PAIRING_ADDRESS,
         super::bls12_pair::fpvm_bls12_pairing::<H, O>,
     ));
+    base
+}
+
+/// The accelerated precompiles for the jovian spec.
+fn accelerated_jovian<H, O>() -> Vec<AcceleratedPrecompile<H, O>>
+where
+    H: HintWriterClient + Send + Sync,
+    O: PreimageOracleClient + Send + Sync,
+{
+    let mut base = accelerated_isthmus::<H, O>();
+
+    // Replace the 4 variable-input precompiles with Jovian versions (reduced limits)
+    base.retain(|p| {
+        p.address != bn254::pair::ADDRESS &&
+            p.address != bls12_381_const::G1_MSM_ADDRESS &&
+            p.address != bls12_381_const::G2_MSM_ADDRESS &&
+            p.address != bls12_381_const::PAIRING_ADDRESS
+    });
+
+    base.push(AcceleratedPrecompile::new(
+        bn254::pair::ADDRESS,
+        super::bn128_pair::fpvm_bn128_pair_jovian::<H, O>,
+    ));
+    base.push(AcceleratedPrecompile::new(
+        bls12_381_const::G1_MSM_ADDRESS,
+        super::bls12_g1_msm::fpvm_bls12_g1_msm_jovian::<H, O>,
+    ));
+    base.push(AcceleratedPrecompile::new(
+        bls12_381_const::G2_MSM_ADDRESS,
+        super::bls12_g2_msm::fpvm_bls12_g2_msm_jovian::<H, O>,
+    ));
+    base.push(AcceleratedPrecompile::new(
+        bls12_381_const::PAIRING_ADDRESS,
+        super::bls12_pair::fpvm_bls12_pairing_jovian::<H, O>,
+    ));
+
     base
 }

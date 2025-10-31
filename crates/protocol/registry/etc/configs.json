@@ -7,7 +7,7 @@
         "l1": {
           "chain_id": 1,
           "public_rpc": "https://ethereum-rpc.publicnode.com",
-          "explorer": "https://etherscan.io"
+          "explorer": "https://eth.blockscout.com"
         },
         "hardforks": {
           "canyon_time": 1704992401,
@@ -16,7 +16,8 @@
           "fjord_time": 1720627201,
           "granite_time": 1726070401,
           "holocene_time": 1736445601,
-          "isthmus_time": 1746806401
+          "isthmus_time": 1746806401,
+          "jovian_time": 1764086401
         },
         "protocol_versions_addr": "0x8062abc286f5e7d9428a0ccb9abd71e50d93b935",
         "superchain_config_addr": "0x95703e0982140d16f8eba6d158fccede42f04a4c",
@@ -45,7 +46,8 @@
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401
+            "isthmus_time": 1746806401,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -73,36 +75,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x847b5c174615b1b7fdf770882256e2d3e95b9d92",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x5a0aae59d09fccbddb6c6cceb07b7279367c3d2a",
-            "Guardian": "0x09f7150d8c019bef34450d6920f6b3608cefdaf2",
-            "Challenger": "0x9ba6e03d8b90de867373db8cf1a58d2f7f006b3a",
-            "Proposer": "0x473300df21d047806a082244b417f96b32f13a33",
-            "UnsafeBlockSigner": "0xaaaa45d9549eda09e70937013520214382ffc4a2",
-            "BatchSubmitter": "0x6887246668a3b87f54deb3b94ba47a6f63f32985"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xde1fcfb0851916ca5101820a69b13a4e276bd81f",
-            "L1CrossDomainMessengerProxy": "0x25ace71c97b33cc4729cf772ae268934f7ab5fa1",
-            "L1Erc721BridgeProxy": "0x5a7749f83b81b301cab5f48eb8516b986daef23d",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x99c9fc46f92e8a1c0dec1b1747d010903e884be1",
             "L2OutputOracleProxy": null,
-            "OptimismMintableErc20FactoryProxy": "0x75505a97bd334e7bd3c476893285569c4136fa0f",
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xbeb5fc579115071764c7423a4f12edde41f106ed",
             "SystemConfigProxy": "0x229047fed2591dbec1ef1118d64f7af3db9eb290",
-            "ProxyAdmin": "0x543ba4aadbab8f9025686bd03993043599c6fb04",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
-            "AnchorStateRegistryProxy": "0x1c68ecfbf9c8b1e6c0677965b3b9ecf9a104305b",
-            "DelayedWethProxy": "0x21429af66058bc3e4ae4a8f2ec4531aac433ecbc",
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0xe5965ab5962edc7477c8520243a95517cd252fa9",
-            "FaultDisputeGame": "0x5738a876359b48a65d35482c93b43e2c1147b32b",
-            "Mips": "0xf027f4a985560fb13324e943edf55ad6f1d15dc1",
-            "PermissionedDisputeGame": "0x1ae178ebfeecd51709432ea5f37845da0414edfe",
-            "PreimageOracle": "0x1fb8cdfc6831fc866ed9c51af8817da5c287add3",
+            "FaultDisputeGame": null,
+            "Mips": null,
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -128,7 +132,8 @@
             "fjord_time": 0,
             "granite_time": 0,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401
+            "isthmus_time": 1746806401,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -156,36 +161,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x9245d5d10aa8a842b31530de71ea86c0760ca1b1",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x6d5b183f538abb8572f5cd17109c617b994d5833",
-            "Guardian": "0x09f7150d8c019bef34450d6920f6b3608cefdaf2",
-            "Challenger": "0x9ba6e03d8b90de867373db8cf1a58d2f7f006b3a",
-            "Proposer": "0xd5f0e2912c70771c589cd8bb087ede0dab4afa9a",
-            "UnsafeBlockSigner": "0x833c6f278474a78658af91ae8edc926fe33a230e",
-            "BatchSubmitter": "0x2f60a5184c63ca94f82a27100643dbabe4f3f7fd"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x8098f676033a377b9defe302e9fe6877cd63d575",
-            "L1CrossDomainMessengerProxy": "0x9a3d64e386c18cb1d6d5179a9596a4b5736e98a6",
-            "L1Erc721BridgeProxy": "0xd04d0d87e0bd4d2e50286760a3ef323fea6849cf",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x81014f44b0a345033bb2b3b21c7a1a308b35feea",
             "L2OutputOracleProxy": null,
-            "OptimismMintableErc20FactoryProxy": "0xa2b597eaeacb6f627e088cbead319e934ed5edad",
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x0bd48f6b86a26d3a217d0fa6ffe2b491b956a7a2",
             "SystemConfigProxy": "0xc407398d063f942febbcc6f80a156b47f3f1bda6",
-            "ProxyAdmin": "0x3b73fa8d82f511a3cae17b5a26e4e1a2d5e2f2a4",
-            "SuperchainConfig": "0x95703e0982140d16f8eba6d158fccede42f04a4c",
-            "AnchorStateRegistryProxy": "0xd5d0e176be44e61eab3cf1fa8153758df603376f",
-            "DelayedWethProxy": "0x84b268a4101a8c8e3ccb33004f81ed08202ba124",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x2f12d621a16e2d3285929c9996f478508951dfe4",
-            "FaultDisputeGame": "0xd2c3c6f4a4c5aa777bd6c476aea58439db0dd844",
-            "Mips": "0xaa59a0777648bc75cd10364083e878c1ccd6112a",
-            "PermissionedDisputeGame": "0x5fe2becc3dec340d3df04351db8e728cbe4c7450",
-            "PreimageOracle": "0x1fb8cdfc6831fc866ed9c51af8817da5c287add3",
+            "FaultDisputeGame": null,
+            "Mips": null,
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -237,36 +244,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x29fbda675fa5a07b621c2c1a6e3f874c14f612f3",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x441f31c4cdf772558d4ea31f3114de59ae145e7c",
-            "Guardian": "0xc7fcbe26c1db751d63869f72f782a56710f6be5a",
-            "Challenger": "0xfcf35cee40325db21c3dc5b45849251e78be47eb",
-            "Proposer": "0x66b8f8425ecb610239e79e3517fefddcf85af41a",
-            "UnsafeBlockSigner": "0xbc80de532cf87543aad3267cc8a4caa2813130e7",
-            "BatchSubmitter": "0x9391791f7cb74f8bfda65edc0749efd964311b55"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x679a65ad62972ea3561f40a12e93cca6f79f35e6",
-            "L1CrossDomainMessengerProxy": "0x899f07862d3a03f70e07b7f01183934b485d2e97",
-            "L1Erc721BridgeProxy": "0xd4c83d93c6fae3e0804b785f9cf465be95449d04",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x2171e6d3b7964fa9654ce41da8a8ffaff2cc70be",
-            "L2OutputOracleProxy": "0x1c8d97e21f868f8b87fa9b16fc77d46d7b0b48a2",
-            "OptimismMintableErc20FactoryProxy": "0x0407af506d86bfa5e401099b2fc2355590638f19",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xe7aa79b59cac06f9706d896a047feb9d3bda8bd3",
             "SystemConfigProxy": "0x43f8defe3e9286d152e91bb16a248808e7247198",
-            "ProxyAdmin": "0x7986ed289935a0f47fc434c00cde309fe2c51f1c",
-            "SuperchainConfig": "0xfd1255b6c09d939e7f3896a16c32cdbcd6f8b40a",
-            "AnchorStateRegistryProxy": "0x4dec2aa521108d78d983c0c12656c6cf8631f2ed",
-            "DelayedWethProxy": "0xbb70d595147a141e268532bfef61a8c25054d26d",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x04ec030f362ce5a0b5fe2d4b4219f287c2ebde50",
             "FaultDisputeGame": null,
-            "Mips": "0x7447b25b91336127042cc6899b2c15668a1ab8ba",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0x5b9bef4d8c36fb013c70d0a6f455807c6bd5270b",
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -292,7 +301,8 @@
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401
+            "isthmus_time": 1746806401,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 20,
@@ -320,36 +330,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xbea2bc852a160b8547273660e22f4f08c2fa9bbb",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0xb68361aaac2bc8a4b8bfe36b8c6d0b429b5930ea",
-            "Guardian": "0xbea2bc852a160b8547273660e22f4f08c2fa9bbb",
-            "Challenger": "0xbea2bc852a160b8547273660e22f4f08c2fa9bbb",
-            "Proposer": "0xf49212f977986347b73345d382a811e148751eed",
-            "UnsafeBlockSigner": "0xd1705b4fffc540eded73046ee1f3a8db10d143f8",
-            "BatchSubmitter": "0x43ca061ea80fbb4a2b5515f4be4e953b191147af"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x464ca56d40f94e8a50efa7f5b90c59d956a0efc9",
-            "L1CrossDomainMessengerProxy": "0x226a1e4a3d8e64a9de8423f9344348c179c72cb2",
-            "L1Erc721BridgeProxy": "0x00050ae93fbfaf5823a4ae229e4651f7f7a02ffa",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x908c324c35ff36f64236a7cda4d50f3003e9c5c3",
-            "L2OutputOracleProxy": "0x0eb331b615030819464225ecd373e5ffbe502dc4",
-            "OptimismMintableErc20FactoryProxy": "0x45beaf3bd26b76796692b1ef1e67469b84adb914",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xda29f0b4da6c23f6c1af273945c290c0268c4ea9",
             "SystemConfigProxy": "0x20c3035c92bdb4c461242571eeac59eed03df931",
-            "ProxyAdmin": "0x0bc380347a0b7af5453492caf20e1e38bc0abc2f",
-            "SuperchainConfig": "0x14b768f93f256ad8d2d018930dbdae61306c4752",
-            "AnchorStateRegistryProxy": "0x31ee18f4dbca6a9c8599508ec70ab98cb1118e9e",
-            "DelayedWethProxy": "0xde1999df1f225d638ad3ca2c9eb5b2e52730d950",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0xfcdb270b674911d321f1014c347eabb1c55134fb",
             "FaultDisputeGame": null,
-            "Mips": "0x94ce3d0b2243250d3f33df45faaeac273ca945fe",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0xa0455f010561671c640d80f51851d51318ac32ab",
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -375,7 +387,8 @@
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401
+            "isthmus_time": 1746806401,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -403,32 +416,34 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
-            "Guardian": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
-            "Challenger": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
-            "Proposer": "0x3d53df1e69a32f98dfccf23ccb689763e21a78ba",
-            "UnsafeBlockSigner": "0x41c4fae5e80b9a622d8968bcd3ebbcf1f93b30db",
-            "BatchSubmitter": "0x68bdfece01535090c8f3c27ec3b1ae97e83fa4aa"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xea4165c5cdca155779803a113d8391b741ba5228",
-            "L1CrossDomainMessengerProxy": "0xf80be9f7a74ab776b69d3f0dc5c08c39b3a0ba19",
-            "L1Erc721BridgeProxy": "0xc2c908f3226d9082130d8e48378cd2efb08b521d",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x2b3f201543adf73160ba42e1a5b7750024f30420",
-            "L2OutputOracleProxy": "0xb751a613f2db932c6cdef5048e6d2af05f9b98ed",
-            "OptimismMintableErc20FactoryProxy": "0xf02012065ef6121a2a59ea0c590f42803cf101ea",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x59625d1fe0eeb8114a4d13c863978f39b3471781",
             "SystemConfigProxy": "0xc975862927797812371a9fb631f83f8f5e2240d5",
-            "ProxyAdmin": "0xc684075a7cc997aa2e72152c330bdac73feacbdf",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
-            "DisputeGameFactoryProxy": null,
+            "DisputeGameFactoryProxy": "0xd2922a726501f027a5a5ac122bec92bcfb437662",
             "FaultDisputeGame": null,
             "Mips": null,
             "PermissionedDisputeGame": null,
@@ -484,28 +499,30 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xe0d7755252873c4ef5788f7f45764e0e17610508",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0xe0d7755252873c4ef5788f7f45764e0e17610508",
-            "Guardian": "0xe0d7755252873c4ef5788f7f45764e0e17610508",
-            "Challenger": "0xe0d7755252873c4ef5788f7f45764e0e17610508",
-            "Proposer": "0xfb90465f3064ff63fc460f01a6307ec73d64bc50",
-            "UnsafeBlockSigner": "0xc88138f5c82dd1bd327708c7f1c15e44ce7fda0c",
-            "BatchSubmitter": "0x6017f75108f251a488b045a7ce2a7c15b179d1f2"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x8c5d64d10394cfa070066e70ec19e67398b4dabe",
-            "L1CrossDomainMessengerProxy": "0x126bcc31bc076b3d515f60fbc81fdde0b0d542ed",
-            "L1Erc721BridgeProxy": "0xa9b5fb84b7aeaf0d51c95db04a76b1d4738d0ec5",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x34c0bd5877a5ee7099d0f5688d65f4bb9158bde2",
-            "L2OutputOracleProxy": "0x66cc916ed5c6c2fa97014f7d1cd141528ae171e4",
-            "OptimismMintableErc20FactoryProxy": "0x11fe3be54ac01c13dd985ce2bdd10ed77e1376cc",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x36cb65c1967a0fb0eee11569c51c2f2aa1ca6f6d",
             "SystemConfigProxy": "0x34a9f273cbd847d49c3de015fc26c3e66825f8b2",
-            "ProxyAdmin": "0x13fe62cb24aea5afd179f20d362c056c3881abca",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
@@ -562,29 +579,31 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x3fcb6e08a960ef52ec3101a444f71a2fd964b248",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x6197f64902b9275e6815f9a5b641ed2291a5d39c",
-            "Guardian": "0x3fcb6e08a960ef52ec3101a444f71a2fd964b248",
-            "Challenger": "0x3fcb6e08a960ef52ec3101a444f71a2fd964b248",
-            "Proposer": "0xb2a5571c23d13ce16ef3e993fbe8d225d3f67366",
-            "UnsafeBlockSigner": "0x05a220507e8f4c73a446dbafc5607016a7d5eab0",
-            "BatchSubmitter": "0xde794bec196832474f2f218135bfd0f7ca7fb038"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x55aec4ee11da7d655565ccc2eb3bf21a46c94e6f",
-            "L1CrossDomainMessengerProxy": "0x15567c4ffd9109795dff1d9a5233d10aef0738d2",
-            "L1Erc721BridgeProxy": "0x1ccf7e62889e6a93413deafc4e390bd4047bdc32",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xed7525946a09056c6aae29941b8323017382050e",
-            "L2OutputOracleProxy": "0x1c22740a0b4511e11d76434a424487862b593901",
-            "OptimismMintableErc20FactoryProxy": "0xe9614162c6128abd7790c65d711cfc43ea842153",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xba50434bc5fcc07406b1bad9ac72a4cdf776db15",
             "SystemConfigProxy": "0x504d56cf68f791b45e3a2e895b0e1562f3431328",
-            "ProxyAdmin": "0xcc8c55ec2ea3f3001c049ec934e72b55cf52fbf3",
-            "SuperchainConfig": "0xade916de67511e5c24af4174be67143d0da94959",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x2069fc7097b7784fca21aa459e57e95c0046eecd",
@@ -644,32 +663,34 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x56121a8612474c3eb65d69a3b871f284705b9bc4",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x56121a8612474c3eb65d69a3b871f284705b9bc4",
-            "Guardian": "0x56121a8612474c3eb65d69a3b871f284705b9bc4",
-            "Challenger": "0x56121a8612474c3eb65d69a3b871f284705b9bc4",
-            "Proposer": "0xbfbab4363034a930687b9320599a69dfbf1d21d0",
-            "UnsafeBlockSigner": "0x4ac69842680847e1135f514ee3d75172b685ecbf",
-            "BatchSubmitter": "0xe1b64045351b0b6e9821f19b39f81bc4711d2230"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x8376ac6c3f73a25dd994e0b0669ca7ee0c02f089",
-            "L1CrossDomainMessengerProxy": "0x6d4528d192db72e282265d6092f4b872f9dff69e",
-            "L1Erc721BridgeProxy": "0xa6ad22bb0e73def40a24e510cfbc93807d8bf87e",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xdc1664458d2f0b6090bea60a8793a4e66c2f1c00",
-            "L2OutputOracleProxy": "0xbb7ad3f9ccbc94085b7f7b1d5258e59f5f068741",
-            "OptimismMintableErc20FactoryProxy": "0x4d898f66327fa050131a17ed17a39ebecc81f0c3",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x7b02d13904d8e6e0f0efaf756ab14cb0ff21ee7e",
             "SystemConfigProxy": "0x158fd5715f16ac1f2dc959a299b383aaaf9b59eb",
-            "ProxyAdmin": "0x6e598cec2701ffaa3c06175dc3af0317a749a0dc",
-            "SuperchainConfig": "0x996ffd627901f10c80a7d4b72a12316d2e77c076",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
-            "DisputeGameFactoryProxy": null,
+            "DisputeGameFactoryProxy": "0xf45a5f1e36fcea3cc830a98c6c3c5cea7d6af852",
             "FaultDisputeGame": null,
             "Mips": null,
             "PermissionedDisputeGame": null,
@@ -699,7 +720,8 @@
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401
+            "isthmus_time": 1746806401,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -727,32 +749,34 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
-            "Guardian": "0xce10372313ca39fbf75a09e7f4c0e57f070259f4",
-            "Challenger": "0xce10372313ca39fbf75a09e7f4c0e57f070259f4",
-            "Proposer": "0x74bad482a7f73c8286f50d8aa03e53b7d24a5f3b",
-            "UnsafeBlockSigner": "0xceed24b1fd4a4393f6a9d2b137d9597dd5482569",
-            "BatchSubmitter": "0xf8db8aba597ff36ccd16fecfbb1b816b3236e9b8"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x87630a802a3789463ec4b00f89b27b1e9f6b92e9",
-            "L1CrossDomainMessengerProxy": "0xc76543a64666d9a073faef4e75f651c88e7dbc08",
-            "L1Erc721BridgeProxy": "0x934ab59ef14b638653b1c0fef7ab9a72186393dc",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xe07ea0436100918f157df35d01dce5c11b16d1f1",
-            "L2OutputOracleProxy": "0x5e76821c3c1abb9fd6e310224804556c61d860e0",
-            "OptimismMintableErc20FactoryProxy": "0x7a69a90d8ea11e9618855da55d09e6f953730686",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x91493a61ab83b62943e6dcaa5475dd330704cc84",
             "SystemConfigProxy": "0x886b187c3d293b1449a3a0f23ca9e2269e0f2664",
-            "ProxyAdmin": "0xb570f4ad27e7de879a2e4f2f3de27dbabc20e9b9",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
-            "DisputeGameFactoryProxy": null,
+            "DisputeGameFactoryProxy": "0xc8bf04a73704051e5e274f1b43b1f2f153db2136",
             "FaultDisputeGame": null,
             "Mips": null,
             "PermissionedDisputeGame": null,
@@ -808,36 +832,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xee1af3f99af8c5b93512fbe2a3f0dd5568ce087f",
-            "ProxyAdminOwner": "0xacaf178b5048cb56712dc59e95fba72f7990a005",
-            "Guardian": "0xee1af3f99af8c5b93512fbe2a3f0dd5568ce087f",
-            "Challenger": "0xee1af3f99af8c5b93512fbe2a3f0dd5568ce087f",
-            "Proposer": "0x0d8a607f3d2de86add04df00f06794cb339a40de",
-            "UnsafeBlockSigner": "0x9c66333c504f3a4f5593d0e9739434744ccc5b5d",
-            "BatchSubmitter": "0xf7ca543d652e38692fd12f989eb55b5327ec9a20"
+            "SystemConfigOwner": null,
+            "ProxyAdminOwner": "0xa4fb12d15eb85dc9284a7df0adbc8b696edbbf1d",
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xcee78437ae9e15cee9c78e63757e0153c0fd7479",
-            "L1CrossDomainMessengerProxy": "0x2b18602877181c3cb72c687e2a771e123a3788e3",
-            "L1Erc721BridgeProxy": "0xe9d3e49b0636016c5fe9eaa2347948d0ba9f15af",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x62edd5f4930ea92dca3fb81689bdd9b9d076b57b",
-            "L2OutputOracleProxy": "0x6ef8c69cfe4635d866e3e02732068022c06e724d",
-            "OptimismMintableErc20FactoryProxy": "0x319322906beadf69df5d4607169c63d692b1adc1",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xeb06ffa16011b5628bab98e29776361c83741dd3",
             "SystemConfigProxy": "0xff11e41d5c4f522e423ff6c064ff8d55af8f7355",
-            "ProxyAdmin": "0x11b190ae661c6d6884dfee48e215691e0ddb842e",
-            "SuperchainConfig": "0x125664bef08177ca43f6f301e63118b1e4ccde09",
-            "AnchorStateRegistryProxy": "0x02987e7294379b9dda99d593b0c94c68266222d1",
-            "DelayedWethProxy": "0xfec7865dac5139886585f03146ff61d9b31c2d57",
-            "DisputeGameFactoryProxy": "0x575aecd84083f93877291901907698f7db0bd8b0",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
+            "DisputeGameFactoryProxy": "0x2c03e8bf8b16af89079852be87f0e9ec674a5952",
             "FaultDisputeGame": null,
-            "Mips": "0xd30c2cd3cd6112e61fdfb03e4b232564d7e5c91f",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0xdf6a16a71d0bc7a1bbe8fffb33700ec3d9448a5b",
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -890,36 +916,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xb2aa0c2c4fd6bfcbf699d4c787cd6cc0dc461a9d",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0xa4fb12d15eb85dc9284a7df0adbc8b696edbbf1d",
-            "Guardian": "0xb2aa0c2c4fd6bfcbf699d4c787cd6cc0dc461a9d",
-            "Challenger": "0xa4fb12d15eb85dc9284a7df0adbc8b696edbbf1d",
-            "Proposer": "0x2307278fc8ab0005974a6ded2fa6d1187333a223",
-            "UnsafeBlockSigner": "0x2270d6ec8e760daa317dd978cfb98c8f144b1f3a",
-            "BatchSubmitter": "0xdbbe3d8c2d2b22a2611c5a94a9a12c2fcd49eb29"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x5891090d5085679714cb0e62f74950a3c19146a8",
-            "L1CrossDomainMessengerProxy": "0xf931a81d18b1766d15695ffc7c1920a62b7e710a",
-            "L1Erc721BridgeProxy": "0x1df436afdb2fbb40f1fe8bed4fc89a0d0990a8e9",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x470458c91978d2d929704489ad730dc3e3001113",
-            "L2OutputOracleProxy": "0x19a6d1e9034596196295cf148509796978343c5d",
-            "OptimismMintableErc20FactoryProxy": "0x82cb528466cf22412d89bdbe9bcf04856790dd0e",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xd5ec14a83b7d95be1e2ac12523e2dee12cbeea6c",
             "SystemConfigProxy": "0x6ab0777fd0e609ce58f939a7f70fe41f5aa6300a",
-            "ProxyAdmin": "0xd7405be7f3e63b094af6c7c23d5ee33fd82f872d",
-            "SuperchainConfig": "0x95703e0982140d16f8eba6d158fccede42f04a4c",
-            "AnchorStateRegistryProxy": "0xd4d7a57dcc563756ded99e224e144a6bf0327099",
-            "DelayedWethProxy": "0xf9adf7c9502c5c60352c20a4d22683422dbd061f",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x069c4c579671f8c120b1327a73217d01ea2ec5ea",
             "FaultDisputeGame": null,
-            "Mips": "0x5fe03a12c1236f9c22cb6479778ddaa4bce6299c",
-            "PermissionedDisputeGame": "0x55e6125f946f3cb24fc3e07dd7242f96ce512bd9",
-            "PreimageOracle": "0x9c065e11870b891d214bc2da7ef1f9ddfa1be277",
+            "Mips": null,
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -945,7 +973,8 @@
             "fjord_time": 1725536344,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401
+            "isthmus_time": 1746806401,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -973,36 +1002,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x25a6e7c6f3d0fe89a656fcf065614b74e55099ff",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x48ec051349ddc7e8babafcbfe27696ecf2a8a8b3",
-            "Guardian": "0x87aab081ac9f8ce80fb048f23280df019036ba1d",
-            "Challenger": "0x79ddf0745d14783cdc2a05624c585ddce07f4a02",
-            "Proposer": "0x2b6cd940abe0caf2fd89155b99522548c00ebab1",
-            "UnsafeBlockSigner": "0xdbad225d1c0dabc27f6a9d250dbb136413c0dfb4",
-            "BatchSubmitter": "0x7f9d9c1bce1062e1077845ea39a0303429600a06"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x8173904703995c6bba59a42b8bbf8405f978758a",
-            "L1CrossDomainMessengerProxy": "0x807d21e416434ae92c8e5bca4d506781afbba380",
-            "L1Erc721BridgeProxy": "0x1b396e4dc6ecb0be33cf01c5a34e1a3a7d03c378",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xd1b30378cbf968e5525e8835219a5726a1e71d10",
-            "L2OutputOracleProxy": "0x012f4baa6e0f5ac4dfdf47bddd9cf68a2b17821e",
-            "OptimismMintableErc20FactoryProxy": "0xa641e14b685b5e652865e14a4fbc07e51371d124",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x5ff88fcf8e9947f45f4caf8ffd5231b5ddf05e0a",
             "SystemConfigProxy": "0x7ac7e5989eac278b7bbfef560871a2026bad472c",
-            "ProxyAdmin": "0x38593cce8fab9887ef9760f5f6ab3d6c595143cf",
-            "SuperchainConfig": "0x34bb53d7c525114a27f0fe2af91bddad186abb12",
-            "AnchorStateRegistryProxy": "0x275abd1eb1fbaab40dcef5f3a588e2df65801edc",
-            "DelayedWethProxy": "0x161914f701d090824c1a8a0f4e5666938f12848d",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x0d7e0590c58e4ac9b14b3ed6163cf55223931699",
             "FaultDisputeGame": null,
-            "Mips": "0x4e66d89ddf5a9d86836abb1d05ff8fdb5ad32c9a",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0xb9ff3a5835144b0d2f4267a21e0c74458907c870",
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -1057,37 +1088,39 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xb356b146f1629c49c44344464f69bcdafb4bb664",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x70fdbcb066ed3621647ddf61a1f40aac6058bc89",
-            "Guardian": "0xb356b146f1629c49c44344464f69bcdafb4bb664",
-            "Challenger": "0xb356b146f1629c49c44344464f69bcdafb4bb664",
-            "Proposer": "0x4c465e58946145bb2bfc38833154f5a3b5728cf7",
-            "UnsafeBlockSigner": "0xa5bdf717af725a47fd7378d3d9c833776951efa0",
-            "BatchSubmitter": "0xa31cb9bc414601171d4537580f98f66c03aecd43"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xfe27f187a9e46104a932189ddf229871e06b22f8",
-            "L1CrossDomainMessengerProxy": "0x592c1299e0f8331d81a28c0fc7352da24edb444a",
-            "L1Erc721BridgeProxy": "0x4ffb98dbc3086ba85d5e626a6ebc3d0d08533ff4",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xc473ca7e02af24c129c2eef51f2adf0411c1df69",
-            "L2OutputOracleProxy": "0xa426a052f657aeeefc298b3b5c35a470e4739d69",
-            "OptimismMintableErc20FactoryProxy": "0x5f962474834cf1981df6232e4b6431d3d10cb71d",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xc7bcb0e8839a28a1cfadd1cf716de9016cda51ae",
             "SystemConfigProxy": "0x8f2428f7189c0d92d1c4a5358903a8c80ec6a69d",
-            "ProxyAdmin": "0xcc53b447afe07926423ab96d5496b1af30485ed2",
-            "SuperchainConfig": "0x4b5b41c240173191425f5928bc6bdd0d439331bb",
-            "AnchorStateRegistryProxy": "0xc51ac31bcefb64d999af10129cb7693eee7c1179",
-            "DelayedWethProxy": "0xa130523fd22e2a9d78f8ab232b01ff552845b4a9",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x8f68e849eaf8eb943536f9d1d49ea9c9b5868b98",
             "FaultDisputeGame": null,
-            "Mips": "0x66d6be83984e3f026b4a9e2d8fb082ecdbd43648",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0xe7d0fe72637b3c949cd81c63a4ff1fb23feef3b2",
-            "DataAvailabilityChallenge": "0x97a2da87d3439b172e6dd027220e01c9cb565b80"
+            "PreimageOracle": null,
+            "DataAvailabilityChallenge": null
           }
         },
         {
@@ -1112,7 +1145,8 @@
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401
+            "isthmus_time": 1746806401,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -1140,32 +1174,34 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
-            "Guardian": "0x91f4be0c264fafa1fed75c4440910cba2cad98e8",
-            "Challenger": "0x91f4be0c264fafa1fed75c4440910cba2cad98e8",
-            "Proposer": "0x03e820562ffd2e0390787cad706eaf1ff98c2608",
-            "UnsafeBlockSigner": "0xb71b58ffe538628557433dbbfa08d45ee5a69b44",
-            "BatchSubmitter": "0x14e4e97bdc195d399ad8e7fc14451c279fe04c8e"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xc845f9c4004eb35a8bde8ad89c4760a9c0e65cab",
-            "L1CrossDomainMessengerProxy": "0x5456f02c08e9a018e42c39b351328e5aa864174a",
-            "L1Erc721BridgeProxy": "0x6cc3268794c5d3e3d9d52adefc748b59d536cb22",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x61e44dc0dae6888b5a301887732217d5725b0bff",
-            "L2OutputOracleProxy": "0x1145e7848c8b64c6cab86fd6d378733385c5c3ba",
-            "OptimismMintableErc20FactoryProxy": "0x08dea366f26c25a08c8d1c3568ad07d1e587136d",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x85ea9c11cf3d4786027f7fd08f4406b15777e5f8",
             "SystemConfigProxy": "0x0e4c4cdd01cecb01070e9fdfe7600871e4ae996e",
-            "ProxyAdmin": "0x35d5d43271548c984662d4879fbc8e041bc1ff93",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
-            "DisputeGameFactoryProxy": null,
+            "DisputeGameFactoryProxy": "0x87daff495b5f6c4f79ceeaaf85f1ef3df3b30d21",
             "FaultDisputeGame": null,
             "Mips": null,
             "PermissionedDisputeGame": null,
@@ -1195,7 +1231,8 @@
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401
+            "isthmus_time": 1746806401,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 20,
@@ -1223,32 +1260,34 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xbea2bc852a160b8547273660e22f4f08c2fa9bbb",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0xecd4150abbb1ebff13f74e42fb43c3d78b4e0b45",
-            "Guardian": "0xbea2bc852a160b8547273660e22f4f08c2fa9bbb",
-            "Challenger": "0xbea2bc852a160b8547273660e22f4f08c2fa9bbb",
-            "Proposer": "0x0abd6da1ce10d1cd6c7c9c14b905786d20f3eb23",
-            "UnsafeBlockSigner": "0xb9de90a90c5e441c483e754fe7341100d5fbaeca",
-            "BatchSubmitter": "0xa6ea2f3299b63c53143c993d2d5e60a69cd6fe24"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x2df7057d3f25212e51afea8da628668229ea423f",
-            "L1CrossDomainMessengerProxy": "0x31b72d76fb666844c41edf08df0254875dbb7edb",
-            "L1Erc721BridgeProxy": "0x3a44a3b263fb631cdbf25f339e2d29497511a81f",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x2658723bf70c7667de6b25f99fcce13a16d25d08",
-            "L2OutputOracleProxy": "0x113cb99283af242da0a0c54347667edf531aa7d6",
-            "OptimismMintableErc20FactoryProxy": "0xc1da06cc5dd5ce23baba924463de7f762039252d",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x26db93f8b8b4f7016240af62f7730979d353f9a7",
             "SystemConfigProxy": "0x05f23282ffdca8286e4738c1af79079f3d843750",
-            "ProxyAdmin": "0xec432c4f1d0e12737f3a42a459b84848af979b2d",
-            "SuperchainConfig": "0x26c7bfb430d68bf74d2d52497836d4336b555de7",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
-            "DisputeGameFactoryProxy": "0x0479e6757eb4743843b309dddf78e6ba242f38be",
+            "DisputeGameFactoryProxy": "0x0cf7d3706a27cce2017aeb11e8a9c8b5388c282c",
             "FaultDisputeGame": null,
             "Mips": null,
             "PermissionedDisputeGame": null,
@@ -1278,7 +1317,8 @@
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401
+            "isthmus_time": 1746806401,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -1306,32 +1346,34 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x5a0aae59d09fccbddb6c6cceb07b7279367c3d2a",
-            "Guardian": "0x09f7150d8c019bef34450d6920f6b3608cefdaf2",
-            "Challenger": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
-            "Proposer": "0xc8187d40ad440328104a52bbed2d8efc5ab1f1f6",
-            "UnsafeBlockSigner": "0x4a65f5da5e80deffea844eaa15ce130e80605dc5",
-            "BatchSubmitter": "0xc94c243f8fb37223f3eb2f7961f7072602a51b8b"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xd4b1ec0dec3c7f12abd3ec27b7514880ae1c3a37",
-            "L1CrossDomainMessengerProxy": "0x0a47a44f1b2bb753474f8c830322554a96c9934d",
-            "L1Erc721BridgeProxy": "0x50d700e97967f9115e3f999bdb263d69f6704680",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x6d0f65d59b55b0fec5d2d15365154dcadc140bf3",
-            "L2OutputOracleProxy": "0x3b1f7ada0fcc26b13515af752dd07fb1cac11426",
-            "OptimismMintableErc20FactoryProxy": "0x1aaab4e20d2e4bb992b5bca2125e8bd3588c8730",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x3f37abde2c6b5b2ed6f8045787df1ed1e3753956",
             "SystemConfigProxy": "0x7bd909970b0eedcf078de6aeff23ce571663b8aa",
-            "ProxyAdmin": "0x37ff0ae34dada1a95a4251d10ef7caa868c7ac99",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
-            "DisputeGameFactoryProxy": null,
+            "DisputeGameFactoryProxy": "0x7bfff391a2dbbdc68a259792ac9748f50fcde93e",
             "FaultDisputeGame": null,
             "Mips": null,
             "PermissionedDisputeGame": null,
@@ -1361,7 +1403,8 @@
             "fjord_time": 0,
             "granite_time": 0,
             "holocene_time": 1738573200,
-            "isthmus_time": 1746806401
+            "isthmus_time": 1746806401,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -1389,36 +1432,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x509182ec226b3b71d36a3255a80ef0b1a9d43033",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x5a0aae59d09fccbddb6c6cceb07b7279367c3d2a",
-            "Guardian": "0x09f7150d8c019bef34450d6920f6b3608cefdaf2",
-            "Challenger": "0x9ba6e03d8b90de867373db8cf1a58d2f7f006b3a",
-            "Proposer": "0x400c164c4a8ca84385b70eed6eb03ea847c8e1b8",
-            "UnsafeBlockSigner": "0x7c2bd59ee2a2c7391c9a240132f26071e9546262",
-            "BatchSubmitter": "0x6776be80dbada6a02b5f2095cf13734ac303b8d1"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xb24bfeece1b3b7a44559f4cbc21bed312b130b70",
-            "L1CrossDomainMessengerProxy": "0x9cf951e3f74b644e621b36ca9cea147a78d4c39f",
-            "L1Erc721BridgeProxy": "0x5933e323be8896dfacd1cd671442f27daa10a053",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xeb9bf100225c214efc3e7c651ebbadcf85177607",
             "L2OutputOracleProxy": null,
-            "OptimismMintableErc20FactoryProxy": "0xc1047e30efc9e172cfe7aa0219895b6a43fc415f",
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x88e529a6ccd302c948689cd5156c83d4614fae92",
             "SystemConfigProxy": "0x7a8ed66b319911a0f3e7288bddab30d9c0c875c3",
-            "ProxyAdmin": "0x89889b569c3a505f3640ee1bd0ac1d557f436d2a",
-            "SuperchainConfig": "0x95703e0982140d16f8eba6d158fccede42f04a4c",
-            "AnchorStateRegistryProxy": "0x190b6ecee5a2ddf39669288b9b8daea4641ae8b1",
-            "DelayedWethProxy": "0x9aea1fd851b63d57ba4fc556b0e0c170126c9eaf",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x512a3d2c7a43bd9261d2b8e8c9c70d4bd4d503c0",
-            "FaultDisputeGame": "0x0000000000000000000000000000000000000000",
-            "Mips": "0xf027f4a985560fb13324e943edf55ad6f1d15dc1",
-            "PermissionedDisputeGame": "0x3d56d47b9e7e34a46612badc70377f74051e6b17",
-            "PreimageOracle": "0x1fb8cdfc6831fc866ed9c51af8817da5c287add3",
+            "FaultDisputeGame": null,
+            "Mips": null,
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -1429,7 +1474,7 @@
           "Explorer": "https://explorer.swellnetwork.io",
           "SuperchainLevel": 1,
           "GovernedByOptimism": true,
-          "SuperchainTime": null,
+          "SuperchainTime": 1764086401,
           "DataAvailabilityType": "eth-da",
           "l2_chain_id": 1923,
           "batch_inbox_address": "0x005de5857e38dfd703a1725c0900e9c6f24cbde0",
@@ -1442,7 +1487,10 @@
             "delta_time": 0,
             "ecotone_time": 0,
             "fjord_time": 0,
-            "granite_time": 0
+            "granite_time": 0,
+            "holocene_time": 1752732000,
+            "isthmus_time": 1764043201,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -1470,36 +1518,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x06f7fb1c74147e34fce04a6828c7bf809b038d0e",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x5a0aae59d09fccbddb6c6cceb07b7279367c3d2a",
-            "Guardian": "0x09f7150d8c019bef34450d6920f6b3608cefdaf2",
-            "Challenger": "0x9ba6e03d8b90de867373db8cf1a58d2f7f006b3a",
-            "Proposer": "0xfe5dd32c3799249dc6a5d637ccb2f28e0ec227e3",
-            "UnsafeBlockSigner": "0x6967d304e9b7e26b5eb3f5a1fd1239daad3215e6",
-            "BatchSubmitter": "0xf854cd5b26bfd73d51236c0122798907ed65b1f2"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xa54a84f17c2180148c762d79bc57bdff7fdafc8a",
-            "L1CrossDomainMessengerProxy": "0xe6a99ef12995defc5ff47ec0e13252f0e6903759",
-            "L1Erc721BridgeProxy": "0xfd7618330e63b493070dc8c491ad4ad26144bc1e",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x7aa4960908b13d104bf056b23e2c76b43c5aacc8",
             "L2OutputOracleProxy": null,
-            "OptimismMintableErc20FactoryProxy": "0xc2b228cd433ebae788de287ede2abe55b3f3f603",
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x758e0ee66102816f5c3ec9ecc1188860fbb87812",
             "SystemConfigProxy": "0xd3d4c6b703978a5d24fecf3a70a51127667ff1a4",
-            "ProxyAdmin": "0x4c4710a4ec3f514a492cc6460818c4a6a6269dd6",
-            "SuperchainConfig": "0x95703e0982140d16f8eba6d158fccede42f04a4c",
-            "AnchorStateRegistryProxy": "0x14387438ee964e826a4eaeb95b2bce7754174dd1",
-            "DelayedWethProxy": "0x89c98736a806176fe85283c1cb727ffbdeaf37a9",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x87690676786cdc8cca75a472e483af7c8f2f0f57",
             "FaultDisputeGame": null,
-            "Mips": "0x16e83ce5ce29bf90ad9da06d2fe6a15d5f344ce4",
-            "PermissionedDisputeGame": "0xa0cfbe3402d6e0a74e96d3c360f74d5ea4fa6893",
-            "PreimageOracle": "0x9c065e11870b891d214bc2da7ef1f9ddfa1be277",
+            "Mips": null,
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -1525,7 +1575,8 @@
             "fjord_time": 0,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401
+            "isthmus_time": 1746806401,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -1553,36 +1604,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
-            "Guardian": "0x9ba6e03d8b90de867373db8cf1a58d2f7f006b3a",
-            "Challenger": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
-            "Proposer": "0x85c73d8f7a3c95667779e0d9b8104982a5c1d04e",
-            "UnsafeBlockSigner": "0x22c48998635c2d7ea8b82ab50761f2c1eeae5d21",
-            "BatchSubmitter": "0x060b915ca4904b56ada63565626b9c97f6cad212"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xd7bf8b8618c21f337d8ed30ac797fa330eb94411",
-            "L1CrossDomainMessengerProxy": "0x2a4fc0e3b365052d71b9853efd0123985559f62e",
-            "L1Erc721BridgeProxy": "0x45561f85e43ac0d2258c0f0c16540ce128ea1634",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xa5fb68c24b02852e8b514e98a1014faf12547fa5",
-            "L2OutputOracleProxy": "0xf8f3ebf2469c00a00ea9d1d04913b73896268b25",
-            "OptimismMintableErc20FactoryProxy": "0xeec78bcea0efbba6e1be7afc58c93b70f97d3a6a",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x936d881b4760d5e9b6d55b774f65c509236b4743",
             "SystemConfigProxy": "0x9c9b78f798f821c2f6398f603825fd175e2427f9",
-            "ProxyAdmin": "0x672b75103c0cbfdcc4a40737a80724f87a8a25d7",
-            "SuperchainConfig": "0x7439ccf2f0c7569a9b69c86fce0b58ec771cf1a6",
-            "AnchorStateRegistryProxy": "0xe184371e73a90f7676a3f518964b409c49af17b2",
-            "DelayedWethProxy": "0xface4dd95ff0ce212928c7b6d160b84d6df28bb2",
-            "DisputeGameFactoryProxy": "0x8af5b3ed56d4a822532a07a84c499d600ecd5cf5",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
+            "DisputeGameFactoryProxy": "0x0fd13c7f11d95070ce5cf31baf1acf9355bf4578",
             "FaultDisputeGame": null,
-            "Mips": "0x10c68ee05b4f9773b5d77b9eb7023dde3f8d7741",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0x133790bdae0acfd5288d8974318ce408678e2380",
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -1636,36 +1689,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
-            "Guardian": "0x9ba6e03d8b90de867373db8cf1a58d2f7f006b3a",
-            "Challenger": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
-            "Proposer": "0xb2354bdf5925d03ca06b03a7bd7386bd685ce814",
-            "UnsafeBlockSigner": "0x92dc533201e8634f0337d66a11820a8c4e902474",
-            "BatchSubmitter": "0xa9b074b27de97f492f8f07fd7c213400e4ca5391"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x0a1b34aa2047ad1abef8ac085b1a7802ed9dbcf0",
-            "L1CrossDomainMessengerProxy": "0x3a30aed8fa7717ac2d8454d82c125cf6b875061a",
-            "L1Erc721BridgeProxy": "0xa99f82730e68968a78aa21522fc7eb90db76d8cb",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x8b0576e39f1233679109f9b40cfcc2a7e0901ede",
-            "L2OutputOracleProxy": "0x693a0f8854f458d282de3c5b69e8ee5eee8aa949",
-            "OptimismMintableErc20FactoryProxy": "0x484529223d68a0cf85902bf5e781394f0d0f837c",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x2c2150aa5c75a24fb93d4fd2f2a895d618054f07",
             "SystemConfigProxy": "0x525a2744134805516a45b8abb6aa0aa1da3809f6",
-            "ProxyAdmin": "0xf3b7697c9c0cbde923f34991f2d19cc1c66612bd",
-            "SuperchainConfig": "0x118d04d841b54fc52e56d39371e278ef7815c358",
-            "AnchorStateRegistryProxy": "0xac1e4b08300c6c4705918089ee10b286b3ec24df",
-            "DelayedWethProxy": "0xec4dc88475a2887e73b2073b60425575fd693c0a",
-            "DisputeGameFactoryProxy": "0x8b097cf1f9bbd9cbfd0dd561858a1fcbc8857be0",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
+            "DisputeGameFactoryProxy": "0x657c1b0e31ffc69a02b207be20699bdff938c7e7",
             "FaultDisputeGame": null,
-            "Mips": "0x7f4f96cd3719f2829117c8c5e810e01dbd6846ba",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0xb18202e3e4dbf7abcea623a38526aad5a64dcd59",
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -1718,35 +1773,37 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x57669299e2a7d5be46ba817d8039c1350af830e8",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0xa4fb12d15eb85dc9284a7df0adbc8b696edbbf1d",
-            "Guardian": "0x09f7150d8c019bef34450d6920f6b3608cefdaf2",
-            "Challenger": "0xa4fb12d15eb85dc9284a7df0adbc8b696edbbf1d",
-            "Proposer": "0x1bc6df949b8edc8ee61adb99d578a7a6e6ff7310",
-            "UnsafeBlockSigner": "0xe7c264af5bdf997a78105a6e0ff32c126eda66d9",
-            "BatchSubmitter": "0xd0b4c3ac8a50b6f1b3949adaf55cc9805620eb57"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xc24c700bc65a3b15de13e489e155c81f621b1856",
-            "L1CrossDomainMessengerProxy": "0x9bda922e6f1bd53c24f9bcfb88b9638199a82ceb",
-            "L1Erc721BridgeProxy": "0xccfa1f8a93640488e3e1ae90a0edaf44680e9f82",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xfd4918e51d1e5aa2195c42654cf769b152c9d9c0",
             "L2OutputOracleProxy": null,
-            "OptimismMintableErc20FactoryProxy": "0x44e9388e88bb8ede446d62590d8a4c6d34813e98",
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xfc1d560eb01443e31b0eb56620703e80e42a7e4e",
             "SystemConfigProxy": "0x15c1daed5443a77b4dcf6fe35cafccebb0c6da0e",
-            "ProxyAdmin": "0xd35fef329bb6569baa373bda702f3dff59d57321",
-            "SuperchainConfig": "0x95703e0982140d16f8eba6d158fccede42f04a4c",
-            "AnchorStateRegistryProxy": "0xb5150595f1e2240b76f414dc96509f5125ba5dd0",
-            "DelayedWethProxy": "0xc206d300b07cb905cb1831d8a9172d4c66394638",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0xde9fda9c499ba1c0168ac083acf5bec5cc67fa76",
             "FaultDisputeGame": null,
             "Mips": null,
-            "PermissionedDisputeGame": "0xf9534ebc84082df9d35fb1ed8786bf8ce8a90294",
+            "PermissionedDisputeGame": null,
             "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
@@ -1797,29 +1854,31 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xbac1ad52745162c0aa3711fe88df1cc67034a3b9",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x5a669b2193718f189b0576c0cdcedfed6f40f9ea",
-            "Guardian": "0x2e7b9465b25c081c07274a31dbd05c6146f67961",
-            "Challenger": "0x2e7b9465b25c081c07274a31dbd05c6146f67961",
-            "Proposer": "0x88d58bfbcd70c25409b67117fc1cdfefda113a78",
-            "UnsafeBlockSigner": "0x9b5639d472d6764b70f5046ac0b13438718398e0",
-            "BatchSubmitter": "0x8cda8351236199af7532bad53d683ddd9b275d89"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x3d2bde87466cae97011702d2c305fd40eebbbf0a",
-            "L1CrossDomainMessengerProxy": "0xf54b2baef894cff5511a5722acaac0409f2f2d89",
-            "L1Erc721BridgeProxy": "0x0f33d824d74180598311b3025095727bea61f219",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x680969a6c58183987c8126ca4de6b59c6540cd2a",
-            "L2OutputOracleProxy": "0x8bf8442d49d52377d735a90f19657a29f29aa83c",
-            "OptimismMintableErc20FactoryProxy": "0x1d1c4c89ad5ff486c3c67e3dd84a22cf05420711",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x0485ca8a73682b3d3f5ae98cdca1e5b512e728e9",
             "SystemConfigProxy": "0xcf6a32db8b3313b3d439ce6909511c2c3415fa32",
-            "ProxyAdmin": "0x9b3c6d1d33f1fd82ebb8dfbe38da162b329de191",
-            "SuperchainConfig": "0xcb73b7348705a9f925643150eb00350719380ff8",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": null,
@@ -1881,37 +1940,39 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xc76c563185d01284adbc9cf5bb909162dd2f15e7",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0xc2259e7fb719411f97abdcdf449f6ba3b9d75398",
-            "Guardian": "0x0c883f622b4ccbf1e8ce86217998f87e6d36bce4",
-            "Challenger": "0x87bd2cff3b59d615b1eac7a7f809b5e5f0ee6752",
-            "Proposer": "0xf2987f0a626c8d29dfb2e0a21144ca3026d6f1e1",
-            "UnsafeBlockSigner": "0xa7a4d6d5920b93d0fe590f9524ef17f24ee1f5b8",
-            "BatchSubmitter": "0xf0748c52edc23135d9845cdfb91279cf61ee14b4"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x19b5804b88f10262a55ac731f28a3bbc4209853a",
-            "L1CrossDomainMessengerProxy": "0x3c01ebf22e9c111528c1e027d68944edab08dfc9",
-            "L1Erc721BridgeProxy": "0x4f4b716627d2ba0439327ce8b563b4443af47dbd",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x12a580c05466eefb2c467c6b115844cdaf55b255",
-            "L2OutputOracleProxy": "0xa669a743b065828682ee16109273f5cfef5e676d",
-            "OptimismMintableErc20FactoryProxy": "0x51a00470eb50d758ecff3b96db0bf4a8e86268f4",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x1d59bc9fce6b8e2b1bf86d4777289ffd83d24c99",
             "SystemConfigProxy": "0x5d1f4bbaf6d484fa9d5d9705f92de6063bff6055",
-            "ProxyAdmin": "0x7e54107731ec43e78da678dfa5fb6222ad036e03",
-            "SuperchainConfig": "0x1aec4c3be47c30d0befa7514cf9d99eac596959d",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
-            "DelayedWethProxy": "0x588dad44201885ff23068f1142e303d52d103919",
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0xbf4676f21a7889e0fd61bcdc9b98e60b01c1b36f",
             "FaultDisputeGame": null,
-            "Mips": "0x0048defca9f0da952cfd1ae9f8e962937d3e4143",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0x0747ef2570e3dbf65f0a12b371f19ca4a66a8dde",
-            "DataAvailabilityChallenge": "0x10e34efe14e4d270c0f77bf1af01b6c832161b49"
+            "PreimageOracle": null,
+            "DataAvailabilityChallenge": null
           }
         },
         {
@@ -1936,7 +1997,8 @@
             "fjord_time": 0,
             "granite_time": 0,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401
+            "isthmus_time": 1746806401,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 20,
@@ -1964,36 +2026,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xbea2bc852a160b8547273660e22f4f08c2fa9bbb",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x5a0aae59d09fccbddb6c6cceb07b7279367c3d2a",
-            "Guardian": "0x09f7150d8c019bef34450d6920f6b3608cefdaf2",
-            "Challenger": "0x9ba6e03d8b90de867373db8cf1a58d2f7f006b3a",
-            "Proposer": "0x5f16e66d8736b689a430564a31c8d887ca357cd8",
-            "UnsafeBlockSigner": "0xb774ca8438319d2a97b9925f4cd248e4c470ac5b",
-            "BatchSubmitter": "0x2b8733e8c60a928b19bb7db1d79b918e8e09ac8c"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x1cb5fb7da1444e2d895420442d246787b7afa95d",
-            "L1CrossDomainMessengerProxy": "0x0be364912219bc74760f1d1c25f4866b328ebfc6",
-            "L1Erc721BridgeProxy": "0xbc404ae11e4e9da3ea9276aa6dcca31097d4f4ee",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x564eb0cefcca86160649a8986c419693c82f3678",
             "L2OutputOracleProxy": null,
-            "OptimismMintableErc20FactoryProxy": "0xa33f75a3a2babd502cbc1a6f54345b529c1f306e",
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xb20f99b598e8d888d1887715439851bc68806b22",
             "SystemConfigProxy": "0x34a564bbd863c4bf73eca711cf38a77c4ccbdd6a",
-            "ProxyAdmin": "0xeefd1782d70824cbcacf9438afab7f353f1797f0",
-            "SuperchainConfig": "0x95703e0982140d16f8eba6d158fccede42f04a4c",
-            "AnchorStateRegistryProxy": "0x924911e2ccadb4638447ccd00b6cfb040cc08560",
-            "DelayedWethProxy": "0xaf1308930b721e763a6b21cf143e4e86e702f164",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x658656a14afdf9c507096ac406564497d13ec754",
             "FaultDisputeGame": null,
-            "Mips": "0x16e83ce5ce29bf90ad9da06d2fe6a15d5f344ce4",
-            "PermissionedDisputeGame": "0x227882e5972ebad990dcf04e2dbe2fc84094e146",
-            "PreimageOracle": "0x9c065e11870b891d214bc2da7ef1f9ddfa1be277",
+            "Mips": null,
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -2019,7 +2083,8 @@
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401
+            "isthmus_time": 1746806401,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -2047,32 +2112,34 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
-            "Guardian": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
-            "Challenger": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
-            "Proposer": "0x5da28f0186051a9f7b9ee2553ffdc165eb0a6714",
-            "UnsafeBlockSigner": "0x11e2785dcc88fbd03ea71df324cbbb0a529b88a2",
-            "BatchSubmitter": "0x67a44ce38627f46f20b1293960559ed85dd194f1"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x287bba8116f2fc5a642bfd6027ebf5ad6522655c",
-            "L1CrossDomainMessengerProxy": "0x36725a5e0040deb7c697d46c0e24390702b202e0",
-            "L1Erc721BridgeProxy": "0xd5890bbafafdce942597757385e55174569e8d1a",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x3be64bf2b9c2de637067c7aab6bae5edf9feba55",
-            "L2OutputOracleProxy": "0xe512d477cc89196af2ce837f6ab8ea30e199f757",
-            "OptimismMintableErc20FactoryProxy": "0x994233366c8e11da5c525ab903c04e7afb2915bd",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x034cbb620d1e0e4c2e29845229beac57083b04ec",
             "SystemConfigProxy": "0x58b51fb9feed00dd846f91d265eba3cdd855a413",
-            "ProxyAdmin": "0x3c68b1d45f4faa4f028c3dc8910fa3247c7f0a1f",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
-            "DisputeGameFactoryProxy": null,
+            "DisputeGameFactoryProxy": "0xe9394679d0f0676e4a2de99f8ed6b4acb16c5f0f",
             "FaultDisputeGame": null,
             "Mips": null,
             "PermissionedDisputeGame": null,
@@ -2102,7 +2169,8 @@
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401
+            "isthmus_time": 1746806401,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -2130,36 +2198,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x14536667cd30e52c0b458baaccb9fada7046e056",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x7bb41c3008b3f03fe483b28b8db90e19cf07595c",
-            "Guardian": "0x09f7150d8c019bef34450d6920f6b3608cefdaf2",
-            "Challenger": "0x6f8c5ba3f59ea3e76300e3becdc231d656017824",
-            "Proposer": "0x642229f238fb9de03374be34b0ed8d9de80752c5",
-            "UnsafeBlockSigner": "0xaf6e19be0f9ce7f8afd49a1824851023a8249e8a",
-            "BatchSubmitter": "0x5050f69a9786f081509234f1a7f4684b5e5b76c9"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x8efb6b5c4767b09dc9aa6af4eaa89f749522bae2",
-            "L1CrossDomainMessengerProxy": "0x866e82a600a1414e583f7f13623f1ac5d58b0afa",
-            "L1Erc721BridgeProxy": "0x608d94945a64503e642e6370ec598e519a2c1e53",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x3154cf16ccdb4c6d922629664174b904d80f2c35",
-            "L2OutputOracleProxy": "0x56315b90c40730925ec5485cf004d835058518a0",
-            "OptimismMintableErc20FactoryProxy": "0x05cc379ebd9b30bba19c6fa282ab29218ec61d84",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x49048044d57e1c92a77f79988d21fa8faf74e97e",
             "SystemConfigProxy": "0x73a79fab69143498ed3712e519a88a918e1f4072",
-            "ProxyAdmin": "0x0475cbcaebd9ce8afa5025828d5b98dfb67e059e",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
-            "AnchorStateRegistryProxy": "0x496286e5ee7758de84dd17e6d2d97afc2ace4cc7",
-            "DelayedWethProxy": "0x3e8a0b63f57e975c268d610ece93da5f78c01321",
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x43edb88c4b80fdd2adff2412a7bebf9df42cb40e",
-            "FaultDisputeGame": "0xe17d670043c3cdd705a3223b3d89a228a1f07f0f",
-            "Mips": "0xf027f4a985560fb13324e943edf55ad6f1d15dc1",
-            "PermissionedDisputeGame": "0xe749aa49c3edaf1dcb997ea3dac23dff72bcb826",
-            "PreimageOracle": "0x1fb8cdfc6831fc866ed9c51af8817da5c287add3",
+            "FaultDisputeGame": null,
+            "Mips": null,
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -2215,37 +2285,39 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xc0ce2761d5cc92d25db6ccd95e4b9483ed22d11b",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x89cb6669f87c165e7128f4a57476ee4daa7ffbcd",
-            "Guardian": "0x052a8cd5967bc3bdb5660c989a3a68bca683a077",
-            "Challenger": "0x9f8b2470ffecbca2ffda20b9e10f6a12f33bc2ce",
-            "Proposer": "0x7a7690bbab496537ac59b45b4c59d789233bca16",
-            "UnsafeBlockSigner": "0x843458b6de651e02dfd5bffea0e9cfb3eca293ef",
-            "BatchSubmitter": "0x73c98cf34af1f7d798e8e6f34b16037530bffc41"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x5a4ebf927338ea6af377caeee99c85088908f57d",
-            "L1CrossDomainMessengerProxy": "0x8f56a665c376a08b604dd32ee6e88667a6093172",
-            "L1Erc721BridgeProxy": "0x94519dd4ba8ba20aaad14f7c6cd00fa1bb0192e9",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xa2c1c1a473250094a6244f2bcf6cb51f670ad3ac",
-            "L2OutputOracleProxy": "0x1a9ae6486caec0504657351ac473b3df8a1367cb",
-            "OptimismMintableErc20FactoryProxy": "0x87e75dcc1bb4e5b42cb5c52eb5832d6ecc3bfef4",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x5c9c7f98ed153a2deaa981eb5c97b31744accf22",
             "SystemConfigProxy": "0xd39a6cccfa23cb741bb530497e42ec337f1215a8",
-            "ProxyAdmin": "0xd069c4724f9bc15fa53b3b2516594512aef8c957",
-            "SuperchainConfig": "0xd3b2ee457cf8f05f00c17bfe509b43ba04c9e5a2",
-            "AnchorStateRegistryProxy": "0x48eb5a81cc3a8955d0dabd6eed45ac09c7c1889f",
-            "DelayedWethProxy": "0x7992352f723d1209cdd9b786def1fbd8dc6511db",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x2dc9d2cb1ba0b8a46ae252ab4fbe1ad5c5c3b795",
             "FaultDisputeGame": null,
-            "Mips": "0x29564d1b96a1308e6930f88665576763ed4837e2",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0xd8f66efec53cea76c597827ba5bf3f68d29f2fa8",
-            "DataAvailabilityChallenge": "0xf40b807c2407e1d7dabb85f3ceefd5eacc7bf3cd"
+            "PreimageOracle": null,
+            "DataAvailabilityChallenge": null
           }
         },
         {
@@ -2270,7 +2342,8 @@
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401
+            "isthmus_time": 1746806401,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -2298,32 +2371,34 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x5a0aae59d09fccbddb6c6cceb07b7279367c3d2a",
-            "Guardian": "0x09f7150d8c019bef34450d6920f6b3608cefdaf2",
-            "Challenger": "0x309fe2536d01867018d120b40e4676723c53a14c",
-            "Proposer": "0x674f64d64ddc198db83cd9047df54bf89ccd0ddb",
-            "UnsafeBlockSigner": "0xa7fa9ca4ac88686a542c0f830d7378eab4a0278f",
-            "BatchSubmitter": "0x99199a22125034c808ff20f377d91187e8050f2e"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x50ef494573f28cad6b64c31b7a00cdaa48306e15",
-            "L1CrossDomainMessengerProxy": "0x95bdca6c8edeb69c98bd5bd17660bacef1298a6f",
-            "L1Erc721BridgeProxy": "0x2901da832a4d0297ff0691100a8e496626cc626d",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x735adbbe72226bd52e818e7181953f42e3b0ff21",
-            "L2OutputOracleProxy": "0x4317ba146d4933d889518a3e5e11fe7a53199b04",
-            "OptimismMintableErc20FactoryProxy": "0x69216395a62dfb243c05ef4f1c27af8655096a95",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x8b34b14c7c7123459cf3076b8cb929be097d0c07",
             "SystemConfigProxy": "0x5e6432f18bc5d497b1ab2288a025fbf9d69e2221",
-            "ProxyAdmin": "0x470d87b1dae09a454a43d1fd772a561a03276ab7",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
-            "DisputeGameFactoryProxy": null,
+            "DisputeGameFactoryProxy": "0x6f13efadabd9269d6cead22b448d434a1f1b433e",
             "FaultDisputeGame": null,
             "Mips": null,
             "PermissionedDisputeGame": null,
@@ -2351,7 +2426,9 @@
             "delta_time": 0,
             "ecotone_time": 0,
             "fjord_time": 0,
-            "granite_time": 0
+            "granite_time": 0,
+            "holocene_time": 1752073200,
+            "isthmus_time": 1752073200
           },
           "optimism": {
             "eip1559Elasticity": 5,
@@ -2379,36 +2456,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x4092a77baf58fef0309452ceacb09221e556e112",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x4092a77baf58fef0309452ceacb09221e556e112",
-            "Guardian": "0x6e226fa22e5f19363d231d3fa048aaba73cc1f47",
-            "Challenger": "0x6b145ebf66602ec524b196426b46631259689583",
-            "Proposer": "0x1204884e697efd929729b9a717ea14496298a689",
-            "UnsafeBlockSigner": "0xa6f1c6c24de8b112dd3867db907d187d490e6ddf",
-            "BatchSubmitter": "0x0cd08c7f7a96aa9635f761b49216b9ea74c5ca60"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x55093104b76faa602f9d6c35a5fff576be78d753",
-            "L1CrossDomainMessengerProxy": "0x1ac1181fc4e4f877963680587aeaa2c90d7ebb95",
-            "L1Erc721BridgeProxy": "0x3c519816c5bdc0a0199147594f83fed4f5847f13",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x9c4955b92f34148dbcfdcd82e9c9ece5cf2badfe",
-            "L2OutputOracleProxy": "0x7617b249aeb1f06c90bdf9c4f6c903c09a6a4220",
-            "OptimismMintableErc20FactoryProxy": "0x6f0e4f1eb98a52efacf7be11d48b9d9d6510a906",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xc5c5d157928bdbd2acf6d0777626b6c75a9eaedc",
             "SystemConfigProxy": "0x89e31965d844a309231b1f17759ccaf1b7c09861",
-            "ProxyAdmin": "0x783a434532ee94667979213af1711505e8bfe374",
-            "SuperchainConfig": "0x95703e0982140d16f8eba6d158fccede42f04a4c",
-            "AnchorStateRegistryProxy": "0xa24bf5bc02997f63da4e2c7f802067e05a102504",
-            "DelayedWethProxy": "0xa316d42e8fd98d2ec364b8bf853d2623e768f95a",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0xfbac162162f4009bb007c6debc36b1dac10af683",
             "FaultDisputeGame": null,
-            "Mips": "0x8a12e1754f729c0856e2e32d4821577f0b245bfa",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0xfab0f466955d87e596ca87e20c505bb6470d0dc4",
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -2434,7 +2513,8 @@
             "fjord_time": 0,
             "granite_time": 0,
             "holocene_time": 1742396400,
-            "isthmus_time": 1746806401
+            "isthmus_time": 1746806401,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -2462,36 +2542,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xbea2bc852a160b8547273660e22f4f08c2fa9bbb",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x5a0aae59d09fccbddb6c6cceb07b7279367c3d2a",
-            "Guardian": "0x09f7150d8c019bef34450d6920f6b3608cefdaf2",
-            "Challenger": "0x9ba6e03d8b90de867373db8cf1a58d2f7f006b3a",
-            "Proposer": "0x65436ddcbc026f34118954f229f7f132b696b3b4",
-            "UnsafeBlockSigner": "0x7d056b99aa2021864c42e25b4f8ce3bdeac9463c",
-            "BatchSubmitter": "0x500d7ea63cf2e501dadaa5feec1fc19fe2aa72ac"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x9b7c9bbd6d540a8a4dedd935819fc4408ba71153",
-            "L1CrossDomainMessengerProxy": "0x69d3cf86b2bf1a9e99875b7e2d9b6a84426c171f",
-            "L1Erc721BridgeProxy": "0x661235a238b11191211fa95d4dd9e423d521e0be",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x88ff1e5b602916615391f55854588efcbb7663f0",
             "L2OutputOracleProxy": null,
-            "OptimismMintableErc20FactoryProxy": "0xa8b389a82e088b164cd03230e900980cced34d29",
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x5d66c1782664115999c47c9fa5cd031f495d3e4f",
             "SystemConfigProxy": "0x62c0a111929fa32cec2f76adba54c16afb6e8364",
-            "ProxyAdmin": "0xd56045e68956fce2576e680c95a4750cf8241f79",
-            "SuperchainConfig": "0x95703e0982140d16f8eba6d158fccede42f04a4c",
-            "AnchorStateRegistryProxy": "0x2fc99fd16d8d3f6f66d164aa84e244c567e58a3d",
-            "DelayedWethProxy": "0xc4986627a41cdcf6fa33543d96f00f475bce42f5",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x10d7b35078d3baabb96dd45a9143b94be65b12cd",
-            "FaultDisputeGame": "0x499e30a3b1bdb03f554ffffae4c9c5edf31ca554",
-            "Mips": "0xf027f4a985560fb13324e943edf55ad6f1d15dc1",
-            "PermissionedDisputeGame": "0x436bac2efe273e3f13eefeda2b3689c34591bca1",
-            "PreimageOracle": "0x1fb8cdfc6831fc866ed9c51af8817da5c287add3",
+            "FaultDisputeGame": null,
+            "Mips": null,
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -2517,7 +2599,8 @@
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401
+            "isthmus_time": 1746806401,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -2545,32 +2628,34 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xc91482a96e9c2a104d9298d1980eccf8c4dc764e",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0xc91482a96e9c2a104d9298d1980eccf8c4dc764e",
-            "Guardian": "0xc91482a96e9c2a104d9298d1980eccf8c4dc764e",
-            "Challenger": "0xc91482a96e9c2a104d9298d1980eccf8c4dc764e",
-            "Proposer": "0x7cb1022d30b9860c36b243e7b181a1d46f618c69",
-            "UnsafeBlockSigner": "0xb18ad28cb78fd2eafac6941c24c5135515b796f0",
-            "BatchSubmitter": "0x08f9f14ff43e112b18c96f0986f28cb1878f1d11"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xf2dc77c697e892542cc53336178a78bb313dfdc7",
-            "L1CrossDomainMessengerProxy": "0xe3d981643b806fb8030cdb677d6e60892e547eda",
-            "L1Erc721BridgeProxy": "0x5ff93263d5181b2a826f8c51d54bc0da2d20d50a",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x3f6ce1b36e5120bbc59d0cfe8a5ac8b6464ac1f7",
-            "L2OutputOracleProxy": "0xdda53e23f8a32640b04d7256e651c1db98db11c1",
-            "OptimismMintableErc20FactoryProxy": "0x5557408ab14013ce9dbb300de0d87d386bb09cb6",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x8adee124447435fe03e3cd24df3f4cae32e65a3e",
             "SystemConfigProxy": "0xacb886b75d76d1c8d9248cfddfa09b70c71c5393",
-            "ProxyAdmin": "0x0d9f416260598313be6fdf6b010f2fbc34957cd0",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
-            "DisputeGameFactoryProxy": null,
+            "DisputeGameFactoryProxy": "0x96123dbfc3253185b594c6a7472ee5a21e9b1079",
             "FaultDisputeGame": null,
             "Mips": null,
             "PermissionedDisputeGame": null,
@@ -2630,37 +2715,128 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x49ec5bd8c9cc35ce26b87e534d2e36980621ddd2",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x03ec1c43434e2f910a2fb984906cd2470fdb39c8",
-            "Guardian": "0xa5822fb7e3fb516e518e2629e6786e93858e41f4",
-            "Challenger": "0x34faa77b4d1686e399c96def0de31d30572eaa9f",
-            "Proposer": "0x8c6f6580c846634c5da08c40ae308de23006a679",
-            "UnsafeBlockSigner": "0xa940a669dae672111fd02df597cf7de7cf758fad",
-            "BatchSubmitter": "0x5bef09f138921ef7985d83aab97da1db6e4dd190"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xf1c911e0c1e6dd08c8a7c80c9890e2037e0504c6",
-            "L1CrossDomainMessengerProxy": "0x825c858149f1e775a0f4aeb172037b970be7b736",
-            "L1Erc721BridgeProxy": "0x00bd00c5c7f60e222d9cb8040270ba929241a280",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xe639919b92ab6dd238aeacc6f2a8d6e355d17bd5",
-            "L2OutputOracleProxy": "0xdbf381984c4515fe3285d3c55fdfb3054c52c261",
-            "OptimismMintableErc20FactoryProxy": "0xa74b7baf04867e62b7824268e96144e503a23666",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xd52ba64cbe1e3b44167f810622fbef36be24d95c",
             "SystemConfigProxy": "0x72934d7aedc1a2d889ca89aaf064cd9455e64d00",
-            "ProxyAdmin": "0x7617f4a55d62b9ee49578d9c90593e58e607415f",
-            "SuperchainConfig": "0xdf87154ed6cf332931b70014ba3d9df423074fff",
-            "AnchorStateRegistryProxy": "0x4daa22ec75406e8ea2c70610115850912a770a3a",
-            "DelayedWethProxy": "0xd015f61f3cb26560507d758a726c77d18bf849bb",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0xb52337f38747d6931f2976eea24a3f3f6b7cdea2",
             "FaultDisputeGame": null,
-            "Mips": "0x2b0293a059a2715935fa9459c9f3a4dce2bc6331",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0x4a7bd533be022e7a2911c3c61e7e11e7a32ee77d",
-            "DataAvailabilityChallenge": "0x08c5dcdd5e46d31cc1591ee15b084663507597f3"
+            "PreimageOracle": null,
+            "DataAvailabilityChallenge": null
+          }
+        },
+        {
+          "Name": "Silent Data Mainnet",
+          "PublicRPC": "https://mainnet.silentdata.com/${SILENTDATA_AUTH_TOKEN}",
+          "SequencerRPC": "",
+          "Explorer": "https://explorer-mainnet.rollup.silentdata.com",
+          "SuperchainLevel": 0,
+          "GovernedByOptimism": false,
+          "SuperchainTime": null,
+          "DataAvailabilityType": "alt-da",
+          "l2_chain_id": 380929,
+          "batch_inbox_address": "0x00a7a8fdb9a61f85dd8f926f4e1723927a18c9f3",
+          "block_time": 2,
+          "seq_window_size": 3600,
+          "max_sequencer_drift": 600,
+          "GasPayingToken": null,
+          "hardfork_configuration": {
+            "canyon_time": 0,
+            "delta_time": 0,
+            "ecotone_time": 0,
+            "fjord_time": 0,
+            "granite_time": 0,
+            "holocene_time": 0
+          },
+          "optimism": {
+            "eip1559Elasticity": 6,
+            "eip1559Denominator": 50,
+            "eip1559DenominatorCanyon": 250
+          },
+          "alt_da": {
+            "da_challenge_address": "0xef8dfcf9a3915f0dd8194e398ec2ca0168690613",
+            "da_challenge_window": 16,
+            "da_resolve_window": 16,
+            "da_commitment_type": "KeccakCommitment"
+          },
+          "genesis": {
+            "l1": {
+              "number": 22995849,
+              "hash": "0x733567d023d25b9005fb1bc6c6027e6b3e97890db987c90219d9eaf01e9d3f49"
+            },
+            "l2": {
+              "number": 0,
+              "hash": "0xc46d5d70c0b72228124c217822261df39071bd2059f710bda0ef17551b2a05c3"
+            },
+            "l2_time": 1753442723,
+            "system_config": {
+              "batcherAddr": "0xca4c95a5a1660d14df8ec6c53537964f9c5367c7",
+              "overhead": "0x0000000000000000000000000000000000000000000000000000000000000000",
+              "scalar": "0x010000000000000000000000000000000000000000000000000c5fc500000558",
+              "gasLimit": 60000000,
+              "baseFeeScalar": null,
+              "blobBaseFeeScalar": null,
+              "eip1559Denominator": null,
+              "eip1559Elasticity": null,
+              "operatorFeeScalar": null,
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
+            }
+          },
+          "Roles": {
+            "SystemConfigOwner": "0xe534107c6071f29c4bfac3a0d1af6be53212740c",
+            "ProxyAdminOwner": "0xe512f69d8aeed75c737190f4db84687fba7c5e88",
+            "Guardian": "0x90f72cb63e608dd6c63793b7d90804963b478ccd",
+            "Challenger": "0xd04464568a8a8a5da8c9218714e6d9f4bd40df65",
+            "Proposer": "0x3e3f6b6010237678723a33ae227d167b55888c20",
+            "UnsafeBlockSigner": "0x018badc3c0026689d9f77f6a9cf6d31d954208bf",
+            "BatchSubmitter": "0xca4c95a5a1660d14df8ec6c53537964f9c5367c7"
+          },
+          "Addresses": {
+            "AddressManager": "0xdd05146d14613bdc6a6cad371d15f1ae4269480e",
+            "L1CrossDomainMessengerProxy": "0x3131b01df2f9ef6f42113090edead5c97612c473",
+            "L1Erc721BridgeProxy": "0x74a3065e6a4ffaa07dac542e28452995f3c32eea",
+            "L1StandardBridgeProxy": "0xe97d73b0079e04f4ea4162b9173604a6213ef158",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": "0x00e3001f111ba89f20a8336bb986a78d8f734e7e",
+            "OptimismPortalProxy": "0xccd285b1ccf1cdab36da995b9fc68870e287694e",
+            "SystemConfigProxy": "0x5c3efe3ca554816e9960c02ae3b4eb3a9a8d2e16",
+            "ProxyAdmin": "0xd8eab3ed39df0afb9bfd853f49637f7e73963966",
+            "SuperchainConfig": "0x50f08e501f8a9d124eab4990b057fdefe3f6ae3e",
+            "AnchorStateRegistryProxy": "0x1ffff41f5e6384d6737d27b1f471e69212150e55",
+            "DelayedWethProxy": "0x2ddf646eaaac38aea031268a07de4e9ff1d967bd",
+            "DisputeGameFactoryProxy": "0x139cf05b34d0ec49d3bfb9704ec4ceba6ae95dd1",
+            "FaultDisputeGame": null,
+            "Mips": null,
+            "PermissionedDisputeGame": "0x1b99b322085da031e68c1202fdb756b3ffbac7a6",
+            "PreimageOracle": null,
+            "DataAvailabilityChallenge": null
           }
         },
         {
@@ -2714,37 +2890,39 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xcf06c459ae59d4f47469bce535afc3485ce89dbf",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0xff75bd7672b79f2562faf98d488bbb3db1cd1574",
-            "Guardian": "0xdf3700a9cf9c7506ca3b41e6ba991476677a8787",
-            "Challenger": "0xfa8d42bde52c2b8b05fe5eecbadea6cb698a0bc5",
-            "Proposer": "0x7d2f9b38866141bf090dd670a826f27ea2408ad4",
-            "UnsafeBlockSigner": "0xcbdd38ce74ba96f0ae3d2e608da96ec744c80a7e",
-            "BatchSubmitter": "0x7d6251d49a102a330cfb46d132982781620700cb"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xbdf852e2cc26ea3c2dee7b493b1fc12da406175a",
-            "L1CrossDomainMessengerProxy": "0x702df90e92a6841c9013fae6d724ddfa8f141d5c",
-            "L1Erc721BridgeProxy": "0x28d56c3bbbe4807c19cc81e6d5207fb681c3726b",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x2ad84abd52050956acc9c490d024b821a59e3fb6",
-            "L2OutputOracleProxy": "0x5a0492d20d984ee904e46e6ff24572bc755abb28",
-            "OptimismMintableErc20FactoryProxy": "0x515a0c8b1d9574c65ea1924ecd767b1d9b6ac32f",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xbc2beda4ce7a1f40aa458322a33b44081b2f545a",
             "SystemConfigProxy": "0x6e99cde188daafeecb6ed8ac28b98de4c8ee5d6c",
-            "ProxyAdmin": "0x9e48d6bbca781c23392ec459bfb3657c40a794a8",
-            "SuperchainConfig": "0xcbf423525a5471fc5037a5397f99f6f09fe41379",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
-            "DelayedWethProxy": "0x0ece16401a80551345bb672f177f51a8755ff775",
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x443164f044d8840479234e00e7ad5bb06b85fc78",
             "FaultDisputeGame": null,
-            "Mips": "0x253ddbb3549e0cefaaaa7f71be502c5b94771ddc",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0x089a4754538b74ff63bc6abead7a95973ab03572",
-            "DataAvailabilityChallenge": "0x16193e14197c10109f3e81b938153a04a2a00190"
+            "PreimageOracle": null,
+            "DataAvailabilityChallenge": null
           }
         },
         {
@@ -2769,7 +2947,8 @@
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401
+            "isthmus_time": 1746806401,
+            "jovian_time": 1764086401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -2797,32 +2976,225 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xc72ae5c7cc9a332699305e29f68be66c73b60542",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x5a0aae59d09fccbddb6c6cceb07b7279367c3d2a",
-            "Guardian": "0x09f7150d8c019bef34450d6920f6b3608cefdaf2",
-            "Challenger": "0xca4571b1ecbec86ea2e660d242c1c29fcb55dc72",
-            "Proposer": "0x48247032092e7b0ecf5def611ad89eaf3fc888dd",
-            "UnsafeBlockSigner": "0x3dc8dfd0709c835cad15a6a27e089ff4cf4c9228",
-            "BatchSubmitter": "0x625726c858dbf78c0125436c943bf4b4be9d9033"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xef8115f2733fb2033a7c756402fc1deaa56550ef",
-            "L1CrossDomainMessengerProxy": "0xdc40a14d9abd6f410226f1e6de71ae03441ca506",
-            "L1Erc721BridgeProxy": "0x83a4521a3573ca87f3a971b169c5a0e1d34481c3",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x3e2ea9b92b7e48a52296fd261dc26fd995284631",
-            "L2OutputOracleProxy": "0x9e6204f750cd866b299594e2ac9ea824e2e5f95c",
-            "OptimismMintableErc20FactoryProxy": "0xc52bc7344e24e39df1bf026fe05c4e6e23cfbcff",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x1a0ad011913a150f69f6a19df447a0cfd9551054",
             "SystemConfigProxy": "0xa3cab0126d5f504b071b81a3e8a2bbbf17930d86",
-            "ProxyAdmin": "0xd4ef175b9e72caee9f1fe7660a6ec19009903b49",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
-            "DisputeGameFactoryProxy": null,
+            "DisputeGameFactoryProxy": "0xb0f15106fa1e473ddb39790f197275bc979aa37e",
+            "FaultDisputeGame": null,
+            "Mips": null,
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": null,
+            "DataAvailabilityChallenge": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "rehearsal-0-bn",
+      "config": {
+        "name": "rehearsal-0-bn",
+        "l1": {
+          "chain_id": 11155111,
+          "public_rpc": "https://ci-sepolia-l1-archive.optimism.io",
+          "explorer": ""
+        },
+        "hardforks": {
+          "interop_time": 1749150000
+        },
+        "protocol_versions_addr": "0x72b9c5a159b0dee8331a268791aa432619693c06",
+        "superchain_config_addr": "0x672f11f34b7be67c13a6fcba819c339bc3b0a585",
+        "op_contracts_manager_proxy_addr": null
+      },
+      "chains": [
+        {
+          "Name": "rehearsal-0-bn-0",
+          "PublicRPC": "",
+          "SequencerRPC": "",
+          "Explorer": "",
+          "SuperchainLevel": 0,
+          "GovernedByOptimism": false,
+          "SuperchainTime": 0,
+          "DataAvailabilityType": "eth-da",
+          "l2_chain_id": 420120009,
+          "batch_inbox_address": "0x00aa742d2eef0b65eb1dc7633cbaf8ef24a945b3",
+          "block_time": 2,
+          "seq_window_size": 3600,
+          "max_sequencer_drift": 600,
+          "GasPayingToken": null,
+          "hardfork_configuration": {
+            "canyon_time": 0,
+            "delta_time": 0,
+            "ecotone_time": 0,
+            "fjord_time": 0,
+            "granite_time": 0,
+            "holocene_time": 0,
+            "isthmus_time": 0,
+            "interop_time": 1749150000
+          },
+          "optimism": {
+            "eip1559Elasticity": 6,
+            "eip1559Denominator": 50,
+            "eip1559DenominatorCanyon": 250
+          },
+          "alt_da": null,
+          "genesis": {
+            "l1": {
+              "number": 8470494,
+              "hash": "0x9011befaa62e1a920aa3d14e9165107d522b709049c475843725f712bbf693f1"
+            },
+            "l2": {
+              "number": 0,
+              "hash": "0x1055187f2eb4e8be192ee7e65756efa290267543bad721d3d8a6135addbe75a0"
+            },
+            "l2_time": 1748984964,
+            "system_config": {
+              "batcherAddr": "0xd059234409a70327b48c03f7bbd5317a758e315b",
+              "overhead": "0x0000000000000000000000000000000000000000000000000000000000000000",
+              "scalar": "0x010000000000000000000000000000000000000000000000000c5fc500000558",
+              "gasLimit": 60000000,
+              "baseFeeScalar": null,
+              "blobBaseFeeScalar": null,
+              "eip1559Denominator": null,
+              "eip1559Elasticity": null,
+              "operatorFeeScalar": null,
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
+            }
+          },
+          "Roles": {
+            "SystemConfigOwner": null,
+            "ProxyAdminOwner": "0x26df14a0c889de2448d228ee23b2530550b5b774",
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
+          },
+          "Addresses": {
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
+            "L1StandardBridgeProxy": "0x1b0bf2aea5acdf3c7e0efede9389411333aaf9f9",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
+            "OptimismPortalProxy": "0xf26c2e762c0447443b951a74dfa5bf380bcb8361",
+            "SystemConfigProxy": "0xc5d517463c38567a644f2fccefc0e534cc991a57",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
+            "DisputeGameFactoryProxy": "0x1a1e1649eb6b8f09896498b6cfd73eee6462447c",
+            "FaultDisputeGame": null,
+            "Mips": null,
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": null,
+            "DataAvailabilityChallenge": null
+          }
+        },
+        {
+          "Name": "rehearsal-0-bn-1",
+          "PublicRPC": "",
+          "SequencerRPC": "",
+          "Explorer": "",
+          "SuperchainLevel": 0,
+          "GovernedByOptimism": false,
+          "SuperchainTime": 0,
+          "DataAvailabilityType": "eth-da",
+          "l2_chain_id": 420120010,
+          "batch_inbox_address": "0x00f4fb5369315803b9104640815bc29ff6381cf1",
+          "block_time": 1,
+          "seq_window_size": 3600,
+          "max_sequencer_drift": 600,
+          "GasPayingToken": null,
+          "hardfork_configuration": {
+            "canyon_time": 0,
+            "delta_time": 0,
+            "ecotone_time": 0,
+            "fjord_time": 0,
+            "granite_time": 0,
+            "holocene_time": 0,
+            "isthmus_time": 0,
+            "interop_time": 1749150000
+          },
+          "optimism": {
+            "eip1559Elasticity": 6,
+            "eip1559Denominator": 50,
+            "eip1559DenominatorCanyon": 250
+          },
+          "alt_da": null,
+          "genesis": {
+            "l1": {
+              "number": 8470494,
+              "hash": "0x9011befaa62e1a920aa3d14e9165107d522b709049c475843725f712bbf693f1"
+            },
+            "l2": {
+              "number": 0,
+              "hash": "0xc9f60cb23f0e558123d0479675e47ce182c6fe806af66a002aeba5e54ec56cc4"
+            },
+            "l2_time": 1748984964,
+            "system_config": {
+              "batcherAddr": "0xee9b6e81798f4873f80d6cce708ce1bb254fafd6",
+              "overhead": "0x0000000000000000000000000000000000000000000000000000000000000000",
+              "scalar": "0x010000000000000000000000000000000000000000000000000c5fc500000558",
+              "gasLimit": 60000000,
+              "baseFeeScalar": null,
+              "blobBaseFeeScalar": null,
+              "eip1559Denominator": null,
+              "eip1559Elasticity": null,
+              "operatorFeeScalar": null,
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
+            }
+          },
+          "Roles": {
+            "SystemConfigOwner": null,
+            "ProxyAdminOwner": "0x26df14a0c889de2448d228ee23b2530550b5b774",
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
+          },
+          "Addresses": {
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
+            "L1StandardBridgeProxy": "0xa2221fde8c41b4b0802f5ef991cbf4feb75e8081",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
+            "OptimismPortalProxy": "0x1fd346d7e2394fbcc31501cbe88df89d6ddb0a0e",
+            "SystemConfigProxy": "0x08712404111e4b5b4504e67bef33205608791ef7",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
+            "DisputeGameFactoryProxy": "0x1a1e1649eb6b8f09896498b6cfd73eee6462447c",
             "FaultDisputeGame": null,
             "Mips": null,
             "PermissionedDisputeGame": null,
@@ -2839,7 +3211,7 @@
         "l1": {
           "chain_id": 11155111,
           "public_rpc": "https://ethereum-sepolia-rpc.publicnode.com",
-          "explorer": "https://sepolia.etherscan.io"
+          "explorer": "https://eth-sepolia.blockscout.com"
         },
         "hardforks": {
           "canyon_time": 1699981200,
@@ -2849,7 +3221,8 @@
           "granite_time": 1723478400,
           "holocene_time": 1732633200,
           "pectra_blob_schedule_time": 1742486400,
-          "isthmus_time": 1744905600
+          "isthmus_time": 1744905600,
+          "jovian_time": 1762963201
         },
         "protocol_versions_addr": "0x79add5713b383daa0a138d3c4780c7a1804a8090",
         "superchain_config_addr": "0xc2be75506d5724086deb7245bd260cc9753911be",
@@ -2879,7 +3252,8 @@
             "granite_time": 1723478400,
             "holocene_time": 1732633200,
             "pectra_blob_schedule_time": 1742486400,
-            "isthmus_time": 1744905600
+            "isthmus_time": 1744905600,
+            "jovian_time": 1762963201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -2907,36 +3281,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x097955a7aa7966d55d781688aa1493493ab513af",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x5a19d3afd327bd01d390eb52c11c2a9a79bcfb32",
-            "Guardian": "0x097955a7aa7966d55d781688aa1493493ab513af",
-            "Challenger": "0x097955a7aa7966d55d781688aa1493493ab513af",
-            "Proposer": "0xbf1374d8c2e98074368326786343f1ade19d5ccd",
-            "UnsafeBlockSigner": "0xdb0c6821a033eb9dc152bb008f42ebad0eaddca3",
-            "BatchSubmitter": "0x973a9e30d6d11355a459a69e7cbfba61c7627736"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x2d34a143d7bead8f75479c841e3aabf6c4afdec8",
-            "L1CrossDomainMessengerProxy": "0x1c8b6a6f3e3612c79e62460a6e44c24d1eff2fda",
-            "L1Erc721BridgeProxy": "0xbf0d43e12ef74dc21917e1d6175702ad673e1283",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xfd1a12b7a04b13c031d8b075ba5b9080a2cf246f",
-            "L2OutputOracleProxy": "0x11118536f94bc7c98bbaf9194be13fc1987293cd",
-            "OptimismMintableErc20FactoryProxy": "0x0d085b528e1f9f48018b46f9ac3696f16b7007f9",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x1f24d471ef7291c7f97dbd2f76299b30d3e3b6e3",
             "SystemConfigProxy": "0x7c957fec1f6b3d1024442e989cb08b8f2285686c",
-            "ProxyAdmin": "0x7ea23a9df2e3e491757a9ff6c32083a44be560e6",
-            "SuperchainConfig": "0x62e4d37ab459a65298dbedf17d35bf0f958a97bd",
-            "AnchorStateRegistryProxy": "0xb065b32927c3114c0e0df16d3887f4fd12ef7117",
-            "DelayedWethProxy": "0x21676d682f11f3e46cce1797b19205dda78f0f6c",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x64d0bce6ed7c16cac7817f3597758e31afacd01b",
             "FaultDisputeGame": null,
-            "Mips": "0xfed5edd40bfbefc99432bbb4f2cecd450c4c8675",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0x4abd4d6d11c5d7ce392b2b0544e37314710f53c2",
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -2988,36 +3364,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xd7e60cd8fbea5142a207042c477e1359df5fa688",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x5a11a7a6ca68819c601a4136bfbdfba26d5f043e",
-            "Guardian": "0xd7e60cd8fbea5142a207042c477e1359df5fa688",
-            "Challenger": "0xd7e60cd8fbea5142a207042c477e1359df5fa688",
-            "Proposer": "0x6087ec0371c2950d018ec97d8a1573d412dfbdbe",
-            "UnsafeBlockSigner": "0x0f68fc933d50f719abfbd680f56c22277e2f307c",
-            "BatchSubmitter": "0x9cf89f8cb7cc94c579426f967d9517cd2e9adf29"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xd1d82d6fc94962fe25912c181375352d4a10c6f0",
-            "L1CrossDomainMessengerProxy": "0x33dc556a5df0b8998dc2640c78e531ae1db7925d",
-            "L1Erc721BridgeProxy": "0x7c95eebea6f68875b4093d9c2211fd26067a808f",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x3b78c3b41b3e3fc6bdf0bd3060c9e2471401c098",
-            "L2OutputOracleProxy": "0xf3699f96cbdd3868b64352669805d96d1fb6431d",
-            "OptimismMintableErc20FactoryProxy": "0xd47e937d602ffba8597b4f042c7a49e1149392fc",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xfbed910ca54f013bfea67bd4dc836263bdd0b46c",
             "SystemConfigProxy": "0x1a6d0312faaaca2bf818660f164450176c6205c9",
-            "ProxyAdmin": "0xf42cff60b92a151911d99f3ed36ba1266511fd43",
-            "SuperchainConfig": "0x981a2d45d870bd5e6b011907650fe86b89dcabc3",
-            "AnchorStateRegistryProxy": "0xb86ec23019c6c3f2fbc38502d26b7009d2a300be",
-            "DelayedWethProxy": "0x017e8a21e37ae4bfc482170656b1ebf8390bf880",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x096b38bdc80b5bf5b5fb4e1a75ae38bda520474a",
             "FaultDisputeGame": null,
-            "Mips": "0xb51ffe0a519291cbc0080a4f497a2bb4ac0a1c04",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0x029e58272e3b5f7b69aa4455473fcc8c8b8deac3",
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -3070,35 +3448,37 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x4a0b7f6a778e3e91dbba791b7e43400a08735506",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x4a0b7f6a778e3e91dbba791b7e43400a08735506",
-            "Guardian": "0x7a50f00e8d05b95f98fe38d8bee366a7324dcf7e",
-            "Challenger": "0x8315a4510de584a718c6c07d848a1e9924d9bd17",
-            "Proposer": "0x437557dec3ff6d62b512785d36a5028bcd6f6c5d",
-            "UnsafeBlockSigner": "0x4a0b7f6a778e3e91dbba791b7e43400a08735506",
-            "BatchSubmitter": "0xe58318a4bf1a27ab2f3dd0433e27d81c8caaf04f"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xc96024f510c6eace9b30fef54905cdb2d8569ae3",
-            "L1CrossDomainMessengerProxy": "0x00faa26c5e3483a78d2ca28edc5275b9a42ac8c2",
-            "L1Erc721BridgeProxy": "0x3099397312b675f629e2c2d85a0744fcaf7bf325",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xd5983849e1ebfdb97e66736962dbf9db4d2bdc08",
             "L2OutputOracleProxy": null,
-            "OptimismMintableErc20FactoryProxy": "0x9e34fe74b5aeff3dfc4b64edb1c68ceb2f2ff2e9",
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x86897210aad2861aa603937762ac7c1e6dfa9727",
             "SystemConfigProxy": "0x59b71c0a919bc1e8dae5488a562215494f1257fe",
-            "ProxyAdmin": "0xc27b9be503ed9c016f2aa6710c6a7118377b8c56",
-            "SuperchainConfig": "0xc2be75506d5724086deb7245bd260cc9753911be",
-            "AnchorStateRegistryProxy": "0x5ce63469783b79f712108024fdb6f0646429014a",
-            "DelayedWethProxy": "0x5165fa2af84e94fcfaf0eb6ec3f60b1c3e5357ea",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x6d6ef1d3a2ecc7511a0881f460422b461ca7128a",
             "FaultDisputeGame": null,
             "Mips": null,
-            "PermissionedDisputeGame": "0xfb28994551297f67a8a0a34e0306a038760b2838",
+            "PermissionedDisputeGame": null,
             "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
@@ -3126,7 +3506,8 @@
             "granite_time": 1723478400,
             "holocene_time": 1732633200,
             "pectra_blob_schedule_time": 1742486400,
-            "isthmus_time": 1744905600
+            "isthmus_time": 1744905600,
+            "jovian_time": 1762963201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -3154,32 +3535,34 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x23ba22dd7923f3a3f2495bb32a6f3c9b9cd1ec6c",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x1eb2ffc903729a0f03966b917003800b145f56e2",
-            "Guardian": "0x7a50f00e8d05b95f98fe38d8bee366a7324dcf7e",
-            "Challenger": "0x45effbd799ab49122eeeab75b78d9c56a187f9a7",
-            "Proposer": "0xe9e08a478e3a773c1b5d59014a0fdb901e6d1d69",
-            "UnsafeBlockSigner": "0x93a14e6894eeb4ff6a373e1ad4f498c3a207afe4",
-            "BatchSubmitter": "0x4e6bd53883107b063c502ddd49f9600dc51b3ddc"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x83d45725d6562d8cd717673d6bb4c67c07dc1905",
-            "L1CrossDomainMessengerProxy": "0xc19a60d9e8c27b9a43527c3283b4dd8edc8be15c",
-            "L1Erc721BridgeProxy": "0x015a8c2e0a5fed579dbb05fd290e413adc6fc24a",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xbc5c679879b2965296756cd959c3c739769995e2",
-            "L2OutputOracleProxy": "0x2634bd65ba27ab63811c74a63118acb312701bfa",
-            "OptimismMintableErc20FactoryProxy": "0x00f7ab8c72d32f55cff15e8901c2f9f2bf29a3c0",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x320e1580efff37e008f1c92700d1eba47c1b23fd",
             "SystemConfigProxy": "0x15cd4f6e0ce3b4832b33cb9c6f6fe6fc246754c2",
-            "ProxyAdmin": "0xe7413127f29e050df65ac3fc9335f85bb10091ae",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
-            "DisputeGameFactoryProxy": null,
+            "DisputeGameFactoryProxy": "0x7bb634b42373a87712da14064ded13db8b8b14f4",
             "FaultDisputeGame": null,
             "Mips": null,
             "PermissionedDisputeGame": null,
@@ -3210,7 +3593,8 @@
             "granite_time": 0,
             "holocene_time": 1734559200,
             "pectra_blob_schedule_time": 1742486400,
-            "isthmus_time": 1744905600
+            "isthmus_time": 1744905600,
+            "jovian_time": 1762963201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -3238,36 +3622,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xb6185370e3db2472ec7ec4a2826954d2d4923b9f",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0xd363339ee47775888df411a163c586a8bdea9dbf",
-            "Guardian": "0xd032d9e1f3b3ca6362ec56fbc9d689565f759825",
-            "Challenger": "0x921d59f383e9b86b3161a356013b6f8b40cf43c4",
-            "Proposer": "0xa25b0ef1cc3ee12a0a167b5bf44db1a9c166474e",
-            "UnsafeBlockSigner": "0x565b71025ab4de80aca33c62e51439af56301493",
-            "BatchSubmitter": "0x4ab3387810ef500bfe05a49dc53a44c222cbab3e"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xef1295ed471dfec101691b946fb6b4654e88f98a",
-            "L1CrossDomainMessengerProxy": "0x448a37330a60494e666f6dd60ad48d930aeba381",
-            "L1Erc721BridgeProxy": "0x4696b5e042755103fe558738bcd1ecee7a45ebfe",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xea58fca6849d79ead1f26608855c2d6407d54ce2",
             "L2OutputOracleProxy": null,
-            "OptimismMintableErc20FactoryProxy": "0xdf7977c3005730329a160637e8cb9f1675a4d9be",
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x0d83dab629f0e0f9d36c0cbc89b69a489f0751bd",
             "SystemConfigProxy": "0xaee94b9ab7752d3f7704bde212c0c6a0b701571d",
-            "ProxyAdmin": "0x2bf403e5353a7a082ef6bb3ae2be3b866d8d3ea4",
-            "SuperchainConfig": "0xc2be75506d5724086deb7245bd260cc9753911be",
-            "AnchorStateRegistryProxy": "0x042395c8cc570a20288911dc32e75beae82aaaa2",
-            "DelayedWethProxy": "0x73d18d6caa14aeec15449d0a25a31d4e7e097a5c",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0xeff73e5aa3b9aec32c659aa3e00444d20a84394b",
-            "FaultDisputeGame": "0xa84cf3aab33a5ac812f46a46601b0e39a03e07f1",
-            "Mips": "0xf027f4a985560fb13324e943edf55ad6f1d15dc1",
-            "PermissionedDisputeGame": "0x5acc5b2da22463eb8a54851dc0ac80a193f4039a",
-            "PreimageOracle": "0x1fb8cdfc6831fc866ed9c51af8817da5c287add3",
+            "FaultDisputeGame": null,
+            "Mips": null,
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -3294,7 +3680,8 @@
             "granite_time": 1723478400,
             "holocene_time": 1732633200,
             "pectra_blob_schedule_time": 1742486400,
-            "isthmus_time": 1744905600
+            "isthmus_time": 1744905600,
+            "jovian_time": 1762963201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -3322,32 +3709,34 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x23ba22dd7923f3a3f2495bb32a6f3c9b9cd1ec6c",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x1eb2ffc903729a0f03966b917003800b145f56e2",
-            "Guardian": "0x7a50f00e8d05b95f98fe38d8bee366a7324dcf7e",
-            "Challenger": "0x45effbd799ab49122eeeab75b78d9c56a187f9a7",
-            "Proposer": "0x2d70f9a866de34c0f738f8cb2af1361b5af18caa",
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
             "UnsafeBlockSigner": null,
-            "BatchSubmitter": "0xdb80eca386ac72a55510e33cf9cf7533e75916ee"
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x394f844b9a0fc876935d1b0b791d9e94ad905e8b",
-            "L1CrossDomainMessengerProxy": "0x5d335aa7d93102110879e3b54985c5f08146091e",
-            "L1Erc721BridgeProxy": "0x5d6ce6917dbeeacf010c96bffdabe89e33a30309",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x21530aadf4dcfb9c477171400e40d4ef615868be",
-            "L2OutputOracleProxy": "0x75a6b961c8da942ee03ca641b09c322549f6fa98",
-            "OptimismMintableErc20FactoryProxy": "0x49ff2c4be882298e8ca7decd195c207c42b45f66",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x01d4dfc994878682811b2980653d03e589f093cb",
             "SystemConfigProxy": "0x5d63a8dc2737ce771aa4a6510d063b6ba2c4f6f2",
-            "ProxyAdmin": "0xf7bc4b3a78c7dd8be9b69b3128eeb0d6776ce18a",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
-            "DisputeGameFactoryProxy": null,
+            "DisputeGameFactoryProxy": "0xd9a68f90b2d2debe18a916859b672d70f79eebe3",
             "FaultDisputeGame": null,
             "Mips": null,
             "PermissionedDisputeGame": null,
@@ -3378,7 +3767,8 @@
             "granite_time": 1730106000,
             "holocene_time": 1734685200,
             "pectra_blob_schedule_time": 1742486400,
-            "isthmus_time": 1744905600
+            "isthmus_time": 1744905600,
+            "jovian_time": 1762963201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -3406,36 +3796,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xb278818732e5bebb742dc4aa0617ccd1dec76b65",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x1eb2ffc903729a0f03966b917003800b145f56e2",
-            "Guardian": "0x7a50f00e8d05b95f98fe38d8bee366a7324dcf7e",
-            "Challenger": "0xb278818732e5bebb742dc4aa0617ccd1dec76b65",
-            "Proposer": "0xa759a2c80ec4c6421829862da30dd34436114502",
-            "UnsafeBlockSigner": "0x55930859cd7003f32a2ba171297408476532e535",
-            "BatchSubmitter": "0xf0ab0441c8f4b89b561ae685b98c6ad5175e0cab"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x6e8a77673109783001150dfa770e6c662f473da9",
-            "L1CrossDomainMessengerProxy": "0x0184245d202724dc28a2b688952cb56c882c226f",
-            "L1Erc721BridgeProxy": "0x2bfb22cd534a462028771a1ca9d6240166e450c4",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x5f5a404a5edabcdd80db05e8e54a78c9ebf000c2",
-            "L2OutputOracleProxy": "0x710e5286c746ec38beeb7538d0146f60d27be343",
-            "OptimismMintableErc20FactoryProxy": "0x6069bc38c6185f2db0d161f08ec8d1657f6078df",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x65ea1489741a5d72ffdd8e6485b216bbdcc15af3",
             "SystemConfigProxy": "0x4ca9608fef202216bc21d543798ec854539baad3",
-            "ProxyAdmin": "0xff9d236641962cebf9dbfb54e7b8e91f99f10db0",
-            "SuperchainConfig": "0xc2be75506d5724086deb7245bd260cc9753911be",
-            "AnchorStateRegistryProxy": "0x2f3432d169128c49881cc190520be6096a9a8d2c",
-            "DelayedWethProxy": "0xf6db90462febeb7567fbd064d2ff14a8d0280f3e",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0xb3ad2c38e6e0640d7ce6aa952ab3a60e81bf7a01",
-            "FaultDisputeGame": "0x0000000000000000000000000000000000000000",
-            "Mips": "0xf027f4a985560fb13324e943edf55ad6f1d15dc1",
-            "PermissionedDisputeGame": "0x697a4684576d8a76d4b11e83e9b6f3b61bf04755",
-            "PreimageOracle": "0x1fb8cdfc6831fc866ed9c51af8817da5c287add3",
+            "FaultDisputeGame": null,
+            "Mips": null,
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -3462,7 +3854,8 @@
             "granite_time": 1723478400,
             "holocene_time": 1732633200,
             "pectra_blob_schedule_time": 1742486400,
-            "isthmus_time": 1744905600
+            "isthmus_time": 1744905600,
+            "jovian_time": 1762963201
           },
           "optimism": {
             "eip1559Elasticity": 10,
@@ -3490,29 +3883,31 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x19de6d30bf43654b7244b8ada135e1aa639bf091",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x465874903125f26316c730ae84862606a3326ca5",
-            "Guardian": "0x7a50f00e8d05b95f98fe38d8bee366a7324dcf7e",
-            "Challenger": "0x19de6d30bf43654b7244b8ada135e1aa639bf091",
-            "Proposer": "0xbbd3a1d90b0ef416581acdc6a72046b38d3af9ad",
-            "UnsafeBlockSigner": "0x99804980804e9ebe78db89c049ffe36ceaaef654",
-            "BatchSubmitter": "0x246e119a5bcc2875161b23e4e602e25cece96e37"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x27bb4a7cd8fb20cb816bf4aac668bf841bb3d5d3",
-            "L1CrossDomainMessengerProxy": "0x857824e6234f7733eca4e9a76804fd1afa1a3a2c",
-            "L1Erc721BridgeProxy": "0xb4e988cf1ad8c361d56118437502a8f11c7faa01",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x1fb30e446ea791cd1f011675e5f3f5311b70faf5",
-            "L2OutputOracleProxy": "0xa0e35f56c318de1bd5d9ca6a94fe7e37c5663348",
-            "OptimismMintableErc20FactoryProxy": "0x269d632c1e518a922c30c749cfd3f82eb5c779b0",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xe3d90f21490686ec7ef37be788e02dfc12787264",
             "SystemConfigProxy": "0xf54791059df4a12ba461b881b4080ae81a1d0ac0",
-            "ProxyAdmin": "0x5db9f05921d8d5a6a157f6f49c411cc0e46c6330",
-            "SuperchainConfig": "0xc2be75506d5724086deb7245bd260cc9753911be",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x9aa3890a87e6bd2cb85dad1a5d8b0a9d669e658a",
@@ -3545,7 +3940,8 @@
             "fjord_time": 1721739600,
             "granite_time": 1726570800,
             "holocene_time": 1737633600,
-            "pectra_blob_schedule_time": 1742486400
+            "pectra_blob_schedule_time": 1742486400,
+            "isthmus_time": 1761825600
           },
           "optimism": {
             "eip1559Elasticity": 10,
@@ -3573,36 +3969,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xe78a0a96c5d6ae6c606418ed4a9ced378cb030a0",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x945185c01fb641ba3e63a9bdf66575e35a407837",
-            "Guardian": "0xe78a0a96c5d6ae6c606418ed4a9ced378cb030a0",
-            "Challenger": "0x945185c01fb641ba3e63a9bdf66575e35a407837",
-            "Proposer": "0x77a95104e4025fc8b88a6a0f5fb7fae20851e414",
-            "UnsafeBlockSigner": "0x3241a7d28ea74e807a5087ba637fb58d8ddcd078",
-            "BatchSubmitter": "0x0f3ff4731d7a10b89ed79ad1fd97844d7f66b96d"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xc50ba0767a1c0ef69cf1d9cd44de52b08589f691",
-            "L1CrossDomainMessengerProxy": "0x7768c821200554d8f359a8902905ba9ede5659a9",
-            "L1Erc721BridgeProxy": "0x3580505c56f8560e3777e92fb27f70fd20c5b493",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xd7df54b3989855eb66497301a4aaec33dbb3f8de",
-            "L2OutputOracleProxy": "0xc8886f8bab6eaeb215adb5f1c686bf699248300e",
-            "OptimismMintableErc20FactoryProxy": "0x2d272ef54ee8ef5c2ff3523559186580b158cd57",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xff6eba109271fe6d4237eeed4bab1dd9a77dd1a4",
             "SystemConfigProxy": "0x166f9406e79a656f12f05247fb8f5dfa6155bcbf",
-            "ProxyAdmin": "0x3a987fe1cb587b0a1808cf9bb7cbe0e341838319",
-            "SuperchainConfig": "0xc2be75506d5724086deb7245bd260cc9753911be",
-            "AnchorStateRegistryProxy": "0x1333d5e5201d760444a399e77b3d337ebdb0dd07",
-            "DelayedWethProxy": "0x4f4b8adf1af4b61bb62f68b7af1c37f8a6311663",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x8ec1111f67dad6b6a93b3f42dfbc92d81c98449a",
             "FaultDisputeGame": null,
-            "Mips": "0x69470d6970cd2a006b84b1d4d70179c892cfce01",
-            "PermissionedDisputeGame": "0x552334bf0b124bd89bff744f33ca7e49d44a80ac",
-            "PreimageOracle": "0x92240135b46fc1142da181f550ae8f595b858854",
+            "Mips": null,
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -3655,35 +4053,37 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xc5019ac7b57ae7918bc3430a92d92bccd3079ab6",
-            "ProxyAdminOwner": "0xc5019ac7b57ae7918bc3430a92d92bccd3079ab6",
-            "Guardian": "0x8c7e4a51acb17719d225bd17598b8a94b46c8767",
-            "Challenger": "0xac165b92e4f98d0dfd9fb7d2ab474fee56b98a0d",
-            "Proposer": "0x3fb1caa16477704bd679c5a883d9dbb1924f4ee0",
-            "UnsafeBlockSigner": "0xb1fed649e18588d081c5ea4ae14b61836dd0062a",
-            "BatchSubmitter": "0x26a1babee918f55bfddb002066c63678147b03a2"
+            "SystemConfigOwner": null,
+            "ProxyAdminOwner": "0x945185c01fb641ba3e63a9bdf66575e35a407837",
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xed768f41dbe97d81d77316818c2802d322ce21db",
-            "L1CrossDomainMessengerProxy": "0xffae0c2cf1547057cd0828e3b01af11c266c1b3c",
-            "L1Erc721BridgeProxy": "0xbd07617f0ce47db1cd51eb6b9b5e7b3c109410f2",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x1fe9c3b11ed334fc049ae9a92ec290aa69c39267",
             "L2OutputOracleProxy": null,
-            "OptimismMintableErc20FactoryProxy": "0x71c23513fa05827e168b5a4dca1f1c81a9a5eef4",
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x55585368857dcc7e0f89475d28963977db0b1ee1",
             "SystemConfigProxy": "0x7f73514a7ec19f3f51e3c607d536560818df4205",
-            "ProxyAdmin": "0x4b339825002823af8b6ca1ecdf5f9d08ca1f584a",
-            "SuperchainConfig": "0xc2be75506d5724086deb7245bd260cc9753911be",
-            "AnchorStateRegistryProxy": "0xc31b23208e7f7f8c8bc2ce6816cbb6867c026b1f",
-            "DelayedWethProxy": "0xe2a6efac27793d4cc9a14b3bf3089817cfa41aa9",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x017d15a6854ccaaa89c63d1a9fea8da45ced97cf",
             "FaultDisputeGame": null,
             "Mips": null,
-            "PermissionedDisputeGame": "0xeb0d28f0474103480ecd393c8e0c64c003a4914e",
+            "PermissionedDisputeGame": null,
             "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
@@ -3706,7 +4106,11 @@
           "hardfork_configuration": {
             "canyon_time": 0,
             "delta_time": 0,
-            "ecotone_time": 0
+            "ecotone_time": 0,
+            "fjord_time": 1749686400,
+            "granite_time": 1749686400,
+            "holocene_time": 1749772800,
+            "pectra_blob_schedule_time": 1742486400
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -3734,32 +4138,120 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xe6869af6c871614df04902870bb13d4505e1586c",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0xac78e9b3aa9373ae4be2ba5bc9f716d7a746a65e",
-            "Guardian": "0xe6869af6c871614df04902870bb13d4505e1586c",
-            "Challenger": "0xe6869af6c871614df04902870bb13d4505e1586c",
-            "Proposer": "0x5a145e3f466fd6cc095214c700359df7894bad21",
-            "UnsafeBlockSigner": "0x89ea88ef4ac23f4c7fdc611fc9cd1c50df702c2c",
-            "BatchSubmitter": "0x584d61a30c7ef1e8d547ee02099dadc487f49889"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x1b573db1000ea419b6de8eb482c6d394179bd1a3",
-            "L1CrossDomainMessengerProxy": "0xdaeab17598938a4f27e50ac771249ad7df12ea7d",
-            "L1Erc721BridgeProxy": "0xbafb1a6e54e7750af29489d65888d1c96dfd66df",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x289179e9d43a35d47239456251f9c2fdbf9fbea2",
-            "L2OutputOracleProxy": "0xccac2b8ffc4f778242105f3a9e6b3ae3f827fc6a",
-            "OptimismMintableErc20FactoryProxy": "0xbd023e7f08ae0274dced397d4b6630d697ac738a",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xf2891fc6819cdd6bd9221874619bb03a6277d72a",
             "SystemConfigProxy": "0x07e7a3f25aa73da15bc19b71fef8f5511342a409",
-            "ProxyAdmin": "0x4a0e8415e3eb85e7393445fd8e588283b62216c8",
-            "SuperchainConfig": "0x1696a64c7f170e46d32088e8ec29193300c35817",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
-            "DisputeGameFactoryProxy": null,
+            "DisputeGameFactoryProxy": "0xbdc16b0e8c18c5e13ed02221aa85598af486a88f",
+            "FaultDisputeGame": null,
+            "Mips": null,
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": null,
+            "DataAvailabilityChallenge": null
+          }
+        },
+        {
+          "Name": "arena-z-testnet",
+          "PublicRPC": "https://testnet-rpc.arena-z.gg",
+          "SequencerRPC": "https://testnet-rpc.arena-z.gg",
+          "Explorer": "https://testnet-explorer.arena-z.gg",
+          "SuperchainLevel": 1,
+          "GovernedByOptimism": true,
+          "SuperchainTime": 1762963201,
+          "DataAvailabilityType": "eth-da",
+          "l2_chain_id": 9899,
+          "batch_inbox_address": "0x00894002c8ccc07469d2f98e575c375130761c35",
+          "block_time": 2,
+          "seq_window_size": 3600,
+          "max_sequencer_drift": 600,
+          "GasPayingToken": null,
+          "hardfork_configuration": {
+            "canyon_time": 0,
+            "delta_time": 0,
+            "ecotone_time": 0,
+            "fjord_time": 0,
+            "granite_time": 0,
+            "holocene_time": 0,
+            "isthmus_time": 1747839600,
+            "jovian_time": 1762963201
+          },
+          "optimism": {
+            "eip1559Elasticity": 6,
+            "eip1559Denominator": 50,
+            "eip1559DenominatorCanyon": 250
+          },
+          "alt_da": null,
+          "genesis": {
+            "l1": {
+              "number": 8374269,
+              "hash": "0xc169b1762b3430dc19a3c380536edb770eba127aeb6f518ef5a685ae17a588a2"
+            },
+            "l2": {
+              "number": 0,
+              "hash": "0x29b5818dde83228647d69794cad3e28bfc2e99defc3696c46c068ba4a27b8d4a"
+            },
+            "l2_time": 1747822512,
+            "system_config": {
+              "batcherAddr": "0xc7dbe00183fef815db161d61faf3cb6a172d4ea2",
+              "overhead": "0x00000000000000000000000000000000000000000000000000000000000000bc",
+              "scalar": "0x00000000000000000000000000000000000000000000000000000000000f4240",
+              "gasLimit": 60000000,
+              "baseFeeScalar": null,
+              "blobBaseFeeScalar": null,
+              "eip1559Denominator": null,
+              "eip1559Elasticity": null,
+              "operatorFeeScalar": null,
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
+            }
+          },
+          "Roles": {
+            "SystemConfigOwner": null,
+            "ProxyAdminOwner": "0x1eb2ffc903729a0f03966b917003800b145f56e2",
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
+          },
+          "Addresses": {
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
+            "L1StandardBridgeProxy": "0x23592510f948c1465294041b44192f9656146544",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
+            "OptimismPortalProxy": "0x90fdce6efff020605462150cde42257193d1e558",
+            "SystemConfigProxy": "0x5357be2d78aad17860570e14b74561840e959d4d",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
+            "DisputeGameFactoryProxy": "0xd02dd46b73ff5f3ec3970f9a12f08ad703c103df",
             "FaultDisputeGame": null,
             "Mips": null,
             "PermissionedDisputeGame": null,
@@ -3815,36 +4307,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xa9abe4af69bea2f381ca600f625eb3e6b7559266",
-            "ProxyAdminOwner": "0x4c4526c8c55c4e1a6f2aaf91e37f07c97786e0f5",
-            "Guardian": "0xa9abe4af69bea2f381ca600f625eb3e6b7559266",
-            "Challenger": "0xa9abe4af69bea2f381ca600f625eb3e6b7559266",
-            "Proposer": "0xf8ed03b83c15aa3d0b52095f3c9971225948b777",
-            "UnsafeBlockSigner": "0xbb4f4b3a46361653be9db255d8ff2d004f0fb248",
-            "BatchSubmitter": "0x6ff556fa7cafec55ae77c5c1d58a010be75f9991"
+            "SystemConfigOwner": null,
+            "ProxyAdminOwner": "0x945185c01fb641ba3e63a9bdf66575e35a407837",
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x42721d8512d62aa26b2cfa1ae18beed5a9ab1337",
-            "L1CrossDomainMessengerProxy": "0xf9f730650e1ab4d23e2ac983934271ca7c5ef293",
-            "L1Erc721BridgeProxy": "0x19f02c55254d2644ef94f30c74a932d64e1d4f86",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x341ab1dafdfb73b3d6d075ef10b29e3cacb2a653",
-            "L2OutputOracleProxy": "0x532ddced3440eab81c529ac8b0d7e429b5c05c52",
-            "OptimismMintableErc20FactoryProxy": "0x46085e2e648488e49fbeaf6544b8e9dc96df8bdd",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xff8ca2b4d8122e41441f7ccdcf61b8692198bd1e",
             "SystemConfigProxy": "0xa1ac91ed91ebe40e00d61e233c8026318b4da5fb",
-            "ProxyAdmin": "0xd60a706bf6108f090d055787b9b353fa7eee1355",
-            "SuperchainConfig": "0xe5b3692266ff4ab8a96a9c7da6eeee532ccc7916",
-            "AnchorStateRegistryProxy": "0x41ea3c370896632121cdde1b94a4eccf23da4532",
-            "DelayedWethProxy": "0x7cc9ca91ba4f92f4c967e93a1aad97beb18d3877",
-            "DisputeGameFactoryProxy": "0x93eaa7a1e7d7af7ed9d612f9957988c8631c33e8",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
+            "DisputeGameFactoryProxy": "0x575697f2c20bd63415e5b24656d935d4b81b8220",
             "FaultDisputeGame": null,
-            "Mips": "0xacf1ed7357e41f652407ae6cfe1024705c758c38",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0x8f3b1c59ed4439ebf564604aa4b93130da4cd1d5",
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -3894,36 +4388,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xc121e7f785ac0e5b1da6c7316326412d1c4eb28c",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x1d60661f40acc64e38fcade8979d22a9b9278e6e",
-            "Guardian": "0xc121e7f785ac0e5b1da6c7316326412d1c4eb28c",
-            "Challenger": "0xc121e7f785ac0e5b1da6c7316326412d1c4eb28c",
-            "Proposer": "0xc12309aac4bd25dbf7df460fddd93f621ee5da3b",
-            "UnsafeBlockSigner": "0xc120bd1178485def5f761f85a4a393200a0aefd6",
-            "BatchSubmitter": "0xc122b4d47644bbd7a98e41dd242d20054a11f720"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x40601f9c44ec842e3faa45cad15d475b450d9277",
-            "L1CrossDomainMessengerProxy": "0x1f6393c113b9c221fbcfb17c163c88d4bda172b0",
-            "L1Erc721BridgeProxy": "0x079ba88edd1be4fefb5011b61714df9ef092ad8f",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x788de2b0dd35808a05eaff7aaf5578b21e0dd9a7",
-            "L2OutputOracleProxy": "0x8a5f3b0897d9b9ba09fd2974f3abe038c15aaba9",
-            "OptimismMintableErc20FactoryProxy": "0x9aee2cf874fe76bf91cd63722db45212be48c5e3",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x923b28e0037a799a1e60368e60c92dffba982162",
             "SystemConfigProxy": "0x5c72ce6ea707037bc476da8f4f969bc1f8abc78b",
-            "ProxyAdmin": "0xd79bd9c4a711d053c7f2e62526e3c4442b6b526f",
-            "SuperchainConfig": "0x99579465a0886621e71cf5ebe46e56cf23bfc23b",
-            "AnchorStateRegistryProxy": "0x76b5568b3fe823c8d4dbb1d64e055f9e8d847fab",
-            "DelayedWethProxy": "0xe446ecee5bd4102f6366ef3551906adc40f3fc2a",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0xcb97c9224af16c95b8d8959a2752ef1832eb8ba9",
             "FaultDisputeGame": null,
-            "Mips": "0x183a472b3e8724d4309895c8f1615ad49b6cc469",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0xb3aab329abb207583659e2546e9f24f32ea668e1",
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -3977,32 +4473,34 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x17070b4af21625106e7971983aa524f59ea40c57",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x17070b4af21625106e7971983aa524f59ea40c57",
-            "Guardian": "0x66930dd34ea64bd4b9f32464e363511b49966c5d",
-            "Challenger": "0x17070b4af21625106e7971983aa524f59ea40c57",
-            "Proposer": "0x0ab197ddee146c01a0c6cadf3d91fbb4340a999a",
-            "UnsafeBlockSigner": "0x274a47436c7c896827633805d924d41bba1d19e9",
-            "BatchSubmitter": "0xf598b6388ec06945021699f0bbb23dfcfc5edbe8"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0xc62c429390b7bce9960fa647d5556ca7238168ab",
-            "L1CrossDomainMessengerProxy": "0x9253e76e2fa3f72af18e08914b3528f725779495",
-            "L1Erc721BridgeProxy": "0x13b397a08322973b45e063f29746fb278f189916",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x244d7b81ee3949788da5f1178d911e83ba24e157",
-            "L2OutputOracleProxy": "0xdbdb238185f9bb40f742ae249f9a083381ec39ec",
-            "OptimismMintableErc20FactoryProxy": "0xe6ebece6936528804bb4c43adca10c2623919852",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xb079e6fa9b3eb072febf7f746044834eab308db6",
             "SystemConfigProxy": "0xfdc9bce032cef55a71b4fde9b9a2198ad1551965",
-            "ProxyAdmin": "0x66930dd34ea64bd4b9f32464e363511b49966c5d",
-            "SuperchainConfig": "0x029a23c6e9d3026f984cd1fd9c47906e4f5327f3",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
-            "DisputeGameFactoryProxy": null,
+            "DisputeGameFactoryProxy": "0x29bd67b23cac0e6bbde1373e3859dd25510f3331",
             "FaultDisputeGame": null,
             "Mips": null,
             "PermissionedDisputeGame": null,
@@ -4033,7 +4531,8 @@
             "granite_time": 1723478400,
             "holocene_time": 1732633200,
             "pectra_blob_schedule_time": 1742486400,
-            "isthmus_time": 1744905600
+            "isthmus_time": 1744905600,
+            "jovian_time": 1762963201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -4061,36 +4560,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x23ba22dd7923f3a3f2495bb32a6f3c9b9cd1ec6c",
-            "ProxyAdminOwner": "0x23ba22dd7923f3a3f2495bb32a6f3c9b9cd1ec6c",
-            "Guardian": "0xa9ff930151130fd19da1f03e5077afb7c78f8503",
-            "Challenger": "0x45effbd799ab49122eeeab75b78d9c56a187f9a7",
-            "Proposer": "0x4c67831dba16b1e60cf8f626424082a62f1a2fe5",
-            "UnsafeBlockSigner": "0xc9ad1db6cb756414cda307705a1ee4308e9100ae",
-            "BatchSubmitter": "0xa488310ab2f8aa3294903930023bcab5880cb1ba"
+            "SystemConfigOwner": null,
+            "ProxyAdminOwner": "0x34478c2eb9018d5a6487bf0440838cd4238e8cf2",
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x35236af82c775965183a7b9cf94fe8bf5665b072",
-            "L1CrossDomainMessengerProxy": "0x19f3d95a281f9cf6aa2c6e8b7ca7c6be83e41f3a",
-            "L1Erc721BridgeProxy": "0xe82526042dae3f8800f87232b5146ed4012ee426",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x78558fd5c8dc65d10753f004bfc4cfa8e199c668",
-            "L2OutputOracleProxy": "0x54e9be93b9a1aca9c0293db7710d9d18273afe1d",
-            "OptimismMintableErc20FactoryProxy": "0xd33347f9c147304c27b9502f1ad93b556bd9df12",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x1cb215554f36f518791b2e7359a73c96bfcadf69",
             "SystemConfigProxy": "0x978e8311a5a710ef6413aba3a6b89092ce4a58f5",
-            "ProxyAdmin": "0xb235b455edd534bcac6028f38029cc128b144582",
-            "SuperchainConfig": "0x9c9db51833f3acb1a1455c3686f60ccfa89e5dda",
-            "AnchorStateRegistryProxy": "0x1c2b5dbdba4da7cbe669e73b7f18041e16ecb993",
-            "DelayedWethProxy": "0x77877c3a557457edc27c5f650ce2f4521585a3ec",
-            "DisputeGameFactoryProxy": "0x5eb3040aeebc69595b4bdc4ecb97323330f14517",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
+            "DisputeGameFactoryProxy": "0x156670e48f72cb23eaadd8b51e398c678ab651af",
             "FaultDisputeGame": null,
-            "Mips": "0x09fee86ee30d0cf86a8e48089f958c1c04fa5700",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0x7328668bbe05eb322b208410652cd41a6bd07a83",
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -4117,7 +4618,8 @@
             "granite_time": 1723478400,
             "holocene_time": 1732633200,
             "pectra_blob_schedule_time": 1742486400,
-            "isthmus_time": 1744905600
+            "isthmus_time": 1744905600,
+            "jovian_time": 1762963201
           },
           "optimism": {
             "eip1559Elasticity": 10,
@@ -4145,36 +4647,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x0fe884546476ddd290ec46318785046ef68a0ba9",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x0fe884546476ddd290ec46318785046ef68a0ba9",
-            "Guardian": "0x7a50f00e8d05b95f98fe38d8bee366a7324dcf7e",
-            "Challenger": "0xda3037ff70ac92cd867c683bd807e5a484857405",
-            "Proposer": "0x037637067c1dbe6d2430616d8f54cb774daa5999",
-            "UnsafeBlockSigner": "0xb830b99c95ea32300039624cb567d324d4b1d83c",
-            "BatchSubmitter": "0xfc56e7272eebbba5bc6c544e159483c4a38f8ba3"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x709c2b8ef4a9fefc629a8a2c1af424dc5bd6ad1b",
-            "L1CrossDomainMessengerProxy": "0xc34855f4de64f1840e5686e64278da901e261f20",
-            "L1Erc721BridgeProxy": "0x21efd066e581fa55ef105170cc04d74386a09190",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xfd0bf71f60660e2f608ed56e1659c450eb113120",
             "L2OutputOracleProxy": null,
-            "OptimismMintableErc20FactoryProxy": "0xb1efb9650ad6d0cc1ed3ac4a0b7f1d5732696d37",
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x49f53e41452c74589e85ca1677426ba426459e85",
             "SystemConfigProxy": "0xf272670eb55e895584501d564afeb048bed26194",
-            "ProxyAdmin": "0x0389e59aa0a41e4a413ae70f0008e76caa34b1f3",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
-            "AnchorStateRegistryProxy": "0x0729957c92a1f50590a84cb2d65d761093f3f8eb",
-            "DelayedWethProxy": "0x27a6128f707de3d99f89bf09c35a4e0753e1b808",
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0xd6e6dbf4f7ea0ac412fd8b65ed297e64bb7a06e1",
-            "FaultDisputeGame": "0xcfce7dd673fbbbffd16ab936b7245a2f2db31c9a",
-            "Mips": "0xf027f4a985560fb13324e943edf55ad6f1d15dc1",
-            "PermissionedDisputeGame": "0xf0102ffe22649a5421d53acc96e309660960cf44",
-            "PreimageOracle": "0x1fb8cdfc6831fc866ed9c51af8817da5c287add3",
+            "FaultDisputeGame": null,
+            "Mips": null,
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -4227,36 +4731,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xda477c3d6fad3c0fce508a6cf791967d7cf14afb",
-            "ProxyAdminOwner": "0xda477c3d6fad3c0fce508a6cf791967d7cf14afb",
-            "Guardian": "0xda477c3d6fad3c0fce508a6cf791967d7cf14afb",
-            "Challenger": "0xda477c3d6fad3c0fce508a6cf791967d7cf14afb",
-            "Proposer": "0x2becfba7b2be6182e9bd2ef10e83414e22fab673",
-            "UnsafeBlockSigner": "0x8dea38366bc426c6822aebe51210212542544c77",
-            "BatchSubmitter": "0x624811105f39936d5ce277d93292061abfedd4d5"
+            "SystemConfigOwner": null,
+            "ProxyAdminOwner": "0x6dcd6421558f1478251231798fe7500fb23a1e84",
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x2677986e7f92cbbfc0d96c23a2e2897e9d7f240f",
-            "L1CrossDomainMessengerProxy": "0x3f4a9443ddc60a0d0dcea92c627849045b5a840f",
-            "L1Erc721BridgeProxy": "0x1239f374612f4674305ba7c60332b16e5396e125",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x5c3ec2182be9fbea0da50d517362a069e13fb50e",
-            "L2OutputOracleProxy": "0x6ad70b6c30aa872fcbb86958a6ab950b3125a6f0",
-            "OptimismMintableErc20FactoryProxy": "0xb6036e2330fe7aedecbdee5cd773704de92cca37",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x4238fab3746d41e18c87138b505b6857cef6cd1f",
             "SystemConfigProxy": "0x7aa405b004401be20d4a587de34aeec99be0b268",
-            "ProxyAdmin": "0x488ff7476709920e49293c4d695d3a0256ab6eab",
-            "SuperchainConfig": "0xa9f8c27487b1d56370437d2c629fac8ca7d74958",
-            "AnchorStateRegistryProxy": "0x16e79a16bdcc2aee043e88bbf5a2624f78e9fc64",
-            "DelayedWethProxy": "0xcea954f7bb597f1fa2bfe3f88507f9c34fee3148",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x83bae25fda209b31e903d3dd932906e2718a6e89",
             "FaultDisputeGame": null,
-            "Mips": "0x827d2263d0ba85ede37e8a60559eebe50d72ac7c",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0xf0aac9852f36db4a7a4e033d94887b73c849d6a5",
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -4283,7 +4789,8 @@
             "granite_time": 1723478400,
             "holocene_time": 1732633200,
             "pectra_blob_schedule_time": 1742486400,
-            "isthmus_time": 1744905600
+            "isthmus_time": 1744905600,
+            "jovian_time": 1762963201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -4311,36 +4818,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xbea2bc852a160b8547273660e22f4f08c2fa9bbb",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x1eb2ffc903729a0f03966b917003800b145f56e2",
-            "Guardian": "0x7a50f00e8d05b95f98fe38d8bee366a7324dcf7e",
-            "Challenger": "0xfd1d2e729ae8eee2e146c033bf4400fe75284301",
-            "Proposer": "0xb15d792e30c5b7f67cbe5fe9ba76685b537b4543",
-            "UnsafeBlockSigner": "0x43ec5732581d3fae18abb7ce34a796e111dbd1a0",
-            "BatchSubmitter": "0x21e57c21530bc33f12ba96c9ddc135488365002f"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x3454f9df5e750f1383e58c1cb001401e7a4f3197",
-            "L1CrossDomainMessengerProxy": "0x9fe1d3523f5342535e6e7770ed09ed85dbc1acc2",
-            "L1Erc721BridgeProxy": "0xd1c901bbd7796546a7ba2492e0e199911fae68c7",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x33f60714bbd74d62b66d79213c348614de51901c",
             "L2OutputOracleProxy": null,
-            "OptimismMintableErc20FactoryProxy": "0x686f782a749d1854f6fa3f948450f4c65c6674f0",
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x5c1d29c6c9c8b0800692acc95d700bcb4966a1d7",
             "SystemConfigProxy": "0x05c993e60179f28bf649a2bb5b00b5f4283bd525",
-            "ProxyAdmin": "0xd7db319a49362b2328cf417a934300cccb442c8d",
-            "SuperchainConfig": "0xc2be75506d5724086deb7245bd260cc9753911be",
-            "AnchorStateRegistryProxy": "0xda9916204568e2a8d689f775747d9e7fe17f7560",
-            "DelayedWethProxy": "0x237840a6bfd822039d9cc00e1e7bae280d4f2d49",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x860e626c700af381133d9f4af31412a2d1db3d5d",
-            "FaultDisputeGame": "0xbd72dd2fb74a537b9b47b454614a15b066cc464a",
-            "Mips": "0xf027f4a985560fb13324e943edf55ad6f1d15dc1",
-            "PermissionedDisputeGame": "0x97766954baf17e3a2bfa43728830f0fa647f7546",
-            "PreimageOracle": "0x1fb8cdfc6831fc866ed9c51af8817da5c287add3",
+            "FaultDisputeGame": null,
+            "Mips": null,
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -4396,37 +4905,39 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xcdaf106c5531fd27bf27536e4696e325de9f52b8",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x814973b1ec9eb9172996931de7bf1380bd64a824",
-            "Guardian": "0xdf3d6fa42fe4225e6a042c4ed191d7e5d8252e6f",
-            "Challenger": "0x542a7142093d536bf277fa3b0410883ac4e121dc",
-            "Proposer": "0x0b8aa7c355917016496e999a80f1737ef9c0c962",
-            "UnsafeBlockSigner": "0x5359050acb96c515562896ba71089487138e4bde",
-            "BatchSubmitter": "0xda19a4e4d1dbc69bacf13435f08f76ced9b3c245"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x6ecc4a306cd20f8041d63b3db8eca46b713cdecc",
-            "L1CrossDomainMessengerProxy": "0x6f82d895e223dde65da28a8bbd14f3ef79cbf3b8",
-            "L1Erc721BridgeProxy": "0x598d245ea85fbfbcece6c62232bbcab688d3f68b",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x1ba82f688ef3c5b4363ff667254ed4dc59e97477",
-            "L2OutputOracleProxy": "0xb25812386d1cb976b50de7387f5cbc10fec3f27c",
-            "OptimismMintableErc20FactoryProxy": "0x8ee8eb6b829c382ca395d35c40dcd2ef8ae57c68",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xcee7ef4ddf482447fe14c605ea94b37cbe87ca9d",
             "SystemConfigProxy": "0xd6a01f1ef51d65f023433992a8f62feead35b172",
-            "ProxyAdmin": "0xb3e1f3ab2a22049cc155eba7089ea20a5eab99ca",
-            "SuperchainConfig": "0x00df2e8efbe6ad2538d940a2ccaae65112bd0437",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
-            "DelayedWethProxy": "0x31d0d1d3fc27b3f174e544364e7bb836980162d1",
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0xec7c6e35f4e5361d279d5fe7222f3f45a8a83352",
             "FaultDisputeGame": null,
-            "Mips": "0x71483031c5d2927ea83807d5c88bd8eccfaf292d",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0x2de051316aad761a3ebd6ff008d714805bd02c56",
-            "DataAvailabilityChallenge": "0x12c6a7db25b20347ca6f5d47e56d5e8219871c6d"
+            "PreimageOracle": null,
+            "DataAvailabilityChallenge": null
           }
         },
         {
@@ -4476,36 +4987,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x18b06ea63f2295976476fb23918d417a57803363",
-            "ProxyAdminOwner": "0x18b06ea63f2295976476fb23918d417a57803363",
-            "Guardian": "0x18b06ea63f2295976476fb23918d417a57803363",
-            "Challenger": "0x18b06ea63f2295976476fb23918d417a57803363",
-            "Proposer": "0x1ae1a21fb654299fa22ad1588dc2ddcb0d5e0059",
-            "UnsafeBlockSigner": "0x18b06ea63f2295976476fb23918d417a57803363",
-            "BatchSubmitter": "0x5c871e31efdf4875dcd68c9a7a5766c1e4c1e54f"
+            "SystemConfigOwner": null,
+            "ProxyAdminOwner": "0x65def37656e89c9f4c2ca14130d6f3aa6078833e",
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x1b85355ae3d6bc46877f70a5dec16164946f2adb",
-            "L1CrossDomainMessengerProxy": "0x13931872294360cac551ba3801f061c4c86f0725",
-            "L1Erc721BridgeProxy": "0x50d26235319abf2ba7b043a33e53bd19480d7e69",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xb9558ce3c11ec69e18632a8e5b316581e852db91",
             "L2OutputOracleProxy": null,
-            "OptimismMintableErc20FactoryProxy": "0xba065351e624805defe18bf387d2cad86027cfbe",
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x6eeea09335d09870dd467fd34ecc10fdb5106527",
             "SystemConfigProxy": "0xdec733b0643e7c3bd06576a4c70ca87e301eae87",
-            "ProxyAdmin": "0x84f9e32b748a1259bbea4ed5c0a0657464612dbe",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
-            "AnchorStateRegistryProxy": "0xd14c4d1fd5c32a9a07f783334c0748951c32f825",
-            "DelayedWethProxy": "0x4d69fed4d0d03c7cd6091aea732c5a982b7c9606",
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x80e233699f34b8fd91adea8150ea4c91b9324cb5",
             "FaultDisputeGame": null,
-            "Mips": "0x47b0e34c1054009e696babaad56165e1e994144d",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0x9f26795b4b35c247ccf8c18c272b177027f09adf",
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -4513,7 +5026,7 @@
           "Name": "OP Sepolia Testnet",
           "PublicRPC": "https://sepolia.optimism.io",
           "SequencerRPC": "https://sepolia-sequencer.optimism.io",
-          "Explorer": "https://sepolia-optimistic.etherscan.io",
+          "Explorer": "https://testnet-explorer.optimism.io",
           "SuperchainLevel": 1,
           "GovernedByOptimism": true,
           "SuperchainTime": 0,
@@ -4532,7 +5045,8 @@
             "granite_time": 1723478400,
             "holocene_time": 1732633200,
             "pectra_blob_schedule_time": 1742486400,
-            "isthmus_time": 1744905600
+            "isthmus_time": 1744905600,
+            "jovian_time": 1762963201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -4560,36 +5074,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xfd1d2e729ae8eee2e146c033bf4400fe75284301",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x1eb2ffc903729a0f03966b917003800b145f56e2",
-            "Guardian": "0x7a50f00e8d05b95f98fe38d8bee366a7324dcf7e",
-            "Challenger": "0xfd1d2e729ae8eee2e146c033bf4400fe75284301",
-            "Proposer": "0x49277ee36a024120ee218127354c4a3591dc90a9",
-            "UnsafeBlockSigner": "0x57cacbb0d30b01eb2462e5dc940c161aff3230d3",
-            "BatchSubmitter": "0x8f23bb38f531600e5d8fddaaec41f13fab46e98c"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x9bfe9c5609311df1c011c47642253b78a4f33f4b",
-            "L1CrossDomainMessengerProxy": "0x58cc85b8d04ea49cc6dbd3cbffd00b4b8d6cb3ef",
-            "L1Erc721BridgeProxy": "0xd83e03d576d23c9aeab8cc44fa98d058d2176d1f",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xfbb0621e0b23b5478b630bd55a5f21f67730b0f1",
             "L2OutputOracleProxy": null,
-            "OptimismMintableErc20FactoryProxy": "0x868d59ff9710159c2b330cc0fbdf57144dd7a13b",
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x16fc5058f25648194471939df75cf27a2fdc48bc",
             "SystemConfigProxy": "0x034edd2a225f7f429a63e0f1d2084b9e0a93b538",
-            "ProxyAdmin": "0x189abaaaa82dfc015a588a7dbad6f13b1d3485bc",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
-            "AnchorStateRegistryProxy": "0xdb2727fc71176bf8ed630f4142e0439733588e85",
-            "DelayedWethProxy": "0x9c7750c1c7b39e6b0efeec06a1f2cf06190f6018",
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x05f9613adb30026ffd634f38e5c4dfd30a197fa1",
-            "FaultDisputeGame": "0x38c2b9a214cdc3bbbc4915dae8c2f0a7917952dd",
-            "Mips": "0xf027f4a985560fb13324e943edf55ad6f1d15dc1",
-            "PermissionedDisputeGame": "0x3dbfb370be95eb598c8b89b45d7c101dc1679ab9",
-            "PreimageOracle": "0x1fb8cdfc6831fc866ed9c51af8817da5c287add3",
+            "FaultDisputeGame": null,
+            "Mips": null,
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -4640,36 +5156,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x66530799037b46913e52e9e0144d15ab6ed954f5",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x642a102cd63f039930f99b4657f41fd4ad7699d6",
-            "Guardian": "0x66530799037b46913e52e9e0144d15ab6ed954f5",
-            "Challenger": "0x66530799037b46913e52e9e0144d15ab6ed954f5",
-            "Proposer": "0x69ffd6a97141b632631ef7f56ccea6a36f02bd7f",
-            "UnsafeBlockSigner": "0xf6c6d69ad0ec617593bddae9702b3f912621c6fe",
-            "BatchSubmitter": "0x90bb84339856530192cd002533cd7f1290fc5142"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x4e9874640d6a670b7f4c7a1370bc303bb46f360f",
-            "L1CrossDomainMessengerProxy": "0xb88ee11d822bec8055f19711458de8593e7117a3",
-            "L1Erc721BridgeProxy": "0x524e85d2b49497561c53efeb4b126aa63883b480",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0xaa1bd6d4d8cfd37330a917bc678cb38befaf44e6",
-            "L2OutputOracleProxy": "0xd94ce9e4886a6dcebc7cf993f4b38f5276516643",
-            "OptimismMintableErc20FactoryProxy": "0xcfc893490072f14f19ed6df2b0d985f908acee50",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x06c9cadb0346c8e142fb8299cef3eb5120d4c9b6",
             "SystemConfigProxy": "0x43b838aa237b27c4fc953e591594cebb1ca2817f",
-            "ProxyAdmin": "0x6fce62e16720be713e77c954d6f1e6bc8b8d9f48",
-            "SuperchainConfig": "0x3bb614da92a136aa14912713f713b3fa6d6176fe",
+            "ProxyAdmin": null,
+            "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x99f0f9b0e7b16b10042e0935ce34f2fcebbe13c1",
             "FaultDisputeGame": null,
-            "Mips": "0xd0e6c40d8462466633baa2d24796d788a08b2e9f",
+            "Mips": null,
             "PermissionedDisputeGame": null,
-            "PreimageOracle": "0xcef1e04fd7413c4a7287df9099ac57eed48fb8f2",
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -4696,7 +5214,8 @@
             "granite_time": 1723478400,
             "holocene_time": 1732633200,
             "pectra_blob_schedule_time": 1742486400,
-            "isthmus_time": 1744905600
+            "isthmus_time": 1744905600,
+            "jovian_time": 1762963201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -4724,32 +5243,34 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x23ba22dd7923f3a3f2495bb32a6f3c9b9cd1ec6c",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x1eb2ffc903729a0f03966b917003800b145f56e2",
-            "Guardian": "0x7a50f00e8d05b95f98fe38d8bee366a7324dcf7e",
-            "Challenger": "0x45effbd799ab49122eeeab75b78d9c56a187f9a7",
-            "Proposer": "0xe8326a5839175de7f467e66d8bb443aa70da1c3e",
-            "UnsafeBlockSigner": "0x3609513933100689bd1f84782529a99239842344",
-            "BatchSubmitter": "0x3cd868e221a3be64b161d596a7482257a99d857f"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x27c9392144dfcb6dab113f737356c32435cd1d55",
-            "L1CrossDomainMessengerProxy": "0x1bdbc0ae22bec0c2f08b4dd836944b3e28fe9b7a",
-            "L1Erc721BridgeProxy": "0x16b0a4f451c4cb567703367e587e15ac108e4311",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x5376f1d543dcbb5bd416c56c189e4cb7399fcccb",
-            "L2OutputOracleProxy": "0x2615b481bd3e5a1c0c7ca3da1bdc663e8615ade9",
-            "OptimismMintableErc20FactoryProxy": "0x5f3bdd57f01e88ce2f88f00685d30d6eb51a187c",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0xeffe2c6ca9ab797d418f0d91ea60807713f3536f",
             "SystemConfigProxy": "0xb54c7bfc223058773cf9b739cc5bd4095184fb08",
-            "ProxyAdmin": "0xe17071f4c216eb189437fbdbcc16bb79c4efd9c2",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
-            "DisputeGameFactoryProxy": null,
+            "DisputeGameFactoryProxy": "0xa983a71253eb74e5e86a4e4ed9f37113fc25f2bf",
             "FaultDisputeGame": null,
             "Mips": null,
             "PermissionedDisputeGame": null,
@@ -4766,7 +5287,7 @@
         "l1": {
           "chain_id": 11155111,
           "public_rpc": "https://ethereum-sepolia-rpc.publicnode.com",
-          "explorer": "https://sepolia.etherscan.io"
+          "explorer": "https://eth-sepolia.blockscout.com"
         },
         "hardforks": {
           "canyon_time": 0,
@@ -4776,7 +5297,8 @@
           "granite_time": 1723046400,
           "holocene_time": 1731682800,
           "pectra_blob_schedule_time": 1741687200,
-          "isthmus_time": 1744300800
+          "isthmus_time": 1744300800,
+          "jovian_time": 1762185600
         },
         "protocol_versions_addr": "0x252cbe9517f731c618961d890d534183822dcc8d",
         "superchain_config_addr": "0x02d91cf852423640d93920be0cadcec0e7a00fa7",
@@ -4806,7 +5328,8 @@
             "granite_time": 1723046400,
             "holocene_time": 1731682800,
             "pectra_blob_schedule_time": 1741687200,
-            "isthmus_time": 1744300800
+            "isthmus_time": 1744300800,
+            "jovian_time": 1762185600
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -4834,36 +5357,38 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0x8c20c40180751d93e939dddee3517ae0d1ebead2",
+            "SystemConfigOwner": null,
             "ProxyAdminOwner": "0x4377bb0f0103992b31ec12b4d796a8687b8dc8e9",
-            "Guardian": "0x8c20c40180751d93e939dddee3517ae0d1ebead2",
-            "Challenger": "0x8c20c40180751d93e939dddee3517ae0d1ebead2",
-            "Proposer": "0x95014c45078354ff839f14192228108eac82e00a",
-            "UnsafeBlockSigner": "0xa95b83e39aa78b00f12fe431865b563793d97af5",
-            "BatchSubmitter": "0x19cc7073150d9f5888f09e0e9016d2a39667df14"
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x3eb579b25f6b9547e0073c848389a768fd382296",
-            "L1CrossDomainMessengerProxy": "0x18e72c15fee4e995454b919efaa61d8f116f82dd",
-            "L1Erc721BridgeProxy": "0x1bb726658e039e8a9a4ac21a41fe5a0704760461",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x6d8bc564ef04aaf355a10c3eb9b00e349dd077ea",
             "L2OutputOracleProxy": null,
-            "OptimismMintableErc20FactoryProxy": "0xa16b8db3b5cdbaf75158f34034b0537e528e17e2",
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x76114bd29dfcc7a9892240d317e6c7c2a281ffc6",
             "SystemConfigProxy": "0xa6b72407e2dc9ebf84b839b69a24c88929cf20f7",
-            "ProxyAdmin": "0x18d890a46a3556e7f36f28c79f6157bc7a59f867",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
-            "AnchorStateRegistryProxy": "0x03b82ae60989863bceb0bbd442a70568e5aefb85",
-            "DelayedWethProxy": "0xe99696a028171e31a72828a196c27c2dd670e1aa",
+            "AnchorStateRegistryProxy": null,
+            "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0x2419423c72998eb1c6c15a235de2f112f8e38eff",
-            "FaultDisputeGame": "0x54416a2e28e8cbc761fbce0c7f107307991282e5",
-            "Mips": "0xcede5949a189ac60f41f1385a86dbce7bd3b1943",
-            "PermissionedDisputeGame": "0x50573970b291726b881b204ed9f3c1d507e504cd",
-            "PreimageOracle": "0xb73342ddd69620e5ab2cc604dad46434c2338025",
+            "FaultDisputeGame": null,
+            "Mips": null,
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": null,
             "DataAvailabilityChallenge": null
           }
         },
@@ -4890,7 +5415,8 @@
             "granite_time": 1723046400,
             "holocene_time": 1731682800,
             "pectra_blob_schedule_time": 1742486400,
-            "isthmus_time": 1744300800
+            "isthmus_time": 1744300800,
+            "jovian_time": 1762185600
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -4918,32 +5444,34 @@
               "eip1559Denominator": null,
               "eip1559Elasticity": null,
               "operatorFeeScalar": null,
-              "operatorFeeConstant": null
+              "operatorFeeConstant": null,
+              "minBaseFee": null,
+              "daFootprintGasScalar": null
             }
           },
           "Roles": {
-            "SystemConfigOwner": "0xaf6e0e871f38c7b653700f7cbaedafaa2784d430",
-            "ProxyAdminOwner": "0xaf6e0e871f38c7b653700f7cbaedafaa2784d430",
-            "Guardian": "0x4f43c7422a9b2ac4bc6145bd4ee206ea73cf8266",
-            "Challenger": "0x5a533aaac6cd81605b301a1077bc393a94658b6d",
-            "Proposer": "0xf99c2da4822af652fe1bf55f99713980efe5d261",
-            "UnsafeBlockSigner": "0xfd7bc3c58fe4d4296f11f7843ebba84d729a24b9",
-            "BatchSubmitter": "0x7a43fd33e42054c965ee7175dd4590d2bdba79cb"
+            "SystemConfigOwner": null,
+            "ProxyAdminOwner": "0x0fe884546476ddd290ec46318785046ef68a0ba9",
+            "Guardian": null,
+            "Challenger": null,
+            "Proposer": null,
+            "UnsafeBlockSigner": null,
+            "BatchSubmitter": null
           },
           "Addresses": {
-            "AddressManager": "0x882a60911d00867fe4ea632c479cc48e583a8d69",
-            "L1CrossDomainMessengerProxy": "0x2cbd403d5ba3949d24ee4df57805eac612c2662f",
-            "L1Erc721BridgeProxy": "0xc3016ed03e087d092d576b585f5222ffd9cadc10",
+            "AddressManager": null,
+            "L1CrossDomainMessengerProxy": null,
+            "L1Erc721BridgeProxy": null,
             "L1StandardBridgeProxy": "0x5638e55db5fcf7a58df525f1098e8569c8dba80c",
-            "L2OutputOracleProxy": "0xb5901509329307e3f910f333fa9c4b4a8ee7ce1a",
-            "OptimismMintableErc20FactoryProxy": "0xeaa11178375e6b1078d815d6f9f85cbbb69b09cd",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": null,
             "OptimismPortalProxy": "0x579c82a835b884336b632eebecc78fa08d3291ec",
             "SystemConfigProxy": "0x7f67dc4959cb3e532b10a99f41bdd906c46fdfde",
-            "ProxyAdmin": "0xc5ae9023bfa79124ffa50169e1423e733d0166f1",
+            "ProxyAdmin": null,
             "SuperchainConfig": null,
             "AnchorStateRegistryProxy": null,
             "DelayedWethProxy": null,
-            "DisputeGameFactoryProxy": null,
+            "DisputeGameFactoryProxy": "0xe545ede9d1fadad12984c31467f56405884b9398",
             "FaultDisputeGame": null,
             "Mips": null,
             "PermissionedDisputeGame": null,
