@@ -35,15 +35,15 @@ jobs:
           prefix-key: ${{ matrix.kind }}
       - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Setup Go toolchain
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
-          go-version: "1.22.7"
+          go-version: "1.25.3"
           cache-dependency-path: |
             tests/go.sum
       - name: Setup gotestsum
         uses: autero1/action-gotestsum@v2.0.0
         with:
-          gotestsum_version: 1.12.1
+          gotestsum_version: 1.13.0
       - name: Run Action Tests (${{ matrix.kind }})
         run: |
           source <(cargo llvm-cov show-env --export-prefix)
@@ -92,16 +92,16 @@ jobs:
           git clone https://github.com/ethereum-optimism/optimism.git
       - name: Setup Go toolchain (asterisc cache)
         if: "contains(matrix.target, 'asterisc')"
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
-          go-version: "1.23.8"
+          go-version: "1.25.3"
           cache-dependency-path: |
             asterisc/go.sum
       - name: Setup Go toolchain (cannon cache)
         if: "contains(matrix.target, 'cannon')"
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
-          go-version: "1.23.8"
+          go-version: "1.25.3"
           cache-dependency-path: |
             optimism/go.sum
       - name: Build `asterisc`
