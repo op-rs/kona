@@ -195,7 +195,7 @@ impl NodeActor for RpcActor {
     }
 }
 
-fn to_healthz_response(health: Health) -> RollupBoostHealth {
+const fn to_healthz_response(health: Health) -> RollupBoostHealth {
     match health {
         Health::Healthy => RollupBoostHealth::Healthy,
         Health::PartialContent => RollupBoostHealth::PartialContent,

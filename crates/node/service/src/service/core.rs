@@ -168,8 +168,8 @@ pub trait RollupNodeService {
                         sequencer_admin: sequencer_inbound_data.as_ref().map(|s| s.admin_query_tx.clone()),
                         l1_watcher_queries: da_watcher_rpc,
                         engine_query: engine_rpc,
-                        rollup_boost_execution_mode: rollup_boost_execution_mode,
-                        rollup_boost_probes: rollup_boost_probes,
+                        rollup_boost_execution_mode,
+                        rollup_boost_probes,
                     }
                 )),
                 sequencer.map(|s| (
