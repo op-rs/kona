@@ -5,7 +5,7 @@ use alloy_eips::BlockNumHash;
 use alloy_op_hardforks::{
     BASE_MAINNET_CANYON_TIMESTAMP, BASE_MAINNET_ECOTONE_TIMESTAMP, BASE_MAINNET_FJORD_TIMESTAMP,
     BASE_MAINNET_GRANITE_TIMESTAMP, BASE_MAINNET_HOLOCENE_TIMESTAMP,
-    BASE_MAINNET_ISTHMUS_TIMESTAMP,
+    BASE_MAINNET_ISTHMUS_TIMESTAMP, BASE_MAINNET_JOVIAN_TIMESTAMP,
 };
 use alloy_primitives::{address, b256, uint};
 use kona_genesis::{
@@ -57,7 +57,7 @@ pub const BASE_MAINNET_CONFIG: RollupConfig = RollupConfig {
         holocene_time: Some(BASE_MAINNET_HOLOCENE_TIMESTAMP),
         pectra_blob_schedule_time: None,
         isthmus_time: Some(BASE_MAINNET_ISTHMUS_TIMESTAMP),
-        jovian_time: None,
+        jovian_time: Some(BASE_MAINNET_JOVIAN_TIMESTAMP),
         interop_time: None,
     },
     batch_inbox_address: address!("ff00000000000000000000000000000000008453"),
