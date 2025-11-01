@@ -62,7 +62,7 @@ impl BasicKernelInterface for Mips64IO {
     fn exit(code: usize) -> ! {
         unsafe {
             let _ = syscall::syscall1(SyscallNumber::Exit as usize, code);
-            panic!()
+            panic!("exit syscall returned unexpectedly with code: {}", code)
         }
     }
 }
