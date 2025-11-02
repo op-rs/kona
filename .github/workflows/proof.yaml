@@ -198,7 +198,7 @@ jobs:
           gotestsum_version: 1.12.1
 
       - name: Download All Artifacts
-        if: ${{ !cancelled() }}
+        if: always()
         uses: actions/download-artifact@v5
         with:
           name: junit-test-summary
