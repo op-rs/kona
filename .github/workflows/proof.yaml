@@ -187,7 +187,7 @@ jobs:
           prefix-key: ${{ matrix.kind }}-parallel
       - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Setup Go toolchain
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "1.22.7"
           cache-dependency-path: |
@@ -197,16 +197,11 @@ jobs:
         with:
           gotestsum_version: 1.12.1
 
-      - name: Download JUnit Summary from Previous Workflow
-        id: download-artifact
-        uses: dawidd6/action-download-artifact@v11
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v5
         with:
-          workflow_conclusion: success
           name: junit-test-summary
-          if_no_artifact_found: warn
-          use_unzip: true
-          # todo: uncomment this before merging to main
-          # branch: main
+      - run: ls -Al
 
       - name: Build Action Tests
         run: |
