@@ -217,7 +217,7 @@ long-running-test FILTER="" OUTPUT_LOGS_DIR="":
 action-tests-single test_name='Test_ProgramAction' *args='':
   #!/bin/bash
   echo "Building contract artifacts for the optimism"
-  just unzip-contract-artifacts {{SOURCE}}/optimism/packages/contracts-bedrock/forge-artifacts
+  just unzip-contract-artifacts {{SOURCE}}/optimism/packages/contracts-bedrock
 
   echo "Building host program for the native target"
   just build-native --bin kona-host
@@ -233,7 +233,7 @@ action-tests-single test_name='Test_ProgramAction' *args='':
 action-tests-interop test_name='TestInteropFaultProofs' *args='':
   #!/bin/bash
   echo "Building contract artifacts for the optimism"
-  just unzip-contract-artifacts {{SOURCE}}/optimism/packages/contracts-bedrock/forge-artifacts
+  just unzip-contract-artifacts {{SOURCE}}/optimism/packages/contracts-bedrock
 
   echo "Building host program for the native target"
   just build-native --bin kona-host
