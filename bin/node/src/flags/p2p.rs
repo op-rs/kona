@@ -11,7 +11,6 @@ use alloy_signer_local::PrivateKeySigner;
 use anyhow::Result;
 use clap::Parser;
 use discv5::{Enr, enr::k256};
-use kona_derive::ChainProvider;
 use kona_disc::LocalNode;
 use kona_genesis::RollupConfig;
 use kona_gossip::GaterConfig;
@@ -476,9 +475,8 @@ mod tests {
     #[test]
     fn test_p2p_args_keypair_from_path() {
         // Create a temporary directory.
-        let dir = std::env::temp_dir();
-        let mut source_path = dir.clone();
-        assert!(std::env::set_current_dir(dir).is_ok());
+        let mut source_path = std::env::temp_dir();
+        assert!(std::env::set_current_dir(&source_path).is_ok());
 
         // Write a private key to a file.
         let key = b256!("1d2b0bda21d56b8bd12d4f94ebacffdfb35f5e226f84b461103bb8beab6353be");
