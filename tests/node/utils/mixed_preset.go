@@ -3,7 +3,6 @@ package node_utils
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -490,8 +489,8 @@ func DefaultMixedOpKonaSystem(dest *DefaultMixedOpKonaSystemIDs, l2NodeConfig L2
 		),
 		sysgo.WithDeployerOptions(
 			func(_ devtest.P, _ devkeys.Keys, builder intentbuilder.Builder) {
-				builder.WithL1ContractsLocator(artifacts.MustNewFileLocator(filepath.Join(artifactsPath, "src")))
-				builder.WithL2ContractsLocator(artifacts.MustNewFileLocator(filepath.Join(artifactsPath, "src")))
+				builder.WithL1ContractsLocator(artifacts.MustNewFileLocator(artifactsPath))
+				builder.WithL2ContractsLocator(artifacts.MustNewFileLocator(artifactsPath))
 			},
 			sysgo.WithCommons(ids.L1.ChainID()),
 			sysgo.WithPrefundedL2(ids.L1.ChainID(), ids.L2.ChainID()),
