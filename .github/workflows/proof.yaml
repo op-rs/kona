@@ -82,7 +82,7 @@ jobs:
           just "action-tests-${{ matrix.kind }}-run" "${{ steps.test_split.outputs.run }}"
 
       - name: Upload test artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: junit-test-summary-${{ matrix.index }}
           path: tests/optimism/op-e2e/actions/proofs/node-summary.xml
@@ -118,7 +118,7 @@ jobs:
         run: jrm ./junit-test-summary.xml "junit-test-summary-0/*.xml" "junit-test-summary-1/*.xml" "junit-test-summary-2/*.xml" "junit-test-summary-3/*.xml"
 
       - name: Upload test artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: junit-test-summary
           path: ./junit-test-summary.xml
