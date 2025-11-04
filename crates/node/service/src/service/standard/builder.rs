@@ -158,12 +158,12 @@ impl RollupNodeBuilder {
         if rollup_boost_args.l2_client.l2_jwt_token.is_none() &&
             rollup_boost_args.l2_client.l2_jwt_path.is_none()
         {
-            rollup_boost_args.l2_client.l2_jwt_token = Some(jwt_secret.clone());
+            rollup_boost_args.l2_client.l2_jwt_token = Some(jwt_secret);
         }
         if rollup_boost_args.builder.builder_jwt_token.is_none() &&
             rollup_boost_args.builder.builder_jwt_path.is_none()
         {
-            rollup_boost_args.builder.builder_jwt_token = Some(jwt_secret.clone());
+            rollup_boost_args.builder.builder_jwt_token = Some(jwt_secret);
         }
 
         let rollup_boost_execution_mode: Arc<Mutex<ExecutionMode>>;
@@ -195,7 +195,7 @@ impl RollupNodeBuilder {
             mode: self.mode,
             rollup_boost: Some(rollup_boost),
             rollup_boost_execution_mode,
-            rollup_boost_probes: probes.clone(),
+            rollup_boost_probes: probes,
         };
 
         let p2p_config = self.p2p_config.expect("P2P config not set");
