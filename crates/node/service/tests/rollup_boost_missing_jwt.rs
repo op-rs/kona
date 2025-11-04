@@ -1,5 +1,5 @@
-// Reproduces panic: "failed to create rollup boost server: Missing Client JWT secret" when
-// constructing rollup-boost without an L2 client JWT provided.
+//! Reproduces panic: "failed to create rollup boost server: Missing Client JWT secret" when
+//! constructing rollup-boost without an L2 client JWT provided.
 
 #[cfg(test)]
 mod tests {
