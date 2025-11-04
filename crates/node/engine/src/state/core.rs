@@ -241,9 +241,8 @@ mod test {
     ) {
         static PROM_HANDLE: std::sync::OnceLock<metrics_exporter_prometheus::PrometheusHandle> =
             std::sync::OnceLock::new();
-        let handle = PROM_HANDLE.get_or_init(|| {
-            PrometheusBuilder::new().install_recorder().expect("install recorder")
-        });
+        let handle = PROM_HANDLE
+            .get_or_init(|| PrometheusBuilder::new().install_recorder().expect("install recorder"));
         crate::Metrics::init();
 
         let mut state = EngineState::default();

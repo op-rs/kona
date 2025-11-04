@@ -74,7 +74,7 @@ type HyperAuthClient<B = Full<Bytes>> = HyperClient<B, AuthService<Client<HttpCo
 /// # Ok(())
 /// # }
 /// ```
-
+///
 /// Engine API client used to communicate with L1/L2 ELs and optional rollup-boost.
 #[derive(Deref, Clone)]
 pub struct EngineClient {
@@ -199,7 +199,7 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
                     Box::pin(async move {
                         rb.new_payload_v3(payload, vec![], parent_beacon_block_root)
                             .await
-                            .map_err(|e| TransportErrorKind::custom(e))
+                            .map_err(TransportErrorKind::custom)
                     })
                 }
                 None => Box::pin(async move {
@@ -223,7 +223,7 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
                     Box::pin(async move {
                         rb.new_payload_v4(payload.clone(), vec![], parent_beacon_block_root, vec![])
                             .await
-                            .map_err(|e| TransportErrorKind::custom(e))
+                            .map_err(TransportErrorKind::custom)
                     })
                 }
                 None => Box::pin(async move {
@@ -261,7 +261,7 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
                     Box::pin(async move {
                         rb.fork_choice_updated_v3(fork_choice_state, payload_attributes)
                             .await
-                            .map_err(|e| TransportErrorKind::custom(e))
+                            .map_err(TransportErrorKind::custom)
                     })
                 }
                 None => Box::pin(async move {
@@ -296,7 +296,7 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
             Some(rb) => {
                 let rb = rb.clone();
                 Box::pin(async move {
-                    rb.get_payload_v3(payload_id).await.map_err(|e| TransportErrorKind::custom(e))
+                    rb.get_payload_v3(payload_id).await.map_err(TransportErrorKind::custom)
                 })
             }
             None => Box::pin(async move {
@@ -319,7 +319,7 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
             Some(rb) => {
                 let rb = rb.clone();
                 Box::pin(async move {
-                    rb.get_payload_v4(payload_id).await.map_err(|e| TransportErrorKind::custom(e))
+                    rb.get_payload_v4(payload_id).await.map_err(TransportErrorKind::custom)
                 })
             }
             None => Box::pin(async move {
