@@ -85,7 +85,7 @@ test-e2e-sysgo BINARY GO_PKG_NAME="" DEVNET="simple-kona" FILTER="" : unzip-cont
         export FILTER="-run {{FILTER}}"
     fi
 
-    export OP_DEPLOYER_ARTIFACTS="{{SOURCE}}/artifacts"
+    export OP_DEPLOYER_ARTIFACTS="{{SOURCE}}/artifacts/src/forge-artifacts"
     export DISABLE_OP_E2E_LEGACY=true
 
     if [ "{{DEVNET}}" = "simple-kona" ]; then
@@ -217,7 +217,7 @@ long-running-test FILTER="" OUTPUT_LOGS_DIR="":
 action-tests-single test_name='Test_ProgramAction' *args='':
   #!/bin/bash
   echo "Building contract artifacts for the optimism"
-  just unzip-contract-artifacts {{SOURCE}}/optimism/packages/contracts-bedrock/forge-artifacts
+  just unzip-contract-artifacts {{SOURCE}}/optimism/packages/contracts-bedrock
 
   echo "Building host program for the native target"
   just build-native --bin kona-host
@@ -233,7 +233,7 @@ action-tests-single test_name='Test_ProgramAction' *args='':
 action-tests-interop test_name='TestInteropFaultProofs' *args='':
   #!/bin/bash
   echo "Building contract artifacts for the optimism"
-  just unzip-contract-artifacts {{SOURCE}}/optimism/packages/contracts-bedrock/forge-artifacts
+  just unzip-contract-artifacts {{SOURCE}}/optimism/packages/contracts-bedrock
 
   echo "Building host program for the native target"
   just build-native --bin kona-host
@@ -280,13 +280,13 @@ unzip-contract-artifacts DEST_DIR="":
 
     mkdir -p $DEST_DIR
 
-    tar -xzf {{SOURCE}}/artifacts/compressed/artifacts.tgz -C $DEST_DIR
+    tar --zstd -xf {{SOURCE}}/artifacts/compressed/artifacts.tzst -C $DEST_DIR
 
 
 update-packages: 
     #!/bin/bash
     cd {{SOURCE}}/optimism/op-deployer && just build-contracts copy-contract-artifacts
-    cp {{SOURCE}}/optimism/op-deployer/pkg/deployer/artifacts/forge-artifacts/artifacts.tgz {{SOURCE}}/artifacts/compressed/artifacts.tgz
+    cp {{SOURCE}}/optimism/op-deployer/pkg/deployer/artifacts/forge-artifacts/artifacts.tzst {{SOURCE}}/artifacts/compressed/artifacts.tzst
 
 # Updates the pinned version of the optimism
 update-optimism:
