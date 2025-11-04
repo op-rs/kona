@@ -17,7 +17,7 @@
           "granite_time": 1726070401,
           "holocene_time": 1736445601,
           "isthmus_time": 1746806401,
-          "jovian_time": 1764086401
+          "jovian_time": 1764691201
         },
         "protocol_versions_addr": "0x8062abc286f5e7d9428a0ccb9abd71e50d93b935",
         "superchain_config_addr": "0x95703e0982140d16f8eba6d158fccede42f04a4c",
@@ -47,7 +47,7 @@
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
             "isthmus_time": 1746806401,
-            "jovian_time": 1764086401
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -133,7 +133,7 @@
             "granite_time": 0,
             "holocene_time": 1736445601,
             "isthmus_time": 1746806401,
-            "jovian_time": 1764086401
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -302,7 +302,7 @@
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
             "isthmus_time": 1746806401,
-            "jovian_time": 1764086401
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 20,
@@ -388,7 +388,7 @@
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
             "isthmus_time": 1746806401,
-            "jovian_time": 1764086401
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -721,7 +721,7 @@
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
             "isthmus_time": 1746806401,
-            "jovian_time": 1764086401
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -974,7 +974,7 @@
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
             "isthmus_time": 1746806401,
-            "jovian_time": 1764086401
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -1146,7 +1146,7 @@
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
             "isthmus_time": 1746806401,
-            "jovian_time": 1764086401
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -1232,7 +1232,7 @@
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
             "isthmus_time": 1746806401,
-            "jovian_time": 1764086401
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 20,
@@ -1318,7 +1318,7 @@
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
             "isthmus_time": 1746806401,
-            "jovian_time": 1764086401
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -1404,7 +1404,7 @@
             "granite_time": 0,
             "holocene_time": 1738573200,
             "isthmus_time": 1746806401,
-            "jovian_time": 1764086401
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -1474,7 +1474,7 @@
           "Explorer": "https://explorer.swellnetwork.io",
           "SuperchainLevel": 1,
           "GovernedByOptimism": true,
-          "SuperchainTime": 1764086401,
+          "SuperchainTime": 1764691201,
           "DataAvailabilityType": "eth-da",
           "l2_chain_id": 1923,
           "batch_inbox_address": "0x005de5857e38dfd703a1725c0900e9c6f24cbde0",
@@ -1489,8 +1489,8 @@
             "fjord_time": 0,
             "granite_time": 0,
             "holocene_time": 1752732000,
-            "isthmus_time": 1764043201,
-            "jovian_time": 1764086401
+            "isthmus_time": 1764648001,
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -1576,7 +1576,7 @@
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
             "isthmus_time": 1746806401,
-            "jovian_time": 1764086401
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -1998,7 +1998,7 @@
             "granite_time": 0,
             "holocene_time": 1736445601,
             "isthmus_time": 1746806401,
-            "jovian_time": 1764086401
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 20,
@@ -2084,7 +2084,7 @@
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
             "isthmus_time": 1746806401,
-            "jovian_time": 1764086401
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -2170,7 +2170,7 @@
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
             "isthmus_time": 1746806401,
-            "jovian_time": 1764086401
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -2343,7 +2343,7 @@
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
             "isthmus_time": 1746806401,
-            "jovian_time": 1764086401
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -2514,7 +2514,7 @@
             "granite_time": 0,
             "holocene_time": 1742396400,
             "isthmus_time": 1746806401,
-            "jovian_time": 1764086401
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -2600,7 +2600,7 @@
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
             "isthmus_time": 1746806401,
-            "jovian_time": 1764086401
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -2948,7 +2948,7 @@
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
             "isthmus_time": 1746806401,
-            "jovian_time": 1764086401
+            "jovian_time": 1764691201
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -3222,7 +3222,7 @@
           "holocene_time": 1732633200,
           "pectra_blob_schedule_time": 1742486400,
           "isthmus_time": 1744905600,
-          "jovian_time": 1762963201
+          "jovian_time": 1763568001
         },
         "protocol_versions_addr": "0x79add5713b383daa0a138d3c4780c7a1804a8090",
         "superchain_config_addr": "0xc2be75506d5724086deb7245bd260cc9753911be",
@@ -3253,7 +3253,7 @@
             "holocene_time": 1732633200,
             "pectra_blob_schedule_time": 1742486400,
             "isthmus_time": 1744905600,
-            "jovian_time": 1762963201
+            "jovian_time": 1763568001
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -3507,7 +3507,7 @@
             "holocene_time": 1732633200,
             "pectra_blob_schedule_time": 1742486400,
             "isthmus_time": 1744905600,
-            "jovian_time": 1762963201
+            "jovian_time": 1763568001
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -3594,7 +3594,7 @@
             "holocene_time": 1734559200,
             "pectra_blob_schedule_time": 1742486400,
             "isthmus_time": 1744905600,
-            "jovian_time": 1762963201
+            "jovian_time": 1763568001
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -3681,7 +3681,7 @@
             "holocene_time": 1732633200,
             "pectra_blob_schedule_time": 1742486400,
             "isthmus_time": 1744905600,
-            "jovian_time": 1762963201
+            "jovian_time": 1763568001
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -3768,7 +3768,7 @@
             "holocene_time": 1734685200,
             "pectra_blob_schedule_time": 1742486400,
             "isthmus_time": 1744905600,
-            "jovian_time": 1762963201
+            "jovian_time": 1763568001
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -3855,7 +3855,7 @@
             "holocene_time": 1732633200,
             "pectra_blob_schedule_time": 1742486400,
             "isthmus_time": 1744905600,
-            "jovian_time": 1762963201
+            "jovian_time": 1763568001
           },
           "optimism": {
             "eip1559Elasticity": 10,
@@ -4180,7 +4180,7 @@
           "Explorer": "https://testnet-explorer.arena-z.gg",
           "SuperchainLevel": 1,
           "GovernedByOptimism": true,
-          "SuperchainTime": 1762963201,
+          "SuperchainTime": 1763568001,
           "DataAvailabilityType": "eth-da",
           "l2_chain_id": 9899,
           "batch_inbox_address": "0x00894002c8ccc07469d2f98e575c375130761c35",
@@ -4196,7 +4196,7 @@
             "granite_time": 0,
             "holocene_time": 0,
             "isthmus_time": 1747839600,
-            "jovian_time": 1762963201
+            "jovian_time": 1763568001
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -4532,7 +4532,7 @@
             "holocene_time": 1732633200,
             "pectra_blob_schedule_time": 1742486400,
             "isthmus_time": 1744905600,
-            "jovian_time": 1762963201
+            "jovian_time": 1763568001
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -4619,7 +4619,7 @@
             "holocene_time": 1732633200,
             "pectra_blob_schedule_time": 1742486400,
             "isthmus_time": 1744905600,
-            "jovian_time": 1762963201
+            "jovian_time": 1763568001
           },
           "optimism": {
             "eip1559Elasticity": 10,
@@ -4790,7 +4790,7 @@
             "holocene_time": 1732633200,
             "pectra_blob_schedule_time": 1742486400,
             "isthmus_time": 1744905600,
-            "jovian_time": 1762963201
+            "jovian_time": 1763568001
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -5046,7 +5046,7 @@
             "holocene_time": 1732633200,
             "pectra_blob_schedule_time": 1742486400,
             "isthmus_time": 1744905600,
-            "jovian_time": 1762963201
+            "jovian_time": 1763568001
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -5215,7 +5215,7 @@
             "holocene_time": 1732633200,
             "pectra_blob_schedule_time": 1742486400,
             "isthmus_time": 1744905600,
-            "jovian_time": 1762963201
+            "jovian_time": 1763568001
           },
           "optimism": {
             "eip1559Elasticity": 6,
