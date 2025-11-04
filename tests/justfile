@@ -42,9 +42,10 @@ build-reth:
   #!/bin/bash
   cd {{SOURCE}}/reth/crates/optimism/bin && cargo build --bin op-reth
 
-build-kona:
+build-kona BIN="kona-node":
   #!/bin/bash
-  cd {{SOURCE}}/.. && cargo build --bin kona-node
+  @echo "Building {{BIN}}"
+  cd {{SOURCE}}/.. && cargo build --bin {{BIN}}
 
 # Run acceptance tests for the rust stack. By default runs the acceptance tests for kona-node with op-reth.
 # Uses the jovian gate by default.
@@ -213,41 +214,38 @@ long-running-test FILTER="" OUTPUT_LOGS_DIR="":
     # Run the test with count=1 to avoid caching the test results.
     cd {{SOURCE}} && go test -count=1 -timeout 0 -v ./node/long-running $FILTER
 
-# Run action tests for the single-chain client program on the native target
+# Run action tests for the single-chain client program on the target
 action-tests-single test_name='Test_ProgramAction' *args='': action-tests-single-build (action-tests-single-run test_name args)
 
-# Build action tests for the single-chain client program on the native target
-action-tests-single-build:
+# Build action tests for the single-chain client program on the target
+action-tests-single-build: (build-kona "kona-host")
   #!/bin/bash
   echo "Building contract artifacts for the optimism"
   just unzip-contract-artifacts {{SOURCE}}/optimism/packages/contracts-bedrock
 
-  echo "Building host program for the native target"
-  just build-native --bin kona-host
+  export KONA_HOST_PATH="{{SOURCE}}/../target/debug/kona-host"
 
-# Run action tests for the single-chain client program on the native target
+# Run action tests for the single-chain client program on the target
 action-tests-single-run test_name='Test_ProgramAction' *args='':
   #!/bin/bash
   export KONA_HOST_PATH="{{SOURCE}}/../target/debug/kona-host"
   # GitHub actions patch - do not print logs.
   # https://github.com/gotestyourself/gotestsum/blob/b4b13345fee56744d80016a20b760d3599c13504/testjson/format.go#L442-L444
-  echo "Running action tests for the client program on the native target"
+  echo "Running action tests for the client program"
 
   cd {{SOURCE}}/optimism/op-e2e/actions/proofs && GITHUB_ACTIONS=false gotestsum --junitfile node-summary.xml --format=short-verbose -- -count=1 -timeout 60m -run "{{test_name}}" {{args}}
 
-# Run action tests for the interop client program on the native target
-action-tests-interop test_name='TestInteropFaultProofs' *args='':
+# Run action tests for the interop client program on the target
+action-tests-interop test_name='TestInteropFaultProofs' *args='': (build-kona "kona-host")
   #!/bin/bash
   echo "Building contract artifacts for the optimism"
   just unzip-contract-artifacts {{SOURCE}}/optimism/packages/contracts-bedrock
 
-  echo "Building host program for the native target"
-  just build-native --bin kona-host
   export KONA_HOST_PATH="{{justfile_directory()}}/target/debug/kona-host"
 
   # GitHub actions patch - do not print logs.
   # https://github.com/gotestyourself/gotestsum/blob/b4b13345fee56744d80016a20b760d3599c13504/testjson/format.go#L442-L444
-  echo "Running action tests for the client program on the native target"
+  echo "Running action tests for the client program"
 
   cd {{SOURCE}}/optimism/op-e2e/actions/interop && GITHUB_ACTIONS=false gotestsum --format=testname -- -run "{{test_name}}" {{args}} -count=1 ./...
 
