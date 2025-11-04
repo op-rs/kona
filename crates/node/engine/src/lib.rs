@@ -69,5 +69,3 @@ pub use query::{EngineQueries, EngineQueriesError, EngineQuerySender};
 
 mod metrics;
 pub use metrics::Metrics;
-
-pub mod compat;

@@ -12,11 +12,6 @@ use rollup_boost::{EngineApiExt, EngineApiServer, RollupBoostServer};
 use std::fmt::Debug;
 use thiserror::Error;
 
-use crate::compat::{
-    to_v_later_execution_payload_envelope_v3, to_v_later_execution_payload_envelope_v4,
-    to_v20_execution_payload_v4, to_v20_payload_attributes,
-};
-
 /// Error wrapper for rollup-boost calls.
 #[derive(Debug, Error)]
 #[error("{0}")]
@@ -86,7 +81,7 @@ impl<T: EngineApiExt + Send + Sync + 'static + Debug> RollupBoostServerLike
     ) -> Result<PayloadStatus, RollupBoostError> {
         EngineApiServer::new_payload_v4(
             self,
-            to_v20_execution_payload_v4(payload.clone()),
+            payload.clone(),
             versioned_hashes,
             parent_beacon_block_root,
             execution_requests,
@@ -100,13 +95,9 @@ impl<T: EngineApiExt + Send + Sync + 'static + Debug> RollupBoostServerLike
         fork_choice_state: ForkchoiceState,
         payload_attributes: Option<OpPayloadAttributes>,
     ) -> Result<ForkchoiceUpdated, RollupBoostError> {
-        EngineApiServer::fork_choice_updated_v3(
-            self,
-            fork_choice_state,
-            payload_attributes.as_ref().map(to_v20_payload_attributes),
-        )
-        .await
-        .map_err(|e| RollupBoostError(e.to_string()))
+        EngineApiServer::fork_choice_updated_v3(self, fork_choice_state, payload_attributes)
+            .await
+            .map_err(|e| RollupBoostError(e.to_string()))
     }
 
     async fn get_payload_v3(
@@ -116,7 +107,6 @@ impl<T: EngineApiExt + Send + Sync + 'static + Debug> RollupBoostServerLike
         EngineApiServer::get_payload_v3(self, payload_id)
             .await
             .map_err(|e| RollupBoostError(e.to_string()))
-            .map(to_v_later_execution_payload_envelope_v3)
     }
 
     async fn get_payload_v4(
@@ -126,6 +116,5 @@ impl<T: EngineApiExt + Send + Sync + 'static + Debug> RollupBoostServerLike
         EngineApiServer::get_payload_v4(self, payload_id)
             .await
             .map_err(|e| RollupBoostError(e.to_string()))
-            .map(to_v_later_execution_payload_envelope_v4)
     }
 }
