@@ -39,9 +39,6 @@ op-alloy-provider.workspace = true
 op-alloy-rpc-types.workspace = true
 op-alloy-rpc-types-engine.workspace = true
 
-# op-alloy v0.20.0 for compatibility with rollup-boost/reth
-op-alloy-rpc-types-engine-v20.workspace = true
-
 # general
 serde.workspace = true
 tokio.workspace = true

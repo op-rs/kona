@@ -16,8 +16,8 @@ use kona_node_service::{NodeMode, RollupNode, RollupNodeService};
 use kona_registry::{L1Config, scr_rollup_config_by_alloy_ident};
 use op_alloy_provider::ext::engine::OpEngineApi;
 use rollup_boost::{
-    BlockSelectionPolicy, BuilderArgs, ExecutionMode, FlashblocksArgs, L2ClientArgs,
-    RollupBoostArgs,
+    BlockSelectionPolicy, BuilderArgs, ExecutionMode, FlashblocksArgs, FlashblocksWebsocketConfig,
+    L2ClientArgs, RollupBoostArgs,
 };
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf, sync::Arc};
@@ -68,7 +68,7 @@ pub(super) enum JwtValidationError {
 ///           --l2-engine-rpc http://localhost:8551 \
 ///           --l2-engine-jwt-secret /path/to/jwt.hex
 /// ```
-#[derive(Parser, PartialEq, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 #[command(about = "Runs the consensus node")]
 pub struct NodeCommand {
     /// The mode to run the node in.
@@ -176,37 +176,9 @@ pub struct NodeCommand {
     )]
     pub rollup_boost_ignore_unhealthy_builders: bool,
 
-    // Rollup boost flashblocks flags
-    /// Enable Flashblocks client
-    #[arg(long, visible_alias = "rollup-boost.flashblocks.enabled", env, default_value = "false")]
-    pub flashblocks_enabled: bool,
-    /// Flashblocks Builder WebSocket URL
-    #[arg(long, visible_alias = "rollup-boost.flashblocks.builder-websocket-url", env)]
-    pub flashblocks_builder_websocket_url: Option<Url>,
-    /// Flashblocks WebSocket host for outbound connections
-    #[arg(
-        long,
-        visible_alias = "rollup-boost.flashblocks.builder-websocket-host",
-        env,
-        default_value = "127.0.0.1"
-    )]
-    pub flashblocks_builder_websocket_host: String,
-    /// Flashblocks WebSocket port for outbound connections
-    #[arg(
-        long,
-        visible_alias = "rollup-boost.flashblocks.builder-websocket-port",
-        env,
-        default_value = "1112"
-    )]
-    pub flashblocks_builder_websocket_port: u16,
-    /// Time used for timeout if builder disconnected
-    #[arg(
-        long,
-        visible_alias = "rollup-boost.flashblocks.builder-websocket-reconnect-ms",
-        env,
-        default_value = "5000"
-    )]
-    pub flashblocks_builder_websocket_reconnect_ms: u64,
+    /// Rollup boost flashblocks flags
+    #[command(flatten)]
+    pub flashblocks_flags: FlashblocksArgs,
 
     // Subfeature flags
     /// P2P CLI arguments.
@@ -246,11 +218,18 @@ impl Default for NodeCommand {
             rollup_boost_external_state_root: false,
             rollup_boost_ignore_unhealthy_builders: false,
 
-            flashblocks_enabled: false,
-            flashblocks_builder_websocket_url: None,
-            flashblocks_builder_websocket_host: "127.0.0.1".to_string(),
-            flashblocks_builder_websocket_port: 1112,
-            flashblocks_builder_websocket_reconnect_ms: 5000,
+            flashblocks_flags: FlashblocksArgs {
+                flashblocks: false,
+                flashblocks_builder_url: "ws://127.0.0.1:1111".parse::<Url>().unwrap(),
+                flashblocks_host: "127.0.0.1".to_string(),
+                flashblocks_port: 1112,
+                flashblocks_ws_config: FlashblocksWebsocketConfig {
+                    flashblock_builder_ws_max_reconnect_ms: 5000,
+                    flashblock_builder_ws_initial_reconnect_ms: 10,
+                    flashblock_builder_ws_ping_interval_ms: 500,
+                    flashblock_builder_ws_pong_timeout_ms: 1500,
+                },
+            },
 
             p2p_flags: P2PArgs::default(),
             rpc_flags: RpcArgs::default(),
@@ -385,22 +364,8 @@ impl NodeCommand {
             .await
     }
 
-    /// Validate that required builder flags are present when execution mode is enabled.
-    pub fn validate_builder_flags(&self) -> anyhow::Result<()> {
-        if self.flashblocks_enabled && self.flashblocks_builder_websocket_url.is_none() {
-            bail!(
-                "Flashblocks builder WebSocket URL is required when flashblocks is enabled. Either set --rollup-boost.flashblocks.builder-websocket-url or disable flashblocks with --rollup-boost.flashblocks.enabled=false"
-            );
-        }
-
-        Ok(())
-    }
-
     /// Run the Node subcommand.
     pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
-        // Validate builder configuration
-        self.validate_builder_flags()?;
-
         let cfg = self.get_l2_config(args)?;
         let l1_cfg = self.get_l1_config(cfg.l1_chain_id)?;
 
@@ -565,16 +530,7 @@ impl NodeCommand {
             ignore_unhealthy_builders: self.rollup_boost_ignore_unhealthy_builders,
             // log_config.global_level == None when logging should be disabled, setting to error is
             // closest to this
-            flashblocks: FlashblocksArgs {
-                flashblocks: self.flashblocks_enabled,
-                flashblocks_builder_url: self
-                    .flashblocks_builder_websocket_url
-                    .clone()
-                    .unwrap_or_else(|| "ws://127.0.0.1:1111".parse::<Url>().unwrap()),
-                flashblocks_host: self.flashblocks_builder_websocket_host.clone(),
-                flashblocks_port: self.flashblocks_builder_websocket_port,
-                flashblock_builder_ws_reconnect_ms: self.flashblocks_builder_websocket_reconnect_ms,
-            },
+            flashblocks: self.flashblocks_flags.clone(),
             ..Default::default()
         }
     }
