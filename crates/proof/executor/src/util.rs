@@ -73,7 +73,7 @@ pub(crate) fn encode_holocene_eip_1559_params(
 ) -> ExecutorResult<Bytes> {
     Ok(encode_holocene_extra_data(
         attributes.eip_1559_params.ok_or(ExecutorError::MissingEIP1559Params)?,
-        config.chain_op_config.as_base_fee_params(),
+        config.chain_op_config.post_canyon_params(),
     )?)
 }
 
@@ -92,7 +92,7 @@ pub(crate) fn encode_jovian_eip_1559_params(
 ) -> ExecutorResult<Bytes> {
     Ok(encode_jovian_extra_data(
         attributes.eip_1559_params.ok_or(ExecutorError::MissingEIP1559Params)?,
-        config.chain_op_config.as_base_fee_params(),
+        config.chain_op_config.post_canyon_params(),
         attributes.min_base_fee.ok_or(ExecutorError::InvalidExtraData(
             Eip1559ValidationError::Decode(EIP1559ParamError::MinBaseFeeNotSet),
         ))?,

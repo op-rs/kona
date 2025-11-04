@@ -200,7 +200,7 @@ impl AttributesMatch {
             // base fee params.
             Some((0, 0)) => {
                 let BaseFeeParams { max_change_denominator, elasticity_multiplier } =
-                    config.chain_op_config.as_canyon_base_fee_params();
+                    config.chain_op_config.post_canyon_params();
 
                 (elasticity_multiplier, max_change_denominator)
             }
