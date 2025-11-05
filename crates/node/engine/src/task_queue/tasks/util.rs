@@ -36,23 +36,6 @@ pub(in crate::task_queue) enum BuildAndSealError {
 /// * `attributes` - The payload attributes to build
 /// * `is_attributes_derived` - Whether the attributes were derived or created by the sequencer
 /// * `payload_tx` - Optional channel to send the built payload envelope
-///
-/// # Returns
-///
-/// Returns `Ok(())` if both build and seal operations succeed, or an error if either fails.
-///
-/// # Examples
-///
-/// ```ignore
-/// let result = build_and_seal(
-///     engine.clone(),
-///     cfg.clone(),
-///     deposits_only_attrs,
-///     true,
-///     Some(tx),
-///     &mut state,
-/// ).await?;
-/// ```
 pub(in crate::task_queue) async fn build_and_seal(
     state: &mut EngineState,
     engine: Arc<EngineClient>,

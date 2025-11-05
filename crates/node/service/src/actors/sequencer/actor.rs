@@ -40,7 +40,7 @@ pub struct SequencerActor<AB: AttributesBuilderConfig> {
 
 /// The handle to a block that has been started but not sealed.
 #[derive(Debug, Constructor)]
-pub(super) struct UnsealedPayloadData {
+pub(super) struct UnsealedPayloadHandle {
     /// The [`PayloadId`] of the unsealed payload.
     pub payload_id: PayloadId,
     /// The [`OpAttributesWithParent`] used to start block building.
@@ -183,11 +183,11 @@ pub struct SequencerContext {
     pub l1_head_rx: watch::Receiver<Option<BlockInfo>>,
     /// Sender to request the engine to reset.
     pub reset_request_tx: mpsc::Sender<()>,
-    /// Sender to request the execution layer to start building a payload attributes on top of the
+    /// Sender to request the execution layer to start building a payload on top of the
     /// current unsafe head.
     pub build_request_tx: mpsc::Sender<(OpAttributesWithParent, mpsc::Sender<PayloadId>)>,
-    /// Sender to request the execution layer to seal the payload ID and attributes that
-    /// resulted from a previous build call.
+    /// Sender to request the execution layer to seal and commit the payload ID and
+    /// attributes that resulted from a previous build call.
     pub seal_request_tx:
         mpsc::Sender<(PayloadId, OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>,
     /// A sender to asynchronously sign and gossip built [`OpExecutionPayloadEnvelope`]s to the
@@ -230,15 +230,15 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
     /// Seals and commits the last pending block, if one exists and starts the build job for the
     /// next L2 block, on top of the current unsafe head.
     ///
-    /// In the success case, this function stores the [`UnsealedPayloadData`] for the block it began
-    /// in state so that it may be sealed and committed the next time this function is called.
+    /// If a new block was started, it will return the associated [`UnsealedPayloadHandle`] so
+    /// that it may be sealed and committed in a future call to this function.
     async fn seal_last_and_start_next(
         &mut self,
         ctx: &mut SequencerContext,
         unsafe_head_rx: &mut watch::Receiver<L2BlockInfo>,
         in_recovery_mode: bool,
-        payload_to_seal: Option<UnsealedPayloadData>,
-    ) -> Result<Option<UnsealedPayloadData>, SequencerActorError> {
+        payload_to_seal: Option<UnsealedPayloadHandle>,
+    ) -> Result<Option<UnsealedPayloadHandle>, SequencerActorError> {
         if let Some(to_seal) = payload_to_seal {
             self.seal_and_commit_payload_if_applicable(ctx, to_seal).await?;
         }
@@ -249,14 +249,14 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         Ok(unsealed_payload)
     }
 
-    /// Sends a seal request to seal the provided [`UnsealedPayloadData`], committing and gossiping
-    /// the resulting block, if one is built.
+    /// Sends a seal request to seal the provided [`UnsealedPayloadHandle`], committing and
+    /// gossiping the resulting block, if one is built.
     async fn seal_and_commit_payload_if_applicable(
         &mut self,
         ctx: &mut SequencerContext,
-        unsealed_payload_data: UnsealedPayloadData,
+        unsealed_payload_handle: UnsealedPayloadHandle,
     ) -> Result<(), SequencerActorError> {
-        let UnsealedPayloadData { payload_id, attributes_with_parent } = unsealed_payload_data;
+        let UnsealedPayloadHandle { payload_id, attributes_with_parent } = unsealed_payload_handle;
 
         // Create a new channel to receive the built payload.
         let (payload_tx, payload_rx) = mpsc::channel(1);
@@ -302,7 +302,7 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         ctx: &mut SequencerContext,
         unsafe_head_rx: &mut watch::Receiver<L2BlockInfo>,
         in_recovery_mode: bool,
-    ) -> Result<Option<UnsealedPayloadData>, SequencerActorError> {
+    ) -> Result<Option<UnsealedPayloadHandle>, SequencerActorError> {
         let unsafe_head = *unsafe_head_rx.borrow();
         let l1_origin = match self
             .origin_selector
@@ -379,7 +379,7 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
 
         let payload_id = self.try_wait_for_payload_id(ctx, payload_id_rx).await?;
 
-        Ok(Some(UnsealedPayloadData::new(payload_id, attrs_with_parent)))
+        Ok(Some(UnsealedPayloadHandle::new(payload_id, attrs_with_parent)))
     }
 
     /// Builds the OpAttributesWithParent for the next block to build. If None is returned, it
@@ -584,7 +584,7 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
         // Reset the engine state prior to beginning block building.
         state.schedule_initial_reset(&mut ctx, &mut self.unsafe_head_rx).await?;
 
-        let mut next_block_to_seal = None;
+        let mut next_payload_to_seal = None;
 
         loop {
             select! {
@@ -620,7 +620,7 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
 
                     let start_time = Instant::now();
 
-                    next_block_to_seal = state.seal_last_and_start_next(&mut ctx, &mut self.unsafe_head_rx, state.is_recovery_mode, next_block_to_seal).await?;
+                    next_payload_to_seal = state.seal_last_and_start_next(&mut ctx, &mut self.unsafe_head_rx, state.is_recovery_mode, next_payload_to_seal).await?;
 
                     // Set the next tick time to the configured blocktime less the time it takes to seal last and start next.
                     state.build_ticker.reset_after(Duration::from_secs(state.cfg.block_time).saturating_sub(start_time.elapsed()));

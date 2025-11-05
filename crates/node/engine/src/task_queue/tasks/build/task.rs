@@ -33,12 +33,52 @@ pub struct BuildTask {
     pub cfg: Arc<RollupConfig>,
     /// The [`OpAttributesWithParent`] to instruct the execution layer to build.
     pub attributes: OpAttributesWithParent,
-    /// The optional sender to which [`PayloadId`] will be sent after the block build has been
-    /// started.
+    /// The optional sender through which [`PayloadId`] will be sent after the
+    /// block build has been started.
     pub payload_id_tx: Option<mpsc::Sender<PayloadId>>,
 }
 
 impl BuildTask {
+    /// Validates the provided [PayloadStatusEnum] according to the rules listed below.
+    ///
+    /// ## Observed [PayloadStatusEnum] Variants
+    /// The `engine_forkchoiceUpdate` payload statuses that this function observes are below. Any
+    /// other [PayloadStatusEnum] variant is considered a failure.
+    ///
+    /// ### Success (`VALID`)
+    /// If the build is successful, the [PayloadId] is returned for sealing and the external
+    /// actor is notified of the successful forkchoice update.
+    ///
+    /// ### Failure (`INVALID`)
+    /// If the forkchoice update fails, the external actor is notified of the failure.
+    ///
+    /// Validates the payload status from a forkchoice update response.
+    ///
+    /// ## Observed [PayloadStatusEnum] Variants
+    /// - `VALID`: Returns Ok(()) - forkchoice update was successful
+    /// - `INVALID`: Returns error with validation details
+    /// - `SYNCING`: Returns temporary error - EL is syncing
+    /// - Other: Returns error for unexpected status codes
+    fn validate_forkchoice_status(status: PayloadStatusEnum) -> Result<(), BuildTaskError> {
+        match status {
+            PayloadStatusEnum::Valid => Ok(()),
+            PayloadStatusEnum::Invalid { validation_error } => {
+                error!(target: "engine_builder", "Forkchoice update failed: {}", validation_error);
+                Err(BuildTaskError::EngineBuildError(EngineBuildError::InvalidPayload(
+                    validation_error,
+                )))
+            }
+            PayloadStatusEnum::Syncing => {
+                warn!(target: "engine_builder", "Forkchoice update failed temporarily: EL is syncing");
+                Err(BuildTaskError::EngineBuildError(EngineBuildError::EngineSyncing))
+            }
+            s => {
+                // Other codes are never returned by `engine_forkchoiceUpdate`
+                Err(BuildTaskError::EngineBuildError(EngineBuildError::UnexpectedPayloadStatus(s)))
+            }
+        }
+    }
+
     /// Starts the block building process by sending an initial `engine_forkchoiceUpdate` call with
     /// the payload attributes to build.
     ///
@@ -104,33 +144,15 @@ impl BuildTask {
             BuildTaskError::EngineBuildError(EngineBuildError::AttributesInsertionFailed(e))
         })?;
 
-        match update.payload_status.status {
-            PayloadStatusEnum::Valid => {
-                debug!(
-                    target: "engine_builder",
-                    unsafe_hash = new_forkchoice.head_block_hash.to_string(),
-                    safe_hash = new_forkchoice.safe_block_hash.to_string(),
-                    finalized_hash = new_forkchoice.finalized_block_hash.to_string(),
-                    "Forkchoice update with attributes successful"
-                );
-            }
-            PayloadStatusEnum::Invalid { validation_error } => {
-                error!(target: "engine_builder", "Forkchoice update failed: {}", validation_error);
-                return Err(BuildTaskError::EngineBuildError(EngineBuildError::InvalidPayload(
-                    validation_error,
-                )));
-            }
-            PayloadStatusEnum::Syncing => {
-                warn!(target: "engine_builder", "Forkchoice update failed temporarily: EL is syncing");
-                return Err(BuildTaskError::EngineBuildError(EngineBuildError::EngineSyncing));
-            }
-            s => {
-                // Other codes are never returned by `engine_forkchoiceUpdate`
-                return Err(BuildTaskError::EngineBuildError(
-                    EngineBuildError::UnexpectedPayloadStatus(s),
-                ));
-            }
-        }
+        Self::validate_forkchoice_status(update.payload_status.status)?;
+
+        debug!(
+            target: "engine_builder",
+            unsafe_hash = new_forkchoice.head_block_hash.to_string(),
+            safe_hash = new_forkchoice.safe_block_hash.to_string(),
+            finalized_hash = new_forkchoice.finalized_block_hash.to_string(),
+            "Forkchoice update with attributes successful"
+        );
 
         // Fetch the payload ID from the FCU. If no payload ID was returned, something went wrong -
         // the block building job on the EL should have been initiated.

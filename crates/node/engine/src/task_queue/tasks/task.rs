@@ -93,7 +93,7 @@ impl EngineTaskError for EngineTaskErrors {
 pub enum EngineTask {
     /// Inserts a payload into the execution engine.
     Insert(Box<InsertTask>),
-    /// Begins building a new block with the given attributes.
+    /// Begins building a new block with the given attributes, producing a new payload ID.
     Build(Box<BuildTask>),
     /// Seals the block with the given payload ID and attributes, inserting it into the execution
     /// engine.
