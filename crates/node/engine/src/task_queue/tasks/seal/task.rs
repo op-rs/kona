@@ -1,7 +1,9 @@
 //! A task for importing a block that has already been started.
 use super::SealTaskError;
 use crate::{
-    task_queue::build_and_seal, EngineClient, EngineGetPayloadVersion, EngineState, EngineTaskExt, InsertTask, InsertTaskError::{self}
+    EngineClient, EngineGetPayloadVersion, EngineState, EngineTaskExt, InsertTask,
+    InsertTaskError::{self},
+    task_queue::build_and_seal,
 };
 use alloy_rpc_types_engine::{ExecutionPayload, PayloadId};
 use async_trait::async_trait;
@@ -11,9 +13,9 @@ use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types_engine::{OpExecutionPayload, OpExecutionPayloadEnvelope};
 use std::{
     sync::Arc,
-    time::{Duration, Instant, SystemTime},
+    time::{Duration, Instant},
 };
-use tokio::{sync::mpsc, time::sleep};
+use tokio::sync::mpsc;
 
 /// Task for sealing blocks.
 ///
@@ -127,7 +129,6 @@ impl SealTask {
         Ok(payload_envelope)
     }
 
-
     /// Seals the block by waiting for the appropriate time, fetching the payload, and importing it.
     ///
     /// This function handles:
@@ -141,26 +142,6 @@ impl SealTask {
         &self,
         state: &mut EngineState,
     ) -> Result<(L2BlockInfo, Duration), SealTaskError> {
-        // Compute the time of the next block.
-        let next_block = Duration::from_secs(
-            self.attributes.parent().block_info.timestamp.saturating_add(self.cfg.block_time),
-        );
-
-        // Compute the time left to seal the next block.
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .map_err(|_| SealTaskError::ClockWentBackwards)?;
-
-        // Add a buffer to the time left to seal the next block.
-        const SEALING_BUFFER: Duration = Duration::from_millis(50);
-
-        let time_left_to_seal = next_block.saturating_sub(now).saturating_sub(SEALING_BUFFER);
-
-        // Wait for the time left to seal the next block.
-        if !time_left_to_seal.is_zero() {
-            sleep(time_left_to_seal).await;
-        }
-
         // Fetch the payload just inserted from the EL and import it into the engine.
         let block_import_start_time = Instant::now();
         let new_payload = self
@@ -209,11 +190,13 @@ impl SealTask {
                     deposits_only_attrs.clone(),
                     self.is_attributes_derived,
                     None,
-                ).await {
+                )
+                .await
+                {
                     Ok(_) => {
                         info!(target: "engine_sealer", "Successfully imported deposits-only payload");
                         Err(SealTaskError::HoloceneInvalidFlush)
-                    },
+                    }
                     Err(_) => return Err(SealTaskError::DepositOnlyPayloadReattemptFailed),
                 }
             }

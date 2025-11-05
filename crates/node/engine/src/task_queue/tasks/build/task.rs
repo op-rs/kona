@@ -1,17 +1,17 @@
 //! A task for building a new block and importing it.
 use super::BuildTaskError;
-use crate::{EngineClient, EngineForkchoiceVersion, EngineState, EngineTaskExt, state::EngineSyncStateUpdate, task_queue::tasks::build::error::EngineBuildError};
+use crate::{
+    EngineClient, EngineForkchoiceVersion, EngineState, EngineTaskExt,
+    state::EngineSyncStateUpdate, task_queue::tasks::build::error::EngineBuildError,
+};
 use alloy_rpc_types_engine::{PayloadId, PayloadStatusEnum};
 use async_trait::async_trait;
-use derive_more::{Constructor};
+use derive_more::Constructor;
 use kona_genesis::RollupConfig;
-use kona_protocol::{OpAttributesWithParent};
+use kona_protocol::OpAttributesWithParent;
 use op_alloy_provider::ext::engine::OpEngineApi;
-use std::{
-    sync::Arc,
-    time::{Instant},
-};
-use tokio::{sync::mpsc};
+use std::{sync::Arc, time::Instant};
+use tokio::sync::mpsc;
 
 /// Task for building new blocks with automatic forkchoice synchronization.
 ///
@@ -21,7 +21,8 @@ use tokio::{sync::mpsc};
 ///
 /// ## Error Handling
 ///
-/// The task uses [`EngineBuildError`] for build-specific failures during the forkchoice update phase.
+/// The task uses [`EngineBuildError`] for build-specific failures during the forkchoice update
+/// phase.
 ///
 /// [`EngineBuildError`]: crate::EngineBuildError
 #[derive(Debug, Clone, Constructor)]
@@ -32,7 +33,8 @@ pub struct BuildTask {
     pub cfg: Arc<RollupConfig>,
     /// The [`OpAttributesWithParent`] to instruct the execution layer to build.
     pub attributes: OpAttributesWithParent,
-    /// The optional sender to which [`PayloadId`] will be sent after the block build has been started.
+    /// The optional sender to which [`PayloadId`] will be sent after the block build has been
+    /// started.
     pub payload_id_tx: Option<mpsc::Sender<PayloadId>>,
 }
 

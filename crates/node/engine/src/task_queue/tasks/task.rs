@@ -5,13 +5,13 @@
 use super::{BuildTask, ConsolidateTask, FinalizeTask, InsertTask};
 use crate::{
     BuildTaskError, ConsolidateTaskError, EngineState, FinalizeTaskError, InsertTaskError,
+    task_queue::{SealTask, SealTaskError},
 };
 use async_trait::async_trait;
 use derive_more::Display;
 use std::cmp::Ordering;
 use thiserror::Error;
 use tokio::task::yield_now;
-use crate::task_queue::{SealTask, SealTaskError};
 
 /// The severity of an engine task error.
 ///
@@ -95,7 +95,8 @@ pub enum EngineTask {
     Insert(Box<InsertTask>),
     /// Begins building a new block with the given attributes.
     Build(Box<BuildTask>),
-    /// Seals the block with the given payload ID and attributes, inserting it into the execution engine.
+    /// Seals the block with the given payload ID and attributes, inserting it into the execution
+    /// engine.
     Seal(Box<SealTask>),
     /// Performs consolidation on the engine state, reverting to payload attribute processing
     /// via the [`BuildTask`] if consolidation fails.
@@ -176,7 +177,7 @@ impl Ord for EngineTask {
             // SealBlock tasks are prioritized over all others
             (Self::Seal(_), _) => Ordering::Greater,
             (_, Self::Seal(_)) => Ordering::Less,
-            
+
             // BuildBlock tasks are prioritized over InsertUnsafe and Consolidate tasks
             (Self::Build(_), _) => Ordering::Greater,
             (_, Self::Build(_)) => Ordering::Less,

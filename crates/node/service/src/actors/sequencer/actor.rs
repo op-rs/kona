@@ -5,7 +5,7 @@ use super::{
 };
 use crate::{CancellableContext, NodeActor, actors::sequencer::conductor::ConductorClient};
 use alloy_provider::RootProvider;
-use alloy_rpc_types_engine::{PayloadId};
+use alloy_rpc_types_engine::PayloadId;
 use async_trait::async_trait;
 use derive_more::Constructor;
 use kona_derive::{AttributesBuilder, PipelineErrorKind, StatefulAttributesBuilder};
@@ -16,7 +16,8 @@ use kona_rpc::SequencerAdminQuery;
 use op_alloy_network::Optimism;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{
-    sync::Arc, time::{Duration, Instant}
+    sync::Arc,
+    time::{Duration, Instant},
 };
 use tokio::{
     select,
@@ -43,7 +44,7 @@ pub(super) struct UnsealedPayloadData {
     /// The [`PayloadId`] of the unsealed payload.
     pub payload_id: PayloadId,
     /// The [`OpAttributesWithParent`] used to start block building.
-    pub attributes_with_parent: OpAttributesWithParent
+    pub attributes_with_parent: OpAttributesWithParent,
 }
 
 /// The state of the [`SequencerActor`].
@@ -184,8 +185,7 @@ pub struct SequencerContext {
     pub reset_request_tx: mpsc::Sender<()>,
     /// Sender to request the execution layer to start building a payload attributes on top of the
     /// current unsafe head.
-    pub build_request_tx:
-        mpsc::Sender<(OpAttributesWithParent, mpsc::Sender<PayloadId>)>,
+    pub build_request_tx: mpsc::Sender<(OpAttributesWithParent, mpsc::Sender<PayloadId>)>,
     /// Sender to request the execution layer to seal the payload ID and attributes that
     /// resulted from a previous build call.
     pub seal_request_tx:
@@ -237,29 +237,35 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         ctx: &mut SequencerContext,
         unsafe_head_rx: &mut watch::Receiver<L2BlockInfo>,
         in_recovery_mode: bool,
-        payload_to_seal: Option<UnsealedPayloadData>
+        payload_to_seal: Option<UnsealedPayloadData>,
     ) -> Result<Option<UnsealedPayloadData>, SequencerActorError> {
-
         if let Some(to_seal) = payload_to_seal {
             self.seal_and_commit_payload_if_applicable(ctx, to_seal).await?;
         }
 
-        let unsealed_payload = self.build_unsealed_payload(ctx, unsafe_head_rx, in_recovery_mode).await?;
+        let unsealed_payload =
+            self.build_unsealed_payload(ctx, unsafe_head_rx, in_recovery_mode).await?;
 
         Ok(unsealed_payload)
     }
 
     /// Sends a seal request to seal the provided [`UnsealedPayloadData`], committing and gossiping
     /// the resulting block, if one is built.
-    async fn seal_and_commit_payload_if_applicable(&mut self, ctx: &mut SequencerContext, unsealed_payload_data: UnsealedPayloadData) -> Result<(), SequencerActorError> {
-        let UnsealedPayloadData {payload_id, attributes_with_parent} = unsealed_payload_data;
+    async fn seal_and_commit_payload_if_applicable(
+        &mut self,
+        ctx: &mut SequencerContext,
+        unsealed_payload_data: UnsealedPayloadData,
+    ) -> Result<(), SequencerActorError> {
+        let UnsealedPayloadData { payload_id, attributes_with_parent } = unsealed_payload_data;
 
         // Create a new channel to receive the built payload.
         let (payload_tx, payload_rx) = mpsc::channel(1);
 
         // Send the seal request to the engine to seal the unsealed block.
         let _seal_request_start = Instant::now();
-        if let Err(err) = ctx.seal_request_tx.send((payload_id, attributes_with_parent, payload_tx)).await {
+        if let Err(err) =
+            ctx.seal_request_tx.send((payload_id, attributes_with_parent, payload_tx)).await
+        {
             error!(target: "sequencer", ?err, "Failed to send seal request to engine, payload id {},", payload_id);
             ctx.cancellation.cancel();
             return Err(SequencerActorError::ChannelClosed);
@@ -291,7 +297,12 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         self.schedule_gossip(ctx, payload).await
     }
 
-    async fn build_unsealed_payload(&mut self, ctx: &mut SequencerContext, unsafe_head_rx: &mut watch::Receiver<L2BlockInfo>, in_recovery_mode: bool) -> Result<Option<UnsealedPayloadData>, SequencerActorError> {
+    async fn build_unsealed_payload(
+        &mut self,
+        ctx: &mut SequencerContext,
+        unsafe_head_rx: &mut watch::Receiver<L2BlockInfo>,
+        in_recovery_mode: bool,
+    ) -> Result<Option<UnsealedPayloadData>, SequencerActorError> {
         let unsafe_head = *unsafe_head_rx.borrow();
         let l1_origin = match self
             .origin_selector
@@ -337,13 +348,14 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         // Build the payload attributes for the next block.
         let _attributes_build_start = Instant::now();
 
-        let attrs_with_parent = match self.build_attributes(ctx, in_recovery_mode, unsafe_head, l1_origin).await? {
-            Some(attrs) => attrs,
-            None => {
-                // Temporary error or reset - retry on next tick.
-                return Ok(None);
-            }
-        };
+        let attrs_with_parent =
+            match self.build_attributes(ctx, in_recovery_mode, unsafe_head, l1_origin).await? {
+                Some(attrs) => attrs,
+                None => {
+                    // Temporary error or reset - retry on next tick.
+                    return Ok(None);
+                }
+            };
 
         // Log the attributes build duration, if metrics are enabled.
         kona_macros::set!(
@@ -357,7 +369,9 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
 
         // Send the built attributes to the engine to be built.
         let _build_request_start = Instant::now();
-        if let Err(err) = ctx.build_request_tx.send((attrs_with_parent.clone(), payload_id_tx)).await {
+        if let Err(err) =
+            ctx.build_request_tx.send((attrs_with_parent.clone(), payload_id_tx)).await
+        {
             error!(target: "sequencer", ?err, "Failed to send built attributes to engine");
             ctx.cancellation.cancel();
             return Err(SequencerActorError::ChannelClosed);

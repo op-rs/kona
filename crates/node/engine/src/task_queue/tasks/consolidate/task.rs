@@ -1,7 +1,8 @@
 //! A task to consolidate the engine state.
 
 use crate::{
-    state::EngineSyncStateUpdate, task_queue::build_and_seal, ConsolidateTaskError, EngineClient, EngineState, EngineTaskExt, SynchronizeTask
+    ConsolidateTaskError, EngineClient, EngineState, EngineTaskExt, SynchronizeTask,
+    state::EngineSyncStateUpdate, task_queue::build_and_seal,
 };
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
@@ -11,8 +12,7 @@ use std::{sync::Arc, time::Instant};
 /// The [`ConsolidateTask`] attempts to consolidate the engine state
 /// using the specified payload attributes and the oldest unsafe head.
 ///
-/// If consolidation fails, payload attributes processing is attempted using the [`BuildTask`] 
-/// followed by the [`SealTask`].
+/// If consolidation fails, payload attributes processing is attempted using `build_and_seal`.
 #[derive(Debug, Clone)]
 pub struct ConsolidateTask {
     /// The engine client.
@@ -36,13 +36,21 @@ impl ConsolidateTask {
         Self { client, cfg: config, attributes, is_attributes_derived }
     }
 
-    /// Executes a new [`BuildTask`] followed by a [`SealTask`].
     /// This is used when the [`ConsolidateTask`] fails to consolidate the engine state.
     async fn execute_build_and_seal_tasks(
         &self,
         state: &mut EngineState,
     ) -> Result<(), ConsolidateTaskError> {
-        build_and_seal(state, self.client.clone(), self.cfg.clone(), self.attributes.clone(), self.is_attributes_derived, None).await.map_err(Into::into)
+        build_and_seal(
+            state,
+            self.client.clone(),
+            self.cfg.clone(),
+            self.attributes.clone(),
+            self.is_attributes_derived,
+            None,
+        )
+        .await
+        .map_err(Into::into)
     }
 
     /// Attempts consolidation on the engine state.
