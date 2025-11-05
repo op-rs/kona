@@ -1,8 +1,7 @@
 //! A task to consolidate the engine state.
 
 use crate::{
-    BuildTask, ConsolidateTaskError, EngineClient, EngineState, EngineTaskExt, SynchronizeTask,
-    state::EngineSyncStateUpdate,
+    state::EngineSyncStateUpdate, task_queue::build_and_seal, ConsolidateTaskError, EngineClient, EngineState, EngineTaskExt, SynchronizeTask
 };
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
@@ -12,7 +11,8 @@ use std::{sync::Arc, time::Instant};
 /// The [`ConsolidateTask`] attempts to consolidate the engine state
 /// using the specified payload attributes and the oldest unsafe head.
 ///
-/// If consolidation fails, payload attributes processing is attempted using the [`BuildTask`].
+/// If consolidation fails, payload attributes processing is attempted using the [`BuildTask`] 
+/// followed by the [`SealTask`].
 #[derive(Debug, Clone)]
 pub struct ConsolidateTask {
     /// The engine client.
@@ -36,20 +36,13 @@ impl ConsolidateTask {
         Self { client, cfg: config, attributes, is_attributes_derived }
     }
 
-    /// Executes a new [`BuildTask`].
+    /// Executes a new [`BuildTask`] followed by a [`SealTask`].
     /// This is used when the [`ConsolidateTask`] fails to consolidate the engine state.
-    async fn execute_build_task(
+    async fn execute_build_and_seal_tasks(
         &self,
         state: &mut EngineState,
     ) -> Result<(), ConsolidateTaskError> {
-        let build_task = BuildTask::new(
-            self.client.clone(),
-            self.cfg.clone(),
-            self.attributes.clone(),
-            self.is_attributes_derived,
-            None,
-        );
-        Ok(build_task.execute(state).await?)
+        build_and_seal(state, self.client.clone(), self.cfg.clone(), self.attributes.clone(), self.is_attributes_derived, None).await.map_err(Into::into)
     }
 
     /// Attempts consolidation on the engine state.
@@ -158,7 +151,7 @@ impl ConsolidateTask {
             block_hash = %block_hash,
             "Attributes mismatch! Executing build task to initiate reorg",
         );
-        self.execute_build_task(state).await
+        self.execute_build_and_seal_tasks(state).await
     }
 }
 
@@ -175,7 +168,7 @@ impl EngineTaskExt for ConsolidateTask {
         {
             self.consolidate(state).await
         } else {
-            self.execute_build_task(state).await
+            self.execute_build_and_seal_tasks(state).await
         }
     }
 }

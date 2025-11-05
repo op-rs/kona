@@ -11,6 +11,7 @@ use derive_more::Display;
 use std::cmp::Ordering;
 use thiserror::Error;
 use tokio::task::yield_now;
+use crate::task_queue::{SealTask, SealTaskError};
 
 /// The severity of an engine task error.
 ///
@@ -62,6 +63,9 @@ pub enum EngineTaskErrors {
     /// An error that occurred while building a block.
     #[error(transparent)]
     Build(#[from] BuildTaskError),
+    /// An error that occurred while sealing a block.
+    #[error(transparent)]
+    Seal(#[from] SealTaskError),
     /// An error that occurred while consolidating the engine state.
     #[error(transparent)]
     Consolidate(#[from] ConsolidateTaskError),
@@ -75,6 +79,7 @@ impl EngineTaskError for EngineTaskErrors {
         match self {
             Self::Insert(inner) => inner.severity(),
             Self::Build(inner) => inner.severity(),
+            Self::Seal(inner) => inner.severity(),
             Self::Consolidate(inner) => inner.severity(),
             Self::Finalize(inner) => inner.severity(),
         }
@@ -88,8 +93,10 @@ impl EngineTaskError for EngineTaskErrors {
 pub enum EngineTask {
     /// Inserts a payload into the execution engine.
     Insert(Box<InsertTask>),
-    /// Builds a new block with the given attributes, and inserts it into the execution engine.
+    /// Begins building a new block with the given attributes.
     Build(Box<BuildTask>),
+    /// Seals the block with the given payload ID and attributes, inserting it into the execution engine.
+    Seal(Box<SealTask>),
     /// Performs consolidation on the engine state, reverting to payload attribute processing
     /// via the [`BuildTask`] if consolidation fails.
     Consolidate(Box<ConsolidateTask>),
@@ -102,9 +109,12 @@ impl EngineTask {
     async fn execute_inner(&self, state: &mut EngineState) -> Result<(), EngineTaskErrors> {
         match self.clone() {
             Self::Insert(task) => task.execute(state).await?,
-            Self::Build(task) => task.execute(state).await?,
+            Self::Seal(task) => task.execute(state).await?,
             Self::Consolidate(task) => task.execute(state).await?,
             Self::Finalize(task) => task.execute(state).await?,
+            Self::Build(task) => {
+                task.execute(state).await?;
+            }
         };
 
         Ok(())
@@ -115,6 +125,7 @@ impl EngineTask {
             Self::Insert(_) => crate::Metrics::INSERT_TASK_LABEL,
             Self::Consolidate(_) => crate::Metrics::CONSOLIDATE_TASK_LABEL,
             Self::Build(_) => crate::Metrics::BUILD_TASK_LABEL,
+            Self::Seal(_) => crate::Metrics::SEAL_TASK_LABEL,
             Self::Finalize(_) => crate::Metrics::FINALIZE_TASK_LABEL,
         }
     }
@@ -126,6 +137,7 @@ impl PartialEq for EngineTask {
             (self, other),
             (Self::Insert(_), Self::Insert(_)) |
                 (Self::Build(_), Self::Build(_)) |
+                (Self::Seal(_), Self::Seal(_)) |
                 (Self::Consolidate(_), Self::Consolidate(_)) |
                 (Self::Finalize(_), Self::Finalize(_))
         )
@@ -158,8 +170,13 @@ impl Ord for EngineTask {
             (Self::Insert(_), Self::Insert(_)) => Ordering::Equal,
             (Self::Consolidate(_), Self::Consolidate(_)) => Ordering::Equal,
             (Self::Build(_), Self::Build(_)) => Ordering::Equal,
+            (Self::Seal(_), Self::Seal(_)) => Ordering::Equal,
             (Self::Finalize(_), Self::Finalize(_)) => Ordering::Equal,
 
+            // SealBlock tasks are prioritized over all others
+            (Self::Seal(_), _) => Ordering::Greater,
+            (_, Self::Seal(_)) => Ordering::Less,
+            
             // BuildBlock tasks are prioritized over InsertUnsafe and Consolidate tasks
             (Self::Build(_), _) => Ordering::Greater,
             (_, Self::Build(_)) => Ordering::Less,

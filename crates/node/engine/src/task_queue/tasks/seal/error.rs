@@ -1,21 +1,22 @@
 //! Contains error types for the [crate::SynchronizeTask].
 
 use crate::{
-    EngineTaskError, InsertTaskError, SynchronizeTaskError,
+    EngineTaskError, InsertTaskError,
     task_queue::tasks::task::EngineTaskErrorSeverity,
 };
-use alloy_rpc_types_engine::{PayloadId, PayloadStatusEnum};
+use alloy_rpc_types_engine::PayloadStatusEnum;
 use alloy_transport::{RpcError, TransportErrorKind};
 use kona_protocol::FromBlockError;
+use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use thiserror::Error;
 use tokio::sync::mpsc;
 
 /// An error that occurs during payload building within the engine.
 ///
 /// This error type is specific to the block building process and represents failures
-/// that can occur during the automatic forkchoice update phase of [`BuildTask`].
-/// Unlike [`BuildTaskError`], which handles higher-level build orchestration errors,
-/// `EngineBuildError` focuses on low-level engine API communication failures.
+/// that can occur during the automatic forkchoice update phase of [`SealTask`].
+/// Unlike [`SealTaskError`], which handles higher-level build orchestration errors,
+/// `EngineSealError` focuses on low-level engine API communication failures.
 ///
 /// ## Error Categories
 ///
@@ -23,9 +24,9 @@ use tokio::sync::mpsc;
 /// - **Engine Communication**: RPC failures during forkchoice updates
 /// - **Payload Validation**: Invalid payload status responses from the execution layer
 ///
-/// [`BuildTask`]: crate::BuildTask
+/// [`SealTask`]: crate::SealTask
 #[derive(Debug, Error)]
-pub enum EngineBuildError {
+pub enum EngineSealError {
     /// The finalized head is ahead of the unsafe head.
     #[error("Finalized head is ahead of unsafe head")]
     FinalizedAheadOfUnsafe(u64, u64),
@@ -48,13 +49,10 @@ pub enum EngineBuildError {
 
 /// An error that occurs when running the [crate::SynchronizeTask].
 #[derive(Debug, Error)]
-pub enum BuildTaskError {
-    /// An error occurred when building the payload attributes in the engine.
-    #[error("An error occurred when building the payload attributes to the engine.")]
-    EngineBuildError(EngineBuildError),
-    /// The initial forkchoice update call to the engine api failed.
-    #[error(transparent)]
-    ForkchoiceUpdateFailed(#[from] SynchronizeTaskError),
+pub enum SealTaskError {
+    /// An error occurred when sealing the payload attributes in the engine.
+    #[error("An error occurred when sealing the payload attributes in the engine.")]
+    EngineSealError(EngineSealError),
     /// Impossible to insert the payload into the engine.
     #[error(transparent)]
     PayloadInsertionFailed(#[from] Box<InsertTaskError>),
@@ -79,33 +77,32 @@ pub enum BuildTaskError {
     FromBlock(#[from] FromBlockError),
     /// Error sending the built payload envelope.
     #[error(transparent)]
-    MpscSend(#[from] Box<mpsc::error::SendError<PayloadId>>),
+    MpscSend(#[from] Box<mpsc::error::SendError<OpExecutionPayloadEnvelope>>),
     /// The clock went backwards.
     #[error("The clock went backwards")]
     ClockWentBackwards,
 }
 
-impl EngineTaskError for BuildTaskError {
+impl EngineTaskError for SealTaskError {
     fn severity(&self) -> EngineTaskErrorSeverity {
         match self {
-            Self::ForkchoiceUpdateFailed(inner) => inner.severity(),
             Self::PayloadInsertionFailed(inner) => inner.severity(),
-            Self::EngineBuildError(EngineBuildError::FinalizedAheadOfUnsafe(_, _)) => {
+            Self::EngineSealError(EngineSealError::FinalizedAheadOfUnsafe(_, _)) => {
                 EngineTaskErrorSeverity::Critical
             }
-            Self::EngineBuildError(EngineBuildError::AttributesInsertionFailed(_)) => {
+            Self::EngineSealError(EngineSealError::AttributesInsertionFailed(_)) => {
                 EngineTaskErrorSeverity::Temporary
             }
-            Self::EngineBuildError(EngineBuildError::InvalidPayload(_)) => {
+            Self::EngineSealError(EngineSealError::InvalidPayload(_)) => {
                 EngineTaskErrorSeverity::Temporary
             }
-            Self::EngineBuildError(EngineBuildError::UnexpectedPayloadStatus(_)) => {
+            Self::EngineSealError(EngineSealError::UnexpectedPayloadStatus(_)) => {
                 EngineTaskErrorSeverity::Temporary
             }
-            Self::EngineBuildError(EngineBuildError::MissingPayloadId) => {
+            Self::EngineSealError(EngineSealError::MissingPayloadId) => {
                 EngineTaskErrorSeverity::Temporary
             }
-            Self::EngineBuildError(EngineBuildError::EngineSyncing) => {
+            Self::EngineSealError(EngineSealError::EngineSyncing) => {
                 EngineTaskErrorSeverity::Temporary
             }
             Self::GetPayloadFailed(_) => EngineTaskErrorSeverity::Temporary,

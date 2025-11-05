@@ -1,0 +1,88 @@
+//! Utility functions for task execution.
+
+use super::{BuildTask, BuildTaskError, EngineTaskExt, SealTask, SealTaskError};
+use crate::EngineState;
+use kona_protocol::OpAttributesWithParent;
+use std::sync::Arc;
+use tokio::sync::mpsc;
+use crate::EngineClient;
+use kona_genesis::RollupConfig;
+use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
+
+/// Error type for build and seal operations.
+#[derive(Debug, thiserror::Error)]
+pub(in crate::task_queue) enum BuildAndSealError {
+    /// An error occurred during the build phase.
+    #[error(transparent)]
+    Build(#[from] BuildTaskError),
+    /// An error occurred during the seal phase.
+    #[error(transparent)]
+    Seal(#[from] SealTaskError),
+}
+
+/// Builds and seals a payload in sequence.
+///
+/// This is a utility function that:
+/// 1. Creates and executes a [`BuildTask`] to initiate block building
+/// 2. Creates and executes a [`SealTask`] with the resulting [`PayloadId`] to seal the block
+///
+/// This pattern is commonly used for Holocene deposits-only fallback and other scenarios
+/// where a build-then-seal workflow is needed.
+///
+/// # Arguments
+///
+/// * `state` - Mutable reference to the engine state
+/// * `engine` - The engine client
+/// * `cfg` - The rollup configuration
+/// * `attributes` - The payload attributes to build
+/// * `is_attributes_derived` - Whether the attributes were derived or created by the sequencer
+/// * `payload_tx` - Optional channel to send the built payload envelope
+///
+/// # Returns
+///
+/// Returns `Ok(())` if both build and seal operations succeed, or an error if either fails.
+///
+/// # Examples
+///
+/// ```ignore
+/// let result = build_and_seal(
+///     engine.clone(),
+///     cfg.clone(),
+///     deposits_only_attrs,
+///     true,
+///     Some(tx),
+///     &mut state,
+/// ).await?;
+/// ```
+pub(in crate::task_queue) async fn build_and_seal(
+    state: &mut EngineState,
+    engine: Arc<EngineClient>,
+    cfg: Arc<RollupConfig>,
+    attributes: OpAttributesWithParent,
+    is_attributes_derived: bool,
+    payload_tx: Option<mpsc::Sender<OpExecutionPayloadEnvelope>>,
+) -> Result<(), BuildAndSealError> {
+    // Execute the build task
+    let payload_id = BuildTask::new(
+        engine.clone(),
+        cfg.clone(),
+        attributes.clone(),
+        None, // Build task doesn't send the payload yet
+    )
+    .execute(state)
+    .await?;
+
+    // Execute the seal task with the payload ID from the build
+    SealTask::new(
+        engine,
+        cfg,
+        payload_id,
+        attributes,
+        is_attributes_derived,
+        payload_tx,
+    )
+    .execute(state)
+    .await?;
+
+    Ok(())
+}

@@ -5,7 +5,9 @@ use super::{
 };
 use crate::{CancellableContext, NodeActor, actors::sequencer::conductor::ConductorClient};
 use alloy_provider::RootProvider;
+use alloy_rpc_types_engine::{PayloadId};
 use async_trait::async_trait;
+use derive_more::Constructor;
 use kona_derive::{AttributesBuilder, PipelineErrorKind, StatefulAttributesBuilder};
 use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
@@ -14,8 +16,7 @@ use kona_rpc::SequencerAdminQuery;
 use op_alloy_network::Optimism;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{
-    sync::Arc,
-    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+    sync::Arc, time::{Duration, Instant}
 };
 use tokio::{
     select,
@@ -34,6 +35,15 @@ pub struct SequencerActor<AB: AttributesBuilderConfig> {
     pub unsafe_head_rx: watch::Receiver<L2BlockInfo>,
     /// Channel to receive admin queries from the sequencer actor.
     pub admin_query_rx: mpsc::Receiver<SequencerAdminQuery>,
+}
+
+/// The handle to a block that has been started but not sealed.
+#[derive(Debug, Constructor)]
+pub(super) struct UnsealedPayloadData {
+    /// The [`PayloadId`] of the unsealed payload.
+    pub payload_id: PayloadId,
+    /// The [`OpAttributesWithParent`] used to start block building.
+    pub attributes_with_parent: OpAttributesWithParent
 }
 
 /// The state of the [`SequencerActor`].
@@ -172,10 +182,14 @@ pub struct SequencerContext {
     pub l1_head_rx: watch::Receiver<Option<BlockInfo>>,
     /// Sender to request the engine to reset.
     pub reset_request_tx: mpsc::Sender<()>,
-    /// Sender to request the execution layer to build a payload attributes on top of the
+    /// Sender to request the execution layer to start building a payload attributes on top of the
     /// current unsafe head.
     pub build_request_tx:
-        mpsc::Sender<(OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>,
+        mpsc::Sender<(OpAttributesWithParent, mpsc::Sender<PayloadId>)>,
+    /// Sender to request the execution layer to seal the payload ID and attributes that
+    /// resulted from a previous build call.
+    pub seal_request_tx:
+        mpsc::Sender<(PayloadId, OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>,
     /// A sender to asynchronously sign and gossip built [`OpExecutionPayloadEnvelope`]s to the
     /// network actor.
     pub gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
@@ -213,13 +227,71 @@ impl<AB: AttributesBuilderConfig> SequencerActor<AB> {
 }
 
 impl<AB: AttributesBuilder> SequencerActorState<AB> {
-    /// Starts the build job for the next L2 block, on top of the current unsafe head.
-    async fn build_block(
+    /// Seals and commits the last pending block, if one exists and starts the build job for the
+    /// next L2 block, on top of the current unsafe head.
+    ///
+    /// In the success case, this function stores the [`UnsealedPayloadData`] for the block it began
+    /// in state so that it may be sealed and committed the next time this function is called.
+    async fn seal_last_and_start_next(
         &mut self,
         ctx: &mut SequencerContext,
         unsafe_head_rx: &mut watch::Receiver<L2BlockInfo>,
         in_recovery_mode: bool,
-    ) -> Result<(), SequencerActorError> {
+        payload_to_seal: Option<UnsealedPayloadData>
+    ) -> Result<Option<UnsealedPayloadData>, SequencerActorError> {
+
+        if let Some(to_seal) = payload_to_seal {
+            self.seal_and_commit_payload_if_applicable(ctx, to_seal).await?;
+        }
+
+        let unsealed_payload = self.build_unsealed_payload(ctx, unsafe_head_rx, in_recovery_mode).await?;
+
+        Ok(unsealed_payload)
+    }
+
+    /// Sends a seal request to seal the provided [`UnsealedPayloadData`], committing and gossiping
+    /// the resulting block, if one is built.
+    async fn seal_and_commit_payload_if_applicable(&mut self, ctx: &mut SequencerContext, unsealed_payload_data: UnsealedPayloadData) -> Result<(), SequencerActorError> {
+        let UnsealedPayloadData {payload_id, attributes_with_parent} = unsealed_payload_data;
+
+        // Create a new channel to receive the built payload.
+        let (payload_tx, payload_rx) = mpsc::channel(1);
+
+        // Send the seal request to the engine to seal the unsealed block.
+        let _seal_request_start = Instant::now();
+        if let Err(err) = ctx.seal_request_tx.send((payload_id, attributes_with_parent, payload_tx)).await {
+            error!(target: "sequencer", ?err, "Failed to send seal request to engine, payload id {},", payload_id);
+            ctx.cancellation.cancel();
+            return Err(SequencerActorError::ChannelClosed);
+        }
+
+        let payload = self.try_wait_for_payload(ctx, payload_rx).await?;
+
+        // Log the block building seal task duration, if metrics are enabled.
+        kona_macros::set!(
+            gauge,
+            crate::Metrics::SEQUENCER_BLOCK_BUILDING_SEAL_TASK_DURATION,
+            _seal_request_start.elapsed()
+        );
+
+        // If the conductor is available, commit the payload to it.
+        if let Some(conductor) = &self.conductor {
+            let _conductor_commitment_start = Instant::now();
+            if let Err(err) = conductor.commit_unsafe_payload(&payload).await {
+                error!(target: "sequencer", ?err, "Failed to commit unsafe payload to conductor");
+            }
+
+            kona_macros::set!(
+                gauge,
+                crate::Metrics::SEQUENCER_CONDUCTOR_COMMITMENT_DURATION,
+                _conductor_commitment_start.elapsed()
+            );
+        }
+
+        self.schedule_gossip(ctx, payload).await
+    }
+
+    async fn build_unsealed_payload(&mut self, ctx: &mut SequencerContext, unsafe_head_rx: &mut watch::Receiver<L2BlockInfo>, in_recovery_mode: bool) -> Result<Option<UnsealedPayloadData>, SequencerActorError> {
         let unsafe_head = *unsafe_head_rx.borrow();
         let l1_origin = match self
             .origin_selector
@@ -233,7 +305,7 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
                     ?err,
                     "Temporary error occurred while selecting next L1 origin. Re-attempting on next tick."
                 );
-                return Ok(());
+                return Ok(None);
             }
         };
 
@@ -252,7 +324,7 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
                 ctx.cancellation.cancel();
                 return Err(SequencerActorError::ChannelClosed);
             }
-            return Ok(());
+            return Ok(None);
         }
 
         info!(
@@ -264,12 +336,53 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
 
         // Build the payload attributes for the next block.
         let _attributes_build_start = Instant::now();
+
+        let attrs_with_parent = match self.build_attributes(ctx, in_recovery_mode, unsafe_head, l1_origin).await? {
+            Some(attrs) => attrs,
+            None => {
+                // Temporary error or reset - retry on next tick.
+                return Ok(None);
+            }
+        };
+
+        // Log the attributes build duration, if metrics are enabled.
+        kona_macros::set!(
+            gauge,
+            crate::Metrics::SEQUENCER_ATTRIBUTES_BUILDER_DURATION,
+            _attributes_build_start.elapsed()
+        );
+
+        // Create a new channel to receive the built payload.
+        let (payload_id_tx, payload_id_rx) = mpsc::channel(1);
+
+        // Send the built attributes to the engine to be built.
+        let _build_request_start = Instant::now();
+        if let Err(err) = ctx.build_request_tx.send((attrs_with_parent.clone(), payload_id_tx)).await {
+            error!(target: "sequencer", ?err, "Failed to send built attributes to engine");
+            ctx.cancellation.cancel();
+            return Err(SequencerActorError::ChannelClosed);
+        }
+
+        let payload_id = self.try_wait_for_payload_id(ctx, payload_id_rx).await?;
+
+        Ok(Some(UnsealedPayloadData::new(payload_id, attrs_with_parent)))
+    }
+
+    /// Builds the OpAttributesWithParent for the next block to build. If None is returned, it
+    /// indicates that no attributes could be built at this time but future attempts may be made.
+    async fn build_attributes(
+        &mut self,
+        ctx: &mut SequencerContext,
+        in_recovery_mode: bool,
+        unsafe_head: L2BlockInfo,
+        l1_origin: BlockInfo,
+    ) -> Result<Option<OpAttributesWithParent>, SequencerActorError> {
         let mut attributes =
             match self.builder.prepare_payload_attributes(unsafe_head, l1_origin.id()).await {
                 Ok(attrs) => attrs,
                 Err(PipelineErrorKind::Temporary(_)) => {
-                    return Ok(());
-                    // Do nothing and allow a retry.
+                    // Temporary error - retry on next tick.
+                    return Ok(None);
                 }
                 Err(PipelineErrorKind::Reset(_)) => {
                     if let Err(err) = ctx.reset_request_tx.send(()).await {
@@ -282,7 +395,7 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
                         target: "sequencer",
                         "Resetting engine due to pipeline error while preparing payload attributes"
                     );
-                    return Ok(());
+                    return Ok(None);
                 }
                 Err(err @ PipelineErrorKind::Critical(_)) => {
                     error!(target: "sequencer", ?err, "Failed to prepare payload attributes");
@@ -351,60 +464,7 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         }
 
         let attrs_with_parent = OpAttributesWithParent::new(attributes, unsafe_head, None, false);
-
-        // Log the attributes build duration, if metrics are enabled.
-        kona_macros::set!(
-            gauge,
-            crate::Metrics::SEQUENCER_ATTRIBUTES_BUILDER_DURATION,
-            _attributes_build_start.elapsed()
-        );
-
-        // Create a new channel to receive the built payload.
-        let (payload_tx, payload_rx) = mpsc::channel(1);
-
-        // Send the built attributes to the engine to be built.
-        let _build_request_start = Instant::now();
-        if let Err(err) = ctx.build_request_tx.send((attrs_with_parent, payload_tx)).await {
-            error!(target: "sequencer", ?err, "Failed to send built attributes to engine");
-            ctx.cancellation.cancel();
-            return Err(SequencerActorError::ChannelClosed);
-        }
-
-        let payload = self.try_wait_for_payload(ctx, payload_rx).await?;
-
-        // Log the block building job duration, if metrics are enabled.
-        kona_macros::set!(
-            gauge,
-            crate::Metrics::SEQUENCER_BLOCK_BUILDING_JOB_DURATION,
-            _build_request_start.elapsed()
-        );
-
-        // If the conductor is available, commit the payload to it.
-        if let Some(conductor) = &self.conductor {
-            let _conductor_commitment_start = Instant::now();
-            if let Err(err) = conductor.commit_unsafe_payload(&payload).await {
-                error!(target: "sequencer", ?err, "Failed to commit unsafe payload to conductor");
-            }
-
-            kona_macros::set!(
-                gauge,
-                crate::Metrics::SEQUENCER_CONDUCTOR_COMMITMENT_DURATION,
-                _conductor_commitment_start.elapsed()
-            );
-        }
-
-        let now =
-            SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_secs();
-        let then = payload.execution_payload.timestamp() + self.cfg.block_time;
-        if then.saturating_sub(now) <= self.cfg.block_time {
-            warn!(
-                target: "sequencer",
-                "Next block timestamp is more than a block time away from now, building immediately"
-            );
-            self.build_ticker.reset_immediately();
-        }
-
-        self.schedule_gossip(ctx, payload).await
+        Ok(Some(attrs_with_parent))
     }
 
     /// Waits for the next payload to be built and returns it, if there is a payload receiver
@@ -416,6 +476,20 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
     ) -> Result<OpExecutionPayloadEnvelope, SequencerActorError> {
         payload_rx.recv().await.ok_or_else(|| {
             error!(target: "sequencer", "Failed to receive built payload");
+            ctx.cancellation.cancel();
+            SequencerActorError::ChannelClosed
+        })
+    }
+
+    /// Waits for the next payload to be built and returns it, if there is a payload receiver
+    /// present.
+    async fn try_wait_for_payload_id(
+        &mut self,
+        ctx: &mut SequencerContext,
+        mut payload_id_rx: mpsc::Receiver<PayloadId>,
+    ) -> Result<PayloadId, SequencerActorError> {
+        payload_id_rx.recv().await.ok_or_else(|| {
+            error!(target: "sequencer", "Failed to receive payload for initiated block build");
             ctx.cancellation.cancel();
             SequencerActorError::ChannelClosed
         })
@@ -496,6 +570,8 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
         // Reset the engine state prior to beginning block building.
         state.schedule_initial_reset(&mut ctx, &mut self.unsafe_head_rx).await?;
 
+        let mut next_block_to_seal = None;
+
         loop {
             select! {
                 // We are using a biased select here to ensure that the admin queries are given priority over the block building task.
@@ -527,7 +603,13 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                 }
                 // The sequencer must be active to build new blocks.
                 _ = state.build_ticker.tick(), if state.is_active => {
-                    state.build_block(&mut ctx, &mut self.unsafe_head_rx, state.is_recovery_mode).await?;
+
+                    let start_time = Instant::now();
+
+                    next_block_to_seal = state.seal_last_and_start_next(&mut ctx, &mut self.unsafe_head_rx, state.is_recovery_mode, next_block_to_seal).await?;
+
+                    // Set the next tick time to the configured blocktime less the time it takes to seal last and start next.
+                    state.build_ticker.reset_after(Duration::from_secs(state.cfg.block_time).saturating_sub(start_time.elapsed()));
                 }
             }
         }
