@@ -5254,7 +5254,6 @@ dependencies = [
  "dirs",
  "discv5",
  "futures",
- "http",
  "jsonrpsee 0.25.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "kona-cli",
  "kona-derive",
