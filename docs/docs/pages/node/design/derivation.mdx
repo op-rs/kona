@@ -99,6 +99,25 @@ The cache size is set to 1024 entries by default:
 const DERIVATION_PROVIDER_CACHE_SIZE: usize = 1024;
 ```
 
+### Security Considerations
+
+The derivation providers include several security mechanisms that should be understood when configuring the system:
+
+- **RPC Trust Mode**: Providers support a `trust_rpc` parameter that controls data verification
+  - `trust_rpc: true` (default): Skips hash verification for better performance
+  - `trust_rpc: false`: Verifies block and header hashes against expected values
+- **Hash Verification**: When `trust_rpc: false`, providers verify that:
+  - Block hashes match the requested hash
+  - Header hashes are correctly computed
+- **JWT Authentication**: L2 providers use JWT secrets for secure communication with execution engines
+- **Cache Security**: LRU caches store blockchain data without additional validation - consider cache poisoning risks
+
+**Production Recommendations**:
+- Use `trust_rpc: false` for critical production environments
+- Monitor for hash verification failures as potential attack indicators
+- Ensure JWT secrets are properly managed and rotated
+- Consider cache size limits based on security requirements
+
 ## Pipeline Operation
 
 ### Main Processing Loop
