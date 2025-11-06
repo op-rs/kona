@@ -98,7 +98,9 @@ where
     P: TrieDBProvider + Debug,
     H: TrieHinter + Debug,
     Evm: EvmFactory<Spec = OpSpecId, BlockEnv = revm::context::BlockEnv> + 'static,
-    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope> + alloy_op_evm::block::OpTxEnv,
+    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope>
+        + FromRecoveredTx<OpTxEnvelope>
+        + alloy_op_evm::block::OpTxEnv,
 {
     /// Creates a new stateless L2 block builder instance.
     ///

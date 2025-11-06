@@ -21,7 +21,9 @@ where
     P: TrieDBProvider + Send + Sync + Clone,
     H: TrieHinter + Send + Sync + Clone,
     Evm: EvmFactory<Spec = OpSpecId, BlockEnv = revm::context::BlockEnv> + Send + Sync + Clone,
-    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope> + alloy_op_evm::block::OpTxEnv,
+    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope>
+        + FromRecoveredTx<OpTxEnvelope>
+        + alloy_op_evm::block::OpTxEnv,
 {
     /// The rollup config for the executor.
     rollup_config: &'a RollupConfig,
@@ -40,7 +42,9 @@ where
     P: TrieDBProvider + Send + Sync + Clone,
     H: TrieHinter + Send + Sync + Clone,
     Evm: EvmFactory<Spec = OpSpecId, BlockEnv = revm::context::BlockEnv> + Send + Sync + Clone,
-    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope> + alloy_op_evm::block::OpTxEnv,
+    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope>
+        + FromRecoveredTx<OpTxEnvelope>
+        + alloy_op_evm::block::OpTxEnv,
 {
     /// Creates a new executor.
     pub const fn new(
@@ -59,8 +63,14 @@ impl<P, H, Evm> Executor for KonaExecutor<'_, P, H, Evm>
 where
     P: TrieDBProvider + Debug + Send + Sync + Clone,
     H: TrieHinter + Debug + Send + Sync + Clone,
-    Evm: EvmFactory<Spec = OpSpecId, BlockEnv = revm::context::BlockEnv> + Send + Sync + Clone + 'static,
-    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope> + alloy_op_evm::block::OpTxEnv,
+    Evm: EvmFactory<Spec = OpSpecId, BlockEnv = revm::context::BlockEnv>
+        + Send
+        + Sync
+        + Clone
+        + 'static,
+    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope>
+        + FromRecoveredTx<OpTxEnvelope>
+        + alloy_op_evm::block::OpTxEnv,
 {
     type Error = kona_executor::ExecutorError;
 

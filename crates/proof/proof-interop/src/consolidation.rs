@@ -43,8 +43,15 @@ where
 impl<'a, C, Evm> SuperchainConsolidator<'a, C, Evm>
 where
     C: CommsClient + Debug + Send + Sync,
-    Evm: EvmFactory<Spec = OpSpecId, BlockEnv = revm::context::BlockEnv> + Send + Sync + Debug + Clone + 'static,
-    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope> + alloy_op_evm::block::OpTxEnv,
+    Evm: EvmFactory<Spec = OpSpecId, BlockEnv = revm::context::BlockEnv>
+        + Send
+        + Sync
+        + Debug
+        + Clone
+        + 'static,
+    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope>
+        + FromRecoveredTx<OpTxEnvelope>
+        + alloy_op_evm::block::OpTxEnv,
 {
     /// Creates a new [SuperchainConsolidator] with the given providers and [Header]s.
     ///
