@@ -4,14 +4,17 @@
 #[cfg(test)]
 mod tests {
     use http::Uri;
-    use rollup_boost::{FlashblocksArgs, Probes, RollupBoostArgs, RollupBoostServer};
+    use rollup_boost::{
+        ExecutionMode, FlashblocksArgs, FlashblocksWebsocketConfig, Probes, RollupBoostLibArgs,
+        RollupBoostServer,
+    };
     use std::sync::Arc;
 
     #[test]
     fn repro_missing_client_jwt_secret() {
         // Build args with execution enabled and flashblocks enabled but NO L2 JWT provided.
         // This mirrors the failing acceptance configuration when no client JWT is wired through.
-        let args = RollupBoostArgs {
+        let args = RollupBoostLibArgs {
             builder: rollup_boost::BuilderArgs {
                 // Any URI; builder may be disabled at runtime, but server creation still validates
                 // args.
@@ -34,9 +37,19 @@ mod tests {
                 flashblocks_builder_url: "ws://127.0.0.1:1111".parse().unwrap(),
                 flashblocks_host: "127.0.0.1".to_string(),
                 flashblocks_port: 1112,
-                flashblock_builder_ws_reconnect_ms: 5000,
+                flashblocks_ws_config: FlashblocksWebsocketConfig {
+                    flashblock_builder_ws_initial_reconnect_ms: 5000,
+                    flashblock_builder_ws_max_reconnect_ms: 5000,
+                    flashblock_builder_ws_ping_interval_ms: 500,
+                    flashblock_builder_ws_pong_timeout_ms: 1500,
+                },
             },
-            ..Default::default()
+            block_selection_policy: None,
+            execution_mode: ExecutionMode::Enabled,
+            external_state_root: false,
+            ignore_unhealthy_builders: false,
+            health_check_interval: 10,
+            max_unsafe_interval: 10,
         };
 
         let probes = Arc::new(Probes::default());

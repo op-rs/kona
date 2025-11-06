@@ -114,8 +114,8 @@ impl RollupNodeBuilder {
     }
 
     /// Appends the rollup boost args to the builder.
-    pub fn with_rollup_boost_args(self, rollup_boost_args: RollupBoostLibArgs) -> Self {
-        Self { rollup_boost_args: Some(rollup_boost_args), ..self }
+    pub fn with_rollup_boost_args(self, rollup_boost_args: Option<RollupBoostLibArgs>) -> Self {
+        Self { rollup_boost_args, ..self }
     }
 
     /// Assembles the [`RollupNode`] service.
