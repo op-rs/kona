@@ -270,6 +270,6 @@ secp256k1 = { version = "0.31.0", default-features = false }
 ark-bls12-381 = { version = "0.5.0", default-features = false }
 
 # Rollup Boost (required for rollup-boost integration)
-rollup-boost = { git = "https://github.com/flashbots/rollup-boost.git", rev = "cb1f98b510d869a32504bee80107c019e1fbd930" }
+rollup-boost = { git = "https://github.com/flashbots/rollup-boost.git", rev = "3af330abbe3a57095d5c0b75f9030e3fe0bfa66c" }
 parking_lot = "0.12.3"
 http = "1.0"
