@@ -13,7 +13,9 @@ use http_body_util::Full;
 use kona_engine::RollupBoostServerLike;
 use op_alloy_network::Optimism;
 use parking_lot::Mutex;
-use rollup_boost::{ExecutionMode, FlashblocksService, Probes, RollupBoostArgs, RollupBoostServer};
+use rollup_boost::{
+    ExecutionMode, FlashblocksService, Probes, RollupBoostLibArgs, RollupBoostServer,
+};
 use std::sync::Arc;
 use tower::ServiceBuilder;
 use url::Url;
@@ -52,7 +54,7 @@ pub struct RollupNodeBuilder {
     /// Whether to run the node in interop mode.
     interop_mode: InteropMode,
     // Rollup boost args
-    rollup_boost_args: Option<RollupBoostArgs>,
+    rollup_boost_args: Option<RollupBoostLibArgs>,
 }
 
 impl RollupNodeBuilder {
@@ -112,7 +114,7 @@ impl RollupNodeBuilder {
     }
 
     /// Appends the rollup boost args to the builder.
-    pub fn with_rollup_boost_args(self, rollup_boost_args: RollupBoostArgs) -> Self {
+    pub fn with_rollup_boost_args(self, rollup_boost_args: RollupBoostLibArgs) -> Self {
         Self { rollup_boost_args: Some(rollup_boost_args), ..self }
     }
 
