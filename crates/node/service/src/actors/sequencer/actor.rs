@@ -244,7 +244,7 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         ctx: &mut SequencerContext,
         unsafe_head_rx: &mut watch::Receiver<L2BlockInfo>,
         in_recovery_mode: bool,
-        payload_to_seal: Option<UnsealedPayloadHandle>,
+        payload_to_seal: Option<&UnsealedPayloadHandle>,
     ) -> Result<Option<UnsealedPayloadHandle>, SequencerActorError> {
         if let Some(to_seal) = payload_to_seal {
             self.seal_and_commit_payload_if_applicable(ctx, to_seal).await?;
@@ -261,19 +261,23 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
     async fn seal_and_commit_payload_if_applicable(
         &mut self,
         ctx: &mut SequencerContext,
-        unsealed_payload_handle: UnsealedPayloadHandle,
+        unsealed_payload_handle: &UnsealedPayloadHandle,
     ) -> Result<(), SequencerActorError> {
-        let UnsealedPayloadHandle { payload_id, attributes_with_parent } = unsealed_payload_handle;
-
         // Create a new channel to receive the built payload.
         let (seal_result_tx, seal_result_rx) = mpsc::channel(1);
 
         // Send the seal request to the engine to seal the unsealed block.
         let _seal_request_start = Instant::now();
-        if let Err(err) =
-            ctx.seal_request_tx.send((payload_id, attributes_with_parent, seal_result_tx)).await
+        if let Err(err) = ctx
+            .seal_request_tx
+            .send((
+                unsealed_payload_handle.payload_id,
+                unsealed_payload_handle.attributes_with_parent.clone(),
+                seal_result_tx,
+            ))
+            .await
         {
-            error!(target: "sequencer", ?err, "Failed to send seal request to engine, payload id {},", payload_id);
+            error!(target: "sequencer", ?err, "Failed to send seal request to engine, payload id {},", unsealed_payload_handle.payload_id);
             ctx.cancellation.cancel();
             return Err(SequencerActorError::ChannelClosed);
         }
@@ -631,7 +635,7 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
 
                     let start_time = Instant::now();
 
-                    match state.seal_last_and_start_next(&mut ctx, &mut self.unsafe_head_rx, state.is_recovery_mode, next_payload_to_seal).await {
+                    match state.seal_last_and_start_next(&mut ctx, &mut self.unsafe_head_rx, state.is_recovery_mode, next_payload_to_seal.as_ref()).await {
                         Ok(res) => {
                             next_payload_to_seal = res;
                             // Set the next tick time to the configured blocktime less the time it takes to seal last and start next.
@@ -641,14 +645,20 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                             match seal_err.severity(){
                                 EngineTaskErrorSeverity::Flush => {
                                     next_payload_to_seal = None;
+                                    // this means that a block was inserted, so wait blocktime to build.
                                     state.build_ticker.reset_after(Duration::from_secs(state.cfg.block_time).saturating_sub(start_time.elapsed()))
+                                }
+                                EngineTaskErrorSeverity::Temporary => {
+                                    // this means that the task can be retried immediately
+                                    state.build_ticker.reset_immediately();
                                 }
                                 EngineTaskErrorSeverity::Reset => {
                                     next_payload_to_seal = None;
+                                    // this means that a block was not inserted, so retry building immediately.
                                     state.build_ticker.reset_immediately();
                                 }
-                                _ => {
-                                    error!(target: "sequencer", err = ?seal_err, "Unrecoverable seal error");
+                                EngineTaskErrorSeverity::Critical => {
+                                    error!(target: "sequencer", err = ?seal_err, "Critical seal error");
                                     return Err(SequencerActorError::SealError(seal_err));
                                 }
                             }
