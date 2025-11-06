@@ -8,17 +8,13 @@ use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use backon::{ExponentialBuilder, Retryable};
 use clap::Parser;
-use http::Uri;
 use kona_cli::{LogConfig, MetricsArgs};
 use kona_engine::EngineClient;
 use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_node_service::{NodeMode, RollupNode, RollupNodeService};
 use kona_registry::{L1Config, scr_rollup_config_by_alloy_ident};
 use op_alloy_provider::ext::engine::OpEngineApi;
-use rollup_boost::{
-    BlockSelectionPolicy, BuilderArgs, ExecutionMode, FlashblocksArgs, FlashblocksWebsocketConfig,
-    L2ClientArgs, RollupBoostArgs, RollupBoostLibArgs, RollupBoostServiceArgs,
-};
+use rollup_boost::{RollupBoostLibArgs, RollupBoostServiceArgs};
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf, sync::Arc};
 use strum::IntoEnumIterator;
@@ -68,7 +64,7 @@ pub(super) enum JwtValidationError {
 ///           --l2-engine-rpc http://localhost:8551 \
 ///           --l2-engine-jwt-secret /path/to/jwt.hex
 /// ```
-#[derive(Parser, PartialEq, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 #[command(about = "Runs the consensus node")]
 pub struct NodeCommand {
     /// The mode to run the node in.
@@ -103,7 +99,7 @@ pub struct NodeCommand {
     /// URL of the engine API endpoint of an L2 execution client.
     /// Alias for env var `L2_URL` and CLI key `--l2-url`, overrides these values if provided.
     #[arg(long, visible_alias = "l2", env = "KONA_NODE_L2_ENGINE_RPC")]
-    pub l2_engine_rpc: Option<Url>,
+    pub l2_engine_rpc: Url,
     /// Whether to trust the L2 RPC.
     /// If false, block hash verification is performed for all retrieved blocks.
     #[arg(
@@ -115,7 +111,8 @@ pub struct NodeCommand {
     pub l2_trust_rpc: bool,
     /// JWT secret for the auth-rpc endpoint of the execution client.
     /// This MUST be a valid path to a file containing the hex-encoded JWT secret.
-    /// Alias for env var `L2_JWT_PATH` and CLI key `--l2-jwt-path`, overrides these values if provided.
+    /// Alias for env var `L2_JWT_PATH` and CLI key `--l2-jwt-path`, overrides these values if
+    /// provided.
     #[arg(long, visible_alias = "l2.jwt-secret", env = "KONA_NODE_L2_ENGINE_AUTH")]
     pub l2_engine_jwt_secret: Option<PathBuf>,
     /// Path to a custom L2 rollup configuration file
@@ -138,7 +135,7 @@ pub struct NodeCommand {
 
     /// Rollup boost CLI arguments.
     #[command(flatten)]
-    pub rollup_boost_flags: RollupBoostLibArgs,
+    pub rollup_boost_flags: Option<RollupBoostLibArgs>,
 }
 
 impl Default for NodeCommand {
@@ -156,7 +153,7 @@ impl Default for NodeCommand {
             p2p_flags: P2PArgs::default(),
             rpc_flags: RpcArgs::default(),
             sequencer_flags: SequencerArgs::default(),
-            rollup_boost_flags: RollupBoostServiceArgs::default().lib,
+            rollup_boost_flags: Some(RollupBoostServiceArgs::default().lib),
         }
     }
 }
@@ -250,7 +247,7 @@ impl NodeCommand {
     pub async fn validate_jwt(&self, config: &RollupConfig) -> anyhow::Result<JwtSecret> {
         let jwt_secret = self.l2_jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
         let engine_client = EngineClient::new_http(
-            self.l2_engine_rpc.clone(),
+            self.get_l2_url()?,
             self.l1_eth_rpc.clone(),
             Arc::new(config.clone()),
             jwt_secret,
@@ -317,12 +314,12 @@ impl NodeCommand {
             .with_l1_provider_rpc_url(self.l1_eth_rpc.clone())
             .with_l1_trust_rpc(self.l1_trust_rpc)
             .with_l1_beacon_api_url(self.l1_beacon.clone())
-            .with_l2_engine_rpc_url(self.get_l2_url())
+            .with_l2_engine_rpc_url(self.get_l2_url()?)
             .with_l2_trust_rpc(self.l2_trust_rpc)
             .with_p2p_config(p2p_config)
             .with_rpc_config(rpc_config)
             .with_sequencer_config(self.sequencer_flags.config())
-            .with_rollup_boost_args(self.get_rollup_boost_args())
+            .with_rollup_boost_args(self.rollup_boost_flags.clone())
             .build()
             .start()
             .await
@@ -380,8 +377,10 @@ impl NodeCommand {
             if let Ok(secret) = std::fs::read_to_string(path) {
                 return JwtSecret::from_hex(secret).ok();
             }
-        } else if let Some(secret) = &self.rollup_boost_flags.l2_client.l2_jwt_token {
-            return Some(secret.clone());
+        } else if let Some(secret) =
+            self.rollup_boost_flags.as_ref().map(|flags| flags.l2_client.l2_jwt_token)
+        {
+            return secret;
         }
         Self::default_jwt_secret()
     }
@@ -390,10 +389,15 @@ impl NodeCommand {
     /// using the provided [PathBuf]. If the file is not found,
     /// it will return the default JWT secret.
     pub fn builder_jwt_secret(&self) -> Option<JwtSecret> {
-        if let Some(path) = &self.builder_engine_jwt_secret {
-            if let Ok(secret) = std::fs::read_to_string(path) {
-                return JwtSecret::from_hex(secret).ok();
-            }
+        if let Some(secret) = self
+            .rollup_boost_flags
+            .as_ref()
+            .map(|flags| flags.builder.builder_jwt_path.clone())
+            .flatten()
+            .map(|path| std::fs::read_to_string(path).ok())
+            .flatten()
+        {
+            return JwtSecret::from_hex(secret).ok();
         }
         // Sensible default: if builder jwt not provided, reuse L2 client jwt token
         self.l2_jwt_secret()
@@ -421,59 +425,25 @@ impl NodeCommand {
         )
     }
 
-    /// Get the rollup boost args, by packaging the various settings for the rollup boost server
-    /// into a single struct.
-    pub fn get_rollup_boost_args(&self) -> RollupBoostArgs {
-        // Use builder_engine_rpc if provided, otherwise fall back to l2_engine_rpc
-        let builder_url = self
-            .builder_engine_rpc
-            .as_ref()
-            .map(|url| url.to_string().parse::<Uri>().unwrap())
-            .unwrap_or_else(|| "http://127.0.0.1:8551".to_string().parse::<Uri>().unwrap());
-
-        // Build L2 client JWT: if a path is provided, read it robustly and also pass the path as
-        // fallback.
-        let l2_jwt_token = self.l2_jwt_secret();
-        let builder_jwt_token = self.builder_jwt_secret();
-
-        RollupBoostArgs {
-            builder: BuilderArgs {
-                builder_url,
-                builder_jwt_token,
-                builder_timeout: self.builder_client_timeout,
-                builder_jwt_path: None,
-            },
-            l2_client: L2ClientArgs {
-                l2_url: self.get_l2_url(),
-                l2_jwt_token,
-                l2_jwt_path: None,
-                l2_timeout: self.l2_client_timeout,
-            },
-            execution_mode: self.rollup_boost_execution_mode,
-            block_selection_policy: self.rollup_boost_block_selection_policy,
-            external_state_root: self.rollup_boost_external_state_root,
-            ignore_unhealthy_builders: self.rollup_boost_ignore_unhealthy_builders,
-            // log_config.global_level == None when logging should be disabled, setting to error is
-            // closest to this
-            flashblocks: self.flashblocks_flags.clone(),
-            ..Default::default()
+    fn get_l2_url(&self) -> anyhow::Result<Url> {
+        if let Some(url) =
+            self.rollup_boost_flags.as_ref().map(|flags| flags.l2_client.l2_url.path())
+        {
+            return Ok(
+                Url::parse(url).map_err(|_| anyhow::anyhow!("Failed to parse L2 URL: {}", url))?
+            );
         }
-    }
 
-    fn get_l2_url(&self) -> Uri {
-        self.l2_engine_rpc
-            .as_ref()
-            .unwrap_or(&self.rollup_boost_flags.l2_client.l2_url)
-            .to_string()
-            .parse::<Uri>()
-            .unwrap()
+        Ok(self.l2_engine_rpc.clone())
     }
 
     fn get_l2_jwt_secret_path(&self) -> Option<PathBuf> {
-        self.l2_engine_jwt_secret
-            .as_ref()
-            .or(self.rollup_boost_flags.l2_client.l2_jwt_path.as_ref())
-            .cloned()
+        if let Some(path) = self.rollup_boost_flags.clone().map(|flags| flags.l2_client.l2_jwt_path)
+        {
+            return path;
+        }
+
+        self.l2_engine_jwt_secret.clone()
     }
 }
 
