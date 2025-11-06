@@ -9,6 +9,7 @@ use alloy_rpc_types_engine::PayloadId;
 use async_trait::async_trait;
 use derive_more::Constructor;
 use kona_derive::{AttributesBuilder, PipelineErrorKind, StatefulAttributesBuilder};
+use kona_engine::{EngineTaskError, EngineTaskErrorSeverity, SealTaskError};
 use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use kona_providers_alloy::{AlloyChainProvider, AlloyL2ChainProvider};
@@ -188,8 +189,11 @@ pub struct SequencerContext {
     pub build_request_tx: mpsc::Sender<(OpAttributesWithParent, mpsc::Sender<PayloadId>)>,
     /// Sender to request the execution layer to seal and commit the payload ID and
     /// attributes that resulted from a previous build call.
-    pub seal_request_tx:
-        mpsc::Sender<(PayloadId, OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>,
+    pub seal_request_tx: mpsc::Sender<(
+        PayloadId,
+        OpAttributesWithParent,
+        mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>,
+    )>,
     /// A sender to asynchronously sign and gossip built [`OpExecutionPayloadEnvelope`]s to the
     /// network actor.
     pub gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
@@ -207,12 +211,15 @@ pub enum SequencerActorError {
     /// An error occurred while building payload attributes.
     #[error(transparent)]
     AttributesBuilder(#[from] PipelineErrorKind),
-    /// An error occurred while selecting the next L1 origin.
-    #[error(transparent)]
-    L1OriginSelector(#[from] L1OriginSelectorError),
     /// A channel was unexpectedly closed.
     #[error("Channel closed unexpectedly")]
     ChannelClosed,
+    /// An error occurred while selecting the next L1 origin.
+    #[error(transparent)]
+    L1OriginSelector(#[from] L1OriginSelectorError),
+    /// An error occurred while attempting to seal a payload.
+    #[error(transparent)]
+    SealError(#[from] SealTaskError),
 }
 
 impl<AB: AttributesBuilderConfig> SequencerActor<AB> {
@@ -259,19 +266,19 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         let UnsealedPayloadHandle { payload_id, attributes_with_parent } = unsealed_payload_handle;
 
         // Create a new channel to receive the built payload.
-        let (payload_tx, payload_rx) = mpsc::channel(1);
+        let (seal_result_tx, seal_result_rx) = mpsc::channel(1);
 
         // Send the seal request to the engine to seal the unsealed block.
         let _seal_request_start = Instant::now();
         if let Err(err) =
-            ctx.seal_request_tx.send((payload_id, attributes_with_parent, payload_tx)).await
+            ctx.seal_request_tx.send((payload_id, attributes_with_parent, seal_result_tx)).await
         {
             error!(target: "sequencer", ?err, "Failed to send seal request to engine, payload id {},", payload_id);
             ctx.cancellation.cancel();
             return Err(SequencerActorError::ChannelClosed);
         }
 
-        let payload = self.try_wait_for_payload(ctx, payload_rx).await?;
+        let payload = self.try_wait_for_payload(ctx, seal_result_rx).await?;
 
         // Log the block building seal task duration, if metrics are enabled.
         kona_macros::set!(
@@ -486,13 +493,17 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
     async fn try_wait_for_payload(
         &mut self,
         ctx: &mut SequencerContext,
-        mut payload_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
+        mut payload_rx: mpsc::Receiver<Result<OpExecutionPayloadEnvelope, SealTaskError>>,
     ) -> Result<OpExecutionPayloadEnvelope, SequencerActorError> {
-        payload_rx.recv().await.ok_or_else(|| {
-            error!(target: "sequencer", "Failed to receive built payload");
-            ctx.cancellation.cancel();
-            SequencerActorError::ChannelClosed
-        })
+        match payload_rx.recv().await {
+            Some(Ok(x)) => Ok(x),
+            Some(Err(x)) => Err(SequencerActorError::SealError(x)),
+            None => {
+                error!(target: "sequencer", "Failed to receive built payload");
+                ctx.cancellation.cancel();
+                Err(SequencerActorError::ChannelClosed)
+            }
+        }
     }
 
     /// Waits for the next payload to be built and returns it, if there is a payload receiver
@@ -620,10 +631,33 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
 
                     let start_time = Instant::now();
 
-                    next_payload_to_seal = state.seal_last_and_start_next(&mut ctx, &mut self.unsafe_head_rx, state.is_recovery_mode, next_payload_to_seal).await?;
-
-                    // Set the next tick time to the configured blocktime less the time it takes to seal last and start next.
-                    state.build_ticker.reset_after(Duration::from_secs(state.cfg.block_time).saturating_sub(start_time.elapsed()));
+                    match state.seal_last_and_start_next(&mut ctx, &mut self.unsafe_head_rx, state.is_recovery_mode, next_payload_to_seal).await {
+                        Ok(res) => {
+                            next_payload_to_seal = res;
+                            // Set the next tick time to the configured blocktime less the time it takes to seal last and start next.
+                            state.build_ticker.reset_after(Duration::from_secs(state.cfg.block_time).saturating_sub(start_time.elapsed()));
+                        },
+                        Err(SequencerActorError::SealError(seal_err)) => {
+                            match seal_err.severity(){
+                                EngineTaskErrorSeverity::Flush => {
+                                    next_payload_to_seal = None;
+                                    state.build_ticker.reset_after(Duration::from_secs(state.cfg.block_time).saturating_sub(start_time.elapsed()))
+                                }
+                                EngineTaskErrorSeverity::Reset => {
+                                    next_payload_to_seal = None;
+                                    state.build_ticker.reset_immediately();
+                                }
+                                _ => {
+                                    error!(target: "sequencer", err = ?seal_err, "Unrecoverable seal error");
+                                    return Err(SequencerActorError::SealError(seal_err));
+                                }
+                            }
+                        },
+                        Err(other_err) => {
+                            error!(target: "sequencer", err = ?other_err, "Unexpected error sealing payload");
+                            return Err(other_err);
+                        }
+                    }
                 }
             }
         }

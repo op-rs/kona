@@ -47,7 +47,6 @@ impl ConsolidateTask {
             self.cfg.clone(),
             self.attributes.clone(),
             self.is_attributes_derived,
-            None,
         )
         .await
         .map_err(Into::into)

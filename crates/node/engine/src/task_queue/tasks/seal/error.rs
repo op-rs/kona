@@ -34,7 +34,9 @@ pub enum SealTaskError {
     FromBlock(#[from] FromBlockError),
     /// Error sending the built payload envelope.
     #[error(transparent)]
-    MpscSend(#[from] Box<mpsc::error::SendError<OpExecutionPayloadEnvelope>>),
+    MpscSend(
+        #[from] Box<mpsc::error::SendError<Result<OpExecutionPayloadEnvelope, SealTaskError>>>,
+    ),
     /// The clock went backwards.
     #[error("The clock went backwards")]
     ClockWentBackwards,

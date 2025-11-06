@@ -8,7 +8,7 @@ use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
     BuildTask, ConsolidateTask, Engine, EngineClient, EngineQueries,
     EngineState as InnerEngineState, EngineTask, EngineTaskError, EngineTaskErrorSeverity,
-    InsertTask, SealTask,
+    InsertTask, SealTask, SealTaskError,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
@@ -46,8 +46,7 @@ pub struct EngineActor {
     /// mode.
     build_request_rx: Option<mpsc::Receiver<(OpAttributesWithParent, mpsc::Sender<PayloadId>)>>,
     /// A channel to receive seal requests.
-    /// Upon successful seal of the provided attributes, the resulting `OpExecutionPayloadEnvelope`
-    /// will be sent via provided sender.
+    /// The success/fail result of the sealing operation will be sent via the provided sender.
     /// ## Note
     /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
     /// mode.
@@ -55,7 +54,7 @@ pub struct EngineActor {
         mpsc::Receiver<(
             PayloadId,
             OpAttributesWithParent,
-            mpsc::Sender<OpExecutionPayloadEnvelope>,
+            mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>,
         )>,
     >,
     /// The [`L2Finalizer`], used to finalize L2 blocks.
@@ -73,13 +72,17 @@ pub struct EngineInboundData {
     /// mode.
     pub build_request_tx: Option<mpsc::Sender<(OpAttributesWithParent, mpsc::Sender<PayloadId>)>>,
     /// A channel to send seal requests to the [`EngineActor`].
-    /// Upon successful seal of the provided attributes, the resulting `OpExecutionPayloadEnvelope`
-    /// will be sent via provided sender.
+    /// If provided, the success/fail result of the sealing operation will be sent via the provided
+    /// sender.
     /// ## Note
     /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
     /// mode.
     pub seal_request_tx: Option<
-        mpsc::Sender<(PayloadId, OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>,
+        mpsc::Sender<(
+            PayloadId,
+            OpAttributesWithParent,
+            mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>,
+        )>,
     >,
     /// A channel to send [`OpAttributesWithParent`] to the engine actor.
     pub attributes_tx: mpsc::Sender<OpAttributesWithParent>,

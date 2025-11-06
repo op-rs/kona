@@ -40,9 +40,10 @@ pub struct SealTask {
     pub attributes: OpAttributesWithParent,
     /// Whether or not the payload was derived, or created by the sequencer.
     pub is_attributes_derived: bool,
-    /// An optional sender through which the built [`OpExecutionPayloadEnvelope`] will be sent
-    /// after the block has been built, imported, and canonicalized.
-    pub payload_tx: Option<mpsc::Sender<OpExecutionPayloadEnvelope>>,
+    /// An optional sender to convey success/failure result of the built
+    /// [`OpExecutionPayloadEnvelope`] after the block has been built, imported, and canonicalized
+    /// or the [`SealTaskError`] that occurred during processing.
+    pub result_tx: Option<mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>>,
 }
 
 impl SealTask {
@@ -161,7 +162,6 @@ impl SealTask {
                     self.cfg.clone(),
                     deposits_only_attrs.clone(),
                     self.is_attributes_derived,
-                    None,
                 )
                 .await
                 {
@@ -193,7 +193,7 @@ impl SealTask {
     async fn seal_and_canonicalize_block(
         &self,
         state: &mut EngineState,
-    ) -> Result<(), SealTaskError> {
+    ) -> Result<OpExecutionPayloadEnvelope, SealTaskError> {
         // Fetch the payload just inserted from the EL and import it into the engine.
         let block_import_start_time = Instant::now();
         let new_payload = self
@@ -212,11 +212,6 @@ impl SealTask {
 
         let block_import_duration = block_import_start_time.elapsed();
 
-        // If a channel was provided, send the built payload envelope to it.
-        if let Some(tx) = &self.payload_tx {
-            tx.send(new_payload).await.map_err(Box::new).map_err(SealTaskError::MpscSend)?;
-        }
-
         info!(
             target: "engine",
             l2_number = new_block_ref.block_info.number,
@@ -226,7 +221,7 @@ impl SealTask {
             if self.is_attributes_derived { "safe" } else { "unsafe" },
         );
 
-        Ok(())
+        Ok(new_payload)
     }
 }
 
@@ -245,7 +240,15 @@ impl EngineTaskExt for SealTask {
         );
 
         // Seal the block and import it into the engine.
-        self.seal_and_canonicalize_block(state).await?;
+        let res = self.seal_and_canonicalize_block(state).await;
+
+        // NB: If a response channel is provided, that channel will receive success/failure info,
+        // and this task will always succeed. If not, task failure will be relayed to the caller.
+        if let Some(tx) = &self.result_tx {
+            tx.send(res).await.map_err(Box::new).map_err(SealTaskError::MpscSend)?;
+        } else if let Err(x) = res {
+            return Err(x)
+        }
 
         Ok(())
     }

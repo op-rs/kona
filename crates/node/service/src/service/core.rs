@@ -178,7 +178,7 @@ pub trait RollupNodeService {
                             "`build_request_tx` not set while in sequencer mode. This should never happen.",
                         ),
                         seal_request_tx: seal_request_tx.expect(
-                            "`build_request_tx` not set while in sequencer mode. This should never happen.",
+                            "`seal_request_tx` not set while in sequencer mode. This should never happen.",
                         ),
                         gossip_payload_tx,
                         cancellation: cancellation.clone(),

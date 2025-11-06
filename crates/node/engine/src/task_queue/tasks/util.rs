@@ -4,9 +4,7 @@ use super::{BuildTask, BuildTaskError, EngineTaskExt, SealTask, SealTaskError};
 use crate::{EngineClient, EngineState};
 use kona_genesis::RollupConfig;
 use kona_protocol::OpAttributesWithParent;
-use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::sync::Arc;
-use tokio::sync::mpsc;
 
 /// Error type for build and seal operations.
 #[derive(Debug, thiserror::Error)]
@@ -35,14 +33,12 @@ pub(in crate::task_queue) enum BuildAndSealError {
 /// * `cfg` - The rollup configuration
 /// * `attributes` - The payload attributes to build
 /// * `is_attributes_derived` - Whether the attributes were derived or created by the sequencer
-/// * `payload_tx` - Optional channel to send the built payload envelope
 pub(in crate::task_queue) async fn build_and_seal(
     state: &mut EngineState,
     engine: Arc<EngineClient>,
     cfg: Arc<RollupConfig>,
     attributes: OpAttributesWithParent,
     is_attributes_derived: bool,
-    payload_tx: Option<mpsc::Sender<OpExecutionPayloadEnvelope>>,
 ) -> Result<(), BuildAndSealError> {
     // Execute the build task
     let payload_id = BuildTask::new(
@@ -55,7 +51,7 @@ pub(in crate::task_queue) async fn build_and_seal(
     .await?;
 
     // Execute the seal task with the payload ID from the build
-    SealTask::new(engine, cfg, payload_id, attributes, is_attributes_derived, payload_tx)
+    SealTask::new(engine, cfg, payload_id, attributes, is_attributes_derived, None)
         .execute(state)
         .await?;
 
