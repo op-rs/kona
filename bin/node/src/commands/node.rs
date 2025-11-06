@@ -392,10 +392,8 @@ impl NodeCommand {
         if let Some(secret) = self
             .rollup_boost_flags
             .as_ref()
-            .map(|flags| flags.builder.builder_jwt_path.clone())
-            .flatten()
-            .map(|path| std::fs::read_to_string(path).ok())
-            .flatten()
+            .and_then(|flags| flags.builder.builder_jwt_path.clone())
+            .and_then(|path| std::fs::read_to_string(path).ok())
         {
             return JwtSecret::from_hex(secret).ok();
         }
@@ -429,9 +427,7 @@ impl NodeCommand {
         if let Some(url) =
             self.rollup_boost_flags.as_ref().map(|flags| flags.l2_client.l2_url.path())
         {
-            return Ok(
-                Url::parse(url).map_err(|_| anyhow::anyhow!("Failed to parse L2 URL: {}", url))?
-            );
+            return Url::parse(url).map_err(|_| anyhow::anyhow!("Failed to parse L2 URL: {url}"));
         }
 
         Ok(self.l2_engine_rpc.clone())
