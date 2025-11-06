@@ -97,8 +97,8 @@ impl<'a, P, H, Evm> StatelessL2Builder<'a, P, H, Evm>
 where
     P: TrieDBProvider + Debug,
     H: TrieHinter + Debug,
-    Evm: EvmFactory<Spec = OpSpecId> + 'static,
-    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope>,
+    Evm: EvmFactory<Spec = OpSpecId, BlockEnv = revm::context::BlockEnv> + 'static,
+    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope> + alloy_op_evm::block::OpTxEnv,
 {
     /// Creates a new stateless L2 block builder instance.
     ///
