@@ -153,9 +153,7 @@ impl Default for NodeCommand {
             p2p_flags: P2PArgs::default(),
             rpc_flags: RpcArgs::default(),
             sequencer_flags: SequencerArgs::default(),
-            custom_block_builder_flags: Some(CustomBlockBuilder::RollupBoost(
-                RollupBoostServiceArgs::default().lib,
-            )),
+            custom_block_builder_flags: None,
         }
     }
 }
