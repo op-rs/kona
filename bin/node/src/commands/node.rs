@@ -1,7 +1,7 @@
 //! Node Subcommand.
 
 use crate::{
-    flags::{GlobalArgs, P2PArgs, RpcArgs, SequencerArgs},
+    flags::{CustomBlockBuilder, GlobalArgs, P2PArgs, RpcArgs, SequencerArgs},
     metrics::{CliMetrics, init_rollup_config_metrics},
 };
 use alloy_rpc_types_engine::JwtSecret;
@@ -14,7 +14,7 @@ use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_node_service::{NodeMode, RollupNode, RollupNodeService};
 use kona_registry::{L1Config, scr_rollup_config_by_alloy_ident};
 use op_alloy_provider::ext::engine::OpEngineApi;
-use rollup_boost::{RollupBoostLibArgs, RollupBoostServiceArgs};
+use rollup_boost::RollupBoostServiceArgs;
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf, sync::Arc};
 use strum::IntoEnumIterator;
@@ -133,9 +133,9 @@ pub struct NodeCommand {
     #[command(flatten)]
     pub sequencer_flags: SequencerArgs,
 
-    /// Rollup boost CLI arguments.
-    #[command(flatten)]
-    pub rollup_boost_flags: Option<RollupBoostLibArgs>,
+    /// CLI arguments for custom block builders.
+    #[command(subcommand)]
+    pub custom_block_builder_flags: Option<CustomBlockBuilder>,
 }
 
 impl Default for NodeCommand {
@@ -153,7 +153,9 @@ impl Default for NodeCommand {
             p2p_flags: P2PArgs::default(),
             rpc_flags: RpcArgs::default(),
             sequencer_flags: SequencerArgs::default(),
-            rollup_boost_flags: Some(RollupBoostServiceArgs::default().lib),
+            custom_block_builder_flags: Some(CustomBlockBuilder::RollupBoost(
+                RollupBoostServiceArgs::default().lib,
+            )),
         }
     }
 }
@@ -319,7 +321,12 @@ impl NodeCommand {
             .with_p2p_config(p2p_config)
             .with_rpc_config(rpc_config)
             .with_sequencer_config(self.sequencer_flags.config())
-            .with_rollup_boost_args(self.rollup_boost_flags.clone())
+            .with_rollup_boost_args(
+                self.custom_block_builder_flags
+                    .as_ref()
+                    .and_then(|flags| flags.as_rollup_boost_args())
+                    .cloned(),
+            )
             .build()
             .start()
             .await
@@ -378,7 +385,7 @@ impl NodeCommand {
                 return JwtSecret::from_hex(secret).ok();
             }
         } else if let Some(secret) =
-            self.rollup_boost_flags.as_ref().map(|flags| flags.l2_client.l2_jwt_token)
+            self.custom_block_builder_flags.as_ref().map(|flags| flags.l2_jwt_token())
         {
             return secret;
         }
@@ -390,9 +397,9 @@ impl NodeCommand {
     /// it will return the default JWT secret.
     pub fn builder_jwt_secret(&self) -> Option<JwtSecret> {
         if let Some(secret) = self
-            .rollup_boost_flags
+            .custom_block_builder_flags
             .as_ref()
-            .and_then(|flags| flags.builder.builder_jwt_path.clone())
+            .and_then(|flags| flags.builder_jwt_path())
             .and_then(|path| std::fs::read_to_string(path).ok())
         {
             return JwtSecret::from_hex(secret).ok();
@@ -424,19 +431,24 @@ impl NodeCommand {
     }
 
     fn get_l2_url(&self) -> anyhow::Result<Url> {
-        if let Some(url) =
-            self.rollup_boost_flags.as_ref().map(|flags| flags.l2_client.l2_url.path())
-        {
-            return Url::parse(url).map_err(|_| anyhow::anyhow!("Failed to parse L2 URL: {url}"));
+        if let Some(url) = self.custom_block_builder_flags.as_ref().and_then(|flags| match flags {
+            CustomBlockBuilder::RollupBoost(args) => Some(args.l2_client.l2_url.clone()),
+        }) {
+            return url
+                .path()
+                .to_string()
+                .parse::<Url>()
+                .map_err(|e| anyhow::anyhow!("Failed to parse L2 URL: {url}, error: {e}"))
         }
 
         Ok(self.l2_engine_rpc.clone())
     }
 
     fn get_l2_jwt_secret_path(&self) -> Option<PathBuf> {
-        if let Some(path) = self.rollup_boost_flags.clone().map(|flags| flags.l2_client.l2_jwt_path)
+        if let Some(path) =
+            self.custom_block_builder_flags.as_ref().and_then(|flags| flags.l2_jwt_path())
         {
-            return path;
+            return Some(path);
         }
 
         self.l2_engine_jwt_secret.clone()
