@@ -482,6 +482,11 @@ func DefaultMixedOpKonaSystem(dest *DefaultMixedOpKonaSystemIDs, l2NodeConfig L2
 	if artifactsPath == "" {
 		panic("OP_DEPLOYER_ARTIFACTS is not set")
 	}
+	var err error
+	artifactsPath, err = filepath.Abs(artifactsPath)
+	if err != nil {
+		panic(fmt.Errorf("make OP_DEPLOYER_ARTIFACTS path absolute: %w", err))
+	}
 
 	opt.Add(sysgo.WithDeployer(),
 		sysgo.WithDeployerPipelineOption(
