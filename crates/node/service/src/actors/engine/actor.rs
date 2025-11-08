@@ -23,6 +23,18 @@ use url::Url;
 
 use crate::{NodeActor, NodeMode, actors::CancellableContext};
 
+/// A request to build a payload.
+/// Contains the attributes to build and a channel to send back the resulting `PayloadId`.
+pub(crate) type BuildRequest = (OpAttributesWithParent, mpsc::Sender<PayloadId>);
+
+/// A request to seal a payload.
+/// Contains the `PayloadId`, attributes, and a channel to send back the result.
+pub(crate) type SealRequest = (
+    PayloadId,
+    OpAttributesWithParent,
+    mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealError>>,
+);
+
 /// The [`EngineActor`] is responsible for managing the operations sent to the execution layer's
 /// Engine API. To accomplish this, it uses the [`Engine`] task queue to order Engine API
 /// interactions based off of the [`Ord`] implementation of [`EngineTask`].
@@ -44,19 +56,13 @@ pub struct EngineActor {
     /// ## Note
     /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
     /// mode.
-    build_request_rx: Option<mpsc::Receiver<(OpAttributesWithParent, mpsc::Sender<PayloadId>)>>,
+    build_request_rx: Option<mpsc::Receiver<BuildRequest>>,
     /// A channel to receive seal requests.
     /// The success/fail result of the sealing operation will be sent via the provided sender.
     /// ## Note
     /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
     /// mode.
-    seal_request_rx: Option<
-        mpsc::Receiver<(
-            PayloadId,
-            OpAttributesWithParent,
-            mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealError>>,
-        )>,
-    >,
+    seal_request_rx: Option<mpsc::Receiver<SealRequest>>,
     /// The [`L2Finalizer`], used to finalize L2 blocks.
     finalizer: L2Finalizer,
 }
@@ -70,20 +76,14 @@ pub struct EngineInboundData {
     /// ## Note
     /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
     /// mode.
-    pub build_request_tx: Option<mpsc::Sender<(OpAttributesWithParent, mpsc::Sender<PayloadId>)>>,
+    pub build_request_tx: Option<mpsc::Sender<BuildRequest>>,
     /// A channel to send seal requests to the [`EngineActor`].
     /// If provided, the success/fail result of the sealing operation will be sent via the provided
     /// sender.
     /// ## Note
     /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
     /// mode.
-    pub seal_request_tx: Option<
-        mpsc::Sender<(
-            PayloadId,
-            OpAttributesWithParent,
-            mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealError>>,
-        )>,
-    >,
+    pub seal_request_tx: Option<mpsc::Sender<SealRequest>>,
     /// A channel to send [`OpAttributesWithParent`] to the engine actor.
     pub attributes_tx: mpsc::Sender<OpAttributesWithParent>,
     /// A channel to send [`OpExecutionPayloadEnvelope`] to the engine actor.

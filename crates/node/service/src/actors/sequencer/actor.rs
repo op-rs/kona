@@ -3,7 +3,13 @@
 use super::{
     DelayedL1OriginSelectorProvider, L1OriginSelector, L1OriginSelectorError, SequencerConfig,
 };
-use crate::{CancellableContext, NodeActor, actors::sequencer::conductor::ConductorClient};
+use crate::{
+    CancellableContext, NodeActor,
+    actors::{
+        engine::{BuildRequest, SealRequest},
+        sequencer::conductor::ConductorClient,
+    },
+};
 use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::PayloadId;
 use async_trait::async_trait;
@@ -186,14 +192,10 @@ pub struct SequencerContext {
     pub reset_request_tx: mpsc::Sender<()>,
     /// Sender to request the execution layer to start building a payload on top of the
     /// current unsafe head.
-    pub build_request_tx: mpsc::Sender<(OpAttributesWithParent, mpsc::Sender<PayloadId>)>,
+    pub build_request_tx: mpsc::Sender<BuildRequest>,
     /// Sender to request the execution layer to seal and commit the payload ID and
     /// attributes that resulted from a previous build call.
-    pub seal_request_tx: mpsc::Sender<(
-        PayloadId,
-        OpAttributesWithParent,
-        mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealError>>,
-    )>,
+    pub seal_request_tx: mpsc::Sender<SealRequest>,
     /// A sender to asynchronously sign and gossip built [`OpExecutionPayloadEnvelope`]s to the
     /// network actor.
     pub gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
