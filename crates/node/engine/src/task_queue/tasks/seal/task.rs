@@ -1,9 +1,10 @@
 //! A task for importing a block that has already been started.
 use super::SealTaskError;
 use crate::{
-    EngineClient, EngineGetPayloadVersion, EngineState, EngineTaskExt, InsertTask,
+    EngineClient, EngineGetPayloadVersion, EngineState, EngineTaskError, EngineTaskErrorSeverity,
+    EngineTaskExt, InsertTask,
     InsertTaskError::{self},
-    task_queue::build_and_seal,
+    task_queue::{build_and_seal, tasks::seal::error::SealError},
 };
 use alloy_rpc_types_engine::{ExecutionPayload, PayloadId};
 use async_trait::async_trait;
@@ -43,7 +44,7 @@ pub struct SealTask {
     /// An optional sender to convey success/failure result of the built
     /// [`OpExecutionPayloadEnvelope`] after the block has been built, imported, and canonicalized
     /// or the [`SealTaskError`] that occurred during processing.
-    pub result_tx: Option<mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>>,
+    pub result_tx: Option<mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealError>>>,
 }
 
 impl SealTask {
@@ -239,13 +240,44 @@ impl EngineTaskExt for SealTask {
             "Starting new seal job"
         );
 
-        // Seal the block and import it into the engine.
-        let res = self.seal_and_canonicalize_block(state).await;
+        let unsafe_block_info = state.sync_state.unsafe_head().block_info;
+        let parent_block_info = self.attributes.parent.block_info;
 
-        // NB: If a response channel is provided, that channel will receive success/failure info,
+        let res = {
+            if unsafe_block_info.hash != parent_block_info.hash ||
+                unsafe_block_info.number != parent_block_info.number
+            {
+                info!(
+                    target: "engine",
+                    unsafe_block_info = ?unsafe_block_info,
+                    parent_block_info = ?parent_block_info,
+                    "Seal attributes parent does not match unsafe head, returning rebuild error"
+                );
+                Err(SealTaskError::UnsafeHeadChangedSinceBuild)
+            } else {
+                // Seal the block and import it into the engine.
+                self.seal_and_canonicalize_block(state).await
+            }
+        };
+
+        // NB: If a response channel was provided, that channel will receive success/failure info,
         // and this task will always succeed. If not, task failure will be relayed to the caller.
         if let Some(tx) = &self.result_tx {
-            tx.send(res).await.map_err(Box::new).map_err(SealTaskError::MpscSend)?;
+            let to_send = match res {
+                Ok(x) => Ok(x),
+                // NB: This error is critical IFF not relayed back to a caller, so we can't rely on
+                // the severity below.
+                Err(SealTaskError::UnsafeHeadChangedSinceBuild) => Err(SealError::ConsiderRebuild),
+                Err(err) => match err.severity() {
+                    EngineTaskErrorSeverity::Temporary | EngineTaskErrorSeverity::Reset => {
+                        Err(SealError::ConsiderRebuild)
+                    }
+                    EngineTaskErrorSeverity::Flush => Err(SealError::HoloceneRetry),
+                    EngineTaskErrorSeverity::Critical => Err(SealError::EngineError),
+                },
+            };
+
+            tx.send(to_send).await.map_err(Box::new).map_err(SealTaskError::MpscSend)?;
         } else if let Err(x) = res {
             return Err(x)
         }

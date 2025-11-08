@@ -9,7 +9,7 @@ use alloy_rpc_types_engine::PayloadId;
 use async_trait::async_trait;
 use derive_more::Constructor;
 use kona_derive::{AttributesBuilder, PipelineErrorKind, StatefulAttributesBuilder};
-use kona_engine::{EngineTaskError, EngineTaskErrorSeverity, SealTaskError};
+use kona_engine::SealError;
 use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use kona_providers_alloy::{AlloyChainProvider, AlloyL2ChainProvider};
@@ -192,7 +192,7 @@ pub struct SequencerContext {
     pub seal_request_tx: mpsc::Sender<(
         PayloadId,
         OpAttributesWithParent,
-        mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>,
+        mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealError>>,
     )>,
     /// A sender to asynchronously sign and gossip built [`OpExecutionPayloadEnvelope`]s to the
     /// network actor.
@@ -219,7 +219,7 @@ pub enum SequencerActorError {
     L1OriginSelector(#[from] L1OriginSelectorError),
     /// An error occurred while attempting to seal a payload.
     #[error(transparent)]
-    SealError(#[from] SealTaskError),
+    SealError(#[from] SealError),
 }
 
 impl<AB: AttributesBuilderConfig> SequencerActor<AB> {
@@ -497,7 +497,7 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
     async fn try_wait_for_payload(
         &mut self,
         ctx: &mut SequencerContext,
-        mut payload_rx: mpsc::Receiver<Result<OpExecutionPayloadEnvelope, SealTaskError>>,
+        mut payload_rx: mpsc::Receiver<Result<OpExecutionPayloadEnvelope, SealError>>,
     ) -> Result<OpExecutionPayloadEnvelope, SequencerActorError> {
         match payload_rx.recv().await {
             Some(Ok(x)) => Ok(x),
@@ -641,28 +641,20 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                             // Set the next tick time to the configured blocktime less the time it takes to seal last and start next.
                             state.build_ticker.reset_after(Duration::from_secs(state.cfg.block_time).saturating_sub(start_time.elapsed()));
                         },
-                        Err(SequencerActorError::SealError(seal_err)) => {
-                            match seal_err.severity(){
-                                EngineTaskErrorSeverity::Flush => {
-                                    next_payload_to_seal = None;
-                                    // this means that a block was inserted, so wait blocktime to build.
-                                    state.build_ticker.reset_after(Duration::from_secs(state.cfg.block_time).saturating_sub(start_time.elapsed()))
-                                }
-                                EngineTaskErrorSeverity::Temporary => {
-                                    // this means that the task can be retried immediately
-                                    state.build_ticker.reset_immediately();
-                                }
-                                EngineTaskErrorSeverity::Reset => {
-                                    next_payload_to_seal = None;
-                                    // this means that a block was not inserted, so retry building immediately.
-                                    state.build_ticker.reset_immediately();
-                                }
-                                EngineTaskErrorSeverity::Critical => {
-                                    error!(target: "sequencer", err = ?seal_err, "Critical seal error");
-                                    return Err(SequencerActorError::SealError(seal_err));
-                                }
-                            }
+                        Err(SequencerActorError::SealError(SealError::HoloceneRetry)) => {
+                            next_payload_to_seal = None;
+                            // this means that a block was inserted, so wait blocktime to build.
+                            state.build_ticker.reset_after(Duration::from_secs(state.cfg.block_time).saturating_sub(start_time.elapsed()))
                         },
+                        Err(SequencerActorError::SealError(SealError::ConsiderRebuild)) => {
+                            next_payload_to_seal = None;
+                            // this means that a block was not inserted, so retry building immediately.
+                            state.build_ticker.reset_immediately();
+                        },
+                        Err(SequencerActorError::SealError(SealError::EngineError)) => {
+                                error!(target: "sequencer", "Critical engine error occurred");
+                                return Err(SequencerActorError::SealError(SealError::EngineError));
+                        }
                         Err(other_err) => {
                             error!(target: "sequencer", err = ?other_err, "Unexpected error sealing payload");
                             return Err(other_err);

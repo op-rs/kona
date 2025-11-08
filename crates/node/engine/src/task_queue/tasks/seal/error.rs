@@ -34,12 +34,18 @@ pub enum SealTaskError {
     FromBlock(#[from] FromBlockError),
     /// Error sending the built payload envelope.
     #[error(transparent)]
-    MpscSend(
-        #[from] Box<mpsc::error::SendError<Result<OpExecutionPayloadEnvelope, SealTaskError>>>,
-    ),
+    MpscSend(#[from] Box<mpsc::error::SendError<Result<OpExecutionPayloadEnvelope, SealError>>>),
     /// The clock went backwards.
     #[error("The clock went backwards")]
     ClockWentBackwards,
+    /// Unsafe head changed between build and seal. This likely means that there was some race
+    /// condition between the previous seal updating the unsafe head and the build attributes
+    /// being created. This build has been invalidated.
+    ///
+    /// If not propagated to the original caller for handling (i.e. there was no original caller),
+    /// this should not happen and is a critical error.
+    #[error("Unsafe head changed between build and seal")]
+    UnsafeHeadChangedSinceBuild,
 }
 
 impl EngineTaskError for SealTaskError {
@@ -53,6 +59,21 @@ impl EngineTaskError for SealTaskError {
             Self::FromBlock(_) => EngineTaskErrorSeverity::Critical,
             Self::MpscSend(_) => EngineTaskErrorSeverity::Critical,
             Self::ClockWentBackwards => EngineTaskErrorSeverity::Critical,
+            Self::UnsafeHeadChangedSinceBuild => EngineTaskErrorSeverity::Critical,
         }
     }
+}
+
+/// The inter-actor error returned to the initial requestor of a seal.
+#[derive(Debug, Error)]
+pub enum SealError {
+    /// Holocene retry occurred. A deposit-only block was built and sealed.
+    #[error("Holocene retry occurred. A deposit-only block was built and sealed.")]
+    HoloceneRetry,
+    /// Some state mismatch invalidated this seal. Consider rebuilding.
+    #[error("Some state mismatch invalidated this seal. Consider rebuilding.")]
+    ConsiderRebuild,
+    /// A critical engine error occurred.
+    #[error("A critical engine error occurred.")]
+    EngineError,
 }

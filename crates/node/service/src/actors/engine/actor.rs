@@ -8,7 +8,7 @@ use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
     BuildTask, ConsolidateTask, Engine, EngineClient, EngineQueries,
     EngineState as InnerEngineState, EngineTask, EngineTaskError, EngineTaskErrorSeverity,
-    InsertTask, SealTask, SealTaskError,
+    InsertTask, SealError, SealTask,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
@@ -54,7 +54,7 @@ pub struct EngineActor {
         mpsc::Receiver<(
             PayloadId,
             OpAttributesWithParent,
-            mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>,
+            mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealError>>,
         )>,
     >,
     /// The [`L2Finalizer`], used to finalize L2 blocks.
@@ -81,7 +81,7 @@ pub struct EngineInboundData {
         mpsc::Sender<(
             PayloadId,
             OpAttributesWithParent,
-            mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>,
+            mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealError>>,
         )>,
     >,
     /// A channel to send [`OpAttributesWithParent`] to the engine actor.
