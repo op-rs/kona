@@ -69,6 +69,7 @@ tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
 
 [dev-dependencies]
 rstest.workspace = true
+tempfile.workspace = true
 
 [build-dependencies]
 vergen = { workspace = true, features = ["build", "cargo", "emit_and_set"] }
