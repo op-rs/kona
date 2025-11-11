@@ -59,9 +59,11 @@ impl BuildTask {
                 warn!(target: "engine_builder", "Forkchoice update failed temporarily: EL is syncing");
                 Err(BuildTaskError::EngineBuildError(EngineBuildError::EngineSyncing))
             }
-            s => {
+            PayloadStatusEnum::Accepted => {
                 // Other codes are never returned by `engine_forkchoiceUpdate`
-                Err(BuildTaskError::EngineBuildError(EngineBuildError::UnexpectedPayloadStatus(s)))
+                Err(BuildTaskError::EngineBuildError(EngineBuildError::UnexpectedPayloadStatus(
+                    status,
+                )))
             }
         }
     }
