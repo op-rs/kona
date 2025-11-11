@@ -143,6 +143,7 @@ where
         for hardfork in Hardforks::active_hardforks(Arc::clone(&self.rollup_cfg), next_l2_time) {
             match hardfork {
                 Fork::Ecotone => {
+                    /// review: we could generate two vecs instead and check using Vector.contains.
                     if self.rollup_cfg.is_ecotone_active(next_l2_time) &&
                         !self.rollup_cfg.is_ecotone_active(l2_parent_timestamp)
                     {
