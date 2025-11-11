@@ -243,21 +243,19 @@ impl EngineTaskExt for SealTask {
         let unsafe_block_info = state.sync_state.unsafe_head().block_info;
         let parent_block_info = self.attributes.parent.block_info;
 
-        let res = {
-            if unsafe_block_info.hash != parent_block_info.hash ||
-                unsafe_block_info.number != parent_block_info.number
-            {
-                info!(
-                    target: "engine",
-                    unsafe_block_info = ?unsafe_block_info,
-                    parent_block_info = ?parent_block_info,
-                    "Seal attributes parent does not match unsafe head, returning rebuild error"
-                );
-                Err(SealTaskError::UnsafeHeadChangedSinceBuild)
-            } else {
-                // Seal the block and import it into the engine.
-                self.seal_and_canonicalize_block(state).await
-            }
+        let res = if unsafe_block_info.hash != parent_block_info.hash ||
+            unsafe_block_info.number != parent_block_info.number
+        {
+            info!(
+                target: "engine",
+                unsafe_block_info = ?unsafe_block_info,
+                parent_block_info = ?parent_block_info,
+                "Seal attributes parent does not match unsafe head, returning rebuild error"
+            );
+            Err(SealTaskError::UnsafeHeadChangedSinceBuild)
+        } else {
+            // Seal the block and import it into the engine.
+            self.seal_and_canonicalize_block(state).await
         };
 
         // NB: If a response channel was provided, that channel will receive success/failure info,
