@@ -636,11 +636,6 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                             // this means that a block was inserted, so wait blocktime to build.
                             state.build_ticker.reset_after(Duration::from_secs(state.cfg.block_time).saturating_sub(start_time.elapsed()))
                         },
-                        Err(SequencerActorError::SealError(SealError::ConsiderReseal)) => {
-                            // Note: we don't reset next_payload_to_seal, so we'll retry the seal.
-                            // this means that a block was not inserted, so retry sealing immediately.
-                            state.build_ticker.reset_immediately();
-                        },
                         Err(SequencerActorError::SealError(SealError::ConsiderRebuild)) => {
                             next_payload_to_seal = None;
                             // this means that a block was not inserted, so retry building immediately.

@@ -73,9 +73,6 @@ pub enum SealError {
     /// Some state mismatch invalidated this seal. Consider rebuilding.
     #[error("Some state mismatch invalidated this seal. Consider rebuilding.")]
     ConsiderRebuild,
-    /// A temporary error occurred when sealing. Consider retrying the seal operation.
-    #[error("A temporary error occurred when sealing. Consider retrying the seal operation.")]
-    ConsiderReseal,
     /// A critical engine error occurred.
     #[error("A critical engine error occurred.")]
     EngineError,
