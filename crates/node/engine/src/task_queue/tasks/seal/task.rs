@@ -224,6 +224,41 @@ impl SealTask {
 
         Ok(new_payload)
     }
+
+    /// Sends the provided result via the `result_tx` sender if one exists, returning the
+    /// appropriate error if it does not.
+    ///
+    /// This allows the original caller to handle errors, removing that burden from the engine,
+    /// which may not know the caller's intent or retry preferences. If the original caller did not
+    /// provide a mechanism to get notified of updates, handle the error in the default manner in
+    /// the task queue logic.
+    async fn send_channel_result_or_get_error(
+        &self,
+        res: Result<OpExecutionPayloadEnvelope, SealTaskError>,
+    ) -> Result<(), SealTaskError> {
+        // NB: If a response channel was provided, that channel will receive success/failure info,
+        // and this task will always succeed. If not, task failure will be relayed to the caller.
+        if let Some(tx) = &self.result_tx {
+            let to_send = match res {
+                Ok(x) => Ok(x),
+                // NB: This error is critical IFF not relayed back to a caller, so we can't rely on
+                // the severity below.
+                Err(SealTaskError::UnsafeHeadChangedSinceBuild) => Err(SealError::ConsiderRebuild),
+                Err(err) => match err.severity() {
+                    EngineTaskErrorSeverity::Temporary => Err(SealError::ConsiderReseal),
+                    EngineTaskErrorSeverity::Reset => Err(SealError::ConsiderRebuild),
+                    EngineTaskErrorSeverity::Flush => Err(SealError::HoloceneRetry),
+                    EngineTaskErrorSeverity::Critical => Err(SealError::EngineError),
+                },
+            };
+
+            tx.send(to_send).await.map_err(Box::new).map_err(SealTaskError::MpscSend)?;
+        } else if let Err(x) = res {
+            return Err(x)
+        }
+
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -258,26 +293,7 @@ impl EngineTaskExt for SealTask {
             self.seal_and_canonicalize_block(state).await
         };
 
-        // NB: If a response channel was provided, that channel will receive success/failure info,
-        // and this task will always succeed. If not, task failure will be relayed to the caller.
-        if let Some(tx) = &self.result_tx {
-            let to_send = match res {
-                Ok(x) => Ok(x),
-                // NB: This error is critical IFF not relayed back to a caller, so we can't rely on
-                // the severity below.
-                Err(SealTaskError::UnsafeHeadChangedSinceBuild) => Err(SealError::ConsiderRebuild),
-                Err(err) => match err.severity() {
-                    EngineTaskErrorSeverity::Temporary => Err(SealError::ConsiderReseal),
-                    EngineTaskErrorSeverity::Reset => Err(SealError::ConsiderRebuild),
-                    EngineTaskErrorSeverity::Flush => Err(SealError::HoloceneRetry),
-                    EngineTaskErrorSeverity::Critical => Err(SealError::EngineError),
-                },
-            };
-
-            tx.send(to_send).await.map_err(Box::new).map_err(SealTaskError::MpscSend)?;
-        } else if let Err(x) = res {
-            return Err(x)
-        }
+        self.send_channel_result_or_get_error(res).await?;
 
         Ok(())
     }
