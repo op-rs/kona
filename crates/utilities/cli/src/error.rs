@@ -20,6 +20,10 @@ pub enum CliError {
     /// Error initializing metrics.
     #[error("Failed to initialize metrics")]
     MetricsInitialization(#[from] metrics_exporter_prometheus::BuildError),
+
+    /// IO error when setting up metrics server.
+    #[error("IO error when setting up metrics server: {0}")]
+    MetricsIoError(#[from] std::io::Error),
 }
 
 /// Type alias for CLI results.
