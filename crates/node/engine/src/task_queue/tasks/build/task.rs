@@ -175,7 +175,7 @@ impl EngineTaskExt for BuildTask {
 
         // If a channel was provided, send the payload ID to it.
         if let Some(tx) = &self.payload_id_tx {
-            tx.send(payload_id).await.map_err(Box::new).map_err(BuildTaskError::MpscSend)?;
+            tx.send(payload_id).await.map_err(Box::new)?;
         }
 
         Ok(payload_id)
