@@ -13,7 +13,7 @@ mod traits;
 pub use traits::Hardfork;
 
 mod forks;
-pub use forks::{EnumerableHardfork, Hardforks};
+pub use forks::{Fork, Hardforks};
 
 mod fjord;
 pub use fjord::Fjord;

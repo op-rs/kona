@@ -12,7 +12,7 @@ use alloy_rlp::Encodable;
 use alloy_rpc_types_engine::PayloadAttributes;
 use async_trait::async_trait;
 use kona_genesis::{L1ChainConfig, RollupConfig};
-use kona_hardforks::{EnumerableHardfork, Hardfork as _, Hardforks};
+use kona_hardforks::{Fork, Hardfork as _, Hardforks};
 use kona_protocol::{
     DEPOSIT_EVENT_ABI_HASH, L1BlockInfoTx, L2BlockInfo, Predeploys, decode_deposit,
 };
@@ -138,39 +138,32 @@ where
             ));
         }
 
-        // This just moves the problem
-        // let upgrade_transactions = Hardforks::upgrade_transactions(
-        //     Arc::clone(&self.rollup_cfg),
-        //     next_l2_time,
-        //     l2_parent.block_info.timestamp,
-        // );
-
         let l2_parent_timestamp = l2_parent.block_info.timestamp;
         let mut upgrade_transactions: Vec<Bytes> = vec![];
         for hardfork in Hardforks::active_hardforks(Arc::clone(&self.rollup_cfg), next_l2_time) {
             match hardfork {
-                EnumerableHardfork::Ecotone => {
+                Fork::Ecotone => {
                     if self.rollup_cfg.is_ecotone_active(next_l2_time) &&
                         !self.rollup_cfg.is_ecotone_active(l2_parent_timestamp)
                     {
                         upgrade_transactions = Hardforks::ECOTONE.txs().collect();
                     }
                 }
-                EnumerableHardfork::Fjord => {
+                Fork::Fjord => {
                     if self.rollup_cfg.is_fjord_active(next_l2_time) &&
                         !self.rollup_cfg.is_fjord_active(l2_parent_timestamp)
                     {
                         upgrade_transactions.append(&mut Hardforks::FJORD.txs().collect());
                     }
                 }
-                EnumerableHardfork::Isthmus => {
+                Fork::Isthmus => {
                     if self.rollup_cfg.is_isthmus_active(next_l2_time) &&
                         !self.rollup_cfg.is_isthmus_active(l2_parent_timestamp)
                     {
                         upgrade_transactions.append(&mut Hardforks::ISTHMUS.txs().collect());
                     }
                 }
-                EnumerableHardfork::Jovian => {
+                Fork::Jovian => {
                     if self.rollup_cfg.is_jovian_active(next_l2_time) &&
                         !self.rollup_cfg.is_jovian_active(l2_parent_timestamp)
                     {

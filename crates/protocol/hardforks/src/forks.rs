@@ -62,33 +62,32 @@ impl Hardforks {
     pub const INTEROP: Interop = Interop;
 
     /// Builds a vector with tokens for each active hardfork on the next l2 block.
-    pub fn active_hardforks(
-        rollup_cfg: Arc<RollupConfig>,
-        next_l2_time: u64,
-    ) -> Vec<EnumerableHardfork> {
+    pub fn active_hardforks(rollup_cfg: Arc<RollupConfig>, next_l2_time: u64) -> Vec<Fork> {
         let mut hardforks = vec![];
         if rollup_cfg.is_ecotone_active(next_l2_time) {
-            hardforks.push(EnumerableHardfork::Ecotone);
+            hardforks.push(Fork::Ecotone);
         }
         if rollup_cfg.is_fjord_active(next_l2_time) {
-            hardforks.push(EnumerableHardfork::Fjord);
+            hardforks.push(Fork::Fjord);
         }
         if rollup_cfg.is_isthmus_active(next_l2_time) {
-            hardforks.push(EnumerableHardfork::Isthmus);
+            hardforks.push(Fork::Isthmus);
         }
         if rollup_cfg.is_jovian_active(next_l2_time) {
-            hardforks.push(EnumerableHardfork::Jovian);
+            hardforks.push(Fork::Jovian);
         }
         if rollup_cfg.is_interop_active(next_l2_time) {
-            hardforks.push(EnumerableHardfork::Interop);
+            hardforks.push(Fork::Interop);
         }
         // continue ..
         hardforks
     }
 }
 
+/// A simple enum since trait `Hardfork`` is not trait safe.  This allows statically checking that
+/// each fork has been handled.
 #[derive(Debug)]
-pub enum EnumerableHardfork {
+pub enum Fork {
     Ecotone,
     Fjord,
     Isthmus,
