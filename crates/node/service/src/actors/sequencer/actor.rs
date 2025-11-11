@@ -659,8 +659,8 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                             state.build_ticker.reset_immediately();
                         },
                         Err(SequencerActorError::SealError(SealError::EngineError)) => {
-                                error!(target: "sequencer", "Critical engine error occurred");
-                                return Err(SequencerActorError::SealError(SealError::EngineError));
+                            error!(target: "sequencer", "Critical engine error occurred");
+                            return Err(SequencerActorError::SealError(SealError::EngineError));
                         }
                         Err(other_err) => {
                             error!(target: "sequencer", err = ?other_err, "Unexpected error sealing payload");
