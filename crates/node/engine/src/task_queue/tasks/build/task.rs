@@ -42,19 +42,6 @@ impl BuildTask {
     /// Validates the provided [PayloadStatusEnum] according to the rules listed below.
     ///
     /// ## Observed [PayloadStatusEnum] Variants
-    /// The `engine_forkchoiceUpdate` payload statuses that this function observes are below. Any
-    /// other [PayloadStatusEnum] variant is considered a failure.
-    ///
-    /// ### Success (`VALID`)
-    /// If the build is successful, the [PayloadId] is returned for sealing and the external
-    /// actor is notified of the successful forkchoice update.
-    ///
-    /// ### Failure (`INVALID`)
-    /// If the forkchoice update fails, the external actor is notified of the failure.
-    ///
-    /// Validates the payload status from a forkchoice update response.
-    ///
-    /// ## Observed [PayloadStatusEnum] Variants
     /// - `VALID`: Returns Ok(()) - forkchoice update was successful
     /// - `INVALID`: Returns error with validation details
     /// - `SYNCING`: Returns temporary error - EL is syncing
@@ -82,16 +69,12 @@ impl BuildTask {
     /// Starts the block building process by sending an initial `engine_forkchoiceUpdate` call with
     /// the payload attributes to build.
     ///
-    /// ## Observed [PayloadStatusEnum] Variants
-    /// The `engine_forkchoiceUpdate` payload statuses that this function observes are below. Any
-    /// other [PayloadStatusEnum] variant is considered a failure.
-    ///
     /// ### Success (`VALID`)
-    /// If the build is successful, the [PayloadId] is returned for sealing and the external
-    /// actor is notified of the successful forkchoice update.
+    /// If the build is successful, the [PayloadId] is returned for sealing and the successful
+    /// forkchoice update identifier is relayed via the stored `payload_id_tx` sender.
     ///
     /// ### Failure (`INVALID`)
-    /// If the forkchoice update fails, the external actor is notified of the failure.
+    /// If the forkchoice update fails, the [BuildTaskError].
     ///
     /// ### Syncing (`SYNCING`)
     /// If the EL is syncing, the payload attributes are buffered and the function returns early.
