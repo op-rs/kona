@@ -1,6 +1,10 @@
 //! Contains all hardforks represented in the [crate::Hardfork] type.
 
-use crate::{Ecotone, Fjord, Interop, Isthmus, Jovian};
+use alloc::{sync::Arc, vec, vec::Vec};
+use alloy_primitives::Bytes;
+
+use crate::{Ecotone, Fjord, Hardfork as _, Interop, Isthmus, Jovian};
+use kona_genesis::{L1ChainConfig, RollupConfig};
 
 /// Optimism Hardforks
 ///
@@ -56,6 +60,40 @@ impl Hardforks {
 
     /// The Interop hardfork upgrade transactions.
     pub const INTEROP: Interop = Interop;
+
+    pub fn upgrade_transactions(
+        rollup_cfg: Arc<RollupConfig>,
+        next_l2_time: u64,
+        l2_parent_timestamp: u64,
+    ) -> Vec<Bytes> {
+        let mut upgrade_transactions: Vec<Bytes> = vec![];
+        if rollup_cfg.is_ecotone_active(next_l2_time) &&
+            !rollup_cfg.is_ecotone_active(l2_parent_timestamp)
+        {
+            upgrade_transactions = Hardforks::ECOTONE.txs().collect();
+        }
+        if rollup_cfg.is_fjord_active(next_l2_time) &&
+            !rollup_cfg.is_fjord_active(l2_parent_timestamp)
+        {
+            upgrade_transactions.append(&mut Hardforks::FJORD.txs().collect());
+        }
+        if rollup_cfg.is_isthmus_active(next_l2_time) &&
+            !rollup_cfg.is_isthmus_active(l2_parent_timestamp)
+        {
+            upgrade_transactions.append(&mut Hardforks::ISTHMUS.txs().collect());
+        }
+        if rollup_cfg.is_jovian_active(next_l2_time) &&
+            !rollup_cfg.is_jovian_active(l2_parent_timestamp)
+        {
+            upgrade_transactions.append(&mut Hardforks::JOVIAN.txs().collect());
+        }
+        if rollup_cfg.is_interop_active(next_l2_time) &&
+            !rollup_cfg.is_interop_active(l2_parent_timestamp)
+        {
+            upgrade_transactions.append(&mut Hardforks::INTEROP.txs().collect());
+        }
+        upgrade_transactions
+    }
 }
 
 #[cfg(test)]
