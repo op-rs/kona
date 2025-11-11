@@ -280,11 +280,10 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
             .await
         {
             error!(target: "sequencer", ?err, "Failed to send seal request to engine, payload id {},", unsealed_payload_handle.payload_id);
-            ctx.cancellation.cancel();
             return Err(SequencerActorError::ChannelClosed);
         }
 
-        let payload = self.try_wait_for_payload(ctx, seal_result_rx).await?;
+        let payload = self.try_wait_for_payload(seal_result_rx).await?;
 
         // Log the block building seal task duration, if metrics are enabled.
         kona_macros::set!(
@@ -345,7 +344,6 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
             );
             if let Err(err) = ctx.reset_request_tx.send(()).await {
                 error!(target: "sequencer", ?err, "Failed to reset engine");
-                ctx.cancellation.cancel();
                 return Err(SequencerActorError::ChannelClosed);
             }
             return Ok(None);
@@ -386,11 +384,10 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
             ctx.build_request_tx.send((attrs_with_parent.clone(), payload_id_tx)).await
         {
             error!(target: "sequencer", ?err, "Failed to send built attributes to engine");
-            ctx.cancellation.cancel();
             return Err(SequencerActorError::ChannelClosed);
         }
 
-        let payload_id = self.try_wait_for_payload_id(ctx, payload_id_rx).await?;
+        let payload_id = self.try_wait_for_payload_id(payload_id_rx).await?;
 
         Ok(Some(UnsealedPayloadHandle::new(payload_id, attrs_with_parent)))
     }
@@ -414,7 +411,6 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
                 Err(PipelineErrorKind::Reset(_)) => {
                     if let Err(err) = ctx.reset_request_tx.send(()).await {
                         error!(target: "sequencer", ?err, "Failed to reset engine");
-                        ctx.cancellation.cancel();
                         return Err(SequencerActorError::ChannelClosed);
                     }
 
@@ -426,7 +422,6 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
                 }
                 Err(err @ PipelineErrorKind::Critical(_)) => {
                     error!(target: "sequencer", ?err, "Failed to prepare payload attributes");
-                    ctx.cancellation.cancel();
                     return Err(err.into());
                 }
             };
@@ -498,7 +493,6 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
     /// present.
     async fn try_wait_for_payload(
         &mut self,
-        ctx: &mut SequencerContext,
         mut payload_rx: mpsc::Receiver<Result<OpExecutionPayloadEnvelope, SealError>>,
     ) -> Result<OpExecutionPayloadEnvelope, SequencerActorError> {
         match payload_rx.recv().await {
@@ -506,7 +500,6 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
             Some(Err(x)) => Err(SequencerActorError::SealError(x)),
             None => {
                 error!(target: "sequencer", "Failed to receive built payload");
-                ctx.cancellation.cancel();
                 Err(SequencerActorError::ChannelClosed)
             }
         }
@@ -516,12 +509,10 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
     /// present.
     async fn try_wait_for_payload_id(
         &mut self,
-        ctx: &mut SequencerContext,
         mut payload_id_rx: mpsc::Receiver<PayloadId>,
     ) -> Result<PayloadId, SequencerActorError> {
         payload_id_rx.recv().await.ok_or_else(|| {
             error!(target: "sequencer", "Failed to receive payload for initiated block build");
-            ctx.cancellation.cancel();
             SequencerActorError::ChannelClosed
         })
     }
@@ -535,7 +526,6 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         // Send the payload to the P2P layer to be signed and gossipped.
         if let Err(err) = ctx.gossip_payload_tx.send(payload).await {
             error!(target: "sequencer", ?err, "Failed to send payload to be signed and gossipped");
-            ctx.cancellation.cancel();
             return Err(SequencerActorError::ChannelClosed);
         }
 
@@ -551,7 +541,6 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         // Schedule a reset of the engine, in order to initialize the engine state.
         if let Err(err) = ctx.reset_request_tx.send(()).await {
             error!(target: "sequencer", ?err, "Failed to send reset request to engine");
-            ctx.cancellation.cancel();
             return Err(SequencerActorError::ChannelClosed);
         }
 
@@ -560,7 +549,6 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         // We know that the reset has concluded when the unsafe head watch channel is updated.
         if unsafe_head_rx.changed().await.is_err() {
             error!(target: "sequencer", "Failed to receive unsafe head update after reset request");
-            ctx.cancellation.cancel();
             return Err(SequencerActorError::ChannelClosed);
         }
 
@@ -660,10 +648,12 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                         },
                         Err(SequencerActorError::SealError(SealError::EngineError)) => {
                             error!(target: "sequencer", "Critical engine error occurred");
+                            ctx.cancellation.cancel();
                             return Err(SequencerActorError::SealError(SealError::EngineError));
                         }
                         Err(other_err) => {
                             error!(target: "sequencer", err = ?other_err, "Unexpected error sealing payload");
+                            ctx.cancellation.cancel();
                             return Err(other_err);
                         }
                     }
