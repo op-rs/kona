@@ -48,7 +48,7 @@ pub struct SealTask {
 }
 
 impl SealTask {
-    /// Fetches the execution payload from the EL.
+    /// Seals the execution payload in the EL, returning the execution envelope.
     ///
     /// ## Engine Method Selection
     /// The method used to fetch the payload from the EL is determined by the payload timestamp. The
@@ -57,7 +57,7 @@ impl SealTask {
     /// - `engine_getPayloadV2` is used for payloads with a timestamp before the Ecotone fork.
     /// - `engine_getPayloadV3` is used for payloads with a timestamp after the Ecotone fork.
     /// - `engine_getPayloadV4` is used for payloads with a timestamp after the Isthmus fork.
-    async fn fetch_payload(
+    async fn seal_payload(
         &self,
         cfg: &RollupConfig,
         engine: &EngineClient,
@@ -70,7 +70,7 @@ impl SealTask {
             target: "engine",
             payload_id = payload_id.to_string(),
             l2_time = payload_timestamp,
-            "Inserting payload"
+            "Sealing payload"
         );
 
         let get_payload_version = EngineGetPayloadVersion::from_cfg(cfg, payload_timestamp);
@@ -198,7 +198,7 @@ impl SealTask {
         // Fetch the payload just inserted from the EL and import it into the engine.
         let block_import_start_time = Instant::now();
         let new_payload = self
-            .fetch_payload(&self.cfg, &self.engine, self.payload_id, self.attributes.clone())
+            .seal_payload(&self.cfg, &self.engine, self.payload_id, self.attributes.clone())
             .await?;
 
         let new_block_ref = L2BlockInfo::from_payload_and_genesis(
