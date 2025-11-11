@@ -12,7 +12,7 @@ use alloy_rlp::Encodable;
 use alloy_rpc_types_engine::PayloadAttributes;
 use async_trait::async_trait;
 use kona_genesis::{L1ChainConfig, RollupConfig};
-use kona_hardforks::{Hardfork, Hardforks};
+use kona_hardforks::{EnumerableHardfork, Hardfork as _, Hardforks};
 use kona_protocol::{
     DEPOSIT_EVENT_ABI_HASH, L1BlockInfoTx, L2BlockInfo, Predeploys, decode_deposit,
 };
@@ -138,11 +138,47 @@ where
             ));
         }
 
-        let upgrade_transactions = Hardforks::upgrade_transactions(
-            Arc::clone(&self.rollup_cfg),
-            next_l2_time,
-            l2_parent.block_info.timestamp,
-        );
+        // This just moves the problem
+        // let upgrade_transactions = Hardforks::upgrade_transactions(
+        //     Arc::clone(&self.rollup_cfg),
+        //     next_l2_time,
+        //     l2_parent.block_info.timestamp,
+        // );
+
+        let l2_parent_timestamp = l2_parent.block_info.timestamp;
+        let mut upgrade_transactions: Vec<Bytes> = vec![];
+        for hardfork in Hardforks::active_hardforks(Arc::clone(&self.rollup_cfg), next_l2_time) {
+            match hardfork {
+                EnumerableHardfork::Ecotone => {
+                    if self.rollup_cfg.is_ecotone_active(next_l2_time) &&
+                        !self.rollup_cfg.is_ecotone_active(l2_parent_timestamp)
+                    {
+                        upgrade_transactions = Hardforks::ECOTONE.txs().collect();
+                    }
+                }
+                EnumerableHardfork::Fjord => {
+                    if self.rollup_cfg.is_fjord_active(next_l2_time) &&
+                        !self.rollup_cfg.is_fjord_active(l2_parent_timestamp)
+                    {
+                        upgrade_transactions.append(&mut Hardforks::FJORD.txs().collect());
+                    }
+                }
+                EnumerableHardfork::Isthmus => {
+                    if self.rollup_cfg.is_isthmus_active(next_l2_time) &&
+                        !self.rollup_cfg.is_isthmus_active(l2_parent_timestamp)
+                    {
+                        upgrade_transactions.append(&mut Hardforks::ISTHMUS.txs().collect());
+                    }
+                }
+                EnumerableHardfork::Jovian => {
+                    if self.rollup_cfg.is_jovian_active(next_l2_time) &&
+                        !self.rollup_cfg.is_jovian_active(l2_parent_timestamp)
+                    {
+                        upgrade_transactions.append(&mut Hardforks::JOVIAN.txs().collect());
+                    }
+                } // .. something is missing here
+            }
+        }
 
         // Build and encode the L1 info transaction for the current payload.
         let (_, l1_info_tx_envelope) = L1BlockInfoTx::try_new_with_deposit_tx(

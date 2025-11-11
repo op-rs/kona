@@ -51,14 +51,9 @@ where
         Self { prev, queue: VecDeque::new(), rollup_config: cfg }
     }
 
-    /// Returns if holocene is active.
-    pub fn is_holocene_active(&self, origin: BlockInfo) -> bool {
-        self.rollup_config.is_holocene_active(origin.timestamp)
-    }
-
     /// Prunes frames if Holocene is active.
     pub fn prune(&mut self, origin: BlockInfo) {
-        if !self.is_holocene_active(origin) {
+        if !self.rollup_config.is_holocene_active(origin.timestamp) {
             return;
         }
 
@@ -220,7 +215,7 @@ pub(crate) mod tests {
         let mut mock = TestFrameQueueProvider::new(data);
         mock.set_origin(BlockInfo::default());
         let mut frame_queue = FrameQueue::new(mock, Default::default());
-        assert!(!frame_queue.is_holocene_active(BlockInfo::default()));
+        assert!(!frame_queue.rollup_config.is_holocene_active(BlockInfo::default().timestamp));
         let err = frame_queue.next_frame().await.unwrap_err();
         assert_eq!(err, PipelineError::NotEnoughData.temp());
     }
@@ -231,7 +226,7 @@ pub(crate) mod tests {
         let mut mock = TestFrameQueueProvider::new(data);
         mock.set_origin(BlockInfo::default());
         let mut frame_queue = FrameQueue::new(mock, Default::default());
-        assert!(!frame_queue.is_holocene_active(BlockInfo::default()));
+        assert!(!frame_queue.rollup_config.is_holocene_active(BlockInfo::default().timestamp));
         let err = frame_queue.next_frame().await.unwrap_err();
         assert_eq!(err, PipelineError::NotEnoughData.temp());
     }
