@@ -48,8 +48,9 @@ impl ConsolidateTask {
             self.attributes.clone(),
             self.is_attributes_derived,
         )
-        .await
-        .map_err(Into::into)
+        .await?;
+
+        Ok(())
     }
 
     /// Attempts consolidation on the engine state.
