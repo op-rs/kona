@@ -3,24 +3,26 @@
 use super::{EngineError, L2Finalizer};
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
-use futures::future::OptionFuture;
+use futures::{FutureExt, future::OptionFuture};
 use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
     BuildTask, ConsolidateTask, Engine, EngineClient, EngineQueries,
     EngineState as InnerEngineState, EngineTask, EngineTaskError, EngineTaskErrorSeverity,
-    InsertTask, RollupBoostServerLike,
+    InsertTask, RollupBoost,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
+use kona_rpc::{RollupBoostAdminQuery, RollupBoostHealthQuery};
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
-use parking_lot::Mutex;
-use rollup_boost::{ExecutionMode, Probes};
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 use tokio::{
     sync::{mpsc, oneshot, watch},
     task::JoinHandle,
 };
-use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
+use tokio_util::{
+    future::FutureExt as _,
+    sync::{CancellationToken, WaitForCancellationFuture},
+};
 use url::Url;
 
 use crate::{NodeActor, NodeMode, actors::CancellableContext};
@@ -49,8 +51,12 @@ pub struct EngineActor {
         Option<mpsc::Receiver<(OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>>,
     /// The [`L2Finalizer`], used to finalize L2 blocks.
     finalizer: L2Finalizer,
-    /// Shared execution mode handle (from rollup-boost), exposed for RPC wiring.
-    pub rollup_boost_execution_mode: Arc<Mutex<ExecutionMode>>,
+    /// Shared admin query handle (from rollup-boost), exposed for RPC wiring.
+    /// Only set when rollup boost is enabled.
+    pub rollup_boost_admin_query_rx: Option<mpsc::Receiver<RollupBoostAdminQuery>>,
+    /// Shared health handle (from rollup-boost), exposed for RPC wiring.
+    /// Only set when rollup boost is enabled.
+    pub rollup_boost_health_query_rx: Option<mpsc::Receiver<RollupBoostHealthQuery>>,
 }
 
 /// The outbound data for the [`EngineActor`].
@@ -79,10 +85,12 @@ pub struct EngineInboundData {
     pub inbound_queries_tx: mpsc::Sender<EngineQueries>,
     /// A channel that sends new finalized L1 blocks intermittently.
     pub finalized_l1_block_tx: watch::Sender<Option<BlockInfo>>,
-    /// Rollup boost execution mode field
-    pub rollup_boost_execution_mode: Arc<Mutex<ExecutionMode>>,
-    /// Rollup boost probes handle
-    pub rollup_boost_probes: Arc<Probes>,
+    /// A channel to send rollup boost admin queries to the engine actor.
+    /// Only set when rollup boost is enabled.
+    pub rollup_boost_admin_query_tx: Option<mpsc::Sender<RollupBoostAdminQuery>>,
+    /// A channel to send rollup boost health queries to the engine actor.
+    /// Only set when rollup boost is enabled.
+    pub rollup_boost_health_query_tx: Option<mpsc::Sender<RollupBoostHealthQuery>>,
 }
 
 /// Configuration for the Engine Actor.
@@ -101,11 +109,7 @@ pub struct EngineBuilder {
     /// from the sequencer actor.
     pub mode: NodeMode,
     /// The rollup boost server implementation
-    pub rollup_boost: Option<Arc<Box<dyn RollupBoostServerLike + Send + Sync>>>,
-    /// Rollup boost execution mode
-    pub rollup_boost_execution_mode: Arc<Mutex<ExecutionMode>>,
-    /// Rollup boost probes
-    pub rollup_boost_probes: Arc<Probes>,
+    pub rollup_boost: Option<Arc<RollupBoost>>,
 }
 
 impl EngineBuilder {
@@ -189,8 +193,23 @@ impl EngineActor {
             (None, None)
         };
 
-        let rollup_boost_execution_mode = config.rollup_boost_execution_mode.clone();
-        let rollup_boost_probes = config.rollup_boost_probes.clone();
+        let (
+            rollup_boost_admin_query_tx,
+            rollup_boost_admin_query_rx,
+            rollup_boost_health_query_tx,
+            rollup_boost_health_query_rx,
+        ) = if config.rollup_boost.is_some() {
+            let (admin_query_tx, admin_query_rx) = mpsc::channel(1024);
+            let (health_query_tx, health_query_rx) = mpsc::channel(1024);
+            (
+                Some(admin_query_tx),
+                Some(admin_query_rx),
+                Some(health_query_tx),
+                Some(health_query_rx),
+            )
+        } else {
+            (None, None, None, None)
+        };
 
         let actor = Self {
             builder: config,
@@ -200,7 +219,8 @@ impl EngineActor {
             inbound_queries: inbound_queries_rx,
             build_request_rx,
             finalizer: L2Finalizer::new(finalized_l1_block_rx),
-            rollup_boost_execution_mode: rollup_boost_execution_mode.clone(),
+            rollup_boost_admin_query_rx,
+            rollup_boost_health_query_rx,
         };
 
         let outbound_data = EngineInboundData {
@@ -210,8 +230,8 @@ impl EngineActor {
             attributes_tx,
             unsafe_block_tx,
             reset_request_tx,
-            rollup_boost_execution_mode,
-            rollup_boost_probes,
+            rollup_boost_admin_query_tx,
+            rollup_boost_health_query_tx,
         };
 
         (outbound_data, actor)
@@ -223,22 +243,82 @@ impl EngineActorState {
     fn start_query_task(
         &self,
         mut inbound_query_channel: tokio::sync::mpsc::Receiver<EngineQueries>,
-    ) -> JoinHandle<()> {
+        mut rollup_boost_admin_query_rx: Option<tokio::sync::mpsc::Receiver<RollupBoostAdminQuery>>,
+        mut rollup_boost_health_query_rx: Option<
+            tokio::sync::mpsc::Receiver<RollupBoostHealthQuery>,
+        >,
+    ) -> JoinHandle<Result<(), EngineError>> {
         let state_recv = self.engine.state_subscribe();
         let queue_length_recv = self.engine.queue_length_subscribe();
         let engine_client = self.client.clone();
         let rollup_config = self.rollup.clone();
+        let rollup_boost = self.client.rollup_boost.clone();
 
         tokio::spawn(async move {
-            while let Some(req) = inbound_query_channel.recv().await {
-                {
-                    trace!(target: "engine", ?req, "Received engine query request.");
+            loop {
+                tokio::select! {
+                    req = inbound_query_channel.recv(), if !inbound_query_channel.is_closed() => {
+                        {
+                            let Some(req) = req else {
+                                error!(target: "engine", "Engine query receiver closed unexpectedly");
+                                return Err(EngineError::ChannelClosed);
+                            };
 
-                    if let Err(e) = req
-                        .handle(&state_recv, &queue_length_recv, &engine_client, &rollup_config)
-                        .await
-                    {
-                        warn!(target: "engine", err = ?e, "Failed to handle engine query request.");
+                            trace!(target: "engine", ?req, "Received engine query.");
+
+                            if let Err(e) = req
+                                .handle(&state_recv, &queue_length_recv, &engine_client, &rollup_config)
+                                .await
+                            {
+                                warn!(target: "engine", err = ?e, "Failed to handle engine query.");
+                            }
+                        }
+                    }
+                    Some(admin_query) = OptionFuture::from(rollup_boost_admin_query_rx.as_mut().map(|rx| rx.recv())), if rollup_boost_admin_query_rx.is_some() => {
+                        {
+                            trace!(target: "engine", ?admin_query, "Received rollup boost admin query.");
+
+                            let Some(admin_query) = admin_query else {
+                                error!(target: "engine", "Rollup boost admin query receiver closed unexpectedly");
+                                return Err(EngineError::ChannelClosed);
+                            };
+
+                            let Some(rollup_boost) = rollup_boost.as_ref() else {
+                                warn!(target: "engine", "Received a rollup boost query but no rollup-boost config found");
+                                continue;
+                            };
+
+
+                            match admin_query {
+                                RollupBoostAdminQuery::SetExecutionMode { execution_mode } => {
+                                    rollup_boost.server.set_execution_mode(execution_mode);
+                                }
+                                RollupBoostAdminQuery::GetExecutionMode { sender } => {
+                                    let execution_mode = rollup_boost.server.get_execution_mode();
+                                    sender.send(execution_mode).unwrap();
+                                }
+                            }
+                        }
+                    }
+                    Some(health_query) = OptionFuture::from(rollup_boost_health_query_rx.as_mut().map(|rx| rx.recv())), if rollup_boost_health_query_rx.is_some() => {
+                        {
+                            trace!(target: "engine", ?health_query, "Received rollup boost health query.");
+
+                            let Some(health_query) = health_query else {
+                                error!(target: "engine", "Rollup boost health query receiver closed unexpectedly");
+                                return Err(EngineError::ChannelClosed);
+                            };
+
+                            let Some(rollup_boost) = rollup_boost.as_ref() else {
+                                warn!(target: "engine", "Received a rollup boost query but no rollup-boost config found");
+                                continue;
+                            };
+
+
+                            let health = rollup_boost.get_health();
+                            health_query.sender.send(health.into()).unwrap();
+
+                        }
                     }
                 }
             }
@@ -403,7 +483,37 @@ impl NodeActor for EngineActor {
         let mut state = self.builder.build_state();
 
         // Start the engine query server in a separate task to avoid blocking the main task.
-        let handle = state.start_query_task(self.inbound_queries);
+        let handle = state
+            .start_query_task(
+                self.inbound_queries,
+                self.rollup_boost_admin_query_rx,
+                self.rollup_boost_health_query_rx,
+            )
+            .with_cancellation_token(&cancellation)
+            .then(async |result| {
+                cancellation.cancel();
+
+                let Some(result) = result else {
+                    warn!(target: "engine", "Engine query task cancelled");
+                    return Ok(());
+                };
+
+                let Ok(result) = result else {
+                    error!(target: "engine", ?result, "Engine query task panicked");
+                    return Err(EngineError::ChannelClosed);
+                };
+
+                match result {
+                    Ok(()) => {
+                        info!(target: "engine", "Engine query task completed successfully");
+                        Ok(())
+                    }
+                    Err(err) => {
+                        error!(target: "engine", ?err, "Engine query task failed");
+                        Err(err)
+                    }
+                }
+            });
 
         // The sync complete tx is consumed after the first successful send. Hence we need to wrap
         // it in an `Option` to ensure we satisfy the borrow checker.
@@ -413,7 +523,9 @@ impl NodeActor for EngineActor {
             tokio::select! {
                 _ = cancellation.cancelled() => {
                     warn!(target: "engine", "EngineActor received shutdown signal. Aborting engine query task.");
-                    handle.abort();
+
+                    handle.await?;
+
                     return Ok(());
                 },
 
@@ -447,8 +559,6 @@ impl NodeActor for EngineActor {
 
                 _ = cancellation.cancelled() => {
                     warn!(target: "engine", "EngineActor received shutdown signal. Aborting engine query task.");
-
-                    handle.abort();
 
                     return Ok(());
                 }

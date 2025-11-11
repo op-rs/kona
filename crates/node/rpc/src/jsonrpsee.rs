@@ -1,6 +1,9 @@
 //! The Optimism RPC API using `jsonrpsee`
 
-use crate::{OutputResponse, SafeHeadResponse};
+use crate::{
+    OutputResponse, SafeHeadResponse,
+    health::{HealthzResponse, RollupBoostHealth},
+};
 use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::B256;
 use core::net::IpAddr;
@@ -165,6 +168,7 @@ pub trait DevEngineApi {
 /// The admin namespace for the consensus node.
 #[cfg_attr(not(feature = "client"), rpc(server, namespace = "admin"))]
 #[cfg_attr(feature = "client", rpc(server, client, namespace = "admin"))]
+#[async_trait]
 pub trait AdminApi {
     /// Posts the unsafe payload.
     #[method(name = "postUnsafePayload")]
@@ -205,4 +209,17 @@ pub trait AdminApi {
     /// Gets the rollup boost execution mode.
     #[method(name = "getExecutionMode")]
     async fn get_execution_mode(&self) -> RpcResult<GetExecutionModeResponse>;
+}
+
+/// The admin namespace for the consensus node.
+#[cfg_attr(not(feature = "client"), rpc(server))]
+#[cfg_attr(feature = "client", rpc(server, client))]
+pub trait HealthzApi {
+    /// Gets the health of the kona-node.
+    #[method(name = "healthz")]
+    async fn healthz_node(&self) -> RpcResult<HealthzResponse>;
+
+    /// Gets the health of the rollup boost.
+    #[method(name = "healthz_rollupBoost")]
+    async fn healthz_rollup_boost(&self) -> RpcResult<RollupBoostHealth>;
 }

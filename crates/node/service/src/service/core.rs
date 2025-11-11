@@ -130,8 +130,8 @@ pub trait RollupNodeService {
                 reset_request_tx,
                 inbound_queries_tx: engine_rpc,
                 finalized_l1_block_tx,
-                rollup_boost_execution_mode,
-                rollup_boost_probes,
+                rollup_boost_admin_query_tx: rollup_boost_admin_rpc,
+                rollup_boost_health_query_tx: rollup_boost_health_rpc,
             },
             engine,
         ) = Self::EngineActor::build(self.engine_builder());
@@ -168,8 +168,8 @@ pub trait RollupNodeService {
                         sequencer_admin: sequencer_inbound_data.as_ref().map(|s| s.admin_query_tx.clone()),
                         l1_watcher_queries: da_watcher_rpc,
                         engine_query: engine_rpc,
-                        rollup_boost_execution_mode,
-                        rollup_boost_probes,
+                        rollup_boost_admin: rollup_boost_admin_rpc,
+                        rollup_boost_health: rollup_boost_health_rpc,
                     }
                 )),
                 sequencer.map(|s| (

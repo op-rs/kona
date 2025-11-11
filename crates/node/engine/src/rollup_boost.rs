@@ -8,8 +8,10 @@ use op_alloy_rpc_types_engine::{
     OpExecutionPayloadEnvelopeV3, OpExecutionPayloadEnvelopeV4, OpExecutionPayloadV4,
     OpPayloadAttributes,
 };
-use rollup_boost::{EngineApiExt, EngineApiServer, RollupBoostServer};
-use std::fmt::Debug;
+use rollup_boost::{
+    EngineApiExt, EngineApiServer, ExecutionMode, Health, Probes, RollupBoostServer,
+};
+use std::{fmt::Debug, sync::Arc};
 use thiserror::Error;
 
 /// Error wrapper for rollup-boost calls.
@@ -20,6 +22,12 @@ pub struct RollupBoostError(pub String);
 /// Trait object used to erase the concrete rollup-boost server type.
 #[async_trait::async_trait]
 pub trait RollupBoostServerLike: Debug + Send + Sync {
+    /// Sets the execution mode.
+    fn set_execution_mode(&self, execution_mode: ExecutionMode);
+
+    /// Gets the execution mode.
+    fn get_execution_mode(&self) -> ExecutionMode;
+
     /// Creates a new payload v3.
     async fn new_payload_v3(
         &self,
@@ -61,6 +69,14 @@ pub trait RollupBoostServerLike: Debug + Send + Sync {
 impl<T: EngineApiExt + Send + Sync + 'static + Debug> RollupBoostServerLike
     for RollupBoostServer<T>
 {
+    fn set_execution_mode(&self, execution_mode: ExecutionMode) {
+        *self.execution_mode.lock() = execution_mode;
+    }
+
+    fn get_execution_mode(&self) -> ExecutionMode {
+        *self.execution_mode.lock()
+    }
+
     async fn new_payload_v3(
         &self,
         payload: ExecutionPayloadV3,
@@ -116,5 +132,21 @@ impl<T: EngineApiExt + Send + Sync + 'static + Debug> RollupBoostServerLike
         EngineApiServer::get_payload_v4(self, payload_id)
             .await
             .map_err(|e| RollupBoostError(e.to_string()))
+    }
+}
+
+/// Structure that wraps a rollup boost server and its probes.
+#[derive(Debug)]
+pub struct RollupBoost {
+    /// The rollup boost server implementation
+    pub server: Box<dyn RollupBoostServerLike + Send + Sync + 'static>,
+    /// Rollup boost probes
+    pub probes: Arc<Probes>,
+}
+
+impl RollupBoost {
+    /// Gets the health of the rollup boost server.
+    pub fn get_health(&self) -> Health {
+        self.probes.health()
     }
 }

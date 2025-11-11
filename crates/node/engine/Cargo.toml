@@ -58,6 +58,8 @@ metrics = { workspace = true, optional = true }
 # rollup boost
 rollup-boost.workspace = true
 
+parking_lot.workspace = true
+
 [dev-dependencies]
 kona-registry.workspace = true
 rand = {workspace = true, features = ["thread_rng"]}

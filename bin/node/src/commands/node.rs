@@ -14,7 +14,6 @@ use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_node_service::{NodeMode, RollupNode, RollupNodeService};
 use kona_registry::{L1Config, scr_rollup_config_by_alloy_ident};
 use op_alloy_provider::ext::engine::OpEngineApi;
-use rollup_boost::RollupBoostServiceArgs;
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf, sync::Arc};
 use strum::IntoEnumIterator;
@@ -429,8 +428,8 @@ impl NodeCommand {
     }
 
     fn get_l2_url(&self) -> anyhow::Result<Url> {
-        if let Some(url) = self.custom_block_builder_flags.as_ref().and_then(|flags| match flags {
-            CustomBlockBuilder::RollupBoost(args) => Some(args.l2_client.l2_url.clone()),
+        if let Some(url) = self.custom_block_builder_flags.as_ref().map(|flags| match flags {
+            CustomBlockBuilder::RollupBoost(args) => args.l2_client.l2_url.clone(),
         }) {
             return url
                 .path()

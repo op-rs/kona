@@ -1,6 +1,6 @@
 //! An Engine API Client.
 
-use crate::{Metrics, RollupBoostServerLike};
+use crate::{Metrics, RollupBoost};
 use alloy_eips::eip1898::BlockNumberOrTag;
 use alloy_network::Network;
 use alloy_primitives::{B256, BlockHash, Bytes};
@@ -76,7 +76,7 @@ type HyperAuthClient<B = Full<Bytes>> = HyperClient<B, AuthService<Client<HttpCo
 /// ```
 ///
 /// Engine API client used to communicate with L1/L2 ELs and optional rollup-boost.
-#[derive(Deref, Clone)]
+#[derive(Deref, Clone, Debug)]
 pub struct EngineClient {
     /// The L2 engine provider for Engine API calls.
     #[deref]
@@ -85,19 +85,8 @@ pub struct EngineClient {
     l1_provider: RootProvider,
     /// The [`RollupConfig`] for determining Engine API versions based on hardfork activations.
     cfg: Arc<RollupConfig>,
-    // The rollup boost server
-    rollup_boost: Option<Arc<Box<dyn RollupBoostServerLike + Send + Sync>>>,
-}
-
-impl std::fmt::Debug for EngineClient {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("EngineClient")
-            .field("engine", &"<RootProvider<Optimism>>")
-            .field("l1_provider", &"<RootProvider>")
-            .field("cfg", &"<RollupConfig>")
-            .field("rollup_boost", &if self.rollup_boost.is_some() { "Some(..)" } else { "None" })
-            .finish()
-    }
+    /// The rollup boost server
+    pub rollup_boost: Option<Arc<RollupBoost>>,
 }
 
 impl EngineClient {
@@ -129,7 +118,7 @@ impl EngineClient {
         l1_rpc: Url,
         cfg: Arc<RollupConfig>,
         jwt: JwtSecret,
-        rollup_boost: Option<Arc<Box<dyn RollupBoostServerLike + Send + Sync>>>,
+        rollup_boost: Option<Arc<RollupBoost>>,
     ) -> Self {
         let engine = Self::rpc_client::<Optimism>(engine, jwt);
         let l1_provider = RootProvider::new_http(l1_rpc);
@@ -193,15 +182,13 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
         parent_beacon_block_root: B256,
     ) -> TransportResult<PayloadStatus> {
         let call: Pin<Box<dyn Future<Output = TransportResult<PayloadStatus>> + Send + '_>> =
-            match self.rollup_boost.as_ref() {
-                Some(rb) => {
-                    let rb = rb.clone();
-                    Box::pin(async move {
-                        rb.new_payload_v3(payload, vec![], parent_beacon_block_root)
-                            .await
-                            .map_err(TransportErrorKind::custom)
-                    })
-                }
+            match &self.rollup_boost {
+                Some(rb) => Box::pin(async move {
+                    rb.server
+                        .new_payload_v3(payload, vec![], parent_beacon_block_root)
+                        .await
+                        .map_err(TransportErrorKind::custom)
+                }),
                 None => Box::pin(async move {
                     <RootProvider<Optimism> as OpEngineApi<Optimism, Http<HyperAuthClient>>>
                         ::new_payload_v3(&self.engine, payload, parent_beacon_block_root)
@@ -217,15 +204,13 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
         parent_beacon_block_root: B256,
     ) -> TransportResult<PayloadStatus> {
         let call: Pin<Box<dyn Future<Output = TransportResult<PayloadStatus>> + Send + '_>> =
-            match self.rollup_boost.as_ref() {
-                Some(rb) => {
-                    let rb = rb.clone();
-                    Box::pin(async move {
-                        rb.new_payload_v4(payload.clone(), vec![], parent_beacon_block_root, vec![])
-                            .await
-                            .map_err(TransportErrorKind::custom)
-                    })
-                }
+            match &self.rollup_boost {
+                Some(rb) => Box::pin(async move {
+                    rb.server
+                        .new_payload_v4(payload.clone(), vec![], parent_beacon_block_root, vec![])
+                        .await
+                        .map_err(TransportErrorKind::custom)
+                }),
                 None => Box::pin(async move {
                     <RootProvider<Optimism> as OpEngineApi<Optimism, Http<HyperAuthClient>>>
                             ::new_payload_v4(&self.engine, payload, parent_beacon_block_root)
@@ -255,15 +240,13 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
         payload_attributes: Option<OpPayloadAttributes>,
     ) -> TransportResult<ForkchoiceUpdated> {
         let call: Pin<Box<dyn Future<Output = TransportResult<ForkchoiceUpdated>> + Send + '_>> =
-            match self.rollup_boost.as_ref() {
-                Some(rb) => {
-                    let rb = rb.clone();
-                    Box::pin(async move {
-                        rb.fork_choice_updated_v3(fork_choice_state, payload_attributes)
-                            .await
-                            .map_err(TransportErrorKind::custom)
-                    })
-                }
+            match &self.rollup_boost {
+                Some(rb) => Box::pin(async move {
+                    rb.server
+                        .fork_choice_updated_v3(fork_choice_state, payload_attributes)
+                        .await
+                        .map_err(TransportErrorKind::custom)
+                }),
                 None => Box::pin(async move {
                     <RootProvider<Optimism> as OpEngineApi<Optimism, Http<HyperAuthClient>>>
                             ::fork_choice_updated_v3(&self.engine, fork_choice_state, payload_attributes)
@@ -292,13 +275,10 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
     ) -> TransportResult<OpExecutionPayloadEnvelopeV3> {
         let call: Pin<
             Box<dyn Future<Output = TransportResult<OpExecutionPayloadEnvelopeV3>> + Send + '_>,
-        > = match self.rollup_boost.as_ref() {
-            Some(rb) => {
-                let rb = rb.clone();
-                Box::pin(async move {
-                    rb.get_payload_v3(payload_id).await.map_err(TransportErrorKind::custom)
-                })
-            }
+        > = match &self.rollup_boost {
+            Some(rb) => Box::pin(async move {
+                rb.server.get_payload_v3(payload_id).await.map_err(TransportErrorKind::custom)
+            }),
             None => Box::pin(async move {
                 <RootProvider<Optimism> as OpEngineApi<Optimism, Http<HyperAuthClient>>>
                             ::get_payload_v3(&self.engine, payload_id)
@@ -315,13 +295,10 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
     ) -> TransportResult<OpExecutionPayloadEnvelopeV4> {
         let call: Pin<
             Box<dyn Future<Output = TransportResult<OpExecutionPayloadEnvelopeV4>> + Send + '_>,
-        > = match self.rollup_boost.as_ref() {
-            Some(rb) => {
-                let rb = rb.clone();
-                Box::pin(async move {
-                    rb.get_payload_v4(payload_id).await.map_err(TransportErrorKind::custom)
-                })
-            }
+        > = match &self.rollup_boost {
+            Some(rb) => Box::pin(async move {
+                rb.server.get_payload_v4(payload_id).await.map_err(TransportErrorKind::custom)
+            }),
             None => Box::pin(async move {
                 <RootProvider<Optimism> as OpEngineApi<Optimism, Http<HyperAuthClient>>>
                             ::get_payload_v4(&self.engine, payload_id)

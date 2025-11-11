@@ -10,12 +10,9 @@ use alloy_transport_http::{
     hyper_util::{client::legacy::Client, rt::TokioExecutor},
 };
 use http_body_util::Full;
-use kona_engine::RollupBoostServerLike;
+use kona_engine::{RollupBoost, RollupBoostServerLike};
 use op_alloy_network::Optimism;
-use parking_lot::Mutex;
-use rollup_boost::{
-    ExecutionMode, FlashblocksService, Probes, RollupBoostLibArgs, RollupBoostServer,
-};
+use rollup_boost::{FlashblocksService, Probes, RollupBoostLibArgs, RollupBoostServer};
 use std::sync::Arc;
 use tower::ServiceBuilder;
 use url::Url;
@@ -152,42 +149,45 @@ impl RollupNodeBuilder {
         let rollup_config = Arc::new(self.config);
         let l1_config = Arc::new(self.l1_config);
 
-        let probes = Arc::new(Probes::default());
+        let rollup_boost: Option<Arc<RollupBoost>> =
+            self.rollup_boost_args.map(|mut rollup_boost_args| {
+                let probes = Arc::new(Probes::default());
 
-        // Ensure rollup-boost has a usable client JWT by defaulting to the engine JWT when none
-        // was provided via CLI/env. Also default builder JWT to the same.
-        let mut rollup_boost_args = self.rollup_boost_args.expect("rollup boost args not set");
-        if rollup_boost_args.l2_client.l2_jwt_token.is_none() &&
-            rollup_boost_args.l2_client.l2_jwt_path.is_none()
-        {
-            rollup_boost_args.l2_client.l2_jwt_token = Some(jwt_secret);
-        }
-        if rollup_boost_args.builder.builder_jwt_token.is_none() &&
-            rollup_boost_args.builder.builder_jwt_path.is_none()
-        {
-            rollup_boost_args.builder.builder_jwt_token = Some(jwt_secret);
-        }
+                // Ensure rollup-boost has a usable client JWT by defaulting to the engine JWT when
+                // none was provided via CLI/env. Also default builder JWT to the
+                // same.
+                if rollup_boost_args.l2_client.l2_jwt_token.is_none() &&
+                    rollup_boost_args.l2_client.l2_jwt_path.is_none()
+                {
+                    rollup_boost_args.l2_client.l2_jwt_token = Some(jwt_secret);
+                }
+                if rollup_boost_args.builder.builder_jwt_token.is_none() &&
+                    rollup_boost_args.builder.builder_jwt_path.is_none()
+                {
+                    rollup_boost_args.builder.builder_jwt_token = Some(jwt_secret);
+                }
 
-        let rollup_boost_execution_mode: Arc<Mutex<ExecutionMode>>;
-        let rollup_boost: Arc<Box<dyn RollupBoostServerLike + Send + Sync + 'static>> =
-            if rollup_boost_args.flashblocks.flashblocks {
-                let rollup_boost_server = RollupBoostServer::<FlashblocksService>::new_from_args(
-                    rollup_boost_args,
-                    probes.clone(),
-                )
-                .expect("failed to create rollup boost server");
-                rollup_boost_execution_mode = rollup_boost_server.execution_mode.clone();
-                Arc::new(Box::new(rollup_boost_server))
-            } else {
-                let rollup_boost_server =
-                    RollupBoostServer::<rollup_boost::RpcClient>::new_from_args(
-                        rollup_boost_args,
-                        probes.clone(),
-                    )
-                    .expect("failed to create rollup boost server");
-                rollup_boost_execution_mode = rollup_boost_server.execution_mode.clone();
-                Arc::new(Box::new(rollup_boost_server))
-            };
+                let rollup_boost: Box<dyn RollupBoostServerLike + Send + Sync + 'static> =
+                    if rollup_boost_args.flashblocks.flashblocks {
+                        Box::new(
+                            RollupBoostServer::<FlashblocksService>::new_from_args(
+                                rollup_boost_args,
+                                probes.clone(),
+                            )
+                            .expect("failed to create rollup boost server"),
+                        )
+                    } else {
+                        Box::new(
+                            RollupBoostServer::<rollup_boost::RpcClient>::new_from_args(
+                                rollup_boost_args,
+                                probes.clone(),
+                            )
+                            .expect("failed to create rollup boost server"),
+                        )
+                    };
+
+                RollupBoost { server: rollup_boost, probes }.into()
+            });
 
         let engine_builder = EngineBuilder {
             config: Arc::clone(&rollup_config),
@@ -195,9 +195,7 @@ impl RollupNodeBuilder {
             engine_url,
             jwt_secret,
             mode: self.mode,
-            rollup_boost: Some(rollup_boost),
-            rollup_boost_execution_mode,
-            rollup_boost_probes: probes,
+            rollup_boost,
         };
 
         let p2p_config = self.p2p_config.expect("P2P config not set");

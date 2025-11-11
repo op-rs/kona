@@ -53,7 +53,7 @@ mod client;
 pub use client::{EngineClient, EngineClientError};
 
 mod rollup_boost;
-pub use rollup_boost::{RollupBoostError, RollupBoostServerLike};
+pub use rollup_boost::{RollupBoost, RollupBoostError, RollupBoostServerLike};
 
 mod versions;
 pub use versions::{EngineForkchoiceVersion, EngineGetPayloadVersion, EngineNewPayloadVersion};
