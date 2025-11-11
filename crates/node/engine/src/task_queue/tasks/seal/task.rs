@@ -269,9 +269,8 @@ impl EngineTaskExt for SealTask {
                 // the severity below.
                 Err(SealTaskError::UnsafeHeadChangedSinceBuild) => Err(SealError::ConsiderRebuild),
                 Err(err) => match err.severity() {
-                    EngineTaskErrorSeverity::Temporary | EngineTaskErrorSeverity::Reset => {
-                        Err(SealError::ConsiderRebuild)
-                    }
+                    EngineTaskErrorSeverity::Temporary => Err(SealError::ConsiderReseal),
+                    EngineTaskErrorSeverity::Reset => Err(SealError::ConsiderRebuild),
                     EngineTaskErrorSeverity::Flush => Err(SealError::HoloceneRetry),
                     EngineTaskErrorSeverity::Critical => Err(SealError::EngineError),
                 },
