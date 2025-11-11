@@ -24,7 +24,7 @@ use op_alloy_network::Optimism;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{
     sync::Arc,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use tokio::{
     select,
@@ -52,6 +52,16 @@ pub(super) struct UnsealedPayloadHandle {
     pub payload_id: PayloadId,
     /// The [`OpAttributesWithParent`] used to start block building.
     pub attributes_with_parent: OpAttributesWithParent,
+}
+
+/// The return payload of the `seal_last_and_start_next` function. This allows the sequencer
+/// to make an informed decision about when to seal and build the next block.
+#[derive(Debug, Constructor)]
+pub(super) struct SealLastStartNextResult {
+    /// The [`UnsealedPayloadHandle`] that was built.
+    pub unsealed_payload_handle: Option<UnsealedPayloadHandle>,
+    /// How long it took to execute the seal operation.
+    pub seconds_to_seal: u64,
 }
 
 /// The state of the [`SequencerActor`].
@@ -247,15 +257,18 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         unsafe_head_rx: &mut watch::Receiver<L2BlockInfo>,
         in_recovery_mode: bool,
         payload_to_seal: Option<&UnsealedPayloadHandle>,
-    ) -> Result<Option<UnsealedPayloadHandle>, SequencerActorError> {
+    ) -> Result<SealLastStartNextResult, SequencerActorError> {
+        let mut seconds_to_seal = 0u64;
         if let Some(to_seal) = payload_to_seal {
+            let seal_start = Instant::now();
             self.seal_and_commit_payload_if_applicable(ctx, to_seal).await?;
+            seconds_to_seal = seal_start.elapsed().as_secs();
         }
 
         let unsealed_payload =
             self.build_unsealed_payload(ctx, unsafe_head_rx, in_recovery_mode).await?;
 
-        Ok(unsealed_payload)
+        Ok(SealLastStartNextResult::new(unsealed_payload, seconds_to_seal))
     }
 
     /// Sends a seal request to seal the provided [`UnsealedPayloadHandle`], committing and
@@ -589,8 +602,8 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
         // Reset the engine state prior to beginning block building.
         state.schedule_initial_reset(&mut ctx, &mut self.unsafe_head_rx).await?;
 
-        let mut next_payload_to_seal = None;
-
+        let mut next_payload_to_seal: Option<UnsealedPayloadHandle> = None;
+        let mut last_seconds_to_seal = 0u64;
         loop {
             select! {
                 // We are using a biased select here to ensure that the admin queries are given priority over the block building task.
@@ -623,18 +636,13 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                 // The sequencer must be active to build new blocks.
                 _ = state.build_ticker.tick(), if state.is_active => {
 
-                    let start_time = Instant::now();
-
                     match state.seal_last_and_start_next(&mut ctx, &mut self.unsafe_head_rx, state.is_recovery_mode, next_payload_to_seal.as_ref()).await {
                         Ok(res) => {
-                            next_payload_to_seal = res;
-                            // Set the next tick time to the configured blocktime less the time it takes to seal last and start next.
-                            state.build_ticker.reset_after(Duration::from_secs(state.cfg.block_time).saturating_sub(start_time.elapsed()));
+                            next_payload_to_seal = res.unsealed_payload_handle;
+                            last_seconds_to_seal = res.seconds_to_seal;
                         },
                         Err(SequencerActorError::SealError(SealError::HoloceneRetry)) => {
                             next_payload_to_seal = None;
-                            // this means that a block was inserted, so wait blocktime to build.
-                            state.build_ticker.reset_after(Duration::from_secs(state.cfg.block_time).saturating_sub(start_time.elapsed()))
                         },
                         Err(SequencerActorError::SealError(SealError::ConsiderRebuild)) => {
                             next_payload_to_seal = None;
@@ -651,6 +659,18 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                             ctx.cancellation.cancel();
                             return Err(other_err);
                         }
+                    }
+
+                    if let Some(ref payload) = next_payload_to_seal {
+                        let next_block_seconds = payload.attributes_with_parent.parent().block_info.timestamp.saturating_add(state.cfg.block_time);
+                        // next block time is last + block_time - time it takes to seal.
+                        let next_block_time = UNIX_EPOCH + Duration::from_secs(next_block_seconds) - Duration::from_secs(last_seconds_to_seal);
+                        match next_block_time.duration_since(SystemTime::now()) {
+                            Ok(duration) => state.build_ticker.reset_after(duration),
+                            Err(_) => state.build_ticker.reset_immediately(),
+                        };
+                    } else {
+                        state.build_ticker.reset_immediately();
                     }
                 }
             }
