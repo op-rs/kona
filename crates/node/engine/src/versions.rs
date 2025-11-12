@@ -12,7 +12,10 @@
 //!
 //! Adapted from the [OP Node version providers](https://github.com/ethereum-optimism/optimism/blob/develop/op-node/rollup/types.go#L546).
 
+use std::{cmp::max, sync::Arc};
+
 use kona_genesis::RollupConfig;
+use kona_hardforks::{Fork, Hardforks};
 
 /// Engine API version for `engine_forkchoiceUpdated` method calls.
 ///
@@ -47,7 +50,7 @@ impl EngineForkchoiceVersion {
 /// - V2: Basic payload processing
 /// - V3: Adds Cancun/Ecotone support
 /// - V4: Adds Isthmus hardfork features
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum EngineNewPayloadVersion {
     /// Version 2: Basic payload processing for early hardforks.
     V2,
@@ -62,14 +65,27 @@ impl EngineNewPayloadVersion {
     ///
     /// Uses the [`RollupConfig`] to check which hardfork is active at the given timestamp.
     pub fn from_cfg(cfg: &RollupConfig, timestamp: u64) -> Self {
+        let mut res;
         if cfg.is_isthmus_active(timestamp) {
-            Self::V4
+            res = Self::V4
         } else if cfg.is_ecotone_active(timestamp) {
             // Cancun
-            Self::V3
+            res = Self::V3
         } else {
-            Self::V2
+            res = Self::V2
         }
+
+        // review: is this style more readable?
+        for hardfork in Hardforks::active_hardforks(Arc::new(cfg.clone()), timestamp) {
+            match hardfork {
+                Fork::Ecotone => res = max(res, Self::V3),
+                Fork::Fjord => res = max(res, Self::V2),
+                Fork::Isthmus => res = max(res, Self::V4),
+                Fork::Jovian => res = max(res, Self::V2),
+                Fork::Interop => res = max(res, Self::V2),
+            }
+        }
+        res
     }
 }
 

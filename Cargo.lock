@@ -4598,6 +4598,7 @@ dependencies = [
  "derive_more",
  "http-body-util",
  "kona-genesis",
+ "kona-hardforks",
  "kona-macros",
  "kona-protocol",
  "kona-registry",
