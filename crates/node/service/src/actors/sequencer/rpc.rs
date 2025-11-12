@@ -1,61 +1,96 @@
 //! The RPC server for the sequencer actor.
 //! Mostly handles queries from the admin rpc.
 
-use kona_derive::AttributesBuilder;
-use kona_protocol::L2BlockInfo;
-use kona_rpc::SequencerAdminQuery;
-use tokio::sync::watch;
+use alloy_primitives::B256;
+use async_trait::async_trait;
+use derive_more::Constructor;
+use kona_rpc::{SequencerAdminAPIClient, SequencerAdminAPIError};
+use tokio::sync::{mpsc, oneshot};
 
-use crate::actors::sequencer::actor::SequencerActorState;
-
-/// Error type for sequencer RPC operations
-#[derive(Debug, thiserror::Error)]
-pub(super) enum SequencerRpcError {
-    /// An error occurred while sending a response to the admin query.
-    #[error(
-        "Failed to send response to admin query. The response channel was closed, this may mean that the rpc actor was shut down."
-    )]
-    SendResponse,
+/// Queued implementation of [`SequencerAdminAPIClient`] that handles requests by sending them to
+/// a handler via the contained sender.
+#[derive(Debug, Clone, Constructor)]
+pub struct QueuedSequencerAdminAPIClient {
+    /// Queue used to relay admin queries
+    request_tx: mpsc::Sender<SequencerAdminQuery>,
 }
 
-impl<AB: AttributesBuilder> SequencerActorState<AB> {
-    pub(super) async fn handle_admin_query(
-        &mut self,
-        query: SequencerAdminQuery,
-        unsafe_head: &mut watch::Receiver<L2BlockInfo>,
-    ) -> Result<(), SequencerRpcError> {
-        match query {
-            SequencerAdminQuery::SequencerActive(tx) => {
-                tx.send(self.is_active).map_err(|_| SequencerRpcError::SendResponse)?;
-            }
-            SequencerAdminQuery::StartSequencer => {
-                info!(target: "sequencer", "Starting sequencer");
-                self.is_active = true;
-            }
-            SequencerAdminQuery::StopSequencer(tx) => {
-                info!(target: "sequencer", "Stopping sequencer");
-                self.is_active = false;
+/// The query types to the sequencer actor for the admin api.
+#[derive(Debug)]
+pub enum SequencerAdminQuery {
+    /// A query to check if the sequencer is active.
+    SequencerActive(oneshot::Sender<Result<bool, SequencerAdminAPIError>>),
+    /// A query to start the sequencer.
+    StartSequencer(oneshot::Sender<Result<(), SequencerAdminAPIError>>),
+    /// A query to stop the sequencer.
+    StopSequencer(oneshot::Sender<Result<B256, SequencerAdminAPIError>>),
+    /// A query to check if the conductor is enabled.
+    ConductorEnabled(oneshot::Sender<Result<bool, SequencerAdminAPIError>>),
+    /// A query to set the recover mode.
+    SetRecoveryMode(bool, oneshot::Sender<Result<(), SequencerAdminAPIError>>),
+    /// A query to override the leader.
+    OverrideLeader(oneshot::Sender<Result<(), SequencerAdminAPIError>>),
+}
 
-                tx.send(unsafe_head.borrow().hash())
-                    .map_err(|_| SequencerRpcError::SendResponse)?;
-            }
-            SequencerAdminQuery::ConductorEnabled(tx) => {
-                tx.send(self.conductor.is_some()).map_err(|_| SequencerRpcError::SendResponse)?;
-            }
-            SequencerAdminQuery::SetRecoveryMode(is_active) => {
-                self.is_recovery_mode = is_active;
-                info!(target: "sequencer", is_active, "Updated recovery mode");
-            }
-            SequencerAdminQuery::OverrideLeader => {
-                if let Some(conductor) = self.conductor.as_mut() {
-                    if let Err(e) = conductor.override_leader().await {
-                        error!(target: "sequencer::rpc", "Failed to override leader: {}", e);
-                    }
-                    info!(target: "sequencer", "Overrode leader via the conductor service");
-                }
-            }
-        }
+#[async_trait]
+impl SequencerAdminAPIClient for QueuedSequencerAdminAPIClient {
+    async fn is_sequencer_active(&self) -> Result<bool, SequencerAdminAPIError> {
+        let (tx, rx) = oneshot::channel();
 
-        Ok(())
+        self.request_tx
+            .send(SequencerAdminQuery::SequencerActive(tx))
+            .await
+            .map_err(|_| SequencerAdminAPIError::RequestError)?;
+        rx.await.map_err(|_| SequencerAdminAPIError::ResponseError)?
+    }
+
+    async fn is_conductor_enabled(&self) -> Result<bool, SequencerAdminAPIError> {
+        let (tx, rx) = oneshot::channel();
+
+        self.request_tx
+            .send(SequencerAdminQuery::ConductorEnabled(tx))
+            .await
+            .map_err(|_| SequencerAdminAPIError::RequestError)?;
+        rx.await.map_err(|_| SequencerAdminAPIError::ResponseError)?
+    }
+
+    async fn start_sequencer(&self) -> Result<(), SequencerAdminAPIError> {
+        let (tx, rx) = oneshot::channel();
+
+        self.request_tx
+            .send(SequencerAdminQuery::StartSequencer(tx))
+            .await
+            .map_err(|_| SequencerAdminAPIError::RequestError)?;
+        rx.await.map_err(|_| SequencerAdminAPIError::ResponseError)?
+    }
+
+    async fn stop_sequencer(&self) -> Result<B256, SequencerAdminAPIError> {
+        let (tx, rx) = oneshot::channel();
+
+        self.request_tx
+            .send(SequencerAdminQuery::StopSequencer(tx))
+            .await
+            .map_err(|_| SequencerAdminAPIError::RequestError)?;
+        rx.await.map_err(|_| SequencerAdminAPIError::ResponseError)?
+    }
+
+    async fn set_recovery_mode(&self, mode: bool) -> Result<(), SequencerAdminAPIError> {
+        let (tx, rx) = oneshot::channel();
+
+        self.request_tx
+            .send(SequencerAdminQuery::SetRecoveryMode(mode, tx))
+            .await
+            .map_err(|_| SequencerAdminAPIError::RequestError)?;
+        rx.await.map_err(|_| SequencerAdminAPIError::ResponseError)?
+    }
+
+    async fn override_leader(&self) -> Result<(), SequencerAdminAPIError> {
+        let (tx, rx) = oneshot::channel();
+
+        self.request_tx
+            .send(SequencerAdminQuery::OverrideLeader(tx))
+            .await
+            .map_err(|_| SequencerAdminAPIError::RequestError)?;
+        rx.await.map_err(|_| SequencerAdminAPIError::ResponseError)?
     }
 }

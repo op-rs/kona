@@ -6,7 +6,7 @@ use kona_gossip::P2pRpcRequest;
 use kona_rpc::{
     AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzApiServer, HealthzRpc,
     NetworkAdminQuery, OpP2PApiServer, RollupBoostAdminQuery, RollupBoostHealthQuery,
-    RollupNodeApiServer, SequencerAdminQuery, WsRPC, WsServer,
+    RollupNodeApiServer, SequencerAdminAPIClient, WsRPC, WsServer,
 };
 use std::time::Duration;
 
@@ -59,7 +59,7 @@ pub struct RpcContext {
     /// The network admin rpc sender.
     pub network_admin: mpsc::Sender<NetworkAdminQuery>,
     /// The sequencer admin rpc sender.
-    pub sequencer_admin: Option<mpsc::Sender<SequencerAdminQuery>>,
+    pub sequencer_admin: Option<Box<dyn SequencerAdminAPIClient>>,
     /// The l1 watcher queries sender.
     pub l1_watcher_queries: mpsc::Sender<L1WatcherQueries>,
     /// The engine query sender.
@@ -109,12 +109,17 @@ async fn launch(
 #[async_trait]
 impl NodeActor for RpcActor {
     type Error = RpcActorError;
-    type OutboundData = RpcContext;
-    type InboundData = ();
+    type InitData = RpcContext;
+    type StartData = RpcContext;
+    type BuildData = ();
     type Builder = RpcBuilder;
 
-    fn build(config: Self::Builder) -> (Self::InboundData, Self) {
+    fn build(config: Self::Builder) -> (Self::BuildData, Self) {
         ((), Self::new(config))
+    }
+
+    fn init(&self, ctx: Self::InitData) -> Self::StartData {
+        ctx
     }
 
     async fn start(
@@ -128,7 +133,7 @@ impl NodeActor for RpcActor {
             sequencer_admin,
             rollup_boost_admin,
             rollup_boost_health,
-        }: Self::OutboundData,
+        }: Self::StartData,
     ) -> Result<(), Self::Error> {
         let mut modules = RpcModule::new(());
 

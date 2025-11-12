@@ -67,6 +67,10 @@ impl EngineTaskError for SealTaskError {
 /// The inter-actor error returned to the initial requestor of a seal.
 #[derive(Debug, Error)]
 pub enum SealError {
+    /// A critical engine error occurred.
+    #[error("Error communicating with engine.")]
+    CommunicationError,
+
     /// Holocene retry occurred. A deposit-only block was built and sealed.
     #[error("Holocene retry occurred. A deposit-only block was built and sealed.")]
     HoloceneRetry,

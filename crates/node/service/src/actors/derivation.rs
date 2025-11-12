@@ -434,12 +434,17 @@ where
     B: PipelineBuilder,
 {
     type Error = DerivationError;
-    type OutboundData = DerivationContext;
+    type InitData = DerivationContext;
+    type StartData = DerivationContext;
     type Builder = B;
-    type InboundData = DerivationInboundChannels;
+    type BuildData = DerivationInboundChannels;
 
-    fn build(config: Self::Builder) -> (Self::InboundData, Self) {
+    fn build(config: Self::Builder) -> (Self::BuildData, Self) {
         Self::new(config)
+    }
+
+    fn init(&self, ctx: Self::InitData) -> Self::StartData {
+        ctx
     }
 
     async fn start(
@@ -448,7 +453,7 @@ where
             derived_attributes_tx,
             reset_request_tx,
             cancellation,
-        }: Self::OutboundData,
+        }: Self::StartData,
     ) -> Result<(), Self::Error> {
         let mut state = self.state.build().await;
 

@@ -15,22 +15,37 @@ pub trait CancellableContext: Send {
 /// - Handle incoming messages.
 ///     - Perform background tasks.
 /// - Emit new events for other actors to process.
+///
+/// The types and functions that are part of a `NodeActor` imply a specific lifecycle:
+/// 1. Build: Create the Actor, passing in configuration that is known before other actors are
+///    created. Actors cannot have any dependencies on each other at `build` time.
+/// 2. Init: Create the struct necessary to call `start`. This is after Build because the `start`
+///    logic for one actor may depend on data structures that were created by other actors when
+///    their `build` function was called. These dependencies are bundled into `StartData` during
+///    `init`.
+/// 3. Start: The entrypoint into the long-running actor logic.
 #[async_trait]
 pub trait NodeActor: Send + 'static {
     /// The error type for the actor.
     type Error: std::fmt::Debug;
-    /// The communication context used by the actor.
-    /// These are the channels that the actor will use to send messages to other actors.
-    type OutboundData: CancellableContext;
     /// The inbound communication channels used by the actor.
     /// These are the channels that the actor will use to receive messages from other actors.
-    type InboundData: Sized;
+    type BuildData: Sized;
+    /// The communication context used by the actor.
+    /// These are the channels that the actor will use to send messages to other actors.
+    type InitData: CancellableContext;
+    /// The type necessary to pass to the start function.
+    /// This is the result of
+    type StartData: Sized;
     /// The configuration needed to build the actor.
     type Builder;
 
     /// Builds the actor.
-    fn build(builder: Self::Builder) -> (Self::InboundData, Self);
+    fn build(builder: Self::Builder) -> (Self::BuildData, Self);
+
+    /// Creates the start data.
+    fn init(&self, init_context: Self::InitData) -> Self::StartData;
 
     /// Starts the actor.
-    async fn start(self, inbound_context: Self::OutboundData) -> Result<(), Self::Error>;
+    async fn start(self, start_context: Self::StartData) -> Result<(), Self::Error>;
 }

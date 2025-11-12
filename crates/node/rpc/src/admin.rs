@@ -3,6 +3,7 @@
 use crate::AdminApiServer;
 use alloy_primitives::B256;
 use async_trait::async_trait;
+use core::fmt::Debug;
 use jsonrpsee::{
     core::RpcResult,
     types::{ErrorCode, ErrorObject},
@@ -12,23 +13,7 @@ use rollup_boost::{
     ExecutionMode, GetExecutionModeResponse, SetExecutionModeRequest, SetExecutionModeResponse,
 };
 use tokio::sync::oneshot;
-
-/// The query types to the sequencer actor for the admin api.
-#[derive(Debug)]
-pub enum SequencerAdminQuery {
-    /// A query to check if the sequencer is active.
-    SequencerActive(oneshot::Sender<bool>),
-    /// A query to start the sequencer.
-    StartSequencer,
-    /// A query to stop the sequencer.
-    StopSequencer(oneshot::Sender<B256>),
-    /// A query to check if the conductor is enabled.
-    ConductorEnabled(oneshot::Sender<bool>),
-    /// A query to set the recover mode.
-    SetRecoveryMode(bool),
-    /// A query to override the leader.
-    OverrideLeader,
-}
+use thiserror::Error;
 
 /// The query types to the network actor for the admin api.
 #[derive(Debug)]
@@ -56,15 +41,14 @@ pub enum RollupBoostAdminQuery {
     },
 }
 
-type SequencerQuerySender = tokio::sync::mpsc::Sender<SequencerAdminQuery>;
 type NetworkAdminQuerySender = tokio::sync::mpsc::Sender<NetworkAdminQuery>;
 type RollupBoostAdminQuerySender = tokio::sync::mpsc::Sender<RollupBoostAdminQuery>;
 
 /// The admin rpc server.
 #[derive(Debug)]
 pub struct AdminRpc {
-    /// The sender to the sequencer actor.
-    pub sequencer_sender: Option<SequencerQuerySender>,
+    /// The sequencer admin API client.
+    pub sequencer_admin_client: Option<Box<dyn SequencerAdminAPIClient>>,
     /// The sender to the network actor.
     pub network_sender: NetworkAdminQuerySender,
     /// The sender to the rollup boost component of the engine actor.
@@ -87,11 +71,11 @@ impl AdminRpc {
     ///
     /// A new [`AdminRpc`] instance.
     pub const fn new(
-        sequencer_sender: Option<SequencerQuerySender>,
+        sequencer_admin_client: Option<Box<dyn SequencerAdminAPIClient>>,
         network_sender: NetworkAdminQuerySender,
         rollup_boost_sender: Option<RollupBoostAdminQuerySender>,
     ) -> Self {
-        Self { sequencer_sender, network_sender, rollup_boost_sender }
+        Self { sequencer_admin_client, network_sender, rollup_boost_sender }
     }
 }
 
@@ -110,80 +94,72 @@ impl AdminApiServer for AdminRpc {
 
     async fn admin_sequencer_active(&self) -> RpcResult<bool> {
         // If the sequencer is not enabled (mode runs in validator mode), return an error.
-        let Some(ref sequencer_sender) = self.sequencer_sender else {
+        let Some(ref sequencer_client) = self.sequencer_admin_client else {
             return Err(ErrorObject::from(ErrorCode::MethodNotFound));
         };
 
-        let (tx, rx) = oneshot::channel();
-        sequencer_sender
-            .send(SequencerAdminQuery::SequencerActive(tx))
+        sequencer_client
+            .is_sequencer_active()
             .await
-            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
-        rx.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
     async fn admin_start_sequencer(&self) -> RpcResult<()> {
         // If the sequencer is not enabled (mode runs in validator mode), return an error.
-        let Some(ref sequencer_sender) = self.sequencer_sender else {
+        let Some(ref sequencer_client) = self.sequencer_admin_client else {
             return Err(ErrorObject::from(ErrorCode::MethodNotFound));
         };
 
-        sequencer_sender
-            .send(SequencerAdminQuery::StartSequencer)
+        sequencer_client
+            .start_sequencer()
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
     async fn admin_stop_sequencer(&self) -> RpcResult<B256> {
         // If the sequencer is not enabled (mode runs in validator mode), return an error.
-        let Some(ref sequencer_sender) = self.sequencer_sender else {
+        let Some(ref sequencer_client) = self.sequencer_admin_client else {
             return Err(ErrorObject::from(ErrorCode::MethodNotFound));
         };
 
-        let (tx, rx) = oneshot::channel();
-
-        sequencer_sender
-            .send(SequencerAdminQuery::StopSequencer(tx))
+        sequencer_client
+            .stop_sequencer()
             .await
-            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
-        rx.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
     async fn admin_conductor_enabled(&self) -> RpcResult<bool> {
         // If the sequencer is not enabled (mode runs in validator mode), return an error.
-        let Some(ref sequencer_sender) = self.sequencer_sender else {
+        let Some(ref sequencer_client) = self.sequencer_admin_client else {
             return Err(ErrorObject::from(ErrorCode::MethodNotFound));
         };
 
-        let (tx, rx) = oneshot::channel();
-
-        sequencer_sender
-            .send(SequencerAdminQuery::ConductorEnabled(tx))
+        sequencer_client
+            .is_conductor_enabled()
             .await
-            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
-        rx.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
     async fn admin_set_recover_mode(&self, mode: bool) -> RpcResult<()> {
         // If the sequencer is not enabled (mode runs in validator mode), return an error.
-        let Some(ref sequencer_sender) = self.sequencer_sender else {
+        let Some(ref sequencer_client) = self.sequencer_admin_client else {
             return Err(ErrorObject::from(ErrorCode::MethodNotFound));
         };
 
-        sequencer_sender
-            .send(SequencerAdminQuery::SetRecoveryMode(mode))
+        sequencer_client
+            .set_recovery_mode(mode)
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
     async fn admin_override_leader(&self) -> RpcResult<()> {
         // If the sequencer is not enabled (mode runs in validator mode), return an error.
-        let Some(ref sequencer_sender) = self.sequencer_sender else {
+        let Some(ref sequencer_client) = self.sequencer_admin_client else {
             return Err(ErrorObject::from(ErrorCode::MethodNotFound));
         };
 
-        sequencer_sender
-            .send(SequencerAdminQuery::OverrideLeader)
+        sequencer_client
+            .override_leader()
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
@@ -221,4 +197,42 @@ impl AdminApiServer for AdminRpc {
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
             .map(|execution_mode| GetExecutionModeResponse { execution_mode })
     }
+}
+
+/// The admin API client for the sequencer actor.
+#[async_trait]
+pub trait SequencerAdminAPIClient: Send + Sync + Debug {
+    /// Check if the sequencer is active.
+    async fn is_sequencer_active(&self) -> Result<bool, SequencerAdminAPIError>;
+
+    /// Check if the conductor is enabled.
+    async fn is_conductor_enabled(&self) -> Result<bool, SequencerAdminAPIError>;
+
+    /// Start the sequencer.
+    async fn start_sequencer(&self) -> Result<(), SequencerAdminAPIError>;
+
+    /// Stop the sequencer.
+    async fn stop_sequencer(&self) -> Result<B256, SequencerAdminAPIError>;
+
+    /// Set recovery mode.
+    async fn set_recovery_mode(&self, mode: bool) -> Result<(), SequencerAdminAPIError>;
+
+    /// Override the leader.
+    async fn override_leader(&self) -> Result<(), SequencerAdminAPIError>;
+}
+
+/// Errors that can occur when using the sequencer admin API.
+#[derive(Debug, Error)]
+pub enum SequencerAdminAPIError {
+    /// Error sending request.
+    #[error("Error sending request.")]
+    RequestError,
+
+    /// Error receiving response.
+    #[error("Error receiving response.")]
+    ResponseError,
+
+    /// Error overriding leader.
+    #[error("Error overriding leader.")]
+    LeaderOverrideError,
 }

@@ -7,7 +7,8 @@ pub use traits::{CancellableContext, NodeActor};
 
 mod engine;
 pub use engine::{
-    EngineActor, EngineConfig, EngineContext, EngineError, EngineInboundData, L2Finalizer,
+    BlockEngine, EngineActor, EngineConfig, EngineContext, EngineError, 
+    EngineInboundData, L2Finalizer, QueuedBlockEngine,
 };
 
 mod rpc;
@@ -34,6 +35,7 @@ pub use network::{
 mod sequencer;
 pub use sequencer::{
     AttributesBuilderConfig, ConductorClient, ConductorError, DelayedL1OriginSelectorProvider,
-    L1OriginSelector, L1OriginSelectorError, L1OriginSelectorProvider, SequencerActor,
-    SequencerActorError, SequencerBuilder, SequencerConfig, SequencerContext, SequencerInboundData,
+    L1OriginSelector, L1OriginSelectorError, L1OriginSelectorProvider,
+    QueuedSequencerAdminAPIClient, SequencerActor, SequencerActorError, SequencerBuilder,
+    SequencerConfig, SequencerInboundData, SequencerInitContext,
 };

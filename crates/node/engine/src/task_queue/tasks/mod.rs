@@ -6,13 +6,13 @@ pub use task::{
 };
 
 mod synchronize;
-pub use synchronize::{SynchronizeTask, SynchronizeTaskError};
+pub use synchronize::{SynchronizeError, SynchronizeTask, SynchronizeTaskError};
 
 mod insert;
 pub use insert::{InsertTask, InsertTaskError};
 
 mod build;
-pub use build::{BuildTask, BuildTaskError, EngineBuildError};
+pub use build::{BuildError, BuildTask, BuildTaskError, EngineBuildError};
 
 mod seal;
 pub use seal::{SealError, SealTask, SealTaskError};
