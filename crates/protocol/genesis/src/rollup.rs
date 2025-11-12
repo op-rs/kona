@@ -192,6 +192,7 @@ impl RollupConfig {
 }
 
 impl RollupConfig {
+    // is first
     /// Returns true if Regolith is active at the given timestamp.
     pub fn is_regolith_active(&self, timestamp: u64) -> bool {
         self.hardforks.regolith_time.is_some_and(|t| timestamp >= t) ||

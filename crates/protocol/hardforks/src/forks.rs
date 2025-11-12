@@ -86,7 +86,7 @@ impl Hardforks {
 
 /// A simple enum since trait `Hardfork`` is not trait safe.  This allows statically checking that
 /// each fork has been handled.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
 pub enum Fork {
     Ecotone,
     Fjord,

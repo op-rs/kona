@@ -143,31 +143,22 @@ where
         for hardfork in Hardforks::active_hardforks(Arc::clone(&self.rollup_cfg), next_l2_time) {
             match hardfork {
                 Fork::Ecotone => {
-                    /// review: we could generate two vecs instead and check using Vector.contains.
-                    if self.rollup_cfg.is_ecotone_active(next_l2_time) &&
-                        !self.rollup_cfg.is_ecotone_active(l2_parent_timestamp)
-                    {
+                    if self.rollup_cfg.is_first_ecotone_block(next_l2_time) {
                         upgrade_transactions = Hardforks::ECOTONE.txs().collect();
                     }
                 }
                 Fork::Fjord => {
-                    if self.rollup_cfg.is_fjord_active(next_l2_time) &&
-                        !self.rollup_cfg.is_fjord_active(l2_parent_timestamp)
-                    {
+                    if self.rollup_cfg.is_first_fjord_block(next_l2_time) {
                         upgrade_transactions.append(&mut Hardforks::FJORD.txs().collect());
                     }
                 }
                 Fork::Isthmus => {
-                    if self.rollup_cfg.is_isthmus_active(next_l2_time) &&
-                        !self.rollup_cfg.is_isthmus_active(l2_parent_timestamp)
-                    {
+                    if self.rollup_cfg.is_first_isthmus_block(next_l2_time) {
                         upgrade_transactions.append(&mut Hardforks::ISTHMUS.txs().collect());
                     }
                 }
                 Fork::Jovian => {
-                    if self.rollup_cfg.is_jovian_active(next_l2_time) &&
-                        !self.rollup_cfg.is_jovian_active(l2_parent_timestamp)
-                    {
+                    if self.rollup_cfg.is_first_jovian_block(next_l2_time) {
                         upgrade_transactions.append(&mut Hardforks::JOVIAN.txs().collect());
                     }
                 } // .. something is missing here
