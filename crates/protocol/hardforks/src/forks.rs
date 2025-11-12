@@ -88,8 +88,14 @@ impl Hardforks {
 /// each fork has been handled.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
 pub enum Fork {
+    Regolith,
+    Canyon,
+    Delta,
     Ecotone,
     Fjord,
+    Granite,
+    Holocene,
+    PectraBlobSchedule,
     Isthmus,
     Jovian,
     Interop,
