@@ -4,4 +4,4 @@ mod task;
 pub use task::BuildTask;
 
 mod error;
-pub use error::{BuildTaskError, EngineBuildError};
+pub use error::{BuildError, BuildTaskError, EngineBuildError};

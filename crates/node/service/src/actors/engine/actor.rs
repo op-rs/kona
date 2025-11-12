@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use futures::future::OptionFuture;
 use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
-    BuildTask, ConsolidateTask, Engine, EngineClient, EngineQueries,
+    BuildError, BuildTask, ConsolidateTask, Engine, EngineClient, EngineQueries,
     EngineState as InnerEngineState, EngineTask, EngineTaskError, EngineTaskErrorSeverity,
     InsertTask, SealError, SealTask,
 };

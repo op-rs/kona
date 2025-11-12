@@ -10,22 +10,6 @@ use jsonrpsee::{
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use tokio::sync::oneshot;
 
-/// The query types to the sequencer actor for the admin api.
-#[derive(Debug)]
-pub enum SequencerAdminQuery {
-    /// A query to check if the sequencer is active.
-    SequencerActive(oneshot::Sender<bool>),
-    /// A query to start the sequencer.
-    StartSequencer,
-    /// A query to stop the sequencer.
-    StopSequencer(oneshot::Sender<B256>),
-    /// A query to check if the conductor is enabled.
-    ConductorEnabled(oneshot::Sender<bool>),
-    /// A query to set the recover mode.
-    SetRecoveryMode(bool),
-    /// A query to override the leader.
-    OverrideLeader,
-}
 
 /// The query types to the network actor for the admin api.
 #[derive(Debug)]

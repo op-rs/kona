@@ -1,5 +1,8 @@
 //! The `SequencerActor` and its components.
 
+mod api;
+pub use api::{SequencerAdminAPI, SequencerAdminAPIError, SequencerAdminAPIServer, SequencerAdminAPIServerError}
+
 mod config;
 pub use config::SequencerConfig;
 
@@ -19,3 +22,4 @@ mod rpc;
 
 mod conductor;
 pub use conductor::{ConductorClient, ConductorError};
+

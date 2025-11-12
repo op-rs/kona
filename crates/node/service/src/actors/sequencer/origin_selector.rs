@@ -9,6 +9,15 @@ use kona_protocol::{BlockInfo, L2BlockInfo};
 use std::sync::Arc;
 use tokio::sync::watch;
 
+#[async_trait]
+pub(super) trait OriginSelector {
+    async fn next_l1_origin(
+        &mut self,
+        unsafe_head: L2BlockInfo,
+        is_recovery_mode: bool,
+    ) -> Result<BlockInfo, L1OriginSelectorError>;
+}
+
 /// The [`L1OriginSelector`] is responsible for selecting the L1 origin block based on the
 /// current L2 unsafe head's sequence epoch.
 #[derive(Debug)]
@@ -23,22 +32,8 @@ pub struct L1OriginSelector<P: L1OriginSelectorProvider> {
     next: Option<BlockInfo>,
 }
 
-impl<P: L1OriginSelectorProvider> L1OriginSelector<P> {
-    /// Creates a new [`L1OriginSelector`].
-    pub const fn new(cfg: Arc<RollupConfig>, l1: P) -> Self {
-        Self { cfg, l1, current: None, next: None }
-    }
-
-    /// Returns the current L1 origin.
-    pub const fn current(&self) -> Option<&BlockInfo> {
-        self.current.as_ref()
-    }
-
-    /// Returns the next L1 origin.
-    pub const fn next(&self) -> Option<&BlockInfo> {
-        self.next.as_ref()
-    }
-
+#[async_trait]
+impl<P: L1OriginSelectorProvider + Send> OriginSelector for L1OriginSelector<P> {
     /// Determines what the next L1 origin block should be, based off of the [`L2BlockInfo`] unsafe
     /// head.
     ///
@@ -46,7 +41,7 @@ impl<P: L1OriginSelectorProvider> L1OriginSelector<P> {
     /// block's timestamp in relation to the current L1 origin's timestamp. If the next L2
     /// block's timestamp is greater than the L2 unsafe head's L1 origin timestamp, the L1
     /// origin is the block following the current L1 origin.
-    pub async fn next_l1_origin(
+    async fn next_l1_origin(
         &mut self,
         unsafe_head: L2BlockInfo,
         is_recovery_mode: bool,
@@ -94,6 +89,23 @@ impl<P: L1OriginSelectorProvider> L1OriginSelector<P> {
         }
 
         self.next.ok_or(L1OriginSelectorError::NotEnoughData(current))
+    }
+}
+
+impl<P: L1OriginSelectorProvider> L1OriginSelector<P> {
+    /// Creates a new [`L1OriginSelector`].
+    pub const fn new(cfg: Arc<RollupConfig>, l1: P) -> Self {
+        Self { cfg, l1, current: None, next: None }
+    }
+
+    /// Returns the current L1 origin.
+    pub const fn current(&self) -> Option<&BlockInfo> {
+        self.current.as_ref()
+    }
+
+    /// Returns the next L1 origin.
+    pub const fn next(&self) -> Option<&BlockInfo> {
+        self.next.as_ref()
     }
 
     /// Selects the current and next L1 origin blocks based on the unsafe head.
