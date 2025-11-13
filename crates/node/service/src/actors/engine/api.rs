@@ -1,5 +1,4 @@
 use crate::{
-    EngineActor, SequencerActorError,
     actors::engine::{BuildRequest, SealRequest},
 };
 use alloy_rpc_types_engine::PayloadId;
@@ -25,14 +24,14 @@ pub trait BlockEngine: Debug {
 
 #[derive(Debug)]
 pub struct QueuedBlockEngine {
-    /// A channel to use to send build requests to the [`EngineActor`].
+    /// A channel to use to send build requests to the engine.
     /// Upon successful processing of the provided attributes, a `PayloadId` will be sent via the
     /// provided sender.
     /// ## Note
     /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
     /// mode.
     pub build_request_tx: mpsc::Sender<BuildRequest>,
-    /// A channel to send seal requests to the [`EngineActor`].
+    /// A channel to send seal requests to the engine.
     /// If provided, the success/fail result of the sealing operation will be sent via the provided
     /// sender.
     /// ## Note

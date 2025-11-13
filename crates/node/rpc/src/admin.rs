@@ -3,6 +3,7 @@
 use crate::AdminApiServer;
 use alloy_primitives::B256;
 use async_trait::async_trait;
+use core::fmt::Debug;
 use jsonrpsee::{
     core::RpcResult,
     types::{ErrorCode, ErrorObject},
@@ -23,15 +24,16 @@ pub enum NetworkAdminQuery {
 type NetworkAdminQuerySender = tokio::sync::mpsc::Sender<NetworkAdminQuery>;
 
 /// The admin rpc server.
-pub struct AdminRpc<S: SequencerAdminAPIClient> {
+#[derive(Debug)]
+pub struct AdminRpc {
     /// The sequencer admin API client.
-    pub sequencer_admin_client: Option<S>,
+    pub sequencer_admin_client: Option<Box<dyn SequencerAdminAPIClient>>,
     /// The sender to the network actor.
     pub network_sender: NetworkAdminQuerySender,
 }
 
 #[async_trait]
-impl<S: SequencerAdminAPIClient + Send + Sync + 'static> AdminApiServer for AdminRpc<S> {
+impl AdminApiServer for AdminRpc {
     async fn admin_post_unsafe_payload(
         &self,
         payload: OpExecutionPayloadEnvelope,
@@ -119,7 +121,7 @@ impl<S: SequencerAdminAPIClient + Send + Sync + 'static> AdminApiServer for Admi
 
 /// The admin API client for the sequencer actor.
 #[async_trait]
-pub trait SequencerAdminAPIClient: Clone + Send {
+pub trait SequencerAdminAPIClient: Send + Sync + Debug {
     /// Check if the sequencer is active.
     async fn is_sequencer_active(&self) -> Result<bool, SequencerAdminAPIError>;
 

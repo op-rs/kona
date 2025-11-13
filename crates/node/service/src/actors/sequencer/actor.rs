@@ -195,11 +195,11 @@ impl AttributesBuilderConfig for SequencerBuilder {
 /// The inbound channels for the [`SequencerActor`].
 /// These channels are used by external actors to send messages to the sequencer actor.
 #[derive(Debug)]
-pub struct SequencerInboundData<API: SequencerAdminAPIClient> {
+pub struct SequencerInboundData {
     /// Watch channel to observe the unsafe head of the engine.
     pub unsafe_head_tx: watch::Sender<L2BlockInfo>,
     /// Admin API client for external actors to send admin queries.
-    pub admin_api_client: API,
+    pub admin_api_client: Box<dyn SequencerAdminAPIClient>,
 }
 
 /// The communication context used by the [`SequencerActor`].
@@ -247,7 +247,7 @@ pub enum SequencerActorError {
 
 impl<AB: AttributesBuilderConfig> SequencerActor<AB> {
     /// Creates a new instance of the [`SequencerActor`].
-    pub fn new(state: AB) -> (SequencerInboundData<QueuedSequencerAdminAPIClient>, Self) {
+    pub fn new(state: AB) -> (SequencerInboundData, Self) {
         let (unsafe_head_tx, unsafe_head_rx) = watch::channel(L2BlockInfo::default());
 
         // Create the admin API channel
@@ -256,7 +256,7 @@ impl<AB: AttributesBuilderConfig> SequencerActor<AB> {
 
         let actor = Self { builder: state, unsafe_head_rx, admin_api_rx };
 
-        (SequencerInboundData { unsafe_head_tx, admin_api_client: admin_api }, actor)
+        (SequencerInboundData { unsafe_head_tx, admin_api_client: Box::new(admin_api) }, actor)
     }
 }
 
@@ -612,7 +612,7 @@ impl<AB: AttributesBuilder, OS: OriginSelector, C: Conductor> SequencerActorStat
         info!(target: "sequencer", "Starting sequencer");
         self.is_active = true;
 
-        /// Start building blocks immediately if started
+        // Start building blocks immediately if started
         self.build_ticker.reset_immediately();
 
         // Update metrics, if configured.
@@ -668,7 +668,7 @@ impl<AB: AttributesBuilder, OS: OriginSelector, C: Conductor> SequencerActorStat
 impl NodeActor for SequencerActor<SequencerBuilder> {
     type Error = SequencerActorError;
     type OutboundData = SequencerContext;
-    type InboundData = SequencerInboundData<QueuedSequencerAdminAPIClient>;
+    type InboundData = SequencerInboundData;
     type Builder = SequencerBuilder;
 
     fn build(config: Self::Builder) -> (Self::InboundData, Self) {

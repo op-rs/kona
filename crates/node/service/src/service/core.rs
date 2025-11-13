@@ -10,7 +10,6 @@ use crate::{
 };
 use async_trait::async_trait;
 use kona_derive::{AttributesBuilder, Pipeline, SignalReceiver};
-use kona_rpc::SequencerAdminAPIClient;
 use std::fmt::Display;
 use tokio_util::sync::CancellationToken;
 
@@ -69,16 +68,13 @@ pub trait RollupNodeService {
 
     /// The type of attributes builder to use for the sequencer.
     type AttributesBuilder: AttributesBuilder + Send + Sync + 'static;
-    
-    /// The type of admin API client to use for the sequencer.
-    type SequencerAdminAPIClient: SequencerAdminAPIClient + Send + Sync + 'static;
 
     /// The type of sequencer actor to use for the service.
     type SequencerActor: NodeActor<
             Error: Display,
             OutboundData = SequencerContext,
             Builder: AttributesBuilderConfig<AB = Self::AttributesBuilder>,
-            InboundData = SequencerInboundData<Self::SequencerAdminAPIClient>,
+            InboundData = SequencerInboundData,
         >;
 
     /// The type of rpc actor to use for the service.
@@ -159,6 +155,11 @@ pub trait RollupNodeService {
             .then_some(Self::SequencerActor::build(self.sequencer_builder()))
             .unzip();
 
+        // Extract fields from SequencerInboundData to avoid cloning
+        let (sequencer_admin, engine_unsafe_head_tx) = sequencer_inbound_data
+            .map(|s| (Some(s.admin_api_client), Some(s.unsafe_head_tx)))
+            .unwrap_or((None, None));
+
         spawn_and_wait!(
             cancellation,
             actors = [
@@ -168,7 +169,7 @@ pub trait RollupNodeService {
                         cancellation: cancellation.clone(),
                         p2p_network: network_rpc,
                         network_admin: net_admin_rpc,
-                        sequencer_admin: sequencer_inbound_data.as_ref().map(|s| s.admin_api_client.clone()),
+                        sequencer_admin,
                         l1_watcher_queries: da_watcher_rpc,
                         engine_query: engine_rpc,
                     }
@@ -211,8 +212,7 @@ pub trait RollupNodeService {
                 Some((engine,
                     EngineContext {
                         engine_l2_safe_head_tx,
-                        engine_unsafe_head_tx: sequencer_inbound_data
-                            .map(|s| s.unsafe_head_tx),
+                        engine_unsafe_head_tx,
                         sync_complete_tx: el_sync_complete_tx,
                         derivation_signal_tx,
                         cancellation: cancellation.clone(),

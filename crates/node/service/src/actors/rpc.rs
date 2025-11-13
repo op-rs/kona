@@ -49,13 +49,13 @@ impl RpcActor {
 
 /// The communication context used by the RPC actor.
 #[derive(Debug)]
-pub struct RpcContext<AC: SequencerAdminAPIClient> {
+pub struct RpcContext {
     /// The network p2p rpc sender.
     pub p2p_network: mpsc::Sender<P2pRpcRequest>,
     /// The network admin rpc sender.
     pub network_admin: mpsc::Sender<NetworkAdminQuery>,
     /// The sequencer admin rpc sender.
-    pub sequencer_admin: Option<AC>,
+    pub sequencer_admin: Option<Box<dyn SequencerAdminAPIClient>>,
     /// The l1 watcher queries sender.
     pub l1_watcher_queries: mpsc::Sender<L1WatcherQueries>,
     /// The engine query sender.
@@ -64,7 +64,7 @@ pub struct RpcContext<AC: SequencerAdminAPIClient> {
     pub cancellation: CancellationToken,
 }
 
-impl<AC: SequencerAdminAPIClient> CancellableContext for RpcContext<AC> {
+impl CancellableContext for RpcContext {
     fn cancelled(&self) -> WaitForCancellationFuture<'_> {
         self.cancellation.cancelled()
     }
@@ -99,9 +99,9 @@ async fn launch(
 }
 
 #[async_trait]
-impl<AC: SequencerAdminAPIClient> NodeActor for RpcActor<AC> {
+impl NodeActor for RpcActor {
     type Error = RpcActorError;
-    type OutboundData = RpcContext<AC>;
+    type OutboundData = RpcContext;
     type InboundData = ();
     type Builder = RpcBuilder;
 

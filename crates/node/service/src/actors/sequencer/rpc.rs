@@ -7,6 +7,8 @@ use derive_more::Constructor;
 use kona_rpc::{SequencerAdminAPIClient, SequencerAdminAPIError};
 use tokio::sync::{mpsc, oneshot};
 
+/// Queued implementation of [`SequencerAdminAPIClient`] that handles requests by sending them to
+/// a handler via the contained sender.
 #[derive(Debug, Clone, Constructor)]
 pub struct QueuedSequencerAdminAPIClient {
     /// Queue used to relay admin queries

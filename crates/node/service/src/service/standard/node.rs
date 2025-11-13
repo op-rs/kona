@@ -3,7 +3,7 @@ use crate::{
     DerivationActor, DerivationBuilder, EngineActor, EngineBuilder, InteropMode, L1WatcherRpc,
     L1WatcherRpcState, NetworkActor, NetworkBuilder, NetworkConfig, NodeMode, RollupNodeBuilder,
     RollupNodeService, RpcActor, SequencerConfig,
-    actors::{QueuedSequencerAdminAPIClient, SequencerActor, SequencerBuilder},
+    actors::{SequencerActor, SequencerBuilder},
 };
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
@@ -59,7 +59,6 @@ impl RollupNodeService for RollupNode {
     type DataAvailabilityWatcher = L1WatcherRpc;
 
     type AttributesBuilder = StatefulAttributesBuilder<AlloyChainProvider, AlloyL2ChainProvider>;
-    type SequencerAdminAPIClient = QueuedSequencerAdminAPIClient;
     type SequencerActor = SequencerActor<SequencerBuilder>;
 
     type DerivationPipeline = OnlinePipeline;

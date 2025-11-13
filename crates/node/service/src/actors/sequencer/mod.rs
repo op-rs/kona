@@ -16,7 +16,7 @@ pub use actor::{
 };
 
 mod rpc;
-pub use rpc::{QueuedSequencerAdminAPIClient, SequencerAdminQuery};
+pub use rpc::{QueuedSequencerAdminAPIClient};
 
 mod conductor;
 pub use conductor::{ConductorClient, ConductorError};
