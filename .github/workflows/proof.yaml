@@ -72,6 +72,8 @@ jobs:
       - name: Split Action Tests
         id: test_split
         uses: hashicorp-forge/go-test-split-action@v2.0.0
+        env:
+          ACTIONS_STEP_DEBUG: true
         with:
           total: ${{ matrix.parallel }}
           index: ${{ matrix.index }}
