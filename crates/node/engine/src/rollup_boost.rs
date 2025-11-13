@@ -8,9 +8,64 @@ use op_alloy_rpc_types_engine::{
     OpExecutionPayloadEnvelopeV3, OpExecutionPayloadEnvelopeV4, OpExecutionPayloadV4,
     OpPayloadAttributes,
 };
-use rollup_boost::{EngineApiExt, EngineApiServer, RollupBoostServer};
-use std::fmt::Debug;
+use rollup_boost::{
+    EngineApiExt, EngineApiServer, ExecutionMode, Health, Probes, RollupBoostServer,
+};
+use std::{fmt::Debug, sync::Arc};
 use thiserror::Error;
+
+use rollup_boost::BlockSelectionPolicy;
+use url::Url;
+
+/// Configuration for the rollup-boost server.
+#[derive(Clone, Debug)]
+pub struct RollupBoostArgs {
+    /// The initial execution mode of the rollup-boost server.
+    pub initial_execution_mode: ExecutionMode,
+    /// The block selection policy of the rollup-boost server.
+    pub block_selection_policy: Option<BlockSelectionPolicy>,
+    /// Whether to use the l2 client for computing state root.
+    pub external_state_root: bool,
+    /// Allow all engine API calls to builder even when marked as unhealthy
+    /// This is default true assuming no builder CL set up
+    pub ignore_unhealthy_builders: bool,
+    /// Flashblocks configuration
+    pub flashblocks: Option<FlashblocksArgs>,
+}
+
+/// Configuration for the Flashblocks client.
+#[derive(Clone, Debug)]
+pub struct FlashblocksArgs {
+    /// Flashblocks Builder WebSocket URL
+    pub flashblocks_builder_url: Url,
+
+    /// Flashblocks WebSocket host for outbound connections
+    pub flashblocks_host: String,
+
+    /// Flashblocks WebSocket port for outbound connections
+    pub flashblocks_port: u16,
+
+    /// Websocket connection configuration
+    pub flashblocks_ws_config: FlashblocksWebsocketConfig,
+}
+
+/// Configuration for the Flashblocks WebSocket connection.
+#[derive(Debug, Clone, Copy)]
+pub struct FlashblocksWebsocketConfig {
+    /// Minimum time for exponential backoff for timeout if builder disconnected
+    pub flashblock_builder_ws_initial_reconnect_ms: u64,
+
+    /// Maximum time for exponential backoff for timeout if builder disconnected
+    pub flashblock_builder_ws_max_reconnect_ms: u64,
+
+    /// Interval in milliseconds between ping messages sent to upstream servers to detect
+    /// unresponsive connections
+    pub flashblock_builder_ws_ping_interval_ms: u64,
+
+    /// Timeout in milliseconds to wait for pong responses from upstream servers before considering
+    /// the connection dead
+    pub flashblock_builder_ws_pong_timeout_ms: u64,
+}
 
 /// Error wrapper for rollup-boost calls.
 #[derive(Debug, Error)]
@@ -20,6 +75,12 @@ pub struct RollupBoostError(pub String);
 /// Trait object used to erase the concrete rollup-boost server type.
 #[async_trait::async_trait]
 pub trait RollupBoostServerLike: Debug + Send + Sync {
+    /// Sets the execution mode.
+    fn set_execution_mode(&self, execution_mode: ExecutionMode);
+
+    /// Gets the execution mode.
+    fn get_execution_mode(&self) -> ExecutionMode;
+
     /// Creates a new payload v3.
     async fn new_payload_v3(
         &self,
@@ -61,6 +122,14 @@ pub trait RollupBoostServerLike: Debug + Send + Sync {
 impl<T: EngineApiExt + Send + Sync + 'static + Debug> RollupBoostServerLike
     for RollupBoostServer<T>
 {
+    fn set_execution_mode(&self, execution_mode: ExecutionMode) {
+        *self.execution_mode.lock() = execution_mode;
+    }
+
+    fn get_execution_mode(&self) -> ExecutionMode {
+        *self.execution_mode.lock()
+    }
+
     async fn new_payload_v3(
         &self,
         payload: ExecutionPayloadV3,
@@ -116,5 +185,21 @@ impl<T: EngineApiExt + Send + Sync + 'static + Debug> RollupBoostServerLike
         EngineApiServer::get_payload_v4(self, payload_id)
             .await
             .map_err(|e| RollupBoostError(e.to_string()))
+    }
+}
+
+/// Structure that wraps a rollup boost server and its probes.
+#[derive(Debug)]
+pub struct RollupBoost {
+    /// The rollup boost server implementation
+    pub server: Box<dyn RollupBoostServerLike + Send + Sync + 'static>,
+    /// Rollup boost probes
+    pub probes: Arc<Probes>,
+}
+
+impl RollupBoost {
+    /// Gets the health of the rollup boost server.
+    pub fn get_health(&self) -> Health {
+        self.probes.health()
     }
 }

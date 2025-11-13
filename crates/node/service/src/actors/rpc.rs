@@ -4,12 +4,11 @@ use crate::{NodeActor, actors::CancellableContext};
 use async_trait::async_trait;
 use kona_gossip::P2pRpcRequest;
 use kona_rpc::{
-    AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzResponse, NetworkAdminQuery,
-    OpP2PApiServer, RollupBoostHealth, RollupNodeApiServer, SequencerAdminQuery, WsRPC, WsServer,
+    AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzApiServer, HealthzRpc,
+    NetworkAdminQuery, OpP2PApiServer, RollupBoostAdminQuery, RollupBoostHealthQuery,
+    RollupNodeApiServer, SequencerAdminQuery, WsRPC, WsServer,
 };
-use parking_lot::Mutex;
-use rollup_boost::{ExecutionMode, Health, Probes};
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use jsonrpsee::{
     RpcModule,
@@ -67,10 +66,10 @@ pub struct RpcContext {
     pub engine_query: mpsc::Sender<EngineQueries>,
     /// The cancellation token, shared between all tasks.
     pub cancellation: CancellationToken,
-    /// The rollup boost execution mode storage.
-    pub rollup_boost_execution_mode: Arc<Mutex<ExecutionMode>>,
-    /// The rollup boost probes handle.
-    pub rollup_boost_probes: Arc<Probes>,
+    /// The rollup boost admin rpc sender.
+    pub rollup_boost_admin: mpsc::Sender<RollupBoostAdminQuery>,
+    /// The rollup boost health rpc sender.
+    pub rollup_boost_health: mpsc::Sender<RollupBoostHealthQuery>,
 }
 
 impl CancellableContext for RpcContext {
@@ -127,27 +126,20 @@ impl NodeActor for RpcActor {
             engine_query,
             network_admin,
             sequencer_admin,
-            rollup_boost_execution_mode,
-            rollup_boost_probes: _rollup_boost_probes,
+            rollup_boost_admin,
+            rollup_boost_health,
         }: Self::OutboundData,
     ) -> Result<(), Self::Error> {
         let mut modules = RpcModule::new(());
 
-        let probes = _rollup_boost_probes.clone();
-        modules.register_method("healthz", move |_, _, _| {
-            let response = HealthzResponse {
-                version: env!("CARGO_PKG_VERSION").to_string(),
-                rollup_boost_health: to_healthz_response(probes.health()),
-            };
-            jsonrpsee::core::RpcResult::Ok(response)
-        })?;
+        modules.merge(HealthzRpc::new(rollup_boost_health).into_rpc())?;
 
         // Build the p2p rpc module.
         modules.merge(P2pRpc::new(p2p_network).into_rpc())?;
 
         // Build the admin rpc module.
         modules.merge(
-            AdminRpc::new(sequencer_admin, network_admin, rollup_boost_execution_mode).into_rpc(),
+            AdminRpc::new(sequencer_admin, network_admin, Some(rollup_boost_admin)).into_rpc(),
         )?;
 
         // Create context for communication between actors.
@@ -192,14 +184,6 @@ impl NodeActor for RpcActor {
         // Stop the node if there has already been 3 rpc restarts.
         cancellation.cancel();
         return Err(RpcActorError::ServerStopped);
-    }
-}
-
-const fn to_healthz_response(health: Health) -> RollupBoostHealth {
-    match health {
-        Health::Healthy => RollupBoostHealth::Healthy,
-        Health::PartialContent => RollupBoostHealth::PartialContent,
-        Health::ServiceUnavailable => RollupBoostHealth::Unhealthy,
     }
 }
 
