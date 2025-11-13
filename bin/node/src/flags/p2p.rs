@@ -454,6 +454,7 @@ mod tests {
     use super::*;
     use alloy_primitives::b256;
     use clap::Parser;
+    use kona_peers::NodeRecord;
 
     /// A mock command that uses the P2PArgs.
     #[derive(Parser, Debug, Clone)]
@@ -564,5 +565,66 @@ mod tests {
     fn test_p2p_args_listen_udp_port() {
         let args = MockCommand::parse_from(["test", "--p2p.listen.udp", "1234"]);
         assert_eq!(args.p2p.listen_udp_port, 1234);
+    }
+
+    #[test]
+    fn test_p2p_args_bootnodes() {
+        let args = MockCommand::parse_from([
+            "test",
+            "--p2p.bootnodes",
+            "enode://ca2774c3c401325850b2477fd7d0f27911efbf79b1e8b335066516e2bd8c4c9e0ba9696a94b1cb030a88eac582305ff55e905e64fb77fe0edcd70a4e5296d3ec@34.65.175.185:30305",
+        ]);
+        assert_eq!(
+            args.p2p.bootnodes,
+            vec![
+                "enode://ca2774c3c401325850b2477fd7d0f27911efbf79b1e8b335066516e2bd8c4c9e0ba9696a94b1cb030a88eac582305ff55e905e64fb77fe0edcd70a4e5296d3ec@34.65.175.185:30305",
+            ]
+        );
+
+        // Parse the bootnodes.
+        let bootnodes = args
+            .p2p
+            .bootnodes
+            .iter()
+            .map(|bootnode| BootNode::parse_bootnode(bootnode))
+            .collect::<Vec<BootNode>>();
+
+        // Otherwise, attempt to use the Node Record format.
+        let record = NodeRecord::from_str(
+                "enode://ca2774c3c401325850b2477fd7d0f27911efbf79b1e8b335066516e2bd8c4c9e0ba9696a94b1cb030a88eac582305ff55e905e64fb77fe0edcd70a4e5296d3ec@34.65.175.185:30305").unwrap();
+        let expected_bootnode = vec![BootNode::from_unsigned(record).unwrap()];
+
+        assert_eq!(bootnodes, expected_bootnode);
+    }
+
+    #[test]
+    fn test_p2p_args_bootnodes_multiple() {
+        let args = MockCommand::parse_from([
+            "test",
+            "--p2p.bootnodes",
+            "enode://ca2774c3c401325850b2477fd7d0f27911efbf79b1e8b335066516e2bd8c4c9e0ba9696a94b1cb030a88eac582305ff55e905e64fb77fe0edcd70a4e5296d3ec@34.65.175.185:30305,enode://dd751a9ef8912be1bfa7a5e34e2c3785cc5253110bd929f385e07ba7ac19929fb0e0c5d93f77827291f4da02b2232240fbc47ea7ce04c46e333e452f8656b667@34.65.107.0:30305",
+        ]);
+        assert_eq!(
+            args.p2p.bootnodes,
+            vec![
+                "enode://ca2774c3c401325850b2477fd7d0f27911efbf79b1e8b335066516e2bd8c4c9e0ba9696a94b1cb030a88eac582305ff55e905e64fb77fe0edcd70a4e5296d3ec@34.65.175.185:30305",
+                "enode://dd751a9ef8912be1bfa7a5e34e2c3785cc5253110bd929f385e07ba7ac19929fb0e0c5d93f77827291f4da02b2232240fbc47ea7ce04c46e333e452f8656b667@34.65.107.0:30305",
+            ]
+        );
+    }
+
+    #[test]
+    fn test_p2p_args_bootnode_enr() {
+        let args = MockCommand::parse_from([
+            "test",
+            "--p2p.bootnodes",
+            "enr:-J64QBbwPjPLZ6IOOToOLsSjtFUjjzN66qmBZdUexpO32Klrc458Q24kbty2PdRaLacHM5z-cZQr8mjeQu3pik6jPSOGAYYFIqBfgmlkgnY0gmlwhDaRWFWHb3BzdGFja4SzlAUAiXNlY3AyNTZrMaECmeSnJh7zjKrDSPoNMGXoopeDF4hhpj5I0OsQUUt4u8uDdGNwgiQGg3VkcIIkBg",
+        ]);
+        assert_eq!(
+            args.p2p.bootnodes,
+            vec![
+                "enr:-J64QBbwPjPLZ6IOOToOLsSjtFUjjzN66qmBZdUexpO32Klrc458Q24kbty2PdRaLacHM5z-cZQr8mjeQu3pik6jPSOGAYYFIqBfgmlkgnY0gmlwhDaRWFWHb3BzdGFja4SzlAUAiXNlY3AyNTZrMaECmeSnJh7zjKrDSPoNMGXoopeDF4hhpj5I0OsQUUt4u8uDdGNwgiQGg3VkcIIkBg",
+            ]
+        );
     }
 }
