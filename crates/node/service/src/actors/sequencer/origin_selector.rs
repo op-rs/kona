@@ -9,8 +9,9 @@ use kona_protocol::{BlockInfo, L2BlockInfo};
 use std::sync::Arc;
 use tokio::sync::watch;
 
+#[cfg_attr(test, mockall::automock)]
 #[async_trait]
-pub(super) trait OriginSelector {
+pub trait OriginSelector {
     async fn next_l1_origin(
         &mut self,
         unsafe_head: L2BlockInfo,

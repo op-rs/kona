@@ -4,8 +4,9 @@ use async_trait::async_trait;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use url::Url;
 
+#[cfg_attr(test, mockall::automock)]
 #[async_trait]
-pub(super) trait Conductor {
+pub trait Conductor {
     /// Commit an unsafe payload to the conductor.
     async fn commit_unsafe_payload(
         &self,

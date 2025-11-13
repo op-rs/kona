@@ -104,36 +104,18 @@ pub trait AttributesBuilderConfig {
     fn build(self) -> Self::AB;
 }
 
-impl
-    SequencerActorState<
-        StatefulAttributesBuilder<AlloyChainProvider, AlloyL2ChainProvider>,
-        L1OriginSelector<DelayedL1OriginSelectorProvider>,
-        ConductorClient,
-    >
-{
-    fn new(
-        seq_builder: SequencerBuilder,
-        l1_head_watcher: watch::Receiver<Option<BlockInfo>>,
+impl<AB: AttributesBuilder, OS: OriginSelector, C: Conductor> SequencerActorState<AB, OS, C> {
+    /// Creates a new `SequencerActorState` with injected dependencies.
+    /// This is the primary constructor that accepts all dependencies for full testability.
+    pub(super) fn new(
+        cfg: Arc<RollupConfig>,
+        builder: AB,
+        origin_selector: OS,
+        conductor: Option<C>,
+        is_active: bool,
+        is_recovery_mode: bool,
     ) -> Self {
-        let SequencerConfig {
-            sequencer_stopped,
-            sequencer_recovery_mode,
-            conductor_rpc_url,
-            l1_conf_delay,
-        } = seq_builder.seq_cfg.clone();
-
-        let cfg = seq_builder.rollup_cfg.clone();
-        let l1_provider = DelayedL1OriginSelectorProvider::new(
-            seq_builder.l1_provider.clone(),
-            l1_head_watcher,
-            l1_conf_delay,
-        );
-        let conductor = conductor_rpc_url.map(ConductorClient::new_http);
-
-        let builder = seq_builder.build();
         let build_ticker = tokio::time::interval(Duration::from_secs(cfg.block_time));
-
-        let origin_selector = L1OriginSelector::new(cfg.clone(), l1_provider);
 
         Self {
             cfg,
@@ -141,8 +123,8 @@ impl
             origin_selector,
             build_ticker,
             conductor,
-            is_active: !sequencer_stopped,
-            is_recovery_mode: sequencer_recovery_mode,
+            is_active,
+            is_recovery_mode,
         }
     }
 }
@@ -676,7 +658,41 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
     }
 
     async fn start(mut self, mut ctx: Self::OutboundData) -> Result<(), Self::Error> {
-        let mut state = SequencerActorState::new(self.builder, ctx.l1_head_rx.clone());
+        // Construct all dependencies for the SequencerActorState
+        let SequencerConfig {
+            sequencer_stopped,
+            sequencer_recovery_mode,
+            conductor_rpc_url,
+            l1_conf_delay,
+        } = self.builder.seq_cfg.clone();
+
+        let cfg = self.builder.rollup_cfg.clone();
+
+        // Build the L1 provider with delay
+        let l1_provider = DelayedL1OriginSelectorProvider::new(
+            self.builder.l1_provider.clone(),
+            ctx.l1_head_rx.clone(),
+            l1_conf_delay,
+        );
+
+        // Build the origin selector
+        let origin_selector = L1OriginSelector::new(cfg.clone(), l1_provider);
+
+        // Build the attributes builder
+        let builder = self.builder.build();
+
+        // Build the conductor if configured
+        let conductor = conductor_rpc_url.map(ConductorClient::new_http);
+
+        // Create the state with all injected dependencies
+        let mut state = SequencerActorState::new(
+            cfg,
+            builder,
+            origin_selector,
+            conductor,
+            !sequencer_stopped,
+            sequencer_recovery_mode,
+        );
 
         // Initialize metrics, if configured.
         #[cfg(feature = "metrics")]
@@ -773,5 +789,86 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_eips::BlockNumHash;
+    use op_alloy_rpc_types_engine::OpPayloadAttributes;
+
+    // Simple mock for AttributesBuilder since it's from kona_derive
+    mockall::mock! {
+        pub AttributesBuilder {}
+
+        #[async_trait]
+        impl AttributesBuilder for AttributesBuilder {
+            async fn prepare_payload_attributes(
+                &mut self,
+                parent: L2BlockInfo,
+                epoch: BlockNumHash,
+            ) -> Result<OpPayloadAttributes, PipelineErrorKind>;
+        }
+    }
+
+    #[tokio::test]
+    async fn test_sequencer_state_with_mocks() {
+        // Create mocks using mockall - no custom mock implementations needed!
+        let mut mock_builder = MockAttributesBuilder::new();
+        mock_builder
+            .expect_prepare_payload_attributes()
+            .returning(|_, _| Ok(OpPayloadAttributes::default()));
+
+        let mut mock_origin_selector = super::super::MockOriginSelector::new();
+        mock_origin_selector
+            .expect_next_l1_origin()
+            .returning(|_, _| Ok(BlockInfo::default()));
+
+        let mut mock_conductor = super::super::MockConductor::new();
+        mock_conductor
+            .expect_commit_unsafe_payload()
+            .returning(|_| Ok(()));
+
+        // Create the state with mocked dependencies
+        let mut cfg = RollupConfig::default();
+        cfg.block_time = 2;
+
+        let state = SequencerActorState::new(
+            Arc::from(cfg),
+            mock_builder,
+            mock_origin_selector,
+            Some(mock_conductor),
+            true,  // is_active
+            false, // is_recovery_mode
+        );
+
+        // Test the state
+        assert!(state.is_active);
+        assert!(!state.is_recovery_mode);
+        assert!(state.conductor.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_is_sequencer_active_with_mock() {
+        let mock_builder = MockAttributesBuilder::new();
+        let mock_origin_selector = super::super::MockOriginSelector::new();
+
+        // Create the state with mocked dependencies
+        let mut cfg = RollupConfig::default();
+        cfg.block_time = 2;
+
+        let state = SequencerActorState::new(
+            Arc::from(cfg),
+            mock_builder,
+            mock_origin_selector,
+            None::<super::super::MockConductor>,
+            true,
+            false,
+        );
+
+        let result = state.is_sequencer_active().await;
+        assert!(result.is_ok());
+        assert!(result.unwrap());
     }
 }
