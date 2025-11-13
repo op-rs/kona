@@ -2,16 +2,18 @@
 
 use tracing_subscriber::{
     Layer,
+    fmt::{
+        format::{FormatEvent, FormatFields, Writer},
+        time::{FormatTime, SystemTime},
+    },
     prelude::__tracing_subscriber_SubscriberExt,
-    util::{SubscriberInitExt, TryInitError},
-    fmt::format::{Writer, FormatEvent, FormatFields},
-    fmt::time::{FormatTime, SystemTime},
     registry::LookupSpan,
+    util::{SubscriberInitExt, TryInitError},
 };
 
 use serde::{Deserialize, Serialize};
-use tracing_subscriber::EnvFilter;
 use std::fmt;
+use tracing_subscriber::EnvFilter;
 
 use crate::{LogConfig, LogRotation};
 
@@ -108,12 +110,10 @@ impl LogConfig {
                 LogFormat::Compact => {
                     tracing_subscriber::fmt::layer().compact().with_writer(appender).boxed()
                 }
-                LogFormat::Logfmt => {
-                    tracing_subscriber::fmt::layer()
-                        .event_format(LogfmtFormatter)
-                        .with_writer(appender)
-                        .boxed()
-                }
+                LogFormat::Logfmt => tracing_subscriber::fmt::layer()
+                    .event_format(LogfmtFormatter)
+                    .with_writer(appender)
+                    .boxed(),
             }
         });
 
@@ -122,7 +122,9 @@ impl LogConfig {
             LogFormat::Json => tracing_subscriber::fmt::layer().json().boxed(),
             LogFormat::Pretty => tracing_subscriber::fmt::layer().pretty().boxed(),
             LogFormat::Compact => tracing_subscriber::fmt::layer().compact().boxed(),
-            LogFormat::Logfmt => tracing_subscriber::fmt::layer().event_format(LogfmtFormatter).boxed(),
+            LogFormat::Logfmt => {
+                tracing_subscriber::fmt::layer().event_format(LogfmtFormatter).boxed()
+            }
         });
 
         let env_filter = env_filter
