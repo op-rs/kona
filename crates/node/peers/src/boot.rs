@@ -6,13 +6,14 @@ use discv5::{
     Enr,
     multiaddr::{Multiaddr, Protocol},
 };
-use std::net::IpAddr;
+use serde::{Deserialize, Serialize};
+use std::{net::IpAddr, str::FromStr};
 
 use super::utils::{PeerIdConversionError, local_id_to_p2p_id};
 
 /// A boot node can be added either as a string in either 'enode' URL scheme or serialized from
 /// [`Enr`] type.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, From, Display)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, From, Display, Serialize, Deserialize)]
 pub enum BootNode {
     /// An unsigned node record.
     #[display("{_0}")]
@@ -46,6 +47,18 @@ impl BootNode {
             Self::Enode(addr) => Some(addr.clone()),
             Self::Enr(enr) => enr_to_multiaddr(enr),
         }
+    }
+
+    /// Helper method to parse a bootnode from a string.
+    pub fn parse_bootnode(raw: &str) -> Self {
+        // If the string starts with "enr:" it is an ENR record.
+        if raw.starts_with("enr:") {
+            let enr = Enr::from_str(raw).unwrap();
+            return Self::from(enr);
+        }
+        // Otherwise, attempt to use the Node Record format.
+        let record = NodeRecord::from_str(raw).unwrap();
+        Self::from_unsigned(record).unwrap()
     }
 }
 

@@ -10,13 +10,13 @@ use alloy_provider::Provider;
 use alloy_signer_local::PrivateKeySigner;
 use anyhow::Result;
 use clap::Parser;
-use discv5::{Enr, enr::k256};
+use discv5::enr::k256;
 use kona_derive::ChainProvider;
 use kona_disc::LocalNode;
 use kona_genesis::RollupConfig;
 use kona_gossip::GaterConfig;
 use kona_node_service::NetworkConfig;
-use kona_peers::{BootStoreFile, PeerMonitoring, PeerScoreLevel};
+use kona_peers::{BootNode, BootStoreFile, PeerMonitoring, PeerScoreLevel};
 use kona_providers_alloy::AlloyChainProvider;
 use libp2p::identity::Keypair;
 use std::{
@@ -170,9 +170,9 @@ pub struct P2PArgs {
     #[arg(long = "p2p.redial.period", env = "KONA_NODE_P2P_REDIAL_PERIOD", default_value = "60")]
     pub redial_period: u64,
 
-    /// An optional list of bootnode ENRs to start the node with.
+    /// An optional list of bootnode ENRs or node records to start the node with.
     #[arg(long = "p2p.bootnodes", value_delimiter = ',', env = "KONA_NODE_P2P_BOOTNODES")]
-    pub bootnodes: Vec<Enr>,
+    pub bootnodes: Vec<String>,
 
     /// Optionally enable topic scoring.
     ///
@@ -396,6 +396,13 @@ impl P2PArgs {
             ))
         };
 
+        let bootnodes = self
+            .bootnodes
+            .iter()
+            .map(|bootnode| BootNode::parse_bootnode(bootnode))
+            .collect::<Vec<BootNode>>()
+            .into();
+
         Ok(NetworkConfig {
             discovery_config,
             discovery_interval: Duration::from_secs(self.discovery_interval),
@@ -414,7 +421,7 @@ impl P2PArgs {
                 peer_redialing: self.peer_redial,
                 dial_period: Duration::from_secs(60 * self.redial_period),
             },
-            bootnodes: self.bootnodes,
+            bootnodes,
             rollup_config: config.clone(),
             gossip_signer: self.signer.config(args)?,
         })
