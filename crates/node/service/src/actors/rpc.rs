@@ -3,10 +3,7 @@
 use crate::{NodeActor, actors::CancellableContext};
 use async_trait::async_trait;
 use kona_gossip::P2pRpcRequest;
-use kona_rpc::{
-    AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzResponse, NetworkAdminQuery,
-    OpP2PApiServer, RollupNodeApiServer, SequencerAdminQuery, WsRPC, WsServer,
-};
+use kona_rpc::{AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzResponse, NetworkAdminQuery, OpP2PApiServer, RollupNodeApiServer, SequencerAdminAPIClient, WsRPC, WsServer};
 use std::time::Duration;
 
 use jsonrpsee::{
@@ -52,13 +49,13 @@ impl RpcActor {
 
 /// The communication context used by the RPC actor.
 #[derive(Debug)]
-pub struct RpcContext {
+pub struct RpcContext<AC: SequencerAdminAPIClient> {
     /// The network p2p rpc sender.
     pub p2p_network: mpsc::Sender<P2pRpcRequest>,
     /// The network admin rpc sender.
     pub network_admin: mpsc::Sender<NetworkAdminQuery>,
     /// The sequencer admin rpc sender.
-    pub sequencer_admin: Option<mpsc::Sender<SequencerAdminQuery>>,
+    pub sequencer_admin: Option<AC>,
     /// The l1 watcher queries sender.
     pub l1_watcher_queries: mpsc::Sender<L1WatcherQueries>,
     /// The engine query sender.
@@ -67,7 +64,7 @@ pub struct RpcContext {
     pub cancellation: CancellationToken,
 }
 
-impl CancellableContext for RpcContext {
+impl<AC: SequencerAdminAPIClient> CancellableContext for RpcContext<AC> {
     fn cancelled(&self) -> WaitForCancellationFuture<'_> {
         self.cancellation.cancelled()
     }
@@ -102,9 +99,9 @@ async fn launch(
 }
 
 #[async_trait]
-impl NodeActor for RpcActor {
+impl<AC: SequencerAdminAPIClient> NodeActor for RpcActor<AC> {
     type Error = RpcActorError;
-    type OutboundData = RpcContext;
+    type OutboundData = RpcContext<AC>;
     type InboundData = ();
     type Builder = RpcBuilder;
 
@@ -135,7 +132,7 @@ impl NodeActor for RpcActor {
 
         // Build the admin rpc module.
         modules.merge(
-            AdminRpc { sequencer_sender: sequencer_admin, network_sender: network_admin }
+            AdminRpc { sequencer_admin_client: sequencer_admin, network_sender: network_admin }
                 .into_rpc(),
         )?;
 

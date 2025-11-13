@@ -10,6 +10,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use kona_derive::{AttributesBuilder, Pipeline, SignalReceiver};
+use kona_rpc::SequencerAdminAPIClient;
 use std::fmt::Display;
 use tokio_util::sync::CancellationToken;
 
@@ -66,15 +67,18 @@ pub trait RollupNodeService {
     /// The type of network actor to use for the service.
     type NetworkActor: NodeActor<Error: Display, OutboundData = NetworkContext, InboundData = NetworkInboundData>;
 
-    /// The type of attributes builder to use for the sequener.
+    /// The type of attributes builder to use for the sequencer.
     type AttributesBuilder: AttributesBuilder + Send + Sync + 'static;
+    
+    /// The type of admin API client to use for the sequencer.
+    type SequencerAdminAPIClient: SequencerAdminAPIClient + Send + Sync + 'static;
 
     /// The type of sequencer actor to use for the service.
     type SequencerActor: NodeActor<
             Error: Display,
             OutboundData = SequencerContext,
             Builder: AttributesBuilderConfig<AB = Self::AttributesBuilder>,
-            InboundData = SequencerInboundData,
+            InboundData = SequencerInboundData<Self::SequencerAdminAPIClient>,
         >;
 
     /// The type of rpc actor to use for the service.
@@ -164,7 +168,7 @@ pub trait RollupNodeService {
                         cancellation: cancellation.clone(),
                         p2p_network: network_rpc,
                         network_admin: net_admin_rpc,
-                        sequencer_admin: sequencer_inbound_data.as_ref().map(|s| s.admin_query_tx.clone()),
+                        sequencer_admin: sequencer_inbound_data.as_ref().map(|s| s.admin_api_client.clone()),
                         l1_watcher_queries: da_watcher_rpc,
                         engine_query: engine_rpc,
                     }

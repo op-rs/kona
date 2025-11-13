@@ -1,6 +1,6 @@
 //! The [`SequencerActor`].
 
-use super::{DelayedL1OriginSelectorProvider, L1OriginSelector, L1OriginSelectorError, SequencerAdminAPIServer, SequencerAdminAPIServerError, SequencerConfig};
+use super::{DelayedL1OriginSelectorProvider, L1OriginSelector, L1OriginSelectorError, SequencerConfig};
 use crate::{
     CancellableContext, NodeActor,
     actors::{
@@ -32,19 +32,19 @@ use tokio::{
     sync::{mpsc, watch},
 };
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
-use crate::actors::sequencer::api::{SequencerAdminAPI, SequencerAdminAPIError};
-use crate::actors::sequencer::rpc::QueuedSequencerAdminAPIServer;
+use kona_rpc::{SequencerAdminAPIClient, SequencerAdminAPIError};
+use crate::actors::sequencer::rpc::{QueuedSequencerAdminAPIClient, SequencerAdminQuery};
 
 /// The [`SequencerActor`] is responsible for building L2 blocks on top of the current unsafe head
 /// and scheduling them to be signed and gossipped by the P2P layer, extending the L2 chain with new
 /// blocks.
 #[derive(Debug)]
-pub struct SequencerActor<AB: AttributesBuilderConfig, API: SequencerAdminAPIServer> {
+pub struct SequencerActor<AB: AttributesBuilderConfig> {
     /// The [`AttributesBuilderConfig`].
     pub builder: AB,
 
-    /// Admin API server.
-    pub admin_api_server: API,
+    /// Receiver for admin API requests.
+    pub admin_api_rx: mpsc::Receiver<SequencerAdminQuery>,
 
     /// Watch channel to observe the unsafe head of the engine.
     pub unsafe_head_rx: watch::Receiver<L2BlockInfo>,
@@ -195,9 +195,11 @@ impl AttributesBuilderConfig for SequencerBuilder {
 /// The inbound channels for the [`SequencerActor`].
 /// These channels are used by external actors to send messages to the sequencer actor.
 #[derive(Debug)]
-pub struct SequencerInboundData {
+pub struct SequencerInboundData<API: SequencerAdminAPIClient> {
     /// Watch channel to observe the unsafe head of the engine.
     pub unsafe_head_tx: watch::Sender<L2BlockInfo>,
+    /// Admin API client for external actors to send admin queries.
+    pub admin_api_client: API,
 }
 
 /// The communication context used by the [`SequencerActor`].
@@ -241,18 +243,20 @@ pub enum SequencerActorError {
     /// An error occurred while attempting to seal a payload.
     #[error(transparent)]
     SealError(#[from] SealError),
-    /// The admin api server encountered a fatal error.
-    #[error(transparent)]
-    AdminServerError(#[from] SequencerAdminAPIServerError)
 }
 
-impl<AB: AttributesBuilderConfig, API: SequencerAdminAPIServer> SequencerActor<AB, API> {
+impl<AB: AttributesBuilderConfig> SequencerActor<AB> {
     /// Creates a new instance of the [`SequencerActor`].
-    pub fn new(state: AB, admin_api_server: API) -> (SequencerInboundData, Self) {
+    pub fn new(state: AB) -> (SequencerInboundData<QueuedSequencerAdminAPIClient>, Self) {
         let (unsafe_head_tx, unsafe_head_rx) = watch::channel(L2BlockInfo::default());
-        let actor = Self { builder: state, unsafe_head_rx, admin_api_server };
 
-        (SequencerInboundData { unsafe_head_tx }, actor)
+        // Create the admin API channel
+        let (admin_api_tx, admin_api_rx) = mpsc::channel(1024);
+        let admin_api = QueuedSequencerAdminAPIClient::new(admin_api_tx);
+
+        let actor = Self { builder: state, unsafe_head_rx, admin_api_rx };
+
+        (SequencerInboundData { unsafe_head_tx, admin_api_client: admin_api }, actor)
     }
 }
 
@@ -590,9 +594,6 @@ impl<AB: AttributesBuilder, OS: OriginSelector, C: Conductor> SequencerActorStat
         let gauge = metrics::gauge!(crate::Metrics::SEQUENCER_STATE, &state_flags);
         gauge.set(1);
     }
-}
-
-impl<AB: AttributesBuilder, OS: OriginSelector, C: Conductor> SequencerAdminAPI for SequencerActorState<AB, OS, C> {
 
     async fn is_sequencer_active(&self) -> Result<bool, SequencerAdminAPIError> {
         Ok(self.is_active)
@@ -650,7 +651,7 @@ impl<AB: AttributesBuilder, OS: OriginSelector, C: Conductor> SequencerAdminAPI 
         if let Some(conductor) = self.conductor.as_mut() {
             if let Err(e) = conductor.override_leader().await {
                 error!(target: "sequencer::rpc", "Failed to override leader: {}", e);
-                return Err(e)?;
+                return Err(SequencerAdminAPIError::LeaderOverrideError);
             }
             info!(target: "sequencer", "Overrode leader via the conductor service");
         }
@@ -664,25 +665,14 @@ impl<AB: AttributesBuilder, OS: OriginSelector, C: Conductor> SequencerAdminAPI 
 }
 
 #[async_trait]
-impl<API: SequencerAdminAPIServer> NodeActor for SequencerActor<SequencerBuilder, API> {
+impl NodeActor for SequencerActor<SequencerBuilder> {
     type Error = SequencerActorError;
     type OutboundData = SequencerContext;
+    type InboundData = SequencerInboundData<QueuedSequencerAdminAPIClient>;
     type Builder = SequencerBuilder;
-    type InboundData = SequencerInboundData;
 
     fn build(config: Self::Builder) -> (Self::InboundData, Self) {
-        /************************
-           TODO: Build API, return clients.
-         ************************/
-
-        let (data, constructed) = Self::new(config);
-
-        // TODO: figure out how to inject server into constructed
-        let (admin_api_tx, admin_api_rx) = mpsc::channel(1024);
-        let server = QueuedSequencerAdminAPIServer::new(admin_api_rx, constructed);
-
-        // 
-        (data, constructed)
+        Self::new(config)
     }
 
     async fn start(mut self, mut ctx: Self::OutboundData) -> Result<(), Self::Error> {
@@ -709,13 +699,39 @@ impl<API: SequencerAdminAPIServer> NodeActor for SequencerActor<SequencerBuilder
                     );
                     return Ok(());
                 }
-                res = self.admin_api_server.serve(ctx.cancellation.clone()) => {
-                    if let Err(e) = res {
-                        error!(target: "sequencer", error = e, "Error serving admin API");
-                        return Err(e?);
+                Some(query) = self.admin_api_rx.recv() => {
+                    match query {
+                        SequencerAdminQuery::SequencerActive(tx) => {
+                            if tx.send(state.is_sequencer_active().await).is_err() {
+                                warn!(target: "sequencer", "Failed to send response for is_sequencer_active query");
+                            }
+                        },
+                        SequencerAdminQuery::StartSequencer(tx) => {
+                            if tx.send(state.start_sequencer().await).is_err() {
+                                warn!(target: "sequencer", "Failed to send response for start_sequencer query");
+                            }
+                        },
+                        SequencerAdminQuery::StopSequencer(tx) => {
+                            if tx.send(state.stop_sequencer().await).is_err() {
+                                warn!(target: "sequencer", "Failed to send response for stop_sequencer query");
+                            }
+                        },
+                        SequencerAdminQuery::ConductorEnabled(tx) => {
+                            if tx.send(state.is_conductor_enabled().await).is_err() {
+                                warn!(target: "sequencer", "Failed to send response for is_conductor_enabled query");
+                            }
+                        },
+                        SequencerAdminQuery::SetRecoveryMode(is_active, tx) => {
+                            if tx.send(state.set_recovery_mode(is_active).await).is_err() {
+                                warn!(target: "sequencer", is_active = is_active, "Failed to send response for set_recovery_mode query");
+                            }
+                        },
+                        SequencerAdminQuery::OverrideLeader(tx) => {
+                            if tx.send(state.override_leader().await).is_err() {
+                                warn!(target: "sequencer", "Failed to send response for override_leader query");
+                            }
+                        },
                     }
-
-                    return Ok(());
                 }
                 // The sequencer must be active to build new blocks.
                 _ = state.build_ticker.tick(), if state.is_active => {
