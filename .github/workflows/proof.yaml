@@ -61,7 +61,7 @@ jobs:
           name: junit-test-summary
           if_no_artifact_found: warn
           use_unzip: true
-          branch: main
+          # branch: main
 
       - name: Build Action Tests
         run: |
@@ -77,7 +77,7 @@ jobs:
         with:
           total: ${{ matrix.parallel }}
           index: ${{ matrix.index }}
-          # junit-summary: ./junit-test-summary.xml
+          junit-summary: ./junit-test-summary.xml
           working-directory: ./tests/optimism/op-e2e/actions/proofs
 
       - name: Run Action Tests
