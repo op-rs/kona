@@ -39,6 +39,9 @@ arbitrary = { workspace = true, features = ["derive"], optional = true }
 serde = { workspace = true, optional = true }
 serde_repr = { workspace = true, optional = true }
 
+# `tabled` feature
+tabled = { workspace = true, features = ["derive"], optional = true }
+
 [dev-dependencies]
 toml = { workspace = true, features = ["parse"] }
 rand = { workspace = true, features = ["thread_rng"] }
@@ -49,6 +52,7 @@ alloy-primitives = { workspace = true, features = ["rand", "arbitrary"] }
 [features]
 default = []
 revm = [ "dep:op-revm" ]
+tabled = [ "dep:tabled", "std" ]
 std = [
 	"alloy-chains/std",
 	"alloy-consensus/std",

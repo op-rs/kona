@@ -62,11 +62,21 @@ pub struct Chain {
     pub explorers: Vec<String>,
     /// The Superchain Level.
     pub superchain_level: u64,
+    /// Governed by Optimism flag.
+    #[cfg_attr(feature = "tabled", tabled(skip))]
+    pub governed_by_optimism: Option<bool>,
     /// The data availability type.
     pub data_availability_type: String,
     /// The Superchain Parent.
     #[cfg_attr(feature = "tabled", tabled(skip))]
     pub parent: SuperchainParent,
+    /// The gas paying token.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "tabled", tabled(skip))]
+    pub gas_paying_token: Option<String>,
+    /// Fault Proofs information.
+    #[cfg_attr(feature = "tabled", tabled(skip))]
+    pub fault_proofs: Option<FaultProofs>,
 }
 
 /// A Chain Parent
@@ -91,13 +101,21 @@ impl SuperchainParent {
     }
 }
 
+/// Fault Proofs information.
+#[derive(Debug, Clone, Default, Hash, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FaultProofs {
+    /// The status of fault proofs.
+    pub status: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn read_chain_list_file() {
-        let chain_list = include_str!("../etc/chainList.json");
+        let chain_list = include_str!("../../../registry/etc/chainList.json");
         let chains: Vec<Chain> = serde_json::from_str(chain_list).unwrap();
         let base_chain = chains.iter().find(|c| c.name == "Base").unwrap();
         assert_eq!(base_chain.chain_id, 8453);

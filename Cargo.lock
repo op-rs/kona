@@ -4676,6 +4676,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_repr",
+ "tabled",
  "thiserror 2.0.17",
  "toml",
 ]

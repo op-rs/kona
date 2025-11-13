@@ -11,13 +11,14 @@ extern crate alloc;
 
 mod params;
 pub use params::{
+    base_fee_config, base_fee_params, base_fee_params_canyon, BaseFeeConfig,
     BASE_MAINNET_BASE_FEE_CONFIG, BASE_MAINNET_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON,
     BASE_MAINNET_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR,
     BASE_MAINNET_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER, BASE_SEPOLIA_BASE_FEE_CONFIG,
     BASE_SEPOLIA_BASE_FEE_PARAMS, BASE_SEPOLIA_BASE_FEE_PARAMS_CANYON,
     BASE_SEPOLIA_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON,
     BASE_SEPOLIA_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR,
-    BASE_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER, BaseFeeConfig, OP_MAINNET_BASE_FEE_CONFIG,
+    BASE_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER, OP_MAINNET_BASE_FEE_CONFIG,
     OP_MAINNET_BASE_FEE_PARAMS, OP_MAINNET_BASE_FEE_PARAMS_CANYON,
     OP_MAINNET_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON,
     OP_MAINNET_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR,
@@ -25,13 +26,13 @@ pub use params::{
     OP_SEPOLIA_BASE_FEE_PARAMS, OP_SEPOLIA_BASE_FEE_PARAMS_CANYON,
     OP_SEPOLIA_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON,
     OP_SEPOLIA_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR,
-    OP_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER, base_fee_config, base_fee_params,
-    base_fee_params_canyon,
+    OP_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER,
 };
 
 mod superchain;
 pub use superchain::{
-    Superchain, SuperchainConfig, SuperchainL1Info, SuperchainLevel, Superchains,
+    Chain, ChainList, FaultProofs, Superchain, SuperchainConfig, SuperchainL1Info, SuperchainLevel,
+    SuperchainParent, Superchains,
 };
 
 mod updates;
@@ -42,17 +43,17 @@ pub use updates::{
 
 mod system;
 pub use system::{
-    BatcherUpdateError, CONFIG_UPDATE_EVENT_VERSION_0, CONFIG_UPDATE_TOPIC,
-    DaFootprintGasScalarUpdateError, EIP1559UpdateError, GasConfigUpdateError, GasLimitUpdateError,
-    LogProcessingError, MinBaseFeeUpdateError, OperatorFeeUpdateError, SystemConfig,
-    SystemConfigLog, SystemConfigUpdate, SystemConfigUpdateError, SystemConfigUpdateKind,
-    UnsafeBlockSignerUpdateError,
+    BatcherUpdateError, DaFootprintGasScalarUpdateError, EIP1559UpdateError, GasConfigUpdateError,
+    GasLimitUpdateError, LogProcessingError, MinBaseFeeUpdateError, OperatorFeeUpdateError,
+    SystemConfig, SystemConfigLog, SystemConfigUpdate, SystemConfigUpdateError,
+    SystemConfigUpdateKind, UnsafeBlockSignerUpdateError, CONFIG_UPDATE_EVENT_VERSION_0,
+    CONFIG_UPDATE_TOPIC,
 };
 
 mod chain;
 pub use chain::{
-    AddressList, AltDAConfig, BASE_MAINNET_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, ChainConfig,
-    HardForkConfig, L1ChainConfig, OP_MAINNET_CHAIN_ID, OP_SEPOLIA_CHAIN_ID, Roles,
+    AddressList, AltDAConfig, ChainConfig, HardForkConfig, L1ChainConfig, Roles,
+    BASE_MAINNET_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, OP_MAINNET_CHAIN_ID, OP_SEPOLIA_CHAIN_ID,
 };
 
 mod genesis;
@@ -60,6 +61,6 @@ pub use genesis::ChainGenesis;
 
 mod rollup;
 pub use rollup::{
-    DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW, FJORD_MAX_SEQUENCER_DRIFT, GRANITE_CHANNEL_TIMEOUT,
-    MAX_RLP_BYTES_PER_CHANNEL_BEDROCK, MAX_RLP_BYTES_PER_CHANNEL_FJORD, RollupConfig,
+    RollupConfig, DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW, FJORD_MAX_SEQUENCER_DRIFT,
+    GRANITE_CHANNEL_TIMEOUT, MAX_RLP_BYTES_PER_CHANNEL_BEDROCK, MAX_RLP_BYTES_PER_CHANNEL_FJORD,
 };
