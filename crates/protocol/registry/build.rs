@@ -92,8 +92,8 @@ fn merge_custom_configs() {
     println!("cargo:rerun-if-env-changed=KONA_CUSTOM_CONFIGS_TEST");
 
     // if we're running tests, bust the cache if the base etc configs are updated. This ensures that
-    // the test build can be repeeated after modifying the base configs
-    if std::env::var("KONA_CUSTOM_CONFIGS_TEST").unwrap_or_else(|_| "false".to_string()) == "true" {
+    // the test build can be repeated after modifying the base configs
+    if std::env::var("KONA_CUSTOM_CONFIGS_TEST") == Ok("true".to_string()) {
         println!("cargo:rerun-if-changed=etc/chainList.json");
         println!("cargo:rerun-if-changed=etc/configs.json");
     }

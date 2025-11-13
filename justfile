@@ -42,7 +42,7 @@ test-online:
 test-custom-embeds:
   cargo test --package kona-registry custom_chain_is_loaded_when_enabled \
       --config 'env.KONA_CUSTOM_CONFIGS="true"' \
-      --config "env.KONA_CUSTOM_CONFIGS_DIR=\"`pwd`/crates/protocol/registry/tests/fixtures/custom\"" \
+      --config "env.KONA_CUSTOM_CONFIGS_DIR=\"{{justfile_directory()}}/crates/protocol/registry/tests/fixtures/custom\"" \
       --config 'env.KONA_CUSTOM_CONFIGS_TEST="true"'
 
 # Runs the tests with llvm-cov
