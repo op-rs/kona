@@ -1,7 +1,7 @@
 //! Build script that generates a `configs.json` file from the configs.
 
 use std::{
-    collections::{btree_map::Entry, BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, btree_map::Entry},
     fs,
     path::{Path, PathBuf},
 };
@@ -91,8 +91,8 @@ fn merge_custom_configs() {
     println!("cargo:rerun-if-env-changed=KONA_CUSTOM_CONFIGS");
     println!("cargo:rerun-if-env-changed=KONA_CUSTOM_CONFIGS_TEST");
 
-    // if we're running tests, bust the cache if the base etc configs are updated. This ensures that the
-    // test build can be repeeated after modifying the base configs
+    // if we're running tests, bust the cache if the base etc configs are updated. This ensures that
+    // the test build can be repeeated after modifying the base configs
     if std::env::var("KONA_CUSTOM_CONFIGS_TEST").unwrap_or_else(|_| "false".to_string()) == "true" {
         println!("cargo:rerun-if-changed=etc/chainList.json");
         println!("cargo:rerun-if-changed=etc/configs.json");
