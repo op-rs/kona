@@ -372,7 +372,7 @@
           "Explorer": "https://explorer.mintchain.io",
           "SuperchainLevel": 0,
           "GovernedByOptimism": false,
-          "SuperchainTime": 0,
+          "SuperchainTime": null,
           "DataAvailabilityType": "eth-da",
           "l2_chain_id": 185,
           "batch_inbox_address": "0x4e31448a098393727b786e25b54e59dca1b77fe1",
@@ -387,8 +387,7 @@
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401,
-            "jovian_time": 1764691201
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -705,7 +704,7 @@
           "Explorer": "https://explorer.orderly.network",
           "SuperchainLevel": 0,
           "GovernedByOptimism": false,
-          "SuperchainTime": 0,
+          "SuperchainTime": null,
           "DataAvailabilityType": "alt-da",
           "l2_chain_id": 291,
           "batch_inbox_address": "0x08aa34cc843ceebcc88a627f18430294aa9780be",
@@ -720,8 +719,7 @@
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401,
-            "jovian_time": 1764691201
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -888,7 +886,8 @@
             "ecotone_time": 0,
             "fjord_time": 1721826000,
             "granite_time": 1727780400,
-            "holocene_time": 1738238400
+            "holocene_time": 1738238400,
+            "isthmus_time": 1764072000
           },
           "optimism": {
             "eip1559Elasticity": 10,
@@ -1130,7 +1129,7 @@
           "Explorer": "https://explorer.lyra.finance",
           "SuperchainLevel": 0,
           "GovernedByOptimism": false,
-          "SuperchainTime": 0,
+          "SuperchainTime": null,
           "DataAvailabilityType": "alt-da",
           "l2_chain_id": 957,
           "batch_inbox_address": "0x5f7f7f6db967f0ef10bda0678964dba185d16c50",
@@ -1145,8 +1144,7 @@
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401,
-            "jovian_time": 1764691201
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -1560,7 +1558,7 @@
           "Explorer": "https://explorer.snaxchain.io",
           "SuperchainLevel": 0,
           "GovernedByOptimism": false,
-          "SuperchainTime": 0,
+          "SuperchainTime": null,
           "DataAvailabilityType": "eth-da",
           "l2_chain_id": 2192,
           "batch_inbox_address": "0xfec57bd3729a5f930d4ee8ac5992fdc8988426e4",
@@ -1575,8 +1573,7 @@
             "fjord_time": 0,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401,
-            "jovian_time": 1764691201
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -2068,7 +2065,7 @@
           "Explorer": "https://polynomialscan.io",
           "SuperchainLevel": 1,
           "GovernedByOptimism": false,
-          "SuperchainTime": 0,
+          "SuperchainTime": null,
           "DataAvailabilityType": "eth-da",
           "l2_chain_id": 8008,
           "batch_inbox_address": "0x0bd57e83b5e0f9ecd84d559bb58e1ecfeedd2565",
@@ -2083,8 +2080,7 @@
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401,
-            "jovian_time": 1764691201
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": 6,
@@ -2584,7 +2580,7 @@
           "Explorer": "https://explorer.gobob.xyz",
           "SuperchainLevel": 0,
           "GovernedByOptimism": false,
-          "SuperchainTime": 0,
+          "SuperchainTime": null,
           "DataAvailabilityType": "eth-da",
           "l2_chain_id": 60808,
           "batch_inbox_address": "0x3a75346f81302aac0333fb5dcdd407e12a6cfa83",
@@ -2599,8 +2595,7 @@
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
             "holocene_time": 1736445601,
-            "isthmus_time": 1746806401,
-            "jovian_time": 1764691201
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": 6,
