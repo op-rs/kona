@@ -50,10 +50,15 @@ mod attributes;
 pub use attributes::{AttributesMatch, AttributesMismatch};
 
 mod client;
-pub use client::{EngineClient, EngineClientError};
+pub use client::{
+    EngineClient, EngineClientBuilder, EngineClientBuilderError, EngineClientError, HyperAuthClient,
+};
 
 mod rollup_boost;
-pub use rollup_boost::{RollupBoostError, RollupBoostServerLike};
+pub use rollup_boost::{
+    FlashblocksArgs, FlashblocksWebsocketConfig, RollupBoost, RollupBoostArgs, RollupBoostError,
+    RollupBoostServerLike,
+};
 
 mod versions;
 pub use versions::{EngineForkchoiceVersion, EngineGetPayloadVersion, EngineNewPayloadVersion};
