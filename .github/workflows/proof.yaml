@@ -59,8 +59,7 @@ jobs:
           name: junit-test-summary
           if_no_artifact_found: warn
           use_unzip: true
-          # todo: uncomment this before merging to main
-          # branch: main
+          branch: main
 
       - name: Build Action Tests
         run: |
