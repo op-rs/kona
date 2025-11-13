@@ -75,7 +75,7 @@ jobs:
         with:
           total: ${{ matrix.parallel }}
           index: ${{ matrix.index }}
-          junit-summary: ./junit-test-summary.xml
+          # junit-summary: ./junit-test-summary.xml
           working-directory: ./tests/optimism/op-e2e/actions/proofs
 
       - name: Run Action Tests
