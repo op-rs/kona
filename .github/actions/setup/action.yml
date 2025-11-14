@@ -54,6 +54,5 @@ runs:
         cache-on-failure: true
         prefix-key: ${{ inputs.prefix-key }}
         save-if: ${{ github.ref == 'refs/heads/main' }}
-        workspaces: |
-          . -> target
-          tests/reth -> tests/reth/target
+        cache-directories: |
+          tests/reth/target
