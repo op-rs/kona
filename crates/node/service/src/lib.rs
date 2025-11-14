@@ -23,8 +23,8 @@ pub use actors::{
     NetworkActorError, NetworkBuilder, NetworkBuilderError, NetworkConfig, NetworkContext,
     NetworkDriver, NetworkDriverError, NetworkHandler, NetworkInboundData, NodeActor,
     PipelineBuilder, QueuedSequencerAdminAPIClient, RpcActor, RpcActorError, RpcContext,
-    SequencerActor, SequencerActorError, SequencerBuilder, SequencerConfig, SequencerStartContext,
-    SequencerInboundData,
+    SequencerActor, SequencerActorError, SequencerBuilder, SequencerConfig, SequencerInboundData,
+    SequencerInitContext,
 };
 
 mod metrics;

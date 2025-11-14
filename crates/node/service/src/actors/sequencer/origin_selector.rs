@@ -6,13 +6,12 @@ use alloy_transport::{RpcError, TransportErrorKind};
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo};
-use std::sync::Arc;
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 use tokio::sync::watch;
 
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
-pub trait OriginSelector: Debug {
+pub trait OriginSelector: Debug + Send + Sync {
     async fn next_l1_origin(
         &mut self,
         unsafe_head: L2BlockInfo,
@@ -35,7 +34,7 @@ pub struct L1OriginSelector<P: L1OriginSelectorProvider> {
 }
 
 #[async_trait]
-impl<P: L1OriginSelectorProvider + Send> OriginSelector for L1OriginSelector<P> {
+impl<P: L1OriginSelectorProvider + Send + Sync> OriginSelector for L1OriginSelector<P> {
     /// Determines what the next L1 origin block should be, based off of the [`L2BlockInfo`] unsafe
     /// head.
     ///
@@ -178,7 +177,7 @@ pub enum L1OriginSelectorError {
 
 /// L1 [`BlockInfo`] provider interface for the [`L1OriginSelector`].
 #[async_trait]
-pub trait L1OriginSelectorProvider {
+pub trait L1OriginSelectorProvider: Debug + Sync {
     /// Returns a [`BlockInfo`] by its hash.
     async fn get_block_by_hash(
         &self,

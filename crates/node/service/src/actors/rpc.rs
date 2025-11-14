@@ -3,7 +3,10 @@
 use crate::{NodeActor, actors::CancellableContext};
 use async_trait::async_trait;
 use kona_gossip::P2pRpcRequest;
-use kona_rpc::{AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzResponse, NetworkAdminQuery, OpP2PApiServer, RollupNodeApiServer, SequencerAdminAPIClient, WsRPC, WsServer};
+use kona_rpc::{
+    AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzResponse, NetworkAdminQuery,
+    OpP2PApiServer, RollupNodeApiServer, SequencerAdminAPIClient, WsRPC, WsServer,
+};
 use std::time::Duration;
 
 use jsonrpsee::{
@@ -102,11 +105,16 @@ async fn launch(
 impl NodeActor for RpcActor {
     type Error = RpcActorError;
     type InitData = RpcContext;
+    type StartData = RpcContext;
     type BuildData = ();
     type Builder = RpcBuilder;
 
     fn build(config: Self::Builder) -> (Self::BuildData, Self) {
         ((), Self::new(config))
+    }
+
+    fn init(&self, ctx: Self::InitData) -> Self::StartData {
+        ctx
     }
 
     async fn start(
@@ -118,7 +126,7 @@ impl NodeActor for RpcActor {
             engine_query,
             network_admin,
             sequencer_admin,
-        }: Self::InitData,
+        }: Self::StartData,
     ) -> Result<(), Self::Error> {
         let mut modules = RpcModule::new(());
 

@@ -1,6 +1,4 @@
-use crate::{
-    actors::engine::{BuildRequest, SealRequest},
-};
+use crate::actors::engine::{BuildRequest, SealRequest};
 use alloy_rpc_types_engine::PayloadId;
 use async_trait::async_trait;
 use kona_engine::{BuildError, SealError};

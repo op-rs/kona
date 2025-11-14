@@ -118,7 +118,6 @@ impl AdminApiServer for AdminRpc {
     }
 }
 
-
 /// The admin API client for the sequencer actor.
 #[async_trait]
 pub trait SequencerAdminAPIClient: Send + Sync + Debug {

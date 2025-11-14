@@ -12,9 +12,8 @@ use tokio::sync::{mpsc, oneshot};
 #[derive(Debug, Clone, Constructor)]
 pub struct QueuedSequencerAdminAPIClient {
     /// Queue used to relay admin queries
-    request_tx: mpsc::Sender<SequencerAdminQuery>
+    request_tx: mpsc::Sender<SequencerAdminQuery>,
 }
-
 
 /// The query types to the sequencer actor for the admin api.
 #[derive(Debug)]
@@ -95,4 +94,3 @@ impl SequencerAdminAPIClient for QueuedSequencerAdminAPIClient {
         rx.await.map_err(|_| SequencerAdminAPIError::ResponseError)?
     }
 }
-

@@ -35,7 +35,7 @@ pub use network::{
 mod sequencer;
 pub use sequencer::{
     AttributesBuilderConfig, ConductorClient, ConductorError, DelayedL1OriginSelectorProvider,
-    L1OriginSelector, L1OriginSelectorError, L1OriginSelectorProvider, SequencerActor,
-    SequencerActorError, SequencerBuilder, SequencerConfig, SequencerStartContext, SequencerInboundData,
-    QueuedSequencerAdminAPIClient
+    L1OriginSelector, L1OriginSelectorError, L1OriginSelectorProvider,
+    QueuedSequencerAdminAPIClient, SequencerActor, SequencerActorError, SequencerBuilder,
+    SequencerConfig, SequencerInboundData, SequencerInitContext,
 };

@@ -1,6 +1,8 @@
 //! The [`SequencerActor`].
 
-use super::{DelayedL1OriginSelectorProvider, L1OriginSelector, L1OriginSelectorError, SequencerConfig};
+use super::{
+    DelayedL1OriginSelectorProvider, L1OriginSelector, L1OriginSelectorError, SequencerConfig,
+};
 use crate::{
     CancellableContext, NodeActor,
     actors::{
@@ -8,9 +10,11 @@ use crate::{
         sequencer::{
             conductor::{Conductor, ConductorClient},
             origin_selector::OriginSelector,
+            rpc::{QueuedSequencerAdminAPIClient, SequencerAdminQuery},
         },
     },
 };
+use alloy_primitives::B256;
 use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::PayloadId;
 use alloy_rpc_types_eth::state;
@@ -21,20 +25,18 @@ use kona_engine::SealError;
 use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use kona_providers_alloy::{AlloyChainProvider, AlloyL2ChainProvider};
+use kona_rpc::{SequencerAdminAPIClient, SequencerAdminAPIError};
 use op_alloy_network::Optimism;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{
     sync::Arc,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
-use alloy_primitives::B256;
 use tokio::{
     select,
     sync::{mpsc, watch},
 };
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
-use kona_rpc::{SequencerAdminAPIClient, SequencerAdminAPIError};
-use crate::actors::sequencer::rpc::{QueuedSequencerAdminAPIClient, SequencerAdminQuery};
 
 /// The [`SequencerActor`] is responsible for building L2 blocks on top of the current unsafe head
 /// and scheduling them to be signed and gossipped by the P2P layer, extending the L2 chain with new
@@ -72,7 +74,7 @@ pub(super) struct SealLastStartNextResult {
 
 /// The state of the [`SequencerActor`].
 #[derive(Debug)]
-pub(super) struct SequencerActorState {
+pub struct SequencerActorState {
     /// The [`RollupConfig`] for the chain being sequenced.
     pub cfg: Arc<RollupConfig>,
     /// Whether the sequencer is active. This is used inside communications between the sequencer
@@ -87,11 +89,26 @@ pub(super) struct SequencerActorState {
     /// At startup, the sequencer is _NOT_ in recovery mode.
     pub is_recovery_mode: bool,
     /// The attributes builder used for block building.
-    pub attributes_builder: Box<dyn AttributesBuilder>,
+    pub attributes_builder: Box<dyn AttributesBuilder + Sync>,
     /// The optional conductor RPC client.
-    pub conductor: Option<Box<dyn Conductor>>,
+    pub conductor: Option<Box<dyn Conductor + Sync>>,
     /// The struct used to determine the next L1 origin, given some inputs.
-    pub origin_selector: Box<dyn OriginSelector>,
+    pub origin_selector: Box<dyn OriginSelector + Sync>,
+    /// The ticker for building new blocks.
+    pub build_ticker: tokio::time::Interval,
+    /// The cancellation token, shared between all tasks.
+    pub cancellation: CancellationToken,
+    /// Sender to request the engine to reset.
+    pub reset_request_tx: mpsc::Sender<()>,
+    /// Sender to request the execution layer to start building a payload on top of the
+    /// current unsafe head.
+    pub build_request_tx: mpsc::Sender<BuildRequest>,
+    /// Sender to request the execution layer to seal and commit the payload ID and
+    /// attributes that resulted from a previous build call.
+    pub seal_request_tx: mpsc::Sender<SealRequest>,
+    /// A sender to asynchronously sign and gossip built [`OpExecutionPayloadEnvelope`]s to the
+    /// network actor.
+    pub gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
 }
 
 /// A trait for building [`AttributesBuilder`]s.
@@ -106,14 +123,21 @@ pub trait AttributesBuilderConfig {
 impl SequencerActorState {
     /// Creates a new `SequencerActorState` with injected dependencies.
     /// This is the primary constructor that accepts all dependencies for full testability.
-    pub(super) fn new(
+    pub fn new(
         cfg: Arc<RollupConfig>,
         is_active: bool,
         is_recovery_mode: bool,
-        attributes_builder: Box<dyn AttributesBuilder>,
-        conductor: Option<Box<dyn Conductor>>,
-        origin_selector: Box<dyn OriginSelector>,
+        attributes_builder: Box<dyn AttributesBuilder + Sync>,
+        conductor: Option<Box<dyn Conductor + Sync>>,
+        origin_selector: Box<dyn OriginSelector + Sync>,
+        cancellation: CancellationToken,
+        reset_request_tx: mpsc::Sender<()>,
+        build_request_tx: mpsc::Sender<BuildRequest>,
+        seal_request_tx: mpsc::Sender<SealRequest>,
+        gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
     ) -> Self {
+        let build_ticker = tokio::time::interval(Duration::from_secs(cfg.block_time));
+
         Self {
             cfg,
             is_active,
@@ -121,6 +145,12 @@ impl SequencerActorState {
             attributes_builder,
             conductor,
             origin_selector,
+            build_ticker,
+            cancellation,
+            reset_request_tx,
+            build_request_tx,
+            seal_request_tx,
+            gossip_payload_tx,
         }
     }
 }
@@ -128,7 +158,7 @@ impl SequencerActorState {
 const DERIVATION_PROVIDER_CACHE_SIZE: usize = 1024;
 
 /// The builder for the [`SequencerActor`].
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct SequencerBuilder {
     /// The [`SequencerConfig`].
     pub seq_cfg: SequencerConfig,
@@ -206,32 +236,6 @@ impl CancellableContext for SequencerInitContext {
     }
 }
 
-/// The communication context used by the [`SequencerActor`].
-#[derive(Constructor)]
-pub struct SequencerStartContext {
-    /// The [`RollupConfig`] for the chain being sequenced.
-    pub cfg: Arc<RollupConfig>,
-    /// Whether the sequencer is active. This is used inside communications between the sequencer
-    /// and the op-conductor to activate/deactivate the sequencer when leader election occurs.
-    ///
-    /// ## Default value
-    /// At startup, the sequencer is active.
-    pub is_active: bool,
-    /// Whether the sequencer is in recovery mode.
-    ///
-    /// ## Default value
-    /// At startup, the sequencer is _NOT_ in recovery mode.
-    pub is_recovery_mode: bool,
-    /// The attributes builder used for block building.
-    pub attributes_builder: Box<dyn AttributesBuilder>,
-    /// The optional conductor RPC client.
-    pub conductor: Option<Box<dyn Conductor>>,
-    /// The struct used to determine the next L1 origin, given some inputs.
-    pub origin_selector: Box<dyn OriginSelector>,
-    /// The init context used to create this start context.
-    pub init_context: SequencerInitContext
-}
-
 /// An error produced by the [`SequencerActor`].
 #[derive(Debug, thiserror::Error)]
 pub enum SequencerActorError {
@@ -272,7 +276,6 @@ impl SequencerActorState {
     /// that it may be sealed and committed in a future call to this function.
     async fn seal_last_and_start_next(
         &mut self,
-        ctx: &mut SequencerStartContext,
         unsafe_head_rx: &mut watch::Receiver<L2BlockInfo>,
         in_recovery_mode: bool,
         payload_to_seal: Option<&UnsealedPayloadHandle>,
@@ -280,12 +283,12 @@ impl SequencerActorState {
         let mut seconds_to_seal = 0u64;
         if let Some(to_seal) = payload_to_seal {
             let seal_start = Instant::now();
-            self.seal_and_commit_payload_if_applicable(ctx, to_seal).await?;
+            self.seal_and_commit_payload_if_applicable(to_seal).await?;
             seconds_to_seal = seal_start.elapsed().as_secs();
         }
 
         let unsealed_payload =
-            self.build_unsealed_payload(ctx, unsafe_head_rx, in_recovery_mode).await?;
+            self.build_unsealed_payload(unsafe_head_rx, in_recovery_mode).await?;
 
         Ok(SealLastStartNextResult::new(unsealed_payload, seconds_to_seal))
     }
@@ -294,7 +297,6 @@ impl SequencerActorState {
     /// gossiping the resulting block, if one is built.
     async fn seal_and_commit_payload_if_applicable(
         &mut self,
-        ctx: &mut SequencerStartContext,
         unsealed_payload_handle: &UnsealedPayloadHandle,
     ) -> Result<(), SequencerActorError> {
         // Create a new channel to receive the built payload.
@@ -302,7 +304,7 @@ impl SequencerActorState {
 
         // Send the seal request to the engine to seal the unsealed block.
         let _seal_request_start = Instant::now();
-        if let Err(err) = ctx.init_context
+        if let Err(err) = self
             .seal_request_tx
             .send((
                 unsealed_payload_handle.payload_id,
@@ -338,12 +340,11 @@ impl SequencerActorState {
             );
         }
 
-        self.schedule_gossip(ctx, payload).await
+        self.schedule_gossip(payload).await
     }
 
     async fn build_unsealed_payload(
         &mut self,
-        ctx: &mut SequencerStartContext,
         unsafe_head_rx: &mut watch::Receiver<L2BlockInfo>,
         in_recovery_mode: bool,
     ) -> Result<Option<UnsealedPayloadHandle>, SequencerActorError> {
@@ -374,7 +375,7 @@ impl SequencerActorState {
                 unsafe_head_l1_origin = ?unsafe_head.l1_origin,
                 "Cannot build new L2 block on inconsistent L1 origin, resetting engine"
             );
-            if let Err(err) = ctx.init_context.reset_request_tx.send(()).await {
+            if let Err(err) = self.reset_request_tx.send(()).await {
                 error!(target: "sequencer", ?err, "Failed to reset engine");
                 return Err(SequencerActorError::ChannelClosed);
             }
@@ -392,7 +393,7 @@ impl SequencerActorState {
         let _attributes_build_start = Instant::now();
 
         let attrs_with_parent =
-            match self.build_attributes(ctx, in_recovery_mode, unsafe_head, l1_origin).await? {
+            match self.build_attributes(in_recovery_mode, unsafe_head, l1_origin).await? {
                 Some(attrs) => attrs,
                 None => {
                     // Temporary error or reset - retry on next tick.
@@ -413,7 +414,7 @@ impl SequencerActorState {
         // Send the built attributes to the engine to be built.
         let _build_request_start = Instant::now();
         if let Err(err) =
-            ctx.init_context.build_request_tx.send((attrs_with_parent.clone(), payload_id_tx)).await
+            self.build_request_tx.send((attrs_with_parent.clone(), payload_id_tx)).await
         {
             error!(target: "sequencer", ?err, "Failed to send built attributes to engine");
             return Err(SequencerActorError::ChannelClosed);
@@ -428,35 +429,37 @@ impl SequencerActorState {
     /// indicates that no attributes could be built at this time but future attempts may be made.
     async fn build_attributes(
         &mut self,
-        ctx: &mut SequencerStartContext,
         in_recovery_mode: bool,
         unsafe_head: L2BlockInfo,
         l1_origin: BlockInfo,
     ) -> Result<Option<OpAttributesWithParent>, SequencerActorError> {
-        let mut attributes =
-            match self.attributes_builder.prepare_payload_attributes(unsafe_head, l1_origin.id()).await {
-                Ok(attrs) => attrs,
-                Err(PipelineErrorKind::Temporary(_)) => {
-                    // Temporary error - retry on next tick.
-                    return Ok(None);
+        let mut attributes = match self
+            .attributes_builder
+            .prepare_payload_attributes(unsafe_head, l1_origin.id())
+            .await
+        {
+            Ok(attrs) => attrs,
+            Err(PipelineErrorKind::Temporary(_)) => {
+                // Temporary error - retry on next tick.
+                return Ok(None);
+            }
+            Err(PipelineErrorKind::Reset(_)) => {
+                if let Err(err) = self.reset_request_tx.send(()).await {
+                    error!(target: "sequencer", ?err, "Failed to reset engine");
+                    return Err(SequencerActorError::ChannelClosed);
                 }
-                Err(PipelineErrorKind::Reset(_)) => {
-                    if let Err(err) = ctx.init_context.reset_request_tx.send(()).await {
-                        error!(target: "sequencer", ?err, "Failed to reset engine");
-                        return Err(SequencerActorError::ChannelClosed);
-                    }
 
-                    warn!(
-                        target: "sequencer",
-                        "Resetting engine due to pipeline error while preparing payload attributes"
-                    );
-                    return Ok(None);
-                }
-                Err(err @ PipelineErrorKind::Critical(_)) => {
-                    error!(target: "sequencer", ?err, "Failed to prepare payload attributes");
-                    return Err(err.into());
-                }
-            };
+                warn!(
+                    target: "sequencer",
+                    "Resetting engine due to pipeline error while preparing payload attributes"
+                );
+                return Ok(None);
+            }
+            Err(err @ PipelineErrorKind::Critical(_)) => {
+                error!(target: "sequencer", ?err, "Failed to prepare payload attributes");
+                return Err(err.into());
+            }
+        };
 
         // Set the no_tx_pool flag to false by default (since we're building with the sequencer).
         attributes.no_tx_pool = Some(false);
@@ -552,11 +555,10 @@ impl SequencerActorState {
     /// Schedules a built [`OpExecutionPayloadEnvelope`] to be signed and gossipped.
     async fn schedule_gossip(
         &mut self,
-        ctx: &mut SequencerStartContext,
         payload: OpExecutionPayloadEnvelope,
     ) -> Result<(), SequencerActorError> {
         // Send the payload to the P2P layer to be signed and gossipped.
-        if let Err(err) = ctx.init_context.gossip_payload_tx.send(payload).await {
+        if let Err(err) = self.gossip_payload_tx.send(payload).await {
             error!(target: "sequencer", ?err, "Failed to send payload to be signed and gossipped");
             return Err(SequencerActorError::ChannelClosed);
         }
@@ -567,11 +569,10 @@ impl SequencerActorState {
     /// Schedules the initial engine reset request and waits for the unsafe head to be updated.
     async fn schedule_initial_reset(
         &mut self,
-        ctx: &mut SequencerInitContext,
         unsafe_head_rx: &mut watch::Receiver<L2BlockInfo>,
     ) -> Result<(), SequencerActorError> {
         // Schedule a reset of the engine, in order to initialize the engine state.
-        if let Err(err) = ctx.reset_request_tx.send(()).await {
+        if let Err(err) = self.reset_request_tx.send(()).await {
             error!(target: "sequencer", ?err, "Failed to send reset request to engine");
             return Err(SequencerActorError::ChannelClosed);
         }
@@ -670,7 +671,7 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
     type Error = SequencerActorError;
     type BuildData = SequencerInboundData;
     type InitData = SequencerInitContext;
-    type StartData = SequencerStartContext;
+    type StartData = SequencerActorState;
     type Builder = SequencerBuilder;
 
     fn build(config: Self::Builder) -> (Self::BuildData, Self) {
@@ -685,6 +686,8 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
             l1_conf_delay,
         } = self.builder.seq_cfg.clone();
 
+        let cfg = self.builder.rollup_cfg.clone();
+
         // Build the L1 provider with delay
         let l1_provider = DelayedL1OriginSelectorProvider::new(
             self.builder.l1_provider.clone(),
@@ -692,46 +695,45 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
             l1_conf_delay,
         );
 
-        let origin_selector = Box::new(L1OriginSelector::new(self.builder.rollup_cfg.clone(), l1_provider));
+        // Build the origin selector
+        let origin_selector = Box::new(L1OriginSelector::new(cfg.clone(), l1_provider))
+            as Box<dyn OriginSelector + Sync>;
 
-        let cfg = self.builder.rollup_cfg.clone();
+        // Build the attributes builder
+        let attributes_builder =
+            Box::new(self.builder.clone().build()) as Box<dyn AttributesBuilder + Sync>;
 
-        let built = self.builder.clone().build();
+        // Build the conductor if configured
+        let conductor = conductor_rpc_url
+            .map(ConductorClient::new_http)
+            .map(|c| Box::new(c) as Box<dyn Conductor + Sync>);
 
-        let start_context = SequencerStartContext::new(
+        // Create and return the state with all dependencies injected
+        SequencerActorState::new(
             cfg,
             !sequencer_stopped,
             sequencer_recovery_mode,
-            Box::new(built),
-            conductor_rpc_url.map(ConductorClient::new_http).map(|t| Box::new(t) as Box<dyn Conductor>),
+            attributes_builder,
+            conductor,
             origin_selector,
-            ctx
-        );
-
-        start_context
+            ctx.cancellation,
+            ctx.reset_request_tx,
+            ctx.build_request_tx,
+            ctx.seal_request_tx,
+            ctx.gossip_payload_tx,
+        )
     }
 
-    async fn start(mut self, mut start_ctx: Self::StartData) -> Result<(), Self::Error> {
-
-        let mut build_ticker = tokio::time::interval(Duration::from_secs(self.builder.rollup_cfg.block_time));
-
-        // Create the state with all dependencies injected.
-        // NOTE: this should probably be done in `init(...)` and be the StartData
-        let mut state = SequencerActorState::new(
-            start_ctx.cfg.clone(),
-            start_ctx.is_active,
-            start_ctx.is_recovery_mode,
-            start_ctx.attributes_builder,
-            start_ctx.conductor,
-            start_ctx.origin_selector,
-        );
+    async fn start(mut self, mut state: Self::StartData) -> Result<(), Self::Error> {
+        let mut build_ticker =
+            tokio::time::interval(Duration::from_secs(self.builder.rollup_cfg.block_time));
 
         // Initialize metrics, if configured.
         #[cfg(feature = "metrics")]
         state.update_metrics();
 
         // Reset the engine state prior to beginning block building.
-        state.schedule_initial_reset(&mut start_ctx.init_context, &mut self.unsafe_head_rx).await?;
+        state.schedule_initial_reset(&mut self.unsafe_head_rx).await?;
 
         let mut next_payload_to_seal: Option<UnsealedPayloadHandle> = None;
         let mut last_seconds_to_seal = 0u64;
@@ -740,7 +742,7 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                 // We are using a biased select here to ensure that the admin queries are given priority over the block building task.
                 // This is important to limit the occurrence of race conditions where a stopped query is received when a sequencer is building a new block.
                 biased;
-                _ = start_ctx.init_context.cancellation.cancelled() => {
+                _ = state.cancellation.cancelled() => {
                     info!(
                         target: "sequencer",
                         "Received shutdown signal. Exiting sequencer task."
@@ -785,7 +787,7 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                 // The sequencer must be active to build new blocks.
                 _ = build_ticker.tick(), if state.is_active => {
 
-                    match state.seal_last_and_start_next(&mut start_ctx, &mut self.unsafe_head_rx, state.is_recovery_mode, next_payload_to_seal.as_ref()).await {
+                    match state.seal_last_and_start_next(&mut self.unsafe_head_rx, state.is_recovery_mode, next_payload_to_seal.as_ref()).await {
                         Ok(res) => {
                             next_payload_to_seal = res.unsealed_payload_handle;
                             last_seconds_to_seal = res.seconds_to_seal;
@@ -798,12 +800,12 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                         },
                         Err(SequencerActorError::SealError(SealError::EngineError)) => {
                             error!(target: "sequencer", "Critical engine error occurred");
-                            start_ctx.init_context.cancellation.cancel();
+                            state.cancellation.cancel();
                             return Err(SequencerActorError::SealError(SealError::EngineError));
                         }
                         Err(other_err) => {
                             error!(target: "sequencer", err = ?other_err, "Unexpected error sealing payload");
-                            start_ctx.init_context.cancellation.cancel();
+                            state.cancellation.cancel();
                             return Err(other_err);
                         }
                     }

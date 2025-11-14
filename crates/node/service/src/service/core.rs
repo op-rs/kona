@@ -1,7 +1,7 @@
 //! The core [`RollupNodeService`] trait
 use crate::{
     AttributesBuilderConfig, DerivationContext, EngineContext, L1WatcherRpcContext, NetworkContext,
-    NodeActor, NodeMode, RpcContext, SequencerStartContext, SequencerInboundData,
+    NodeActor, NodeMode, RpcContext, SequencerInboundData, SequencerInitContext,
     actors::{
         DerivationInboundChannels, EngineInboundData, L1WatcherRpcInboundChannels,
         NetworkInboundData, PipelineBuilder,
@@ -45,8 +45,8 @@ pub trait RollupNodeService {
     /// The type of [`NodeActor`] to use for the DA watcher service.
     type DataAvailabilityWatcher: NodeActor<
             Error: Display,
-            InitData= L1WatcherRpcContext,
-            BuildData= L1WatcherRpcInboundChannels,
+            InitData = L1WatcherRpcContext,
+            BuildData = L1WatcherRpcInboundChannels,
         >;
 
     /// The type of derivation pipeline to use for the service.
@@ -56,15 +56,15 @@ pub trait RollupNodeService {
     type DerivationActor: NodeActor<
             Error: Display,
             Builder: PipelineBuilder<Pipeline = Self::DerivationPipeline>,
-            InitData= DerivationContext,
-            BuildData= DerivationInboundChannels,
+            InitData = DerivationContext,
+            BuildData = DerivationInboundChannels,
         >;
 
     /// The type of engine actor to use for the service.
-    type EngineActor: NodeActor<Error: Display, InitData= EngineContext, BuildData= EngineInboundData>;
+    type EngineActor: NodeActor<Error: Display, InitData = EngineContext, BuildData = EngineInboundData>;
 
     /// The type of network actor to use for the service.
-    type NetworkActor: NodeActor<Error: Display, InitData= NetworkContext, BuildData= NetworkInboundData>;
+    type NetworkActor: NodeActor<Error: Display, InitData = NetworkContext, BuildData = NetworkInboundData>;
 
     /// The type of attributes builder to use for the sequencer.
     type AttributesBuilder: AttributesBuilder + Send + Sync + 'static;
@@ -72,13 +72,13 @@ pub trait RollupNodeService {
     /// The type of sequencer actor to use for the service.
     type SequencerActor: NodeActor<
             Error: Display,
-            InitData=SequencerStartContext,
+            InitData = SequencerInitContext,
             Builder: AttributesBuilderConfig<AB = Self::AttributesBuilder>,
-            BuildData= SequencerInboundData,
+            BuildData = SequencerInboundData,
         >;
 
     /// The type of rpc actor to use for the service.
-    type RpcActor: NodeActor<Error: Display, InitData= RpcContext, BuildData= ()>;
+    type RpcActor: NodeActor<Error: Display, InitData = RpcContext, BuildData = ()>;
 
     /// The mode of operation for the node.
     fn mode(&self) -> NodeMode;
@@ -176,7 +176,7 @@ pub trait RollupNodeService {
                 )),
                 sequencer.map(|s| (
                     s,
-                    SequencerStartContext {
+                    SequencerInitContext {
                         l1_head_rx: l1_head_updates_tx.subscribe(),
                         reset_request_tx: reset_request_tx.clone(),
                         build_request_tx: build_request_tx.expect(

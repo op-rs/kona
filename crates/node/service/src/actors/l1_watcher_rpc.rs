@@ -157,15 +157,20 @@ impl NodeActor for L1WatcherRpc {
     type Error = L1WatcherRpcError<BlockInfo>;
     type BuildData = L1WatcherRpcInboundChannels;
     type InitData = L1WatcherRpcContext;
+    type StartData = L1WatcherRpcContext;
     type Builder = L1WatcherRpcState;
 
     fn build(config: Self::Builder) -> (Self::BuildData, Self) {
         Self::new(config)
     }
 
+    fn init(&self, ctx: Self::InitData) -> Self::StartData {
+        ctx
+    }
+
     async fn start(
         mut self,
-        L1WatcherRpcContext { latest_head, latest_finalized, block_signer_sender, cancellation }: Self::InitData,
+        L1WatcherRpcContext { latest_head, latest_finalized, block_signer_sender, cancellation }: Self::StartData,
     ) -> Result<(), Self::Error> {
         let mut head_stream = BlockStream::new(
             &self.state.l1_provider,

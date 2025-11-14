@@ -35,7 +35,7 @@ pub trait NextAttributes {
 /// The [`AttributesBuilder`] is responsible for preparing [`OpPayloadAttributes`]
 /// that can be used to construct an L2 Block containing only deposits.
 #[async_trait]
-pub trait AttributesBuilder: Debug {
+pub trait AttributesBuilder: Debug + Send {
     /// Prepares a template [`OpPayloadAttributes`] that is ready to be used to build an L2
     /// block. The block will contain deposits only, on top of the given L2 parent, with the L1
     /// origin set to the given epoch.
