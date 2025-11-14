@@ -5,10 +5,14 @@ use kona_engine::{BuildError, SealError};
 use kona_protocol::OpAttributesWithParent;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{fmt::Debug, time::Instant};
+use derive_more::Constructor;
 use tokio::sync::mpsc;
 
+/// Trait to be referenced by those interacting with EngineActor for block building
+/// operations. The EngineActor requires the use of channels for communication, but
+/// this interface allows that to be abstracted from callers and allows easy testing.
 #[async_trait]
-pub trait BlockEngine: Debug {
+pub trait BlockEngine: Debug + Send + Sync {
     async fn start_build_block(
         &self,
         attributes: OpAttributesWithParent,
@@ -20,7 +24,9 @@ pub trait BlockEngine: Debug {
     ) -> Result<OpExecutionPayloadEnvelope, SealError>;
 }
 
-#[derive(Debug)]
+/// Queue-based implementation of the [`BlockEngine`] trait. This handles all channel-based operations,
+/// providing a nice facade for callers.
+#[derive(Constructor,Debug)]
 pub struct QueuedBlockEngine {
     /// A channel to use to send build requests to the engine.
     /// Upon successful processing of the provided attributes, a `PayloadId` will be sent via the

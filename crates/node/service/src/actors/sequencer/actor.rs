@@ -4,24 +4,21 @@ use super::{
     DelayedL1OriginSelectorProvider, L1OriginSelector, L1OriginSelectorError, SequencerConfig,
 };
 use crate::{
-    CancellableContext, NodeActor,
     actors::{
-        engine::{BuildRequest, SealRequest},
         sequencer::{
             conductor::{Conductor, ConductorClient},
             origin_selector::OriginSelector,
             rpc::{QueuedSequencerAdminAPIClient, SequencerAdminQuery},
-        },
-    },
+        }, BlockEngine,
+    }, CancellableContext, NodeActor
 };
 use alloy_primitives::B256;
 use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::PayloadId;
-use alloy_rpc_types_eth::state;
 use async_trait::async_trait;
 use derive_more::Constructor;
 use kona_derive::{AttributesBuilder, PipelineErrorKind, StatefulAttributesBuilder};
-use kona_engine::SealError;
+use kona_engine::{BuildError, SealError};
 use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use kona_providers_alloy::{AlloyChainProvider, AlloyL2ChainProvider};
@@ -94,16 +91,12 @@ pub struct SequencerActorState {
     pub conductor: Option<Box<dyn Conductor + Sync>>,
     /// The struct used to determine the next L1 origin, given some inputs.
     pub origin_selector: Box<dyn OriginSelector + Sync>,
+    /// The struct used to build blocks.
+    pub block_engine: Box<dyn BlockEngine + Sync>,
     /// The cancellation token, shared between all tasks.
     pub cancellation: CancellationToken,
     /// Sender to request the engine to reset.
     pub reset_request_tx: mpsc::Sender<()>,
-    /// Sender to request the execution layer to start building a payload on top of the
-    /// current unsafe head.
-    pub build_request_tx: mpsc::Sender<BuildRequest>,
-    /// Sender to request the execution layer to seal and commit the payload ID and
-    /// attributes that resulted from a previous build call.
-    pub seal_request_tx: mpsc::Sender<SealRequest>,
     /// A sender to asynchronously sign and gossip built [`OpExecutionPayloadEnvelope`]s to the
     /// network actor.
     pub gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
@@ -128,10 +121,9 @@ impl SequencerActorState {
         attributes_builder: Box<dyn AttributesBuilder + Sync>,
         conductor: Option<Box<dyn Conductor + Sync>>,
         origin_selector: Box<dyn OriginSelector + Sync>,
+        block_engine: Box<dyn BlockEngine + Sync>,
         cancellation: CancellationToken,
         reset_request_tx: mpsc::Sender<()>,
-        build_request_tx: mpsc::Sender<BuildRequest>,
-        seal_request_tx: mpsc::Sender<SealRequest>,
         gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
     ) -> Self {
         Self {
@@ -141,10 +133,9 @@ impl SequencerActorState {
             attributes_builder,
             conductor,
             origin_selector,
+            block_engine,
             cancellation,
             reset_request_tx,
-            build_request_tx,
-            seal_request_tx,
             gossip_payload_tx,
         }
     }
@@ -214,12 +205,8 @@ pub struct SequencerInitContext {
     pub l1_head_rx: watch::Receiver<Option<BlockInfo>>,
     /// Sender to request the engine to reset.
     pub reset_request_tx: mpsc::Sender<()>,
-    /// Sender to request the execution layer to start building a payload on top of the
-    /// current unsafe head.
-    pub build_request_tx: mpsc::Sender<BuildRequest>,
-    /// Sender to request the execution layer to seal and commit the payload ID and
-    /// attributes that resulted from a previous build call.
-    pub seal_request_tx: mpsc::Sender<SealRequest>,
+    /// [`BlockEngine`] reference through which to build and seal blocks.
+    pub block_engine: Box<dyn BlockEngine>,
     /// A sender to asynchronously sign and gossip built [`OpExecutionPayloadEnvelope`]s to the
     /// network actor.
     pub gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
@@ -246,6 +233,9 @@ pub enum SequencerActorError {
     /// An error occurred while attempting to seal a payload.
     #[error(transparent)]
     SealError(#[from] SealError),
+    /// An error occurred while attempting to build a payload.
+    #[error(transparent)]
+    BuildError(#[from] BuildError),
 }
 
 impl<AB: AttributesBuilderConfig> SequencerActor<AB> {
@@ -290,25 +280,13 @@ impl SequencerActorState {
         &mut self,
         unsealed_payload_handle: &UnsealedPayloadHandle,
     ) -> Result<(), SequencerActorError> {
-        // Create a new channel to receive the built payload.
-        let (seal_result_tx, seal_result_rx) = mpsc::channel(1);
+        let _seal_request_start = Instant::now();
 
         // Send the seal request to the engine to seal the unsealed block.
-        let _seal_request_start = Instant::now();
-        if let Err(err) = self
-            .seal_request_tx
-            .send((
-                unsealed_payload_handle.payload_id,
-                unsealed_payload_handle.attributes_with_parent.clone(),
-                seal_result_tx,
-            ))
-            .await
-        {
-            error!(target: "sequencer", ?err, "Failed to send seal request to engine, payload id {},", unsealed_payload_handle.payload_id);
-            return Err(SequencerActorError::ChannelClosed);
-        }
-
-        let payload = self.try_wait_for_payload(seal_result_rx).await?;
+        let payload = self.block_engine.seal_and_canonicalize_block(
+            unsealed_payload_handle.payload_id,
+            unsealed_payload_handle.attributes_with_parent.clone(),
+        ).await?;
 
         // Log the block building seal task duration, if metrics are enabled.
         kona_macros::set!(
@@ -399,19 +377,10 @@ impl SequencerActorState {
             _attributes_build_start.elapsed()
         );
 
-        // Create a new channel to receive the built payload.
-        let (payload_id_tx, payload_id_rx) = mpsc::channel(1);
-
         // Send the built attributes to the engine to be built.
         let _build_request_start = Instant::now();
-        if let Err(err) =
-            self.build_request_tx.send((attrs_with_parent.clone(), payload_id_tx)).await
-        {
-            error!(target: "sequencer", ?err, "Failed to send built attributes to engine");
-            return Err(SequencerActorError::ChannelClosed);
-        }
 
-        let payload_id = self.try_wait_for_payload_id(payload_id_rx).await?;
+        let payload_id = self.block_engine.start_build_block(attrs_with_parent.clone()).await?;
 
         Ok(Some(UnsealedPayloadHandle::new(payload_id, attrs_with_parent)))
     }
@@ -513,34 +482,6 @@ impl SequencerActorState {
 
         let attrs_with_parent = OpAttributesWithParent::new(attributes, unsafe_head, None, false);
         Ok(Some(attrs_with_parent))
-    }
-
-    /// Waits for the next payload to be built and returns it, if there is a payload receiver
-    /// present.
-    async fn try_wait_for_payload(
-        &mut self,
-        mut payload_rx: mpsc::Receiver<Result<OpExecutionPayloadEnvelope, SealError>>,
-    ) -> Result<OpExecutionPayloadEnvelope, SequencerActorError> {
-        match payload_rx.recv().await {
-            Some(Ok(x)) => Ok(x),
-            Some(Err(x)) => Err(SequencerActorError::SealError(x)),
-            None => {
-                error!(target: "sequencer", "Failed to receive built payload");
-                Err(SequencerActorError::ChannelClosed)
-            }
-        }
-    }
-
-    /// Waits for the next payload to be built and returns it, if there is a payload receiver
-    /// present.
-    async fn try_wait_for_payload_id(
-        &mut self,
-        mut payload_id_rx: mpsc::Receiver<PayloadId>,
-    ) -> Result<PayloadId, SequencerActorError> {
-        payload_id_rx.recv().await.ok_or_else(|| {
-            error!(target: "sequencer", "Failed to receive payload for initiated block build");
-            SequencerActorError::ChannelClosed
-        })
     }
 
     /// Schedules a built [`OpExecutionPayloadEnvelope`] to be signed and gossipped.
@@ -716,10 +657,9 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
             attributes_builder,
             conductor,
             origin_selector,
+            ctx.block_engine,
             ctx.cancellation,
             ctx.reset_request_tx,
-            ctx.build_request_tx,
-            ctx.seal_request_tx,
             ctx.gossip_payload_tx,
         )
     }
@@ -802,9 +742,9 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                             error!(target: "sequencer", "Critical engine error occurred");
                             state.cancellation.cancel();
                             return Err(SequencerActorError::SealError(SealError::EngineError));
-                        }
+                        },
                         Err(other_err) => {
-                            error!(target: "sequencer", err = ?other_err, "Unexpected error sealing payload");
+                            error!(target: "sequencer", err = ?other_err, "Unexpected error building or sealing payload");
                             state.cancellation.cancel();
                             return Err(other_err);
                         }

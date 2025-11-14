@@ -1,12 +1,12 @@
 //! The [`EngineActor`].
 
-use super::{EngineError, L2Finalizer};
+use super::{EngineError, L2Finalizer, BlockEngine, QueuedBlockEngine};
 use alloy_rpc_types_engine::{JwtSecret, PayloadId};
 use async_trait::async_trait;
 use futures::future::OptionFuture;
 use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
-    BuildError, BuildTask, ConsolidateTask, Engine, EngineClient, EngineQueries,
+    BuildTask, ConsolidateTask, Engine, EngineClient, EngineQueries,
     EngineState as InnerEngineState, EngineTask, EngineTaskError, EngineTaskErrorSeverity,
     InsertTask, SealError, SealTask,
 };
@@ -70,20 +70,8 @@ pub struct EngineActor {
 /// The outbound data for the [`EngineActor`].
 #[derive(Debug)]
 pub struct EngineInboundData {
-    /// A channel to use to send build requests to the [`EngineActor`].
-    /// Upon successful processing of the provided attributes, a `PayloadId` will be sent via the
-    /// provided sender.
-    /// ## Note
-    /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
-    /// mode.
-    pub build_request_tx: Option<mpsc::Sender<BuildRequest>>,
-    /// A channel to send seal requests to the [`EngineActor`].
-    /// If provided, the success/fail result of the sealing operation will be sent via the provided
-    /// sender.
-    /// ## Note
-    /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
-    /// mode.
-    pub seal_request_tx: Option<mpsc::Sender<SealRequest>>,
+    /// A trait object used to send block building requests to the [`EngineActor`].
+    pub block_engine: Option<Box<dyn BlockEngine>>,
     /// A channel to send [`OpAttributesWithParent`] to the engine actor.
     pub attributes_tx: mpsc::Sender<OpAttributesWithParent>,
     /// A channel to send [`OpExecutionPayloadEnvelope`] to the engine actor.
@@ -192,13 +180,14 @@ impl EngineActor {
         let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
         let (reset_request_tx, reset_request_rx) = mpsc::channel(1024);
 
-        let (build_request_tx, build_request_rx, seal_request_tx, seal_request_rx) =
+        let (block_engine, build_request_rx, seal_request_rx) =
             if config.mode.is_sequencer() {
                 let (build_tx, build_rx) = mpsc::channel(1024);
                 let (seal_tx, seal_rx) = mpsc::channel(1024);
-                (Some(build_tx), Some(build_rx), Some(seal_tx), Some(seal_rx))
+                let block_engine = Box::new(QueuedBlockEngine::new(build_tx, seal_tx)) as Box<dyn BlockEngine>;
+                (Some(block_engine), Some(build_rx), Some(seal_rx))
             } else {
-                (None, None, None, None)
+                (None, None, None)
             };
 
         let actor = Self {
@@ -213,8 +202,7 @@ impl EngineActor {
         };
 
         let outbound_data = EngineInboundData {
-            build_request_tx,
-            seal_request_tx,
+            block_engine,
             finalized_l1_block_tx,
             inbound_queries_tx,
             attributes_tx,
