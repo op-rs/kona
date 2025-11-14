@@ -22,8 +22,8 @@ pub use actors::{
     L1WatcherRpcError, L1WatcherRpcInboundChannels, L1WatcherRpcState, L2Finalizer, NetworkActor,
     NetworkActorError, NetworkBuilder, NetworkBuilderError, NetworkConfig, NetworkContext,
     NetworkDriver, NetworkDriverError, NetworkHandler, NetworkInboundData, NodeActor,
-    PipelineBuilder, QueuedSequencerAdminAPIClient, RpcActor, RpcActorError, RpcContext, 
-    SequencerActor, SequencerActorError, SequencerBuilder, SequencerConfig, SequencerContext, 
+    PipelineBuilder, QueuedSequencerAdminAPIClient, RpcActor, RpcActorError, RpcContext,
+    SequencerActor, SequencerActorError, SequencerBuilder, SequencerConfig, SequencerStartContext,
     SequencerInboundData,
 };
 

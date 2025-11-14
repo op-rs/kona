@@ -14,7 +14,7 @@ pub use origin_selector::MockOriginSelector;
 mod actor;
 pub use actor::{
     AttributesBuilderConfig, SequencerActor, SequencerActorError, SequencerBuilder,
-    SequencerContext, SequencerInboundData,
+    SequencerStartContext, SequencerInboundData,
 };
 
 mod rpc;

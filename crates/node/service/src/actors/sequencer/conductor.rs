@@ -3,10 +3,11 @@ use alloy_transport::{RpcError, TransportErrorKind};
 use async_trait::async_trait;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use url::Url;
+use std::fmt::Debug;
 
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
-pub trait Conductor {
+pub trait Conductor: Debug {
     /// Commit an unsafe payload to the conductor.
     async fn commit_unsafe_payload(
         &self,

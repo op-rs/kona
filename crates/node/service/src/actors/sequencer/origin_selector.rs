@@ -7,11 +7,12 @@ use async_trait::async_trait;
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo};
 use std::sync::Arc;
+use std::fmt::Debug;
 use tokio::sync::watch;
 
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
-pub trait OriginSelector {
+pub trait OriginSelector: Debug {
     async fn next_l1_origin(
         &mut self,
         unsafe_head: L2BlockInfo,

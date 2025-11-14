@@ -390,11 +390,11 @@ impl EngineActorState {
 #[async_trait]
 impl NodeActor for EngineActor {
     type Error = EngineError;
-    type OutboundData = EngineContext;
-    type InboundData = EngineInboundData;
+    type InitData = EngineContext;
+    type BuildData = EngineInboundData;
     type Builder = EngineBuilder;
 
-    fn build(config: Self::Builder) -> (Self::InboundData, Self) {
+    fn build(config: Self::Builder) -> (Self::BuildData, Self) {
         Self::new(config)
     }
 
@@ -406,7 +406,7 @@ impl NodeActor for EngineActor {
             sync_complete_tx,
             derivation_signal_tx,
             mut engine_unsafe_head_tx,
-        }: Self::OutboundData,
+        }: Self::InitData,
     ) -> Result<(), Self::Error> {
         let mut state = self.builder.build_state();
 

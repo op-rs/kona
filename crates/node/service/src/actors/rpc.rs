@@ -101,11 +101,11 @@ async fn launch(
 #[async_trait]
 impl NodeActor for RpcActor {
     type Error = RpcActorError;
-    type OutboundData = RpcContext;
-    type InboundData = ();
+    type InitData = RpcContext;
+    type BuildData = ();
     type Builder = RpcBuilder;
 
-    fn build(config: Self::Builder) -> (Self::InboundData, Self) {
+    fn build(config: Self::Builder) -> (Self::BuildData, Self) {
         ((), Self::new(config))
     }
 
@@ -118,7 +118,7 @@ impl NodeActor for RpcActor {
             engine_query,
             network_admin,
             sequencer_admin,
-        }: Self::OutboundData,
+        }: Self::InitData,
     ) -> Result<(), Self::Error> {
         let mut modules = RpcModule::new(());
 
