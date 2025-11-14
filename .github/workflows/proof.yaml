@@ -48,6 +48,7 @@ jobs:
           go-version: "1.22.7"
           cache-dependency-path: |
             tests/go.sum
+            tests/optimism/go.sum
       - name: Setup gotestsum
         uses: autero1/action-gotestsum@v2.0.0
         with:
@@ -77,19 +78,11 @@ jobs:
         with:
           total: ${{ matrix.parallel }}
           index: ${{ matrix.index }}
-          junit-summary: ./junit-test-summary.xml
           working-directory: ./tests/optimism/op-e2e/actions/proofs
 
       - name: Run Action Tests
         run: |
           just "action-tests-${{ matrix.kind }}-run" "${{ steps.test_split.outputs.run }}"
-
-      - name: Upload test artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: junit-test-summary-${{ matrix.index }}
-          path: tests/optimism/op-e2e/actions/proofs/node-summary.xml
-          retention-days: 1
 
       - name: Upload coverage to codecov.io
         uses: codecov/codecov-action@v5
@@ -100,32 +93,6 @@ jobs:
           files: actions_cov.lcov
           flags: proof
           verbose: true
-
-
-  tests-combine-summaries:
-    name: Combine Test Reports
-    needs: [action-tests]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-
-      - name: Install junit-report-merger
-        run: npm install -g junit-report-merger
-
-      - name: Merge reports
-        run: jrm ./junit-test-summary.xml "junit-test-summary-0/*.xml" "junit-test-summary-1/*.xml" "junit-test-summary-2/*.xml" "junit-test-summary-3/*.xml"
-
-      - name: Upload test artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: junit-test-summary
-          path: ./junit-test-summary.xml
-
 
   host-client-offline-runs:
     name: FPP e2e - ${{ matrix.target}} | ${{ matrix.name }}

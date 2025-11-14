@@ -18,7 +18,7 @@ workspace = true
 # workspace
 kona-rpc.workspace = true
 kona-peers.workspace = true
-kona-genesis.workspace = true
+kona-genesis = { workspace = true, features = ["tabled"] }
 kona-protocol.workspace = true
 
 kona-cli = { workspace = true, features = ["secrets"] }

@@ -52,7 +52,9 @@ jobs:
         with:
           # Semantic version range syntax or exact version of Go
           go-version: '1.23.8'
-          cache-dependency-path: "**/go.sum"
+          cache-dependency-path: |
+            tests/go.sum
+            tests/optimism/go.sum
 
       - name: acceptance tests for ${{ matrix.devnet-config }}
         run: |
