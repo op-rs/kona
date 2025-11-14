@@ -46,6 +46,7 @@ jobs:
           go-version: "1.22.7"
           cache-dependency-path: |
             tests/go.sum
+            tests/optimism/go.sum
       - name: Setup gotestsum
         uses: autero1/action-gotestsum@v2.0.0
         with:
