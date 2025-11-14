@@ -16,7 +16,7 @@ mod actors;
 pub use actors::{
     AttributesBuilderConfig, CancellableContext, ConductorClient, ConductorError,
     DelayedL1OriginSelectorProvider, DerivationActor, DerivationBuilder, DerivationContext,
-    DerivationError, DerivationInboundChannels, DerivationState, EngineActor, EngineBuilder,
+    DerivationError, DerivationInboundChannels, DerivationState, EngineActor, EngineConfig,
     EngineContext, EngineError, EngineInboundData, InboundDerivationMessage, L1OriginSelector,
     L1OriginSelectorError, L1OriginSelectorProvider, L1WatcherRpc, L1WatcherRpcContext,
     L1WatcherRpcError, L1WatcherRpcInboundChannels, L1WatcherRpcState, L2Finalizer, NetworkActor,

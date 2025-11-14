@@ -10,7 +10,7 @@
 extern crate tracing;
 
 mod admin;
-pub use admin::{AdminRpc, NetworkAdminQuery, SequencerAdminQuery};
+pub use admin::{AdminRpc, NetworkAdminQuery, RollupBoostAdminQuery, SequencerAdminQuery};
 
 mod config;
 pub use config::RpcBuilder;
@@ -31,8 +31,8 @@ pub use dev::DevEngineRpc;
 
 mod jsonrpsee;
 pub use jsonrpsee::{
-    AdminApiServer, DevEngineApiServer, MinerApiExtServer, OpAdminApiServer, OpP2PApiServer,
-    RollupNodeApiServer, WsServer,
+    AdminApiServer, DevEngineApiServer, HealthzApiServer, MinerApiExtServer, OpAdminApiServer,
+    OpP2PApiServer, RollupNodeApiServer, WsServer,
 };
 
 mod rollup;
@@ -44,9 +44,5 @@ pub use l1_watcher::{L1State, L1WatcherQueries, L1WatcherQuerySender};
 mod ws;
 pub use ws::WsRPC;
 
-/// A healthcheck response for the RPC server.
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct HealthzResponse {
-    /// The application version.
-    pub version: String,
-}
+mod health;
+pub use health::{HealthzResponse, HealthzRpc, RollupBoostHealth, RollupBoostHealthQuery};

@@ -7,7 +7,7 @@ pub use traits::{CancellableContext, NodeActor};
 
 mod engine;
 pub use engine::{
-    EngineActor, EngineBuilder, EngineContext, EngineError, EngineInboundData, L2Finalizer,
+    EngineActor, EngineConfig, EngineContext, EngineError, EngineInboundData, L2Finalizer,
 };
 
 mod rpc;

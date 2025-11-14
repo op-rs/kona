@@ -1,10 +1,9 @@
 //! Contains the builder for the [`RollupNode`].
 
-use crate::{EngineBuilder, InteropMode, NetworkConfig, NodeMode, RollupNode, SequencerConfig};
+use crate::{EngineConfig, InteropMode, NetworkConfig, RollupNode, SequencerConfig};
 use alloy_primitives::Bytes;
 use alloy_provider::RootProvider;
 use alloy_rpc_client::RpcClient;
-use alloy_rpc_types_engine::JwtSecret;
 use alloy_transport_http::{
     AuthLayer, Http, HyperClient,
     hyper_util::{client::legacy::Client, rt::TokioExecutor},
@@ -13,87 +12,61 @@ use http_body_util::Full;
 use op_alloy_network::Optimism;
 use std::sync::Arc;
 use tower::ServiceBuilder;
-use url::Url;
 
 use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_providers_alloy::OnlineBeaconClient;
 use kona_rpc::RpcBuilder;
 
 /// The [`RollupNodeBuilder`] is used to construct a [`RollupNode`] service.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct RollupNodeBuilder {
     /// The rollup configuration.
-    config: RollupConfig,
+    pub config: RollupConfig,
     /// The L1 chain configuration.
-    l1_config: L1ChainConfig,
-    /// The L1 EL provider RPC URL.
-    l1_provider_rpc_url: Option<Url>,
+    pub l1_config: L1ChainConfig,
     /// Whether to trust the L1 RPC.
-    l1_trust_rpc: bool,
-    /// The L1 beacon API URL.
-    l1_beacon_api_url: Option<Url>,
-    /// The L2 engine RPC URL.
-    l2_engine_rpc_url: Option<Url>,
+    pub l1_trust_rpc: bool,
     /// Whether to trust the L2 RPC.
-    l2_trust_rpc: bool,
-    /// The JWT secret.
-    jwt_secret: Option<JwtSecret>,
+    pub l2_trust_rpc: bool,
+    /// Engine builder configuration.
+    pub engine_config: EngineConfig,
     /// The [`NetworkConfig`].
-    p2p_config: Option<NetworkConfig>,
+    pub p2p_config: NetworkConfig,
     /// An RPC Configuration.
-    rpc_config: Option<RpcBuilder>,
+    pub rpc_config: Option<RpcBuilder>,
     /// The [`SequencerConfig`].
-    sequencer_config: Option<SequencerConfig>,
-    /// The mode to run the node in.
-    mode: NodeMode,
+    pub sequencer_config: Option<SequencerConfig>,
     /// Whether to run the node in interop mode.
-    interop_mode: InteropMode,
+    pub interop_mode: InteropMode,
 }
 
 impl RollupNodeBuilder {
     /// Creates a new [`RollupNodeBuilder`] with the given [`RollupConfig`].
-    pub fn new(config: RollupConfig, l1_config: L1ChainConfig) -> Self {
-        Self { config, l1_config, ..Self::default() }
+    pub fn new(
+        config: RollupConfig,
+        l1_config: L1ChainConfig,
+        l1_trust_rpc: bool,
+        l2_trust_rpc: bool,
+        engine_config: EngineConfig,
+        p2p_config: NetworkConfig,
+        rpc_config: Option<RpcBuilder>,
+    ) -> Self {
+        Self {
+            config,
+            l1_config,
+            l1_trust_rpc,
+            l2_trust_rpc,
+            engine_config,
+            p2p_config,
+            rpc_config,
+            interop_mode: InteropMode::default(),
+            sequencer_config: None,
+        }
     }
 
-    /// Sets the [`NodeMode`] on the [`RollupNodeBuilder`].
-    pub fn with_mode(self, mode: NodeMode) -> Self {
-        Self { mode, ..self }
-    }
-
-    /// Appends an L1 EL provider RPC URL to the builder.
-    pub fn with_l1_provider_rpc_url(self, l1_provider_rpc_url: Url) -> Self {
-        Self { l1_provider_rpc_url: Some(l1_provider_rpc_url), ..self }
-    }
-
-    /// Sets whether to trust the L1 RPC.
-    pub fn with_l1_trust_rpc(self, l1_trust_rpc: bool) -> Self {
-        Self { l1_trust_rpc, ..self }
-    }
-
-    /// Appends an L1 beacon API URL to the builder.
-    pub fn with_l1_beacon_api_url(self, l1_beacon_api_url: Url) -> Self {
-        Self { l1_beacon_api_url: Some(l1_beacon_api_url), ..self }
-    }
-
-    /// Appends an L2 engine RPC URL to the builder.
-    pub fn with_l2_engine_rpc_url(self, l2_engine_rpc_url: Url) -> Self {
-        Self { l2_engine_rpc_url: Some(l2_engine_rpc_url), ..self }
-    }
-
-    /// Sets whether to trust the L2 RPC.
-    pub fn with_l2_trust_rpc(self, l2_trust_rpc: bool) -> Self {
-        Self { l2_trust_rpc, ..self }
-    }
-
-    /// Appends a JWT secret to the builder.
-    pub fn with_jwt_secret(self, jwt_secret: JwtSecret) -> Self {
-        Self { jwt_secret: Some(jwt_secret), ..self }
-    }
-
-    /// Appends the P2P [`NetworkConfig`] to the builder.
-    pub fn with_p2p_config(self, config: NetworkConfig) -> Self {
-        Self { p2p_config: Some(config), ..self }
+    /// Sets the [`EngineConfig`] on the [`RollupNodeBuilder`].
+    pub fn with_engine_config(self, engine_config: EngineConfig) -> Self {
+        Self { engine_config, ..self }
     }
 
     /// Sets the [`RpcBuilder`] on the [`RollupNodeBuilder`].
@@ -117,36 +90,26 @@ impl RollupNodeBuilder {
     /// - The L2 engine URL is not set.
     /// - The jwt secret is not set.
     /// - The P2P config is not set.
+    /// - The rollup boost args are not set.
     pub fn build(self) -> RollupNode {
-        let l1_rpc_url = self.l1_provider_rpc_url.expect("l1 provider rpc url not set");
-        let l1_provider = RootProvider::new_http(l1_rpc_url.clone());
-        let l1_beacon = OnlineBeaconClient::new_http(
-            self.l1_beacon_api_url.expect("l1 beacon api url not set").to_string(),
-        );
+        let l1_provider = RootProvider::new_http(self.engine_config.l1_url.clone());
+        let l1_beacon = OnlineBeaconClient::new_http(self.engine_config.l1_beacon.to_string());
 
-        let engine_url = self.l2_engine_rpc_url.expect("l2 engine rpc url not set");
-        let jwt_secret = self.jwt_secret.expect("jwt secret not set");
+        let jwt_secret = self.engine_config.l2_jwt_secret;
         let hyper_client = Client::builder(TokioExecutor::new()).build_http::<Full<Bytes>>();
 
         let auth_layer = AuthLayer::new(jwt_secret);
         let service = ServiceBuilder::new().layer(auth_layer).service(hyper_client);
 
         let layer_transport = HyperClient::with_service(service);
-        let http_hyper = Http::with_client(layer_transport, engine_url.clone());
+        let http_hyper = Http::with_client(layer_transport, self.engine_config.l2_url.clone());
         let rpc_client = RpcClient::new(http_hyper, false);
         let l2_provider = RootProvider::<Optimism>::new(rpc_client);
 
         let rollup_config = Arc::new(self.config);
         let l1_config = Arc::new(self.l1_config);
-        let engine_builder = EngineBuilder {
-            config: Arc::clone(&rollup_config),
-            l1_rpc_url,
-            engine_url,
-            jwt_secret,
-            mode: self.mode,
-        };
 
-        let p2p_config = self.p2p_config.expect("P2P config not set");
+        let p2p_config = self.p2p_config;
         let sequencer_config = self.sequencer_config.unwrap_or_default();
 
         RollupNode {
@@ -158,7 +121,7 @@ impl RollupNodeBuilder {
             l1_beacon,
             l2_provider,
             l2_trust_rpc: self.l2_trust_rpc,
-            engine_builder,
+            engine_config: self.engine_config,
             rpc_builder: self.rpc_config,
             p2p_config,
             sequencer_config,
