@@ -31,15 +31,15 @@ jobs:
         with:
           submodules: true
 
-      - uses: ./.github/actions/setup
-        with:
-          channel: stable
-          components: llvm-tools-preview
-
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
           large-packages: false
+
+      - uses: ./.github/actions/setup
+        with:
+          channel: stable
+          components: llvm-tools-preview
 
       - uses: taiki-e/install-action@just
 
