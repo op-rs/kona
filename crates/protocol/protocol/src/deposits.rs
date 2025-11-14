@@ -121,7 +121,7 @@ pub fn decode_deposit(block_hash: B256, index: usize, log: &Log) -> Result<Bytes
     // The opaqueData will be packed as shown below:
     //
     // ------------------------------------------------------------
-    // | offset | 256 byte content                                |
+    // | offset | 32 byte content                                 |
     // ------------------------------------------------------------
     // | 0      | [0; 24] . {U64 big endian, hex encoded offset}  |
     // ------------------------------------------------------------
