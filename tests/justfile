@@ -40,7 +40,7 @@ cleanup-kurtosis:
 
 build-reth:
   #!/bin/bash
-  cd {{SOURCE}}/reth/crates/optimism/bin && cargo build --bin op-reth
+  cd {{SOURCE}}/reth && cargo build --bin op-reth -p op-reth
 
 build-kona:
   #!/bin/bash
