@@ -5422,7 +5422,7 @@ dependencies = [
  "kona-supervisor-metrics",
  "kona-supervisor-types",
  "metrics",
- "modular-bitfield",
+ "modular-bitfield 0.13.0",
  "op-alloy-consensus 0.22.1",
  "reth-codecs",
  "reth-db",
@@ -6198,7 +6198,17 @@ version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a53d79ba8304ac1c4f9eb3b9d281f21f7be9d4626f72ce7df4ad8fbde4f38a74"
 dependencies = [
- "modular-bitfield-impl",
+ "modular-bitfield-impl 0.11.2",
+ "static_assertions",
+]
+
+[[package]]
+name = "modular-bitfield"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47a586be3f2f7e70a9d302c621447dba612d42069f3901258b2cf8ce96d855b1"
+dependencies = [
+ "modular-bitfield-impl 0.13.0",
  "static_assertions",
 ]
 
@@ -6211,6 +6221,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "modular-bitfield-impl"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8462d3cc74eaf4194f6c0bd7b18c6f3fa6293297f4bdb60fe4c4b022ea366e12"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
 ]
 
 [[package]]
@@ -7858,7 +7879,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-trie",
  "bytes",
- "modular-bitfield",
+ "modular-bitfield 0.11.2",
  "op-alloy-consensus 0.18.14",
  "reth-codecs-derive",
  "reth-zstd-compressors",
@@ -7911,7 +7932,7 @@ dependencies = [
  "bytes",
  "derive_more",
  "metrics",
- "modular-bitfield",
+ "modular-bitfield 0.11.2",
  "parity-scale-codec",
  "reth-codecs",
  "reth-db-models",
@@ -7933,7 +7954,7 @@ dependencies = [
  "alloy-eips",
  "alloy-primitives",
  "bytes",
- "modular-bitfield",
+ "modular-bitfield 0.11.2",
  "reth-codecs",
  "reth-primitives-traits",
  "serde",
@@ -7948,7 +7969,7 @@ dependencies = [
  "alloy-eips",
  "alloy-primitives",
  "alloy-rlp",
- "modular-bitfield",
+ "modular-bitfield 0.11.2",
  "reth-codecs",
  "reth-primitives-traits",
  "reth-zstd-compressors",
@@ -8034,7 +8055,7 @@ dependencies = [
  "byteorder",
  "bytes",
  "derive_more",
- "modular-bitfield",
+ "modular-bitfield 0.11.2",
  "once_cell",
  "op-alloy-consensus 0.18.14",
  "reth-codecs",
@@ -8054,7 +8075,7 @@ source = "git+https://github.com/paradigmxyz/reth?tag=v1.6.0#d8451e54e7267f9f163
 dependencies = [
  "alloy-primitives",
  "derive_more",
- "modular-bitfield",
+ "modular-bitfield 0.11.2",
  "reth-codecs",
  "serde",
  "thiserror 2.0.17",
@@ -8067,7 +8088,7 @@ source = "git+https://github.com/paradigmxyz/reth?tag=v1.6.0#d8451e54e7267f9f163
 dependencies = [
  "alloy-primitives",
  "bytes",
- "modular-bitfield",
+ "modular-bitfield 0.11.2",
  "reth-codecs",
  "reth-trie-common",
  "serde",
