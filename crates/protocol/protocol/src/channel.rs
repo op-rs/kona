@@ -120,8 +120,12 @@ impl Channel {
             // closing frame.
             if self.last_frame_number < self.highest_frame_number {
                 self.inputs.retain(|id, frame| {
-                    self.estimated_size -= frame.size();
-                    *id < self.last_frame_number
+                    if *id >= self.last_frame_number {
+                        self.estimated_size -= frame.size();
+                        false
+                    } else {
+                        true
+                    }
                 });
                 self.highest_frame_number = self.last_frame_number;
             }
@@ -196,14 +200,9 @@ impl Channel {
 #[cfg(test)]
 mod test {
     use super::*;
-    use alloc::{
-        string::{String, ToString},
-        vec,
-    };
+    use alloc::vec;
 
     struct FrameValidityTestCase {
-        #[allow(dead_code)]
-        name: String,
         frames: Vec<Frame>,
         should_error: Vec<bool>,
         sizes: Vec<u64>,
@@ -211,9 +210,6 @@ mod test {
     }
 
     fn run_frame_validity_test(test_case: FrameValidityTestCase) {
-        // #[cfg(feature = "std")]
-        // println!("Running test: {}", test_case.name);
-
         let id = [0xFF; 16];
         let block = BlockInfo::default();
         let mut channel = Channel::new(id, block);
@@ -258,14 +254,12 @@ mod test {
         let id = [0xFF; 16];
         let test_cases = [
             FrameValidityTestCase {
-                name: "wrong channel".to_string(),
                 frames: vec![Frame { id: [0xEE; 16], ..Default::default() }],
                 should_error: vec![true],
                 sizes: vec![0],
                 frame_data: None,
             },
             FrameValidityTestCase {
-                name: "double close".to_string(),
                 frames: vec![
                     Frame { id, is_last: true, number: 2, data: b"four".to_vec() },
                     Frame { id, is_last: true, number: 1, ..Default::default() },
@@ -275,7 +269,6 @@ mod test {
                 frame_data: None,
             },
             FrameValidityTestCase {
-                name: "duplicate frame".to_string(),
                 frames: vec![
                     Frame { id, number: 2, data: b"four".to_vec(), ..Default::default() },
                     Frame { id, number: 2, data: b"seven".to_vec(), ..Default::default() },
@@ -285,7 +278,6 @@ mod test {
                 frame_data: None,
             },
             FrameValidityTestCase {
-                name: "duplicate closing frames".to_string(),
                 frames: vec![
                     Frame { id, number: 2, is_last: true, data: b"four".to_vec() },
                     Frame { id, number: 2, is_last: true, data: b"seven".to_vec() },
@@ -295,7 +287,6 @@ mod test {
                 frame_data: None,
             },
             FrameValidityTestCase {
-                name: "frame past closing".to_string(),
                 frames: vec![
                     Frame { id, number: 2, is_last: true, data: b"four".to_vec() },
                     Frame { id, number: 10, data: b"seven".to_vec(), ..Default::default() },
@@ -305,7 +296,6 @@ mod test {
                 frame_data: None,
             },
             FrameValidityTestCase {
-                name: "prune after close frame".to_string(),
                 frames: vec![
                     Frame { id, number: 0, is_last: false, data: b"seven".to_vec() },
                     Frame { id, number: 1, is_last: true, data: b"four".to_vec() },
@@ -315,7 +305,6 @@ mod test {
                 frame_data: Some(b"sevenfour".to_vec().into()),
             },
             FrameValidityTestCase {
-                name: "multiple valid frames, no data".to_string(),
                 frames: vec![
                     Frame { id, number: 1, data: b"seven__".to_vec(), ..Default::default() },
                     Frame { id, number: 2, data: b"four".to_vec(), ..Default::default() },
@@ -327,7 +316,6 @@ mod test {
                 frame_data: None,
             },
             FrameValidityTestCase {
-                name: "multiple valid frames".to_string(),
                 frames: vec![
                     Frame { id, number: 0, data: b"seven__".to_vec(), ..Default::default() },
                     Frame { id, number: 1, data: b"four".to_vec(), ..Default::default() },
@@ -339,5 +327,25 @@ mod test {
         ];
 
         test_cases.into_iter().for_each(run_frame_validity_test);
+    }
+    
+    #[test]
+    fn test_prunes_future_frames_updates_size() {
+        let id = [0xAA; 16];
+        let block = BlockInfo::default();
+        let mut channel = Channel::new(id, block);
+
+        let frame0 = Frame { id, number: 0, data: vec![1, 2, 3], is_last: false };
+        let frame_future = Frame { id, number: 5, data: vec![4, 5], is_last: false };
+        let closing_frame = Frame { id, number: 1, data: vec![6], is_last: true };
+
+        channel.add_frame(frame0.clone(), block).unwrap();
+        channel.add_frame(frame_future.clone(), block).unwrap();
+        assert_eq!(channel.size(), frame0.size() + frame_future.size());
+
+        channel.add_frame(closing_frame.clone(), block).unwrap();
+
+        assert_eq!(channel.size(), frame0.size() + closing_frame.size());
+        assert!(!channel.inputs.contains_key(&frame_future.number));
     }
 }
