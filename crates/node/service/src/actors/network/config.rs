@@ -1,11 +1,10 @@
 //! Configuration for the `Network`.
 
 use alloy_primitives::Address;
-use discv5::Enr;
 use kona_disc::LocalNode;
 use kona_genesis::RollupConfig;
 use kona_gossip::GaterConfig;
-use kona_peers::{BootStoreFile, PeerMonitoring, PeerScoreLevel};
+use kona_peers::{BootNodes, BootStoreFile, PeerMonitoring, PeerScoreLevel};
 use kona_sources::BlockSigner;
 use libp2p::{Multiaddr, identity::Keypair};
 use tokio::time::Duration;
@@ -43,7 +42,7 @@ pub struct NetworkConfig {
     /// The configuration for the connection gater.
     pub gater_config: GaterConfig,
     /// An optional list of bootnode ENRs to start the node with.
-    pub bootnodes: Vec<Enr>,
+    pub bootnodes: BootNodes,
     /// The [`RollupConfig`].
     pub rollup_config: RollupConfig,
     /// A signer for gossip payloads.
