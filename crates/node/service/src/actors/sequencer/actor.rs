@@ -94,8 +94,6 @@ pub struct SequencerActorState {
     pub conductor: Option<Box<dyn Conductor + Sync>>,
     /// The struct used to determine the next L1 origin, given some inputs.
     pub origin_selector: Box<dyn OriginSelector + Sync>,
-    /// The ticker for building new blocks.
-    pub build_ticker: tokio::time::Interval,
     /// The cancellation token, shared between all tasks.
     pub cancellation: CancellationToken,
     /// Sender to request the engine to reset.
@@ -136,8 +134,6 @@ impl SequencerActorState {
         seal_request_tx: mpsc::Sender<SealRequest>,
         gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
     ) -> Self {
-        let build_ticker = tokio::time::interval(Duration::from_secs(cfg.block_time));
-
         Self {
             cfg,
             is_active,
@@ -145,7 +141,6 @@ impl SequencerActorState {
             attributes_builder,
             conductor,
             origin_selector,
-            build_ticker,
             cancellation,
             reset_request_tx,
             build_request_tx,
@@ -255,16 +250,12 @@ pub enum SequencerActorError {
 
 impl<AB: AttributesBuilderConfig> SequencerActor<AB> {
     /// Creates a new instance of the [`SequencerActor`].
-    pub fn new(state: AB) -> (SequencerInboundData, Self) {
-        let (unsafe_head_tx, unsafe_head_rx) = watch::channel(L2BlockInfo::default());
-
-        // Create the admin API channel
-        let (admin_api_tx, admin_api_rx) = mpsc::channel(1024);
-        let admin_api = QueuedSequencerAdminAPIClient::new(admin_api_tx);
-
-        let actor = Self { builder: state, unsafe_head_rx, admin_api_rx };
-
-        (SequencerInboundData { unsafe_head_tx, admin_api_client: Box::new(admin_api) }, actor)
+    pub fn new(
+        state: AB,
+        unsafe_head_rx: watch::Receiver<L2BlockInfo>,
+        admin_api_rx: mpsc::Receiver<SequencerAdminQuery>,
+    ) -> Self {
+        Self { builder: state, unsafe_head_rx, admin_api_rx }
     }
 }
 
@@ -675,7 +666,16 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
     type Builder = SequencerBuilder;
 
     fn build(config: Self::Builder) -> (Self::BuildData, Self) {
-        Self::new(config)
+        let (unsafe_head_tx, unsafe_head_rx) = watch::channel(L2BlockInfo::default());
+
+        // Create the admin API channel
+        let (admin_api_tx, admin_api_rx) = mpsc::channel(1024);
+        let admin_api = QueuedSequencerAdminAPIClient::new(admin_api_tx);
+
+        (
+            SequencerInboundData { unsafe_head_tx, admin_api_client: Box::new(admin_api) },
+            Self::new(config, unsafe_head_rx, admin_api_rx),
+        )
     }
 
     fn init(&self, ctx: Self::InitData) -> Self::StartData {
@@ -725,8 +725,8 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
     }
 
     async fn start(mut self, mut state: Self::StartData) -> Result<(), Self::Error> {
-        let mut build_ticker =
-            tokio::time::interval(Duration::from_secs(self.builder.rollup_cfg.block_time));
+        let block_time = self.builder.rollup_cfg.block_time;
+        let mut build_ticker = tokio::time::interval(Duration::from_secs(block_time));
 
         // Initialize metrics, if configured.
         #[cfg(feature = "metrics")]
@@ -811,7 +811,7 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                     }
 
                     if let Some(ref payload) = next_payload_to_seal {
-                        let next_block_seconds = payload.attributes_with_parent.parent().block_info.timestamp.saturating_add(state.cfg.block_time);
+                        let next_block_seconds = payload.attributes_with_parent.parent().block_info.timestamp.saturating_add(block_time);
                         // next block time is last + block_time - time it takes to seal.
                         let next_block_time = UNIX_EPOCH + Duration::from_secs(next_block_seconds) - Duration::from_secs(last_seconds_to_seal);
                         match next_block_time.duration_since(SystemTime::now()) {
