@@ -21,15 +21,15 @@ jobs:
         with:
           submodules: true
 
-      - uses: ./.github/actions/setup
-        with:
-          channel: stable
-          components: llvm-tools-preview
-
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
           large-packages: false
+
+      - uses: ./.github/actions/setup
+        with:
+          channel: stable
+          components: llvm-tools-preview
 
       - uses: taiki-e/install-action@just
 
@@ -46,12 +46,19 @@ jobs:
             tests/go.sum
             tests/optimism/go.sum
 
-      - name: common tests for node with sysgo orchestrator and report coverage
+      - name: run common tests for node with sysgo orchestrator and report coverage
         run: |
+          echo "Building op-reth..."
+          just build-reth
+          echo "Unzipping contract artifacts..."
+          just unzip-contract-artifacts
+          echo "Building kona-node with llvm-cov..."
           source <(cargo llvm-cov show-env --export-prefix)
-          just test-e2e-sysgo node node/common "${{ matrix.devnet-config }}"
+          just build-kona
+          echo "Running tests..."
+          just test-e2e-sysgo-run node node/common "${{ matrix.devnet-config }}"
           cargo llvm-cov report --lcov --output-path node_common_cov.lcov
-      
+
       - name: Upload coverage to codecov.io
         uses: codecov/codecov-action@v5
         with:
@@ -65,8 +72,10 @@ jobs:
       
       - name: reorg tests for node with sysgo orchestrator and report coverage
         run: |
+          echo "Building kona-node with llvm-cov..."
           source <(cargo llvm-cov show-env --export-prefix)
-          just test-e2e-sysgo node node/reorgs "${{ matrix.devnet-config }}"
+          just build-kona
+          just test-e2e-sysgo-run node node/reorgs "${{ matrix.devnet-config }}"
           cargo llvm-cov report --lcov --output-path node_reorgs_cov.lcov
 
       - name: Upload coverage to codecov.io
@@ -90,15 +99,15 @@ jobs:
         with:
           submodules: true
 
-      - uses: ./.github/actions/setup
-        with:
-          channel: stable
-          components: llvm-tools-preview
-
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
           large-packages: false
+
+      - uses: ./.github/actions/setup
+        with:
+          channel: stable
+          components: llvm-tools-preview
 
       - uses: taiki-e/install-action@just
 
@@ -117,7 +126,14 @@ jobs:
 
       - name: restart tests for node with sysgo orchestrator and report coverage
         run: |
+          echo "Building op-reth..."
+          just build-reth
+          echo "Unzipping contract artifacts..."
+          just unzip-contract-artifacts
+          echo "Building kona-node with llvm-cov..."
           source <(cargo llvm-cov show-env --export-prefix)
+          just build-kona
+          echo "Running tests..."
           just test-e2e-sysgo node node/restart 
           cargo llvm-cov report --lcov --output-path node_restart_cov.lcov
 

@@ -31,15 +31,15 @@ jobs:
         with:
           submodules: true
 
-      - uses: ./.github/actions/setup
-        with:
-          channel: stable
-          components: llvm-tools-preview
-
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
           large-packages: false
+
+      - uses: ./.github/actions/setup
+        with:
+          channel: stable
+          components: llvm-tools-preview
 
       - uses: taiki-e/install-action@just
 
@@ -58,10 +58,18 @@ jobs:
 
       - name: acceptance tests for ${{ matrix.devnet-config }}
         run: |
-          if [ "${{ matrix.client }}" = "kona" ]; then
-            source <(cargo llvm-cov show-env --export-prefix)
+          if [ "${{ matrix.engine }}" = "op-reth" ]; then
+            echo "Building op-reth..."
+            just build-reth
           fi
-          just acceptance-tests "${{ matrix.client }}" "${{ matrix.engine }}" 
+
+          if [ "${{ matrix.client }}" = "kona" ]; then
+            echo "Building kona-node..."
+            source <(cargo llvm-cov show-env --export-prefix)
+            just build-kona
+          fi
+
+          just acceptance-tests-run "${{ matrix.client }}" "${{ matrix.engine }}" 
           if [ "${{ matrix.client }}" = "kona" ]; then
             cargo llvm-cov report --lcov --output-path "acceptance_tests_${{ matrix.devnet-config }}.lcov"
           fi

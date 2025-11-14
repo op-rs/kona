@@ -38,7 +38,6 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           components: llvm-tools-preview
-          prefix-key: ${{ matrix.kind }}
       - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Setup Go toolchain
         uses: actions/setup-go@v5

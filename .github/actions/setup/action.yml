@@ -49,11 +49,12 @@ runs:
         components: ${{ inputs.components }}
 
     - name: Installs the rust cache
-      uses: Swatinem/rust-cache@v2
+      uses: Swatinem/rust-cache@972b315a8225e8594dddc2b92e6333d1d1d3059c
       with:
         cache-on-failure: true
+        add-job-id-key: false
         prefix-key: ${{ inputs.prefix-key }}
         save-if: ${{ github.ref == 'refs/heads/main' }}
         workspaces: |
           . -> target
-          tests/reth -> tests/reth/target
+          tests/reth -> target
