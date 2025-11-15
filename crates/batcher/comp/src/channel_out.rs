@@ -94,6 +94,7 @@ where
         }
 
         self.compressor.write(&buf)?;
+        self.rlp_length += buf.len() as u64;
 
         Ok(())
     }
