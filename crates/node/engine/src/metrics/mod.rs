@@ -74,6 +74,10 @@ impl Metrics {
     /// Identifier for the counter that tracks the number of times the engine has been reset.
     pub const ENGINE_RESET_COUNT: &str = "kona_node_engine_reset_count";
 
+    /// Identifier for the gauge that tracks the number of inflight engine tasks by type.
+    /// This metric helps monitor task queue backlog and identify bottlenecks.
+    pub const ENGINE_INFLIGHT_TASKS: &str = "kona_node_engine_inflight_tasks";
+
     /// Initializes metrics for the engine.
     ///
     /// This does two things:
@@ -108,6 +112,13 @@ impl Metrics {
             metrics::Unit::Count,
             "Engine reset count"
         );
+
+        // Engine inflight tasks gauge
+        metrics::describe_gauge!(
+            Self::ENGINE_INFLIGHT_TASKS,
+            metrics::Unit::Count,
+            "Number of inflight engine tasks by type"
+        );
     }
 
     /// Initializes metrics to `0` so they can be queried immediately by consumers of prometheus
@@ -127,5 +138,23 @@ impl Metrics {
 
         // Engine reset count
         kona_macros::set!(counter, Self::ENGINE_RESET_COUNT, 0);
+
+        // Engine inflight tasks (initialize all task types to 0)
+        kona_macros::set!(gauge, Self::ENGINE_INFLIGHT_TASKS, "type", Self::INSERT_TASK_LABEL, 0.0);
+        kona_macros::set!(
+            gauge,
+            Self::ENGINE_INFLIGHT_TASKS,
+            "type",
+            Self::CONSOLIDATE_TASK_LABEL,
+            0.0
+        );
+        kona_macros::set!(gauge, Self::ENGINE_INFLIGHT_TASKS, "type", Self::BUILD_TASK_LABEL, 0.0);
+        kona_macros::set!(
+            gauge,
+            Self::ENGINE_INFLIGHT_TASKS,
+            "type",
+            Self::FINALIZE_TASK_LABEL,
+            0.0
+        );
     }
 }
