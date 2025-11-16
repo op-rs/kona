@@ -12,12 +12,17 @@ on:
   merge_group:
 
 jobs:
-  build:
+  build-docs-vocs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24.4.0"
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.1
       - uses: dtolnay/rust-toolchain@nightly
       - name: Install Playwright browsers
         # Required for rehype-mermaid to render Mermaid diagrams during build
@@ -39,11 +44,11 @@ jobs:
         with:
           path: "./docs/docs/dist"
 
-  deploy:
+  deploy-docs-vocs:
     # Only deploy if a push to main
     if: github.ref_name == 'main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    needs: [build]
+    needs: [build-docs-vocs]
 
     # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
     permissions:

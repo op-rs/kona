@@ -18,25 +18,27 @@ jobs:
         with:
           submodules: true
 
-      - uses: ./.github/actions/setup
-        with:
-          channel: stable
-
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
           large-packages: false
 
+      - uses: ./.github/actions/setup
+        with:
+          channel: stable
+
       - uses: taiki-e/install-action@just
 
       - uses: jdx/mise-action@v3       # installs Mise + runs `mise install`
 
-      - name: Setup Go 1.24.3
+      - name: Setup Go 1.23.8
         uses: actions/setup-go@v5
         with:
           # Semantic version range syntax or exact version of Go
-          go-version: '1.24.3'
-          cache-dependency-path: "**/go.sum"
+          go-version: '1.23.8'
+          cache-dependency-path: |
+            tests/go.sum
+            tests/optimism/go.sum
 
       - name: test ${{ matrix.test-pkg }}
         run: just test-e2e-sysgo supervisor "/supervisor/${{ matrix.test-pkg }}"

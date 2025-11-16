@@ -156,7 +156,7 @@ impl BlobData {
             return Err(BlobDecodingError::InvalidLength);
         }
 
-        if blobs[index].is_empty() || blobs[index].is_zero() {
+        if blobs[index].is_empty() {
             return Err(BlobDecodingError::MissingData);
         }
 
@@ -197,7 +197,8 @@ mod tests {
     fn test_fill_zero_blob() {
         let mut blob_data = BlobData::default();
         let blobs = vec![Box::new(Blob::ZERO)];
-        assert_eq!(blob_data.fill(&blobs, 0), Err(BlobDecodingError::MissingData));
+        // consider a blob made entirely of zero bytes a regular blob
+        assert_eq!(blob_data.fill(&blobs, 0), Ok(true));
     }
 
     #[test]

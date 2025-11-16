@@ -125,6 +125,7 @@ pub trait RollupNodeService {
         let (
             EngineInboundData {
                 build_request_tx,
+                seal_request_tx,
                 attributes_tx,
                 unsafe_block_tx,
                 reset_request_tx,
@@ -175,6 +176,9 @@ pub trait RollupNodeService {
                         reset_request_tx: reset_request_tx.clone(),
                         build_request_tx: build_request_tx.expect(
                             "`build_request_tx` not set while in sequencer mode. This should never happen.",
+                        ),
+                        seal_request_tx: seal_request_tx.expect(
+                            "`seal_request_tx` not set while in sequencer mode. This should never happen.",
                         ),
                         gossip_payload_tx,
                         cancellation: cancellation.clone(),

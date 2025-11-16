@@ -59,7 +59,9 @@ where
         let logs_bloom = logs_bloom(ex_result.receipts.iter().flat_map(|r| r.logs()));
 
         // Compute Cancun fields, if active.
-        let (blob_gas_used, excess_blob_gas) = if self.config.is_ecotone_active(timestamp) {
+        let (blob_gas_used, excess_blob_gas) = if self.config.is_jovian_active(timestamp) {
+            (Some(ex_result.blob_gas_used), Some(0))
+        } else if self.config.is_ecotone_active(timestamp) {
             (Some(0), Some(0))
         } else {
             Default::default()

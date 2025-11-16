@@ -35,32 +35,32 @@ pub struct PipelineCursor {
     ///
     /// This capacity is calculated as `channel_timeout + 5` to ensure sufficient
     /// history for reorg handling while preventing unbounded memory growth.
-    capacity: usize,
+    pub capacity: usize,
     /// The channel timeout in blocks used for reorg recovery calculations.
     ///
     /// This value determines how far back the cursor can reset during reorgs
     /// and influences the cache capacity to ensure adequate history retention.
-    channel_timeout: u64,
+    pub channel_timeout: u64,
     /// The current L1 origin block that the pipeline is processing.
     ///
     /// This represents the most recent L1 block from which L2 blocks are being
     /// derived. It advances as the pipeline processes new L1 data.
-    origin: BlockInfo,
+    pub origin: BlockInfo,
     /// Ordered list of L1 origin block numbers for cache eviction policy.
     ///
     /// This deque maintains insertion order to implement LRU eviction when the
     /// cache reaches capacity. The front contains the oldest entries.
-    origins: VecDeque<u64>,
+    pub origins: VecDeque<u64>,
     /// Mapping from L1 block numbers to their corresponding [`BlockInfo`].
     ///
     /// This cache stores L1 block information for quick lookup during reorg
     /// recovery without needing to re-fetch from the data source.
-    origin_infos: HashMap<u64, BlockInfo>,
+    pub origin_infos: HashMap<u64, BlockInfo>,
     /// Mapping from L1 origin block numbers to their corresponding L2 tips.
     ///
     /// This is the main cache storing the relationship between L1 origins and
     /// the L2 safe head state derived from them. Used for efficient reorg recovery.
-    tips: BTreeMap<u64, TipCursor>,
+    pub tips: BTreeMap<u64, TipCursor>,
 }
 
 impl PipelineCursor {

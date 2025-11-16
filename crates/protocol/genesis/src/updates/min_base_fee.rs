@@ -5,7 +5,7 @@ use alloy_sol_types::{SolType, sol};
 
 use crate::{SystemConfig, SystemConfigLog, system::MinBaseFeeUpdateError};
 
-/// The gas limit update type.
+/// The min base fee update type.
 #[derive(Debug, Default, Clone, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MinBaseFeeUpdate {

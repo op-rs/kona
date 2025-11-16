@@ -122,16 +122,16 @@ func (tr *TxReceiver) processTx(tx *txplan.PlannedTx) {
 	// Ensure the block containing the transaction has propagated to the rest of the network.
 	for _, node := range tr.out.L2ELNodes() {
 		block := node.WaitForBlockNumber(inclusionBlock.Number)
-		blockID := block.ID()
+		blockID := block.Hash()
 
 		// It's possible that the block has already been included, and `WaitForBlockNumber` returns a block
 		// at a taller height.
-		if block.Number > inclusionBlock.Number {
-			blockID = node.BlockRefByNumber(inclusionBlock.Number).ID()
+		if block.NumberU64() > inclusionBlock.Number {
+			blockID = node.BlockRefByNumber(inclusionBlock.Number).Hash
 		}
 
 		// Ensure that the block ID matches the expected inclusion block hash.
-		if blockID.Hash != inclusionBlock.Hash {
+		if blockID != inclusionBlock.Hash {
 			tr.t.Errorf("producer %d: transaction (hash %s) not included in block %d with hash %s.", tr.idx, tx.Signed.Value().Hash(), inclusionBlock.Number, inclusionBlock.Hash)
 		}
 	}

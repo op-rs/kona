@@ -35,7 +35,7 @@ where
         oracle_reader,
         &[KZG_POINT_EVAL_ADDR.as_slice(), &GAS_COST.to_be_bytes(), input]
     })
-    .map_err(|e| PrecompileError::Other(e.to_string()))?;
+    .map_err(|e| PrecompileError::Other(e.to_string().into()))?;
 
     Ok(PrecompileOutput::new(GAS_COST, result_data.into()))
 }

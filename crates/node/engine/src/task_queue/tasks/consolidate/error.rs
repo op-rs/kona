@@ -1,8 +1,8 @@
 //! Contains error types for the [`crate::ConsolidateTask`].
 
 use crate::{
-    BuildTaskError, EngineTaskError, SynchronizeTaskError,
-    task_queue::tasks::task::EngineTaskErrorSeverity,
+    BuildTaskError, EngineTaskError, SealTaskError, SynchronizeTaskError,
+    task_queue::tasks::{BuildAndSealError, task::EngineTaskErrorSeverity},
 };
 use thiserror::Error;
 
@@ -18,9 +18,21 @@ pub enum ConsolidateTaskError {
     /// The build task failed.
     #[error(transparent)]
     BuildTaskFailed(#[from] BuildTaskError),
+    /// The seal task failed.
+    #[error(transparent)]
+    SealTaskFailed(#[from] SealTaskError),
     /// The consolidation forkchoice update call to the engine api failed.
     #[error(transparent)]
     ForkchoiceUpdateFailed(#[from] SynchronizeTaskError),
+}
+
+impl From<BuildAndSealError> for ConsolidateTaskError {
+    fn from(err: BuildAndSealError) -> Self {
+        match err {
+            BuildAndSealError::Build(e) => Self::BuildTaskFailed(e),
+            BuildAndSealError::Seal(e) => Self::SealTaskFailed(e),
+        }
+    }
 }
 
 impl EngineTaskError for ConsolidateTaskError {
@@ -29,6 +41,7 @@ impl EngineTaskError for ConsolidateTaskError {
             Self::MissingUnsafeL2Block(_) => EngineTaskErrorSeverity::Reset,
             Self::FailedToFetchUnsafeL2Block => EngineTaskErrorSeverity::Temporary,
             Self::BuildTaskFailed(inner) => inner.severity(),
+            Self::SealTaskFailed(inner) => inner.severity(),
             Self::ForkchoiceUpdateFailed(inner) => inner.severity(),
         }
     }

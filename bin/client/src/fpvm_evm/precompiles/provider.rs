@@ -13,7 +13,7 @@ use op_revm::{
 use revm::{
     context::{Cfg, ContextTr},
     handler::{EthPrecompiles, PrecompileProvider},
-    interpreter::{Gas, InputsImpl, InstructionResult, InterpreterResult},
+    interpreter::{CallInputs, Gas, InstructionResult, InterpreterResult},
     precompile::{PrecompileError, PrecompileResult, Precompiles, bls12_381_const, bn254},
     primitives::{hardfork::SpecId, hash_map::HashMap},
 };
@@ -48,7 +48,7 @@ where
             OpSpecId::ECOTONE) => Precompiles::new(spec.into_eth_spec().into()),
             OpSpecId::FJORD => fjord(),
             OpSpecId::GRANITE | OpSpecId::HOLOCENE => granite(),
-            OpSpecId::ISTHMUS | OpSpecId::INTEROP | OpSpecId::OSAKA => isthmus(),
+            OpSpecId::ISTHMUS | OpSpecId::INTEROP | OpSpecId::OSAKA | OpSpecId::JOVIAN => isthmus(),
         };
 
         let accelerated_precompiles = match spec {
@@ -60,6 +60,7 @@ where
             OpSpecId::ISTHMUS | OpSpecId::INTEROP | OpSpecId::OSAKA => {
                 accelerated_isthmus::<H, O>()
             }
+            OpSpecId::JOVIAN => accelerated_jovian::<H, O>(),
         };
 
         Self {
@@ -96,14 +97,11 @@ where
     fn run(
         &mut self,
         context: &mut CTX,
-        address: &Address,
-        inputs: &InputsImpl,
-        _is_static: bool,
-        gas_limit: u64,
+        inputs: &CallInputs,
     ) -> Result<Option<Self::Output>, String> {
         let mut result = InterpreterResult {
             result: InstructionResult::Return,
-            gas: Gas::new(gas_limit),
+            gas: Gas::new(inputs.gas_limit),
             output: Bytes::new(),
         };
 
@@ -121,13 +119,14 @@ where
         // 1. If the precompile has an accelerated version, use that.
         // 2. If the precompile is not accelerated, use the default version.
         // 3. If the precompile is not found, return None.
-        let output = if let Some(accelerated) = self.accelerated_precompiles.get(address) {
-            (accelerated)(&input, gas_limit, &self.hint_writer, &self.oracle_reader)
-        } else if let Some(precompile) = self.inner.precompiles.get(address) {
-            precompile.execute(&input, gas_limit)
-        } else {
-            return Ok(None);
-        };
+        let output =
+            if let Some(accelerated) = self.accelerated_precompiles.get(&inputs.target_address) {
+                (accelerated)(&input, inputs.gas_limit, &self.hint_writer, &self.oracle_reader)
+            } else if let Some(precompile) = self.inner.precompiles.get(&inputs.target_address) {
+                precompile.execute(&input, inputs.gas_limit)
+            } else {
+                return Ok(None);
+            };
 
         match output {
             Ok(output) => {
@@ -256,5 +255,41 @@ where
         bls12_381_const::PAIRING_ADDRESS,
         super::bls12_pair::fpvm_bls12_pairing::<H, O>,
     ));
+    base
+}
+
+/// The accelerated precompiles for the jovian spec.
+fn accelerated_jovian<H, O>() -> Vec<AcceleratedPrecompile<H, O>>
+where
+    H: HintWriterClient + Send + Sync,
+    O: PreimageOracleClient + Send + Sync,
+{
+    let mut base = accelerated_isthmus::<H, O>();
+
+    // Replace the 4 variable-input precompiles with Jovian versions (reduced limits)
+    base.retain(|p| {
+        p.address != bn254::pair::ADDRESS &&
+            p.address != bls12_381_const::G1_MSM_ADDRESS &&
+            p.address != bls12_381_const::G2_MSM_ADDRESS &&
+            p.address != bls12_381_const::PAIRING_ADDRESS
+    });
+
+    base.push(AcceleratedPrecompile::new(
+        bn254::pair::ADDRESS,
+        super::bn128_pair::fpvm_bn128_pair_jovian::<H, O>,
+    ));
+    base.push(AcceleratedPrecompile::new(
+        bls12_381_const::G1_MSM_ADDRESS,
+        super::bls12_g1_msm::fpvm_bls12_g1_msm_jovian::<H, O>,
+    ));
+    base.push(AcceleratedPrecompile::new(
+        bls12_381_const::G2_MSM_ADDRESS,
+        super::bls12_g2_msm::fpvm_bls12_g2_msm_jovian::<H, O>,
+    ));
+    base.push(AcceleratedPrecompile::new(
+        bls12_381_const::PAIRING_ADDRESS,
+        super::bls12_pair::fpvm_bls12_pairing_jovian::<H, O>,
+    ));
+
     base
 }
