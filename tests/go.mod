@@ -3,7 +3,7 @@ module github.com/op-rs/kona
 go 1.23.8
 
 // We're using the "develop" branch of the Optimism repo to include the latest changes to the `devstack` package.
-require github.com/ethereum-optimism/optimism v1.13.8-0.20250924162823-d10392338bb9
+require github.com/ethereum-optimism/optimism v1.14.4-0.20251029204710-ebbff51f4cc9
 
 require (
 	github.com/ethereum/go-ethereum v1.16.3
@@ -276,6 +276,6 @@ require (
 	lukechampine.com/blake3 v1.3.0 // indirect
 )
 
-replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101603.2-0.20251016091451-5c6d276814f2
+replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101603.3-rc.3
 
 replace github.com/ethereum-optimism/optimism => ./optimism

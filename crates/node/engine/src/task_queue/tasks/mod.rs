@@ -14,8 +14,14 @@ pub use insert::{InsertTask, InsertTaskError};
 mod build;
 pub use build::{BuildTask, BuildTaskError, EngineBuildError};
 
+mod seal;
+pub use seal::{SealError, SealTask, SealTaskError};
+
 mod consolidate;
 pub use consolidate::{ConsolidateTask, ConsolidateTaskError};
 
 mod finalize;
 pub use finalize::{FinalizeTask, FinalizeTaskError};
+
+mod util;
+pub(super) use util::{BuildAndSealError, build_and_seal};

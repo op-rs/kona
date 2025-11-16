@@ -8,17 +8,23 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   action-tests:
     name: FPP actions (${{ matrix.kind }})
     runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         kind: ["single", "interop"]
+        parallel: [4]
+        index: [0, 1, 2, 3]  # Remember to update step 'Merge reports' as well.
         exclude:
-          - kind: interop
+          - kind: "interop"  # See https://github.com/op-rs/kona/issues/3010
     steps:
       - name: Checkout sources
         uses: actions/checkout@v5
@@ -32,7 +38,6 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           components: llvm-tools-preview
-          prefix-key: ${{ matrix.kind }}
       - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Setup Go toolchain
         uses: actions/setup-go@v5
@@ -40,15 +45,30 @@ jobs:
           go-version: "1.22.7"
           cache-dependency-path: |
             tests/go.sum
+            tests/optimism/go.sum
       - name: Setup gotestsum
         uses: autero1/action-gotestsum@v2.0.0
         with:
           gotestsum_version: 1.12.1
-      - name: Run Action Tests (${{ matrix.kind }})
+
+      - name: Build Action Tests
         run: |
           source <(cargo llvm-cov show-env --export-prefix)
-          just "action-tests-${{ matrix.kind }}"
+          just "action-tests-${{ matrix.kind }}-build"
           cargo llvm-cov report --lcov --output-path actions_cov.lcov
+
+      - name: Split Action Tests
+        id: test_split
+        uses: hashicorp-forge/go-test-split-action@v2.0.0
+        with:
+          total: ${{ matrix.parallel }}
+          index: ${{ matrix.index }}
+          working-directory: ./tests/optimism/op-e2e/actions/proofs
+
+      - name: Run Action Tests
+        run: |
+          just "action-tests-${{ matrix.kind }}-run" "${{ steps.test_split.outputs.run }}"
+
       - name: Upload coverage to codecov.io
         uses: codecov/codecov-action@v5
         with:

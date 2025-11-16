@@ -42,8 +42,8 @@ mod task_queue;
 pub use task_queue::{
     BuildTask, BuildTaskError, ConsolidateTask, ConsolidateTaskError, Engine, EngineBuildError,
     EngineResetError, EngineTask, EngineTaskError, EngineTaskErrorSeverity, EngineTaskErrors,
-    EngineTaskExt, FinalizeTask, FinalizeTaskError, InsertTask, InsertTaskError, SynchronizeTask,
-    SynchronizeTaskError,
+    EngineTaskExt, FinalizeTask, FinalizeTaskError, InsertTask, InsertTaskError, SealError,
+    SealTask, SealTaskError, SynchronizeTask, SynchronizeTaskError,
 };
 
 mod attributes;
