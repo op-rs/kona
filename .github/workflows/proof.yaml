@@ -45,6 +45,10 @@ jobs:
           cache-dependency-path: |
             tests/go.sum
             tests/optimism/go.sum
+      - name: Unzip contract artifacts
+        run: |
+          echo "Building contract artifacts for the optimism"
+          just unzip-contract-artifacts tests/optimism/packages/contracts-bedrock
       - name: Setup gotestsum
         uses: autero1/action-gotestsum@v2.0.0
         with:
@@ -61,8 +65,13 @@ jobs:
       - name: Build and Run Action Tests
         run: |
           source <(cargo llvm-cov show-env --export-prefix)
-          just "action-tests-${{ matrix.kind }}-build"
+
+          echo "Building host program for the native target"
+          just build-native --bin kona-host
+
+          echo "Running action tests"
           just "action-tests-${{ matrix.kind }}-run" "${{ steps.test_split.outputs.run }}"
+
           cargo llvm-cov report --lcov --output-path actions_cov.lcov
 
       - name: Upload coverage to codecov.io
