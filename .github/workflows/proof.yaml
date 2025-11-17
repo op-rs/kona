@@ -29,8 +29,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v5
         with:
-          submodules: recursive   # or 'true' if you don't need nested subs
-          fetch-depth: 1          # optional, but nice for versioning
+          submodules: true
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
