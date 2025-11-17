@@ -3,9 +3,16 @@
 use alloc::vec::Vec;
 use alloy_primitives::{Address, B256, Bytes};
 
-use crate::{DecodeError, info::CommonL1BlockFields};
+use crate::{
+    DecodeError,
+    info::{
+        CommonL1BlockFields, HasBaseField,
+        bedrock_base::L1BlockInfoBedrockBaseFields,
+        ecotone_base::{L1BlockInfoEcotoneBase, L1BlockInfoEcotoneBaseFields},
+    },
+};
 
-/// Represents the fields within an Isthnus L1 block info transaction.
+/// Represents the fields within an Isthmus L1 block info transaction.
 ///
 /// Isthmus Binary Format
 /// +---------+--------------------------+
@@ -27,29 +34,87 @@ use crate::{DecodeError, info::CommonL1BlockFields};
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Default, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct L1BlockInfoIsthmus {
-    /// The current L1 origin block number
-    pub number: u64,
-    /// The current L1 origin block's timestamp
-    pub time: u64,
-    /// The current L1 origin block's basefee
-    pub base_fee: u64,
-    /// The current L1 origin block's hash
-    pub block_hash: B256,
-    /// The current sequence number
-    pub sequence_number: u64,
-    /// The address of the batch submitter
-    pub batcher_address: Address,
-    /// The current blob base fee on L1
-    pub blob_base_fee: u128,
-    /// The fee scalar for L1 blobspace data
-    pub blob_base_fee_scalar: u32,
-    /// The fee scalar for L1 data
-    pub base_fee_scalar: u32,
+    #[cfg_attr(feature = "serde", serde(flatten))]
+    base: L1BlockInfoEcotoneBase,
     /// The operator fee scalar
     pub operator_fee_scalar: u32,
     /// The operator fee constant
     pub operator_fee_constant: u64,
 }
+
+impl HasBaseField<L1BlockInfoEcotoneBase> for L1BlockInfoIsthmus {
+    fn base(&self) -> L1BlockInfoEcotoneBase {
+        self.base
+    }
+}
+
+impl L1BlockInfoBedrockBaseFields for L1BlockInfoIsthmus {
+    fn number(&self) -> u64 {
+        self.base().number()
+    }
+
+    fn time(&self) -> u64 {
+        self.base().time()
+    }
+
+    fn base_fee(&self) -> u64 {
+        self.base().base_fee()
+    }
+
+    fn block_hash(&self) -> B256 {
+        self.base().block_hash()
+    }
+
+    fn sequence_number(&self) -> u64 {
+        self.base().sequence_number()
+    }
+
+    fn batcher_address(&self) -> Address {
+        self.base().batcher_address()
+    }
+}
+
+impl L1BlockInfoEcotoneBaseFields for L1BlockInfoIsthmus {
+    /// The current blob base fee on L1
+    fn blob_base_fee(&self) -> u128 {
+        self.base().blob_base_fee()
+    }
+    /// The fee scalar for L1 blobspace data
+    fn blob_base_fee_scalar(&self) -> u32 {
+        self.base().blob_base_fee_scalar()
+    }
+    /// The fee scalar for L1 data
+    fn base_fee_scalar(&self) -> u32 {
+        self.base().base_fee_scalar()
+    }
+}
+
+/// Accessors for fields in Isthmus and later.
+pub trait L1BlockInfoIsthmusBaseFields: L1BlockInfoEcotoneBaseFields {
+    /// The operator fee scalar
+    fn operator_fee_scalar(&self) -> u32;
+    /// The operator fee constant
+    fn operator_fee_constant(&self) -> u64;
+}
+
+impl L1BlockInfoIsthmusBaseFields for L1BlockInfoIsthmus {
+    /// The operator fee scalar
+    fn operator_fee_scalar(&self) -> u32 {
+        self.operator_fee_scalar
+    }
+    /// The operator fee constant
+    fn operator_fee_constant(&self) -> u64 {
+        self.operator_fee_constant
+    }
+}
+
+/// Accessors for all Isthmus fields.
+pub trait L1BlockInfoIsthmusFields:
+    L1BlockInfoEcotoneBaseFields + L1BlockInfoIsthmusBaseFields
+{
+}
+
+impl L1BlockInfoIsthmusFields for L1BlockInfoIsthmus {}
 
 impl L1BlockInfoIsthmus {
     /// The type byte identifier for the L1 scalar format in Isthmus.
@@ -67,15 +132,15 @@ impl L1BlockInfoIsthmus {
         buf.extend_from_slice(Self::L1_INFO_TX_SELECTOR.as_ref());
 
         let common = CommonL1BlockFields {
-            base_fee_scalar: self.base_fee_scalar,
-            blob_base_fee_scalar: self.blob_base_fee_scalar,
-            sequence_number: self.sequence_number,
-            time: self.time,
-            number: self.number,
-            base_fee: self.base_fee,
-            blob_base_fee: self.blob_base_fee,
-            block_hash: self.block_hash,
-            batcher_address: self.batcher_address,
+            base_fee_scalar: self.base_fee_scalar(),
+            blob_base_fee_scalar: self.blob_base_fee_scalar(),
+            sequence_number: self.sequence_number(),
+            time: self.time(),
+            number: self.number(),
+            base_fee: self.base_fee(),
+            blob_base_fee: self.blob_base_fee(),
+            block_hash: self.block_hash(),
+            batcher_address: self.batcher_address(),
         };
         common.encode_into(&mut buf);
 
@@ -107,19 +172,96 @@ impl L1BlockInfoIsthmus {
         operator_fee_constant.copy_from_slice(&r[168..176]);
         let operator_fee_constant = u64::from_be_bytes(operator_fee_constant);
 
-        Ok(Self {
-            number: common.number,
-            time: common.time,
-            base_fee: common.base_fee,
-            block_hash: common.block_hash,
-            sequence_number: common.sequence_number,
-            batcher_address: common.batcher_address,
-            blob_base_fee: common.blob_base_fee,
-            blob_base_fee_scalar: common.blob_base_fee_scalar,
-            base_fee_scalar: common.base_fee_scalar,
+        Ok(Self::new(
+            common.number,
+            common.time,
+            common.base_fee,
+            common.block_hash,
+            common.sequence_number,
+            common.batcher_address,
+            common.blob_base_fee,
+            common.blob_base_fee_scalar,
+            common.base_fee_scalar,
             operator_fee_scalar,
             operator_fee_constant,
-        })
+        ))
+    }
+    /// Construct from all values.
+    #[allow(clippy::too_many_arguments)]
+    pub const fn new(
+        number: u64,
+        time: u64,
+        base_fee: u64,
+        block_hash: alloy_primitives::FixedBytes<32>,
+        sequence_number: u64,
+        batcher_address: Address,
+        blob_base_fee: u128,
+        blob_base_fee_scalar: u32,
+        base_fee_scalar: u32,
+        operator_fee_scalar: u32,
+        operator_fee_constant: u64,
+    ) -> Self {
+        Self {
+            base: L1BlockInfoEcotoneBase::new(
+                number,
+                time,
+                base_fee,
+                block_hash,
+                sequence_number,
+                batcher_address,
+                blob_base_fee,
+                blob_base_fee_scalar,
+                base_fee_scalar,
+            ),
+            operator_fee_scalar,
+            operator_fee_constant,
+        }
+    }
+    /// Construct from default values and `base_fee`.
+    pub fn new_from_base_fee(base_fee: u64) -> Self {
+        Self { base: L1BlockInfoEcotoneBase::new_from_base_fee(base_fee), ..Default::default() }
+    }
+    /// Construct from default values and `sequence_number`.
+    pub fn new_from_sequence_number(sequence_number: u64) -> Self {
+        Self {
+            base: L1BlockInfoEcotoneBase::new_from_sequence_number(sequence_number),
+            ..Default::default()
+        }
+    }
+    /// Construct from default values and `batcher_address`.
+    pub fn new_from_batcher_address(batcher_address: Address) -> Self {
+        Self {
+            base: L1BlockInfoEcotoneBase::new_from_batcher_address(batcher_address),
+            ..Default::default()
+        }
+    }
+    /// Construct from default values and `base_fee_scalar`.
+    pub fn new_from_base_fee_scalar(base_fee: u32) -> Self {
+        let base = L1BlockInfoEcotoneBase::new_from_base_fee_scalar(base_fee);
+        Self { base, ..Default::default() }
+    }
+    /// Construct from default values and `blob_base_fee`.
+    pub fn new_from_blob_base_fee(blob_base_fee: u128) -> Self {
+        let base = L1BlockInfoEcotoneBase::new_from_blob_base_fee(blob_base_fee);
+        Self { base, ..Default::default() }
+    }
+    /// Construct from default values and `blob_base_fee_scalar`.
+    pub fn new_from_blob_base_fee_scalar(base_fee_scalar: u32) -> Self {
+        let base = L1BlockInfoEcotoneBase::new_from_blob_base_fee_scalar(base_fee_scalar);
+        Self { base, ..Default::default() }
+    }
+    /// Construct from default values and `operator_fee_scalar`.
+    pub fn new_from_operator_fee_scalar(operator_fee_scalar: u32) -> Self {
+        Self { operator_fee_scalar, ..Default::default() }
+    }
+    /// Construct from default values and `operator_fee_constant`.
+    pub fn new_from_operator_fee_constant(operator_fee_constant: u64) -> Self {
+        Self { operator_fee_constant, ..Default::default() }
+    }
+    /// Construct from default values, `number` and `block_hash`.
+    pub fn new_from_number_and_block_hash(number: u64, block_hash: B256) -> Self {
+        let base = L1BlockInfoEcotoneBase::new_from_number_and_block_hash(number, block_hash);
+        Self { base, ..Default::default() }
     }
 }
 
@@ -139,19 +281,19 @@ mod tests {
 
     #[test]
     fn test_l1_block_info_isthmus_roundtrip_calldata_encoding() {
-        let info = L1BlockInfoIsthmus {
-            number: 1,
-            time: 2,
-            base_fee: 3,
-            block_hash: B256::from([4; 32]),
-            sequence_number: 5,
-            batcher_address: Address::from_slice(&[6; 20]),
-            blob_base_fee: 7,
-            blob_base_fee_scalar: 8,
-            base_fee_scalar: 9,
-            operator_fee_scalar: 10,
-            operator_fee_constant: 11,
-        };
+        let info = L1BlockInfoIsthmus::new(
+            1,
+            2,
+            3,
+            B256::from([4; 32]),
+            5,
+            Address::from_slice(&[6; 20]),
+            7,
+            8,
+            9,
+            10,
+            11,
+        );
 
         let calldata = info.encode_calldata();
         let decoded_info = L1BlockInfoIsthmus::decode_calldata(&calldata).unwrap();
