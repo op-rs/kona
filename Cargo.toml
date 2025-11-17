@@ -21,6 +21,16 @@ members = [
   "crates/providers/*",
   "crates/utilities/*",
   "examples/*",
+  "sp1/programs/aggregation",
+  "sp1/programs/range",
+  "sp1/crates/client",
+  "sp1/crates/host",
+  "sp1/crates/build",
+  "sp1/crates/ethereum/client",
+  "sp1/crates/ethereum/host",
+  # TODO(inphi): Obsolete now that only ethereum DA is supported
+  "sp1/crates/proof", 
+  "sp1/crates/elfs"
 ]
 default-members = [
   "bin/host",
@@ -136,6 +146,7 @@ alloy-provider = { version = "1.1.1", default-features = false }
 alloy-hardforks = { version = "0.4.4", default-features = false }
 alloy-sol-types = { version = "1.4.1", default-features = false }
 alloy-consensus = { version = "1.1.1", default-features = false }
+alloy-contract = { version = "1.1.1", default-features = false }
 alloy-transport = { version = "1.1.1", default-features = false }
 alloy-rpc-types = { version = "1.1.1", default-features = false }
 alloy-rpc-client = { version = "1.1.1", default-features = false }
@@ -185,6 +196,7 @@ vergen = "9.0.6"
 tokio = "1.45.1"
 rayon = "1.10.0"
 strum = "0.27"
+strum_macros = "0.27"
 cfg-if = "1.0.0"
 rstest = "0.25.0"
 ratatui = "0.29.0"
@@ -212,6 +224,10 @@ http-body-util = "0.1.3"
 unsigned-varint = "0.8.0"
 modular-bitfield = "0.11.2"
 buddy_system_allocator = "0.11.0"
+dotenv = "0.15.0"
+cargo_metadata = "0.18.1"
+num-format = "0.4.4"
+serde_cbor = "0.11.2"
 
 rand = { version = "0.9.1", default-features = false }
 backon = { version = "1.5.1", default-features = false }
@@ -241,6 +257,16 @@ tracing-loki = "0.2.6"
 tracing-subscriber = "0.3.20"
 tracing-appender = "0.2.3"
 tracing = { version = "0.1.41", default-features = false }
+tracing-opentelemetry = "^0.24"
+opentelemetry = { version = "^0.23.0", features = ["trace"] }
+opentelemetry_sdk = { version = "^0.23.0", features = [
+    "trace",
+    "rt-tokio",
+    "logs_level_enabled",
+] }
+opentelemetry-stdout = { version = "0.2.0", features = ["trace"] }
+opentelemetry-otlp = { version = "^0.16.0", features = ["default", "logs"] }
+opentelemetry-appender-tracing = "0.4.0"
 
 # Metrics
 metrics = { version = "0.24.2", default-features = false }
@@ -262,6 +288,8 @@ ethereum_ssz = "0.9.0"
 toml = { version = "0.8.22", default-features = false }
 serde = { version = "1.0.219", default-features = false }
 serde_json = { version = "1.0.140", default-features = false }
+hex = "0.4.3"
+bincode = "1.3.3"
 
 # K/V database
 rocksdb = { version = "0.24.0", default-features = false }
@@ -269,6 +297,7 @@ rocksdb = { version = "0.24.0", default-features = false }
 # Cryptography
 sha2 = { version = "0.10.9", default-features = false }
 c-kzg = { version = "2.1.1", default-features = false }
+kzg-rs = { version = "0.2.6", features = ["rkyv", "serde"] }
 ark-ff = { version = "0.5.0", default-features = false }
 secp256k1 = { version = "0.31.0", default-features = false }
 ark-bls12-381 = { version = "0.5.0", default-features = false }
@@ -276,3 +305,24 @@ ark-bls12-381 = { version = "0.5.0", default-features = false }
 # Rollup Boost (required for rollup-boost integration)
 rollup-boost = { git = "https://github.com/flashbots/rollup-boost.git", rev = "7fda98f" }
 parking_lot = "0.12.3"
+
+# SP1
+sp1-sdk = { version = "=5.2.2", default-features = false, features = ["network"] }
+sp1-lib = { version = "=5.2.2", features = ["verify"] }
+sp1-zkvm = { version = "=5.2.2", features = ["verify"] }
+sp1-build = { version = "=5.2.2" }
+sp1-prover = { version = "=5.2.2" }
+sp1-core-executor = { version = "=5.2.2" }
+kona-sp1-client-utils = { path = "sp1/crates/client" }
+kona-sp1-build-utils = { path = "sp1/crates/build" }
+kona-sp1-elfs = { path = "sp1/crates/elfs" }
+kona-sp1-validity = { path = "sp1/validity" }
+kona-sp1-fp = { path = "sp1/fault-proof" }
+kona-sp1-ethereum-client-utils = { path = "sp1/crates/ethereum/client" }
+kona-sp1-ethereum-host-utils = { path = "sp1/crates/ethereum/host" }
+kona-sp1-host-utils = { path = "sp1/crates/host" }
+kona-sp1-proof-utils = { path = "sp1/crates/proof" }
+kona-sp1-signer-utils = { path = "sp1/crates/signer" }
+kona-sp1-bindings = { path = "sp1/bindings" }
+kona-sp1-aggregation = { path = "sp1/programs/aggregation", version = "0.0.1", default-features = false }
+kona-sp1-range = { path = "sp1/programs/range", version = "0.0.1", default-features = false }

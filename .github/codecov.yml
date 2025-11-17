@@ -57,6 +57,7 @@ ignore:
   - "**/test_util*"
   # Ignore noop files
   - "**/noop.rs"
+  - "sp1/**/*"
 
 
 flag_management:
