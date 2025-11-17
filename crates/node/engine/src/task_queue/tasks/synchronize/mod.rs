@@ -4,4 +4,4 @@ mod task;
 pub use task::SynchronizeTask;
 
 mod error;
-pub use error::{SynchronizeError, SynchronizeTaskError};
+pub use error::SynchronizeTaskError;

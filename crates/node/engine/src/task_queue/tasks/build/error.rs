@@ -1,8 +1,7 @@
 //! Contains error types for the [crate::SynchronizeTask].
 
 use crate::{
-    EngineTaskError, SynchronizeError, SynchronizeTaskError,
-    task_queue::tasks::task::EngineTaskErrorSeverity,
+    EngineTaskError, SynchronizeTaskError, task_queue::tasks::task::EngineTaskErrorSeverity,
 };
 use alloy_rpc_types_engine::{PayloadId, PayloadStatusEnum};
 use alloy_transport::{RpcError, TransportErrorKind};
@@ -84,20 +83,4 @@ impl EngineTaskError for BuildTaskError {
             Self::MpscSend(_) => EngineTaskErrorSeverity::Critical,
         }
     }
-}
-
-/// The inter-actor error returned to the initial requestor of a Build.
-#[derive(Debug, Error)]
-pub enum BuildError {
-    /// A critical engine error occurred.
-    #[error("Error communicating with engine.")]
-    CommunicationError,
-
-    /// A critical engine error occurred.
-    #[error("A critical engine error occurred.")]
-    EngineError,
-
-    /// The initial forkchoice update call to the engine api failed.
-    #[error(transparent)]
-    ForkchoiceUpdateFailed(#[from] SynchronizeError),
 }

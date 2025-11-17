@@ -34,7 +34,9 @@ pub enum SealTaskError {
     FromBlock(#[from] FromBlockError),
     /// Error sending the built payload envelope.
     #[error(transparent)]
-    MpscSend(#[from] Box<mpsc::error::SendError<Result<OpExecutionPayloadEnvelope, SealError>>>),
+    MpscSend(
+        #[from] Box<mpsc::error::SendError<Result<OpExecutionPayloadEnvelope, SealTaskError>>>,
+    ),
     /// The clock went backwards.
     #[error("The clock went backwards")]
     ClockWentBackwards,
@@ -62,22 +64,4 @@ impl EngineTaskError for SealTaskError {
             Self::UnsafeHeadChangedSinceBuild => EngineTaskErrorSeverity::Critical,
         }
     }
-}
-
-/// The inter-actor error returned to the initial requestor of a seal.
-#[derive(Debug, Error)]
-pub enum SealError {
-    /// A critical engine error occurred.
-    #[error("Error communicating with engine.")]
-    CommunicationError,
-
-    /// Holocene retry occurred. A deposit-only block was built and sealed.
-    #[error("Holocene retry occurred. A deposit-only block was built and sealed.")]
-    HoloceneRetry,
-    /// Some state mismatch invalidated this seal. Consider rebuilding.
-    #[error("Some state mismatch invalidated this seal. Consider rebuilding.")]
-    ConsiderRebuild,
-    /// A critical engine error occurred.
-    #[error("A critical engine error occurred.")]
-    EngineError,
 }

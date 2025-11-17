@@ -5,6 +5,10 @@ use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::fmt::Debug;
 use url::Url;
 
+/// Trait for interacting with the conductor service.
+///
+/// The conductor service is responsible for coordinating sequencer behavior
+/// in a high-availability setup with leader election.
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait Conductor: Debug + Send + Sync {

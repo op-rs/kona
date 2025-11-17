@@ -1,10 +1,9 @@
 //! A task for importing a block that has already been started.
 use super::SealTaskError;
 use crate::{
-    EngineClient, EngineGetPayloadVersion, EngineState, EngineTaskError, EngineTaskErrorSeverity,
-    EngineTaskExt, InsertTask,
+    EngineClient, EngineGetPayloadVersion, EngineState, EngineTaskExt, InsertTask,
     InsertTaskError::{self},
-    task_queue::{build_and_seal, tasks::seal::error::SealError},
+    task_queue::build_and_seal,
 };
 use alloy_rpc_types_engine::{ExecutionPayload, PayloadId};
 use async_trait::async_trait;
@@ -44,7 +43,7 @@ pub struct SealTask {
     /// An optional sender to convey success/failure result of the built
     /// [`OpExecutionPayloadEnvelope`] after the block has been built, imported, and canonicalized
     /// or the [`SealTaskError`] that occurred during processing.
-    pub result_tx: Option<mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealError>>>,
+    pub result_tx: Option<mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>>,
 }
 
 impl SealTask {
@@ -239,21 +238,7 @@ impl SealTask {
         // NB: If a response channel was provided, that channel will receive success/failure info,
         // and this task will always succeed. If not, task failure will be relayed to the caller.
         if let Some(tx) = &self.result_tx {
-            let to_send = match res {
-                Ok(x) => Ok(x),
-                // NB: This error is critical IFF not relayed back to a caller, so we can't rely on
-                // the severity below.
-                Err(SealTaskError::UnsafeHeadChangedSinceBuild) => Err(SealError::ConsiderRebuild),
-                Err(err) => match err.severity() {
-                    EngineTaskErrorSeverity::Temporary | EngineTaskErrorSeverity::Reset => {
-                        Err(SealError::ConsiderRebuild)
-                    }
-                    EngineTaskErrorSeverity::Flush => Err(SealError::HoloceneRetry),
-                    EngineTaskErrorSeverity::Critical => Err(SealError::EngineError),
-                },
-            };
-
-            tx.send(to_send).await.map_err(Box::new).map_err(SealTaskError::MpscSend)?;
+            tx.send(res).await.map_err(Box::new).map_err(SealTaskError::MpscSend)?;
         } else if let Err(x) = res {
             return Err(x)
         }

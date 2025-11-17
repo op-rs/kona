@@ -32,19 +32,3 @@ impl EngineTaskError for SynchronizeTaskError {
         }
     }
 }
-
-/// The inter-actor error returned to the Synchronize caller.
-#[derive(Debug, Error)]
-pub enum SynchronizeError {
-    /// The forkchoice update call to the engine api failed.
-    #[error("Forkchoice update engine api call failed due to an RPC error: {0}")]
-    ForkchoiceUpdateFailed(RpcError<TransportErrorKind>),
-
-    /// The finalized head is behind the unsafe head.
-    #[error("Invalid forkchoice state: unsafe head {0} is ahead of finalized head {1}")]
-    FinalizedAheadOfUnsafe(u64, u64),
-
-    /// The forkchoice state is invalid.
-    #[error("Invalid forkchoice state")]
-    InvalidForkchoiceState,
-}

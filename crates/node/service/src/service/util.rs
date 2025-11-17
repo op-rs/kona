@@ -25,10 +25,7 @@ macro_rules! spawn_and_wait {
                     // release mode.
                     let _guard = cancellation.drop_guard();
 
-                    // Call init() to convert InitData to StartData
-                    let start_data = actor.init(context);
-
-                    if let Err(e) = actor.start(start_data).await {
+                    if let Err(e) = actor.start(context).await {
                         return Err(format!("{e:?}"));
                     }
                     Ok(())

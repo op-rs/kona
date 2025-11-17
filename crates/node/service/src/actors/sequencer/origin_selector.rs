@@ -9,9 +9,21 @@ use kona_protocol::{BlockInfo, L2BlockInfo};
 use std::{fmt::Debug, sync::Arc};
 use tokio::sync::watch;
 
+/// Trait for selecting the next L1 origin block for sequencing.
+///
+/// This trait is used by the sequencer to determine which L1 block should be used
+/// as the origin for the next L2 block being built.
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait OriginSelector: Debug + Send + Sync {
+    /// Selects the next L1 origin block for sequencing.
+    ///
+    /// # Arguments
+    /// * `unsafe_head` - The current unsafe head of the L2 chain
+    /// * `is_recovery_mode` - Whether the sequencer is in recovery mode
+    ///
+    /// # Returns
+    /// The selected L1 origin block information, or an error if selection failed.
     async fn next_l1_origin(
         &mut self,
         unsafe_head: L2BlockInfo,

@@ -12,8 +12,8 @@ use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use rollup_boost::{
     ExecutionMode, GetExecutionModeResponse, SetExecutionModeRequest, SetExecutionModeResponse,
 };
-use tokio::sync::oneshot;
 use thiserror::Error;
+use tokio::sync::oneshot;
 
 /// The query types to the network actor for the admin api.
 #[derive(Debug)]
@@ -46,9 +46,9 @@ type RollupBoostAdminQuerySender = tokio::sync::mpsc::Sender<RollupBoostAdminQue
 
 /// The admin rpc server.
 #[derive(Debug)]
-pub struct AdminRpc {
+pub struct AdminRpc<SequencerAdminAPIClient> {
     /// The sequencer admin API client.
-    pub sequencer_admin_client: Option<Box<dyn SequencerAdminAPIClient>>,
+    pub sequencer_admin_client: Option<SequencerAdminAPIClient>,
     /// The sender to the network actor.
     pub network_sender: NetworkAdminQuerySender,
     /// The sender to the rollup boost component of the engine actor.
@@ -56,7 +56,7 @@ pub struct AdminRpc {
     pub rollup_boost_sender: Option<RollupBoostAdminQuerySender>,
 }
 
-impl AdminRpc {
+impl<S: SequencerAdminAPIClient> AdminRpc<S> {
     /// Constructs a new [`AdminRpc`] given the sequencer sender, network sender, and execution
     /// mode.
     ///
@@ -71,7 +71,7 @@ impl AdminRpc {
     ///
     /// A new [`AdminRpc`] instance.
     pub const fn new(
-        sequencer_admin_client: Option<Box<dyn SequencerAdminAPIClient>>,
+        sequencer_admin_client: Option<S>,
         network_sender: NetworkAdminQuerySender,
         rollup_boost_sender: Option<RollupBoostAdminQuerySender>,
     ) -> Self {
@@ -80,7 +80,7 @@ impl AdminRpc {
 }
 
 #[async_trait]
-impl AdminApiServer for AdminRpc {
+impl<S: SequencerAdminAPIClient + 'static> AdminApiServer for AdminRpc<S> {
     async fn admin_post_unsafe_payload(
         &self,
         payload: OpExecutionPayloadEnvelope,

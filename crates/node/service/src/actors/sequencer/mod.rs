@@ -4,23 +4,26 @@ mod config;
 pub use config::SequencerConfig;
 
 mod origin_selector;
-#[cfg(test)]
-pub use origin_selector::MockOriginSelector;
 pub use origin_selector::{
     DelayedL1OriginSelectorProvider, L1OriginSelector, L1OriginSelectorError,
     L1OriginSelectorProvider, OriginSelector,
 };
 
 mod actor;
-pub use actor::{
-    AttributesBuilderConfig, SequencerActor, SequencerActorError, SequencerBuilder,
-    SequencerInboundData, SequencerInitContext,
-};
+pub use actor::SequencerActor;
 
-mod rpc;
-pub use rpc::QueuedSequencerAdminAPIClient;
+mod admin_api_client;
+pub use admin_api_client::{QueuedSequencerAdminAPIClient, SequencerAdminQuery};
+
+mod admin_api_impl;
+
+mod builder;
+pub use builder::SequencerActorBuilder;
+mod metrics;
+
+mod error;
+pub use error::SequencerActorError;
 
 mod conductor;
-#[cfg(test)]
-pub use conductor::MockConductor;
-pub use conductor::{ConductorClient, ConductorError};
+
+pub use conductor::{Conductor, ConductorClient, ConductorError};

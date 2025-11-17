@@ -2,7 +2,10 @@
 
 use std::sync::Arc;
 
-use crate::{InteropMode, Metrics, NodeActor, actors::CancellableContext};
+use crate::{
+    InteropMode, Metrics, NodeActor,
+    actors::{CancellableContext, engine::ResetRequest},
+};
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
 use kona_derive::{
@@ -180,7 +183,7 @@ pub struct DerivationContext {
     pub derived_attributes_tx: mpsc::Sender<OpAttributesWithParent>,
     /// The reset request sender, used to handle [`PipelineErrorKind::Reset`] events and forward
     /// them to the engine.
-    pub reset_request_tx: mpsc::Sender<()>,
+    pub reset_request_tx: mpsc::Sender<ResetRequest>,
 }
 
 impl CancellableContext for DerivationContext {
@@ -217,7 +220,7 @@ where
     async fn produce_next_attributes(
         &mut self,
         engine_l2_safe_head: &watch::Receiver<L2BlockInfo>,
-        reset_request_tx: &mpsc::Sender<()>,
+        reset_request_tx: &mpsc::Sender<ResetRequest>,
     ) -> Result<OpAttributesWithParent, DerivationError> {
         // As we start the safe head at the disputed block's parent, we step the pipeline until the
         // first attributes are produced. All batches at and before the safe head will be
@@ -288,7 +291,7 @@ where
                                     .rollup_config()
                                     .is_interop_active(l2_safe_head.block_info.timestamp)
                                 {
-                                    reset_request_tx.send(()).await.map_err(|e| {
+                                    reset_request_tx.send(((),None)).await.map_err(|e| {
                                         error!(target: "derivation", ?e, "Failed to send reset request");
                                         DerivationError::Sender(Box::new(e))
                                     })?;
@@ -331,7 +334,7 @@ where
         engine_l2_safe_head: &mut watch::Receiver<L2BlockInfo>,
         el_sync_complete_rx: &oneshot::Receiver<()>,
         derived_attributes_tx: &mpsc::Sender<OpAttributesWithParent>,
-        reset_request_tx: &mpsc::Sender<()>,
+        reset_request_tx: &mpsc::Sender<ResetRequest>,
     ) -> Result<(), DerivationError> {
         // Only attempt derivation once the engine finishes syncing.
         if !el_sync_complete_rx.is_terminated() {
@@ -434,18 +437,7 @@ where
     B: PipelineBuilder,
 {
     type Error = DerivationError;
-    type InitData = DerivationContext;
     type StartData = DerivationContext;
-    type Builder = B;
-    type BuildData = DerivationInboundChannels;
-
-    fn build(config: Self::Builder) -> (Self::BuildData, Self) {
-        Self::new(config)
-    }
-
-    fn init(&self, ctx: Self::InitData) -> Self::StartData {
-        ctx
-    }
 
     async fn start(
         mut self,

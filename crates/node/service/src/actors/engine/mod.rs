@@ -1,15 +1,15 @@
 //! The [`EngineActor`] and its components.
 
 mod actor;
-pub(crate) use actor::{BuildRequest, SealRequest};
+pub(crate) use actor::{BuildRequest, ResetRequest, SealRequest};
 pub use actor::{EngineActor, EngineConfig, EngineContext, EngineInboundData};
-
-pub use api::{BlockEngine, QueuedBlockEngine};
 
 mod error;
 pub use error::EngineError;
 
 mod api;
+pub use api::{BlockEngineClient, BlockEngineError, BlockEngineResult, QueuedBlockEngineClient};
+
 mod finalizer;
 
 pub use finalizer::L2Finalizer;

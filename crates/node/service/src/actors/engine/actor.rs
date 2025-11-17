@@ -1,6 +1,9 @@
 //! The [`EngineActor`].
 
-use super::{EngineError, L2Finalizer, BlockEngine, QueuedBlockEngine};
+use super::{
+    BlockEngineClient, BlockEngineResult, EngineError, L2Finalizer, QueuedBlockEngineClient,
+};
+use crate::{BlockEngineError, NodeActor, NodeMode, actors::CancellableContext};
 use alloy_rpc_types_engine::{JwtSecret, PayloadId};
 use async_trait::async_trait;
 use futures::{FutureExt, future::OptionFuture};
@@ -8,8 +11,8 @@ use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
     BuildTask, ConsolidateTask, Engine, EngineClient, EngineClientBuilder,
     EngineClientBuilderError, EngineQueries, EngineState as InnerEngineState, EngineTask,
-    EngineTaskError, EngineTaskErrorSeverity, InsertTask, RollupBoostServerArgs, SealError,
-    SealTask,
+    EngineTaskError, EngineTaskErrorSeverity, InsertTask, RollupBoostServerArgs, SealTask,
+    SealTaskError,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
@@ -26,18 +29,21 @@ use tokio_util::{
 };
 use url::Url;
 
-use crate::{NodeActor, NodeMode, actors::CancellableContext};
-
 /// A request to build a payload.
 /// Contains the attributes to build and a channel to send back the resulting `PayloadId`.
 pub(crate) type BuildRequest = (OpAttributesWithParent, mpsc::Sender<PayloadId>);
+
+/// A request to reset the engine forkchoice.
+/// Optionally contains a channel to send back the response if the caller would like to know that
+/// the request was successfully processed.
+pub(crate) type ResetRequest = ((), Option<mpsc::Sender<BlockEngineResult<()>>>);
 
 /// A request to seal a payload.
 /// Contains the `PayloadId`, attributes, and a channel to send back the result.
 pub(crate) type SealRequest = (
     PayloadId,
     OpAttributesWithParent,
-    mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealError>>,
+    mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>,
 );
 
 /// The [`EngineActor`] is responsible for managing the operations sent to the execution layer's
@@ -51,10 +57,10 @@ pub struct EngineActor {
     attributes_rx: mpsc::Receiver<OpAttributesWithParent>,
     /// A channel to receive [`OpExecutionPayloadEnvelope`] from the network actor.
     unsafe_block_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
-    /// A channel to receive reset requests.
-    reset_request_rx: mpsc::Receiver<()>,
     /// Handler for inbound queries to the engine.
     inbound_queries: mpsc::Receiver<EngineQueries>,
+    /// A channel to receive reset requests.
+    reset_request_rx: mpsc::Receiver<ResetRequest>,
     /// A channel to receive build requests.
     /// Upon successful processing of the provided attributes, a `PayloadId` will be sent via the
     /// provided sender.
@@ -80,9 +86,9 @@ pub struct EngineActor {
 
 /// The outbound data for the [`EngineActor`].
 #[derive(Debug)]
-pub struct EngineInboundData {
+pub struct EngineInboundData<BE: BlockEngineClient> {
     /// A trait object used to send block building requests to the [`EngineActor`].
-    pub block_engine: Option<Box<dyn BlockEngine>>,
+    pub block_engine: Option<BE>,
     /// A channel to send [`OpAttributesWithParent`] to the engine actor.
     pub attributes_tx: mpsc::Sender<OpAttributesWithParent>,
     /// A channel to send [`OpExecutionPayloadEnvelope`] to the engine actor.
@@ -94,7 +100,7 @@ pub struct EngineInboundData {
     /// state upon completion.
     pub unsafe_block_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
     /// A channel to send reset requests.
-    pub reset_request_tx: mpsc::Sender<()>,
+    pub reset_request_tx: mpsc::Sender<ResetRequest>,
     /// Handler to send inbound queries to the engine.
     pub inbound_queries_tx: mpsc::Sender<EngineQueries>,
     /// A channel that sends new finalized L1 blocks intermittently.
@@ -207,22 +213,22 @@ impl CancellableContext for EngineContext {
 
 impl EngineActor {
     /// Constructs a new [`EngineActor`] from the params.
-    pub fn new(config: EngineConfig) -> (EngineInboundData, Self) {
+    pub fn new(config: EngineConfig) -> (EngineInboundData<QueuedBlockEngineClient>, Self) {
         let (finalized_l1_block_tx, finalized_l1_block_rx) = watch::channel(None);
         let (inbound_queries_tx, inbound_queries_rx) = mpsc::channel(1024);
         let (attributes_tx, attributes_rx) = mpsc::channel(1024);
         let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
         let (reset_request_tx, reset_request_rx) = mpsc::channel(1024);
 
-        let (block_engine, build_request_rx, seal_request_rx) =
-            if config.mode.is_sequencer() {
-                let (build_tx, build_rx) = mpsc::channel(1024);
-                let (seal_tx, seal_rx) = mpsc::channel(1024);
-                let block_engine = Box::new(QueuedBlockEngine::new(build_tx, seal_tx)) as Box<dyn BlockEngine>;
-                (Some(block_engine), Some(build_rx), Some(seal_rx))
-            } else {
-                (None, None, None)
-            };
+        let (block_engine, build_request_rx, seal_request_rx) = if config.mode.is_sequencer() {
+            let (build_tx, build_rx) = mpsc::channel(1024);
+            let (seal_tx, seal_rx) = mpsc::channel(1024);
+            let block_engine =
+                QueuedBlockEngineClient::new(build_tx, seal_tx, reset_request_tx.clone());
+            (Some(block_engine), Some(build_rx), Some(seal_rx))
+        } else {
+            (None, None, None)
+        };
 
         let (rollup_boost_admin_query_tx, rollup_boost_admin_query_rx) = mpsc::channel(1024);
         let (rollup_boost_health_query_tx, rollup_boost_health_query_rx) = mpsc::channel(1024);
@@ -460,18 +466,7 @@ impl EngineActorState {
 #[async_trait]
 impl NodeActor for EngineActor {
     type Error = EngineError;
-    type InitData = EngineContext;
     type StartData = EngineContext;
-    type BuildData = EngineInboundData;
-    type Builder = EngineConfig;
-
-    fn build(config: Self::Builder) -> (Self::BuildData, Self) {
-        Self::new(config)
-    }
-
-    fn init(&self, ctx: Self::InitData) -> Self::StartData {
-        ctx
-    }
 
     async fn start(
         mut self,
@@ -572,9 +567,22 @@ impl NodeActor for EngineActor {
                         return Err(EngineError::ChannelClosed);
                     }
                     warn!(target: "engine", "Received reset request");
-                    state
+
+                    let reset_res = state
                         .reset(&derivation_signal_tx, &engine_l2_safe_head_tx, &mut self.finalizer)
-                        .await?;
+                        .await;
+
+                    if let Some(((), Some(tx))) = reset {
+                        let response_payload = match &reset_res {
+                            Ok(()) => Ok(()),
+                            Err(_) => Err(BlockEngineError::ResetForkchoiceError),
+                        };
+                        // The only way this can fail is if the receiver is dropped, and if that is
+                        // an error case, it will be handled on the receiver's side, not here.
+                        let _ = tx.send(response_payload).await.map_err(|_| warn!(target: "engine", "Sending reset response failed"));
+                    }
+
+                    reset_res?;
                 }
                 Some(req) = OptionFuture::from(self.seal_request_rx.as_mut().map(|rx| rx.recv())), if self.seal_request_rx.is_some() => {
                     let Some((payload_id, attributes, response_tx)) = req else {
