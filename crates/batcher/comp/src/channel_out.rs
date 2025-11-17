@@ -150,6 +150,7 @@ where
 mod tests {
     use super::*;
     use crate::{CompressorWriter, test_utils::MockCompressor};
+    use alloy_primitives::Bytes;
     use kona_protocol::{SingleBatch, SpanBatch};
 
     #[test]
@@ -268,5 +269,34 @@ mod tests {
 
         let batch = Batch::Single(SingleBatch::default());
         assert_eq!(channel.add_batch(batch), Ok(()));
+    }
+
+    #[test]
+    fn test_channel_out_add_batch_enforces_cumulative_rlp_limit() {
+        let config = RollupConfig::default();
+        let mut channel = ChannelOut::new(ChannelId::default(), &config, MockCompressor::default());
+
+        let timestamp = 0;
+        let max_rlp = config.max_rlp_bytes_per_channel(timestamp);
+        let payload_size = (max_rlp / 2 + 1) as usize;
+
+        let large_batch = Batch::Single(SingleBatch {
+            timestamp,
+            transactions: vec![Bytes::from(vec![0u8; payload_size])],
+            ..Default::default()
+        });
+
+        let mut encoded = Vec::new();
+        large_batch.encode(&mut encoded).expect("test batch should encode");
+        assert!(
+            encoded.len() as u64 <= max_rlp,
+            "test batch should fit within per-channel limit"
+        );
+
+        channel.add_batch(large_batch.clone()).expect("first batch should fit");
+        assert_eq!(channel.rlp_length, encoded.len() as u64);
+
+        let err = channel.add_batch(large_batch).unwrap_err();
+        assert_eq!(err, ChannelOutError::ExceedsMaxRlpBytesPerChannel);
     }
 }
