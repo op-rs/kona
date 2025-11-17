@@ -5,7 +5,6 @@ use crate::{
     ExecutorError, ExecutorResult, TrieDBError, TrieDBProvider,
     util::{encode_holocene_eip_1559_params, encode_jovian_eip_1559_params},
 };
-use alloc::vec::Vec;
 use alloy_consensus::{EMPTY_OMMER_ROOT_HASH, Header, Sealed};
 use alloy_eips::{Encodable2718, eip7685::EMPTY_REQUESTS_HASH};
 use alloy_evm::{EvmFactory, block::BlockExecutionResult};
@@ -176,20 +175,17 @@ pub fn compute_receipts_root(
     // receipt encoding. In the Regolith hardfork, we must strip the deposit nonce
     // from the receipt encoding to match the receipt root calculation.
     if config.is_regolith_active(timestamp) && !config.is_canyon_active(timestamp) {
-        let receipts = receipts
-            .iter()
-            .cloned()
-            .map(|receipt| match receipt {
-                OpReceiptEnvelope::Deposit(mut deposit_receipt) => {
-                    deposit_receipt.receipt.deposit_nonce = None;
-                    OpReceiptEnvelope::Deposit(deposit_receipt)
+        ordered_trie_with_encoder(receipts, |receipt, mut buf| match receipt {
+            OpReceiptEnvelope::Deposit(deposit_receipt) => {
+                if deposit_receipt.receipt.deposit_nonce.is_some() {
+                    let mut dep = deposit_receipt.clone();
+                    dep.receipt.deposit_nonce = None;
+                    OpReceiptEnvelope::Deposit(dep).encode_2718(&mut buf)
+                } else {
+                    receipt.encode_2718(&mut buf)
                 }
-                _ => receipt,
-            })
-            .collect::<Vec<_>>();
-
-        ordered_trie_with_encoder(receipts.as_ref(), |receipt, mut buf| {
-            receipt.encode_2718(&mut buf)
+            }
+            _ => receipt.encode_2718(&mut buf),
         })
         .root()
     } else {
