@@ -41,7 +41,7 @@ jobs:
       - name: Setup Go toolchain
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22.7"
+          go-version: "1.23.8"
           cache-dependency-path: |
             tests/go.sum
             tests/optimism/go.sum
