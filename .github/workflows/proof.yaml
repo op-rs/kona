@@ -51,12 +51,6 @@ jobs:
         with:
           gotestsum_version: 1.12.1
 
-      - name: Build Action Tests
-        run: |
-          source <(cargo llvm-cov show-env --export-prefix)
-          just "action-tests-${{ matrix.kind }}-build"
-          cargo llvm-cov report --lcov --output-path actions_cov.lcov
-
       - name: Split Action Tests
         id: test_split
         uses: hashicorp-forge/go-test-split-action@v2.0.0
@@ -65,9 +59,12 @@ jobs:
           index: ${{ matrix.index }}
           working-directory: ./tests/optimism/op-e2e/actions/proofs
 
-      - name: Run Action Tests
+      - name: Build and Run Action Tests
         run: |
+          source <(cargo llvm-cov show-env --export-prefix)
+          just "action-tests-${{ matrix.kind }}-build"
           just "action-tests-${{ matrix.kind }}-run" "${{ steps.test_split.outputs.run }}"
+          cargo llvm-cov report --lcov --output-path actions_cov.lcov
 
       - name: Upload coverage to codecov.io
         uses: codecov/codecov-action@v5
