@@ -16,6 +16,7 @@ use kona_protocol::{OutputRoot, Predeploys};
 use op_alloy_consensus::OpReceiptEnvelope;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use revm::{context::BlockEnv, database::BundleState};
+use std::borrow::Cow;
 
 impl<P, H, Evm> StatelessL2Builder<'_, P, H, Evm>
 where
@@ -175,17 +176,16 @@ pub fn compute_receipts_root(
     // receipt encoding. In the Regolith hardfork, we must strip the deposit nonce
     // from the receipt encoding to match the receipt root calculation.
     if config.is_regolith_active(timestamp) && !config.is_canyon_active(timestamp) {
-        ordered_trie_with_encoder(receipts, |receipt, mut buf| match receipt {
-            OpReceiptEnvelope::Deposit(deposit_receipt) => {
-                if deposit_receipt.receipt.deposit_nonce.is_some() {
-                    let mut dep = deposit_receipt.clone();
-                    dep.receipt.deposit_nonce = None;
-                    OpReceiptEnvelope::Deposit(dep).encode_2718(&mut buf)
-                } else {
-                    receipt.encode_2718(&mut buf)
+        ordered_trie_with_encoder(receipts, |receipt, mut buf| {
+            let to_encode: Cow<'_, OpReceiptEnvelope> = match receipt {
+                OpReceiptEnvelope::Deposit(dep) if dep.receipt.deposit_nonce.is_some() => {
+                    let mut dep2 = dep.clone();
+                    dep2.receipt.deposit_nonce = None;
+                    Cow::Owned(OpReceiptEnvelope::Deposit(dep2))
                 }
-            }
-            _ => receipt.encode_2718(&mut buf),
+                _ => Cow::Borrowed(receipt),
+            };
+            to_encode.encode_2718(&mut buf)
         })
         .root()
     } else {
