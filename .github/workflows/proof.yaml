@@ -29,8 +29,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v5
         with:
-          submodules: recursive   # or 'true' if you don't need nested subs
-          fetch-depth: 1          # optional, but nice for versioning
+          submodules: true
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
@@ -42,20 +41,18 @@ jobs:
       - name: Setup Go toolchain
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22.7"
+          go-version: "1.23.8"
           cache-dependency-path: |
             tests/go.sum
             tests/optimism/go.sum
+      - name: Unzip contract artifacts
+        run: |
+          echo "Building contract artifacts for the optimism"
+          just unzip-contract-artifacts tests/optimism/packages/contracts-bedrock
       - name: Setup gotestsum
         uses: autero1/action-gotestsum@v2.0.0
         with:
           gotestsum_version: 1.12.1
-
-      - name: Build Action Tests
-        run: |
-          source <(cargo llvm-cov show-env --export-prefix)
-          just "action-tests-${{ matrix.kind }}-build"
-          cargo llvm-cov report --lcov --output-path actions_cov.lcov
 
       - name: Split Action Tests
         id: test_split
@@ -65,9 +62,17 @@ jobs:
           index: ${{ matrix.index }}
           working-directory: ./tests/optimism/op-e2e/actions/proofs
 
-      - name: Run Action Tests
+      - name: Build and Run Action Tests
         run: |
+          source <(cargo llvm-cov show-env --export-prefix)
+
+          echo "Building host program for the native target"
+          just build-native --bin kona-host
+
+          echo "Running action tests"
           just "action-tests-${{ matrix.kind }}-run" "${{ steps.test_split.outputs.run }}"
+
+          cargo llvm-cov report --lcov --output-path actions_cov.lcov
 
       - name: Upload coverage to codecov.io
         uses: codecov/codecov-action@v5
