@@ -56,8 +56,8 @@ pub use client::{
 
 mod rollup_boost;
 pub use rollup_boost::{
-    FlashblocksClientArgs, FlashblocksWebsocketConfig, RollupBoostError, RollupBoostServer,
-    RollupBoostServerArgs, RollupBoostServerLike,
+    FlashblocksClientArgs, FlashblocksWebsocketConfig, RollupBoostServer, RollupBoostServerArgs,
+    RollupBoostServerError, RollupBoostServerLike,
 };
 
 mod versions;

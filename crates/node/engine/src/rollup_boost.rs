@@ -1,16 +1,17 @@
 //! Rollup-boost abstraction used by the engine client.
 
+use alloy_json_rpc::{ErrorPayload, RpcError};
 use alloy_primitives::{B256, Bytes};
 use alloy_rpc_types_engine::{
     ExecutionPayloadV3, ForkchoiceState, ForkchoiceUpdated, PayloadId, PayloadStatus,
 };
+use alloy_transport::TransportErrorKind;
 use op_alloy_rpc_types_engine::{
     OpExecutionPayloadEnvelopeV3, OpExecutionPayloadEnvelopeV4, OpExecutionPayloadV4,
     OpPayloadAttributes,
 };
 use rollup_boost::{EngineApiExt, EngineApiServer, ExecutionMode, Health, Probes};
 use std::{fmt::Debug, sync::Arc};
-use thiserror::Error;
 
 use rollup_boost::BlockSelectionPolicy;
 use url::Url;
@@ -65,10 +66,25 @@ pub struct FlashblocksWebsocketConfig {
     pub flashblock_builder_ws_pong_timeout_ms: u64,
 }
 
-/// Error wrapper for rollup-boost calls.
-#[derive(Debug, Error)]
-#[error("{0}")]
-pub struct RollupBoostError(pub String);
+/// An error that occurred in the rollup-boost server.
+#[derive(Debug, thiserror::Error)]
+pub enum RollupBoostServerError {
+    /// JSON-RPC error.
+    #[error("Rollup boost server error: {0}")]
+    Jsonrpsee(#[from] jsonrpsee_types::ErrorObjectOwned),
+}
+
+impl From<RollupBoostServerError> for RpcError<TransportErrorKind> {
+    fn from(error: RollupBoostServerError) -> Self {
+        match error {
+            RollupBoostServerError::Jsonrpsee(error) => RpcError::ErrorResp(ErrorPayload {
+                code: error.code().into(),
+                message: error.message().to_string().into(),
+                data: None,
+            }),
+        }
+    }
+}
 
 /// Trait object used to erase the concrete rollup-boost server type.
 #[async_trait::async_trait]
@@ -85,7 +101,7 @@ pub trait RollupBoostServerLike: Debug + Send + Sync {
         payload: ExecutionPayloadV3,
         versioned_hashes: Vec<B256>,
         parent_beacon_block_root: B256,
-    ) -> Result<PayloadStatus, RollupBoostError>;
+    ) -> Result<PayloadStatus, RollupBoostServerError>;
 
     /// Creates a new payload v4.
     async fn new_payload_v4(
@@ -94,26 +110,26 @@ pub trait RollupBoostServerLike: Debug + Send + Sync {
         versioned_hashes: Vec<B256>,
         parent_beacon_block_root: B256,
         execution_requests: Vec<Bytes>,
-    ) -> Result<PayloadStatus, RollupBoostError>;
+    ) -> Result<PayloadStatus, RollupBoostServerError>;
 
     /// Performs a fork choice updated v3.
     async fn fork_choice_updated_v3(
         &self,
         fork_choice_state: ForkchoiceState,
         payload_attributes: Option<OpPayloadAttributes>,
-    ) -> Result<ForkchoiceUpdated, RollupBoostError>;
+    ) -> Result<ForkchoiceUpdated, RollupBoostServerError>;
 
     /// Gets a payload v3.
     async fn get_payload_v3(
         &self,
         payload_id: PayloadId,
-    ) -> Result<OpExecutionPayloadEnvelopeV3, RollupBoostError>;
+    ) -> Result<OpExecutionPayloadEnvelopeV3, RollupBoostServerError>;
 
     /// Gets a payload v4.
     async fn get_payload_v4(
         &self,
         payload_id: PayloadId,
-    ) -> Result<OpExecutionPayloadEnvelopeV4, RollupBoostError>;
+    ) -> Result<OpExecutionPayloadEnvelopeV4, RollupBoostServerError>;
 }
 
 #[async_trait::async_trait]
@@ -133,10 +149,10 @@ impl<T: EngineApiExt + Send + Sync + 'static + Debug> RollupBoostServerLike
         payload: ExecutionPayloadV3,
         versioned_hashes: Vec<B256>,
         parent_beacon_block_root: B256,
-    ) -> Result<PayloadStatus, RollupBoostError> {
+    ) -> Result<PayloadStatus, RollupBoostServerError> {
         EngineApiServer::new_payload_v3(self, payload, versioned_hashes, parent_beacon_block_root)
             .await
-            .map_err(|e| RollupBoostError(e.to_string()))
+            .map_err(RollupBoostServerError::from)
     }
 
     async fn new_payload_v4(
@@ -145,7 +161,7 @@ impl<T: EngineApiExt + Send + Sync + 'static + Debug> RollupBoostServerLike
         versioned_hashes: Vec<B256>,
         parent_beacon_block_root: B256,
         execution_requests: Vec<Bytes>,
-    ) -> Result<PayloadStatus, RollupBoostError> {
+    ) -> Result<PayloadStatus, RollupBoostServerError> {
         EngineApiServer::new_payload_v4(
             self,
             payload.clone(),
@@ -154,35 +170,35 @@ impl<T: EngineApiExt + Send + Sync + 'static + Debug> RollupBoostServerLike
             execution_requests,
         )
         .await
-        .map_err(|e| RollupBoostError(e.to_string()))
+        .map_err(RollupBoostServerError::from)
     }
 
     async fn fork_choice_updated_v3(
         &self,
         fork_choice_state: ForkchoiceState,
         payload_attributes: Option<OpPayloadAttributes>,
-    ) -> Result<ForkchoiceUpdated, RollupBoostError> {
+    ) -> Result<ForkchoiceUpdated, RollupBoostServerError> {
         EngineApiServer::fork_choice_updated_v3(self, fork_choice_state, payload_attributes)
             .await
-            .map_err(|e| RollupBoostError(e.to_string()))
+            .map_err(RollupBoostServerError::from)
     }
 
     async fn get_payload_v3(
         &self,
         payload_id: PayloadId,
-    ) -> Result<OpExecutionPayloadEnvelopeV3, RollupBoostError> {
+    ) -> Result<OpExecutionPayloadEnvelopeV3, RollupBoostServerError> {
         EngineApiServer::get_payload_v3(self, payload_id)
             .await
-            .map_err(|e| RollupBoostError(e.to_string()))
+            .map_err(RollupBoostServerError::from)
     }
 
     async fn get_payload_v4(
         &self,
         payload_id: PayloadId,
-    ) -> Result<OpExecutionPayloadEnvelopeV4, RollupBoostError> {
+    ) -> Result<OpExecutionPayloadEnvelopeV4, RollupBoostServerError> {
         EngineApiServer::get_payload_v4(self, payload_id)
             .await
-            .map_err(|e| RollupBoostError(e.to_string()))
+            .map_err(RollupBoostServerError::from)
     }
 }
 

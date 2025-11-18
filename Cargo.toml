@@ -198,7 +198,8 @@ arbitrary = "1.4.1"
 multihash = "0.19.3"
 crossterm = "0.29.0"
 color-eyre = "0.6.5"
-jsonrpsee = "0.25.1"
+jsonrpsee = "0.26.0"
+jsonrpsee-types = "0.26.0"
 tokio-util = "0.7.15"
 rustls = { version = "0.23", default-features = false }
 rustls-pemfile = { version = "2.0", default-features = false }
@@ -273,5 +274,5 @@ secp256k1 = { version = "0.31.0", default-features = false }
 ark-bls12-381 = { version = "0.5.0", default-features = false }
 
 # Rollup Boost (required for rollup-boost integration)
-rollup-boost = { git = "https://github.com/flashbots/rollup-boost.git", tag = "v0.7.10" }
+rollup-boost = { git = "https://github.com/flashbots/rollup-boost.git", rev = "7fda98f" }
 parking_lot = "0.12.3"

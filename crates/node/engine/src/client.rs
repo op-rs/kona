@@ -268,7 +268,7 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
             Http<HyperAuthClient>,
         >>::new_payload_v2(&self.engine, payload);
 
-        record_call_time(call, Metrics::NEW_PAYLOAD_METHOD).await
+        record_call_time(call, Metrics::NEW_PAYLOAD_METHOD).await.map_err(Into::into)
     }
 
     async fn new_payload_v3(
@@ -279,9 +279,7 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
         let call =
             self.rollup_boost.server.new_payload_v3(payload, vec![], parent_beacon_block_root);
 
-        record_call_time(call, Metrics::NEW_PAYLOAD_METHOD)
-            .await
-            .map_err(TransportErrorKind::custom)
+        record_call_time(call, Metrics::NEW_PAYLOAD_METHOD).await.map_err(Into::into)
     }
 
     async fn new_payload_v4(
@@ -296,9 +294,7 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
             vec![],
         );
 
-        record_call_time(call, Metrics::NEW_PAYLOAD_METHOD)
-            .await
-            .map_err(TransportErrorKind::custom)
+        record_call_time(call, Metrics::NEW_PAYLOAD_METHOD).await.map_err(Into::into)
     }
 
     async fn fork_choice_updated_v2(
@@ -322,9 +318,7 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
         let call =
             self.rollup_boost.server.fork_choice_updated_v3(fork_choice_state, payload_attributes);
 
-        record_call_time(call, Metrics::FORKCHOICE_UPDATE_METHOD)
-            .await
-            .map_err(TransportErrorKind::custom)
+        record_call_time(call, Metrics::FORKCHOICE_UPDATE_METHOD).await.map_err(Into::into)
     }
 
     async fn get_payload_v2(
@@ -336,7 +330,7 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
             Http<HyperAuthClient>,
         >>::get_payload_v2(&self.engine, payload_id);
 
-        record_call_time(call, Metrics::GET_PAYLOAD_METHOD).await
+        record_call_time(call, Metrics::GET_PAYLOAD_METHOD).await.map_err(Into::into)
     }
 
     async fn get_payload_v3(
@@ -345,9 +339,7 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
     ) -> TransportResult<OpExecutionPayloadEnvelopeV3> {
         let call = self.rollup_boost.server.get_payload_v3(payload_id);
 
-        record_call_time(call, Metrics::GET_PAYLOAD_METHOD)
-            .await
-            .map_err(TransportErrorKind::custom)
+        record_call_time(call, Metrics::GET_PAYLOAD_METHOD).await.map_err(Into::into)
     }
 
     async fn get_payload_v4(
@@ -356,9 +348,7 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
     ) -> TransportResult<OpExecutionPayloadEnvelopeV4> {
         let call = self.rollup_boost.server.get_payload_v4(payload_id);
 
-        record_call_time(call, Metrics::GET_PAYLOAD_METHOD)
-            .await
-            .map_err(TransportErrorKind::custom)
+        record_call_time(call, Metrics::GET_PAYLOAD_METHOD).await.map_err(Into::into)
     }
 
     async fn get_payload_bodies_by_hash_v1(
