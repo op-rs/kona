@@ -288,10 +288,7 @@ mod tests {
 
         let mut encoded = Vec::new();
         large_batch.encode(&mut encoded).expect("test batch should encode");
-        assert!(
-            encoded.len() as u64 <= max_rlp,
-            "test batch should fit within per-channel limit"
-        );
+        assert!(encoded.len() as u64 <= max_rlp, "test batch should fit within per-channel limit");
 
         channel.add_batch(large_batch.clone()).expect("first batch should fit");
         assert_eq!(channel.rlp_length, encoded.len() as u64);
