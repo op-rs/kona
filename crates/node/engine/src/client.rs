@@ -1,6 +1,6 @@
 //! An Engine API Client.
 
-use crate::{Metrics, RollupBoost, RollupBoostArgs, RollupBoostServerLike};
+use crate::{Metrics, RollupBoostServer, RollupBoostServerArgs, RollupBoostServerLike};
 use alloy_eips::eip1898::BlockNumberOrTag;
 use alloy_network::Network;
 use alloy_primitives::{B256, BlockHash, Bytes};
@@ -32,8 +32,7 @@ use op_alloy_rpc_types_engine::{
     OpPayloadAttributes, ProtocolVersion,
 };
 use rollup_boost::{
-    Flashblocks, FlashblocksService, FlashblocksWebsocketConfig, Probes, RollupBoostServer,
-    RpcClientError,
+    Flashblocks, FlashblocksService, FlashblocksWebsocketConfig, Probes, RpcClientError,
 };
 use std::{
     future::Future,
@@ -77,7 +76,7 @@ pub struct EngineClient {
     /// The [`RollupConfig`] for determining Engine API versions based on hardfork activations.
     cfg: Arc<RollupConfig>,
     /// The rollup boost server
-    pub rollup_boost: Arc<RollupBoost>,
+    pub rollup_boost: Arc<RollupBoostServer>,
 }
 
 impl EngineClient {
@@ -113,7 +112,7 @@ pub struct EngineClientBuilder {
     /// The [`RollupConfig`] for determining Engine API versions based on hardfork activations.
     pub cfg: Arc<RollupConfig>,
     /// The rollup boost arguments.
-    pub rollup_boost: RollupBoostArgs,
+    pub rollup_boost: RollupBoostServerArgs,
 }
 
 /// An error that occurred in the [`EngineClientBuilder`].
@@ -139,7 +138,7 @@ impl EngineClientBuilder {
     /// Sets up JWT-authenticated connections to the Engine API endpoint through the rollup-boost
     /// server along with an unauthenticated connection to the L1 chain.
     ///
-    /// # FIXME(@theochap):
+    /// # FIXME(@theochap, `<https://github.com/op-rs/kona/issues/3053>`, `<https://github.com/op-rs/kona/issues/3054>`):
     /// This method can be simplified/improved in a few ways:
     /// - Unify kona's and rollup-boost's RPC client creation
     /// - Removed the `dyn RollupBoostServerLike` type erasure.
@@ -187,7 +186,7 @@ impl EngineClientBuilder {
                         )
                         .map_err(|e| EngineClientBuilderError::FlashblocksError(e.to_string()))?,
                     );
-                    Box::new(RollupBoostServer::<FlashblocksService>::new(
+                    Box::new(rollup_boost::RollupBoostServer::<FlashblocksService>::new(
                         l2_client,
                         builder_client,
                         self.rollup_boost.initial_execution_mode,
@@ -197,7 +196,7 @@ impl EngineClientBuilder {
                         self.rollup_boost.ignore_unhealthy_builders,
                     ))
                 }
-                None => Box::new(RollupBoostServer::<rollup_boost::RpcClient>::new(
+                None => Box::new(rollup_boost::RollupBoostServer::<rollup_boost::RpcClient>::new(
                     l2_client,
                     Arc::new(builder_client),
                     self.rollup_boost.initial_execution_mode,
@@ -208,7 +207,7 @@ impl EngineClientBuilder {
                 )),
             };
 
-        let rollup_boost = Arc::new(RollupBoost { server: rollup_boost_server, probes });
+        let rollup_boost = Arc::new(RollupBoostServer { server: rollup_boost_server, probes });
 
         // TODO(@theochap): remove this client, upstream the remaining EngineApiExt methods to the
         // RollupBoostServer

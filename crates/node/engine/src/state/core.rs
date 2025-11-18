@@ -239,10 +239,7 @@ mod test {
         #[case] label_name: &str,
         #[case] number: u64,
     ) {
-        static PROM_HANDLE: std::sync::OnceLock<metrics_exporter_prometheus::PrometheusHandle> =
-            std::sync::OnceLock::new();
-        let handle = PROM_HANDLE
-            .get_or_init(|| PrometheusBuilder::new().install_recorder().expect("install recorder"));
+        let handle = PrometheusBuilder::new().install_recorder().unwrap();
         crate::Metrics::init();
 
         let mut state = EngineState::default();

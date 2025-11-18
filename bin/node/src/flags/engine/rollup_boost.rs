@@ -79,35 +79,37 @@ impl Default for RollupBoostFlags {
 
 impl RollupBoostFlags {
     /// Converts the rollup boost cli arguments to the rollup boost arguments used by the engine.
-    pub fn as_rollup_boost_args(self) -> kona_engine::RollupBoostArgs {
-        kona_engine::RollupBoostArgs {
+    pub fn as_rollup_boost_args(self) -> kona_engine::RollupBoostServerArgs {
+        kona_engine::RollupBoostServerArgs {
             initial_execution_mode: self.execution_mode,
             block_selection_policy: self.block_selection_policy,
             external_state_root: self.external_state_root,
             ignore_unhealthy_builders: self.ignore_unhealthy_builders,
-            flashblocks: self.flashblocks.flashblocks.then_some(kona_engine::FlashblocksArgs {
-                flashblocks_builder_url: self.flashblocks.flashblocks_builder_url,
-                flashblocks_host: self.flashblocks.flashblocks_host,
-                flashblocks_port: self.flashblocks.flashblocks_port,
-                flashblocks_ws_config: kona_engine::FlashblocksWebsocketConfig {
-                    flashblock_builder_ws_initial_reconnect_ms: self
-                        .flashblocks
-                        .flashblocks_ws_config
-                        .flashblock_builder_ws_initial_reconnect_ms,
-                    flashblock_builder_ws_max_reconnect_ms: self
-                        .flashblocks
-                        .flashblocks_ws_config
-                        .flashblock_builder_ws_max_reconnect_ms,
-                    flashblock_builder_ws_ping_interval_ms: self
-                        .flashblocks
-                        .flashblocks_ws_config
-                        .flashblock_builder_ws_ping_interval_ms,
-                    flashblock_builder_ws_pong_timeout_ms: self
-                        .flashblocks
-                        .flashblocks_ws_config
-                        .flashblock_builder_ws_pong_timeout_ms,
+            flashblocks: self.flashblocks.flashblocks.then_some(
+                kona_engine::FlashblocksClientArgs {
+                    flashblocks_builder_url: self.flashblocks.flashblocks_builder_url,
+                    flashblocks_host: self.flashblocks.flashblocks_host,
+                    flashblocks_port: self.flashblocks.flashblocks_port,
+                    flashblocks_ws_config: kona_engine::FlashblocksWebsocketConfig {
+                        flashblock_builder_ws_initial_reconnect_ms: self
+                            .flashblocks
+                            .flashblocks_ws_config
+                            .flashblock_builder_ws_initial_reconnect_ms,
+                        flashblock_builder_ws_max_reconnect_ms: self
+                            .flashblocks
+                            .flashblocks_ws_config
+                            .flashblock_builder_ws_max_reconnect_ms,
+                        flashblock_builder_ws_ping_interval_ms: self
+                            .flashblocks
+                            .flashblocks_ws_config
+                            .flashblock_builder_ws_ping_interval_ms,
+                        flashblock_builder_ws_pong_timeout_ms: self
+                            .flashblocks
+                            .flashblocks_ws_config
+                            .flashblock_builder_ws_pong_timeout_ms,
+                    },
                 },
-            }),
+            ),
         }
     }
 }

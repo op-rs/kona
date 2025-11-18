@@ -1,6 +1,15 @@
 use clap::Parser;
 use reqwest::Url;
 
+const DEFAULT_FLASHBLOCKS_BUILDER_URL: &str = "ws://localhost:1111";
+const DEFAULT_FLASHBLOCKS_HOST: &str = "localhost";
+const DEFAULT_FLASHBLOCKS_PORT: u16 = 1112;
+
+const DEFAULT_FLASHBLOCKS_BUILDER_WS_INITIAL_RECONNECT_MS: u64 = 10;
+const DEFAULT_FLASHBLOCKS_BUILDER_WS_MAX_RECONNECT_MS: u64 = 5000;
+const DEFAULT_FLASHBLOCKS_BUILDER_WS_PING_INTERVAL_MS: u64 = 500;
+const DEFAULT_FLASHBLOCKS_BUILDER_WS_PONG_TIMEOUT_MS: u64 = 1500;
+
 /// Flashblocks flags.
 #[derive(Clone, Debug, clap::Args)]
 pub struct FlashblocksFlags {
@@ -18,7 +27,7 @@ pub struct FlashblocksFlags {
         long,
         visible_alias = "rollup-boost.flashblocks-builder-url",
         env = "KONA_NODE_FLASHBLOCKS_BUILDER_URL",
-        default_value = "ws://127.0.0.1:1111"
+        default_value = DEFAULT_FLASHBLOCKS_BUILDER_URL
     )]
     pub flashblocks_builder_url: Url,
 
@@ -27,7 +36,7 @@ pub struct FlashblocksFlags {
         long,
         visible_alias = "rollup-boost.flashblocks-host",
         env = "KONA_NODE_FLASHBLOCKS_HOST",
-        default_value = "127.0.0.1"
+        default_value = DEFAULT_FLASHBLOCKS_HOST
     )]
     pub flashblocks_host: String,
 
@@ -36,7 +45,7 @@ pub struct FlashblocksFlags {
         long,
         visible_alias = "rollup-boost.flashblocks-port",
         env = "KONA_NODE_FLASHBLOCKS_PORT",
-        default_value = "1112"
+        default_value_t = DEFAULT_FLASHBLOCKS_PORT
     )]
     pub flashblocks_port: u16,
 
@@ -49,9 +58,9 @@ impl Default for FlashblocksFlags {
     fn default() -> Self {
         Self {
             flashblocks: false,
-            flashblocks_builder_url: Url::parse("ws://127.0.0.1:1111").unwrap(),
-            flashblocks_host: "127.0.0.1".to_string(),
-            flashblocks_port: 1112,
+            flashblocks_builder_url: Url::parse(DEFAULT_FLASHBLOCKS_BUILDER_URL).unwrap(),
+            flashblocks_host: DEFAULT_FLASHBLOCKS_HOST.to_string(),
+            flashblocks_port: DEFAULT_FLASHBLOCKS_PORT,
             flashblocks_ws_config: FlashblocksWebsocketFlags::default(),
         }
     }
@@ -65,7 +74,7 @@ pub struct FlashblocksWebsocketFlags {
         long,
         visible_alias = "rollup-boost.flashblocks-initial-reconnect-ms",
         env = "KONA_NODE_FLASHBLOCKS_BUILDER_WS_INITIAL_RECONNECT_MS",
-        default_value = "10"
+        default_value_t = DEFAULT_FLASHBLOCKS_BUILDER_WS_INITIAL_RECONNECT_MS
     )]
     pub flashblock_builder_ws_initial_reconnect_ms: u64,
 
@@ -74,7 +83,7 @@ pub struct FlashblocksWebsocketFlags {
         long,
         visible_alias = "rollup-boost.flashblocks-max-reconnect-ms",
         env = "KONA_NODE_FLASHBLOCKS_BUILDER_WS_MAX_RECONNECT_MS",
-        default_value = "5000"
+        default_value_t = DEFAULT_FLASHBLOCKS_BUILDER_WS_MAX_RECONNECT_MS
     )]
     pub flashblock_builder_ws_max_reconnect_ms: u64,
 
@@ -84,7 +93,7 @@ pub struct FlashblocksWebsocketFlags {
         long,
         visible_alias = "rollup-boost.flashblocks-ping-interval-ms",
         env = "KONA_NODE_FLASHBLOCKS_BUILDER_WS_PING_INTERVAL_MS",
-        default_value = "500"
+        default_value_t = DEFAULT_FLASHBLOCKS_BUILDER_WS_PING_INTERVAL_MS
     )]
     pub flashblock_builder_ws_ping_interval_ms: u64,
 
@@ -94,7 +103,7 @@ pub struct FlashblocksWebsocketFlags {
         long,
         visible_alias = "rollup-boost.flashblocks-pong-timeout-ms",
         env = "KONA_NODE_FLASHBLOCKS_BUILDER_WS_PONG_TIMEOUT_MS",
-        default_value = "1500"
+        default_value_t = DEFAULT_FLASHBLOCKS_BUILDER_WS_PONG_TIMEOUT_MS
     )]
     pub flashblock_builder_ws_pong_timeout_ms: u64,
 }

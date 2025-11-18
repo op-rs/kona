@@ -8,7 +8,8 @@ use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
     BuildTask, ConsolidateTask, Engine, EngineClient, EngineClientBuilder,
     EngineClientBuilderError, EngineQueries, EngineState as InnerEngineState, EngineTask,
-    EngineTaskError, EngineTaskErrorSeverity, InsertTask, RollupBoostArgs, SealError, SealTask,
+    EngineTaskError, EngineTaskErrorSeverity, InsertTask, RollupBoostServerArgs, SealError,
+    SealTask,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
@@ -147,7 +148,7 @@ pub struct EngineConfig {
     pub mode: NodeMode,
 
     /// The rollup boost arguments.
-    pub rollup_boost: RollupBoostArgs,
+    pub rollup_boost: RollupBoostServerArgs,
 }
 
 impl EngineConfig {

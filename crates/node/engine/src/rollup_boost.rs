@@ -8,9 +8,7 @@ use op_alloy_rpc_types_engine::{
     OpExecutionPayloadEnvelopeV3, OpExecutionPayloadEnvelopeV4, OpExecutionPayloadV4,
     OpPayloadAttributes,
 };
-use rollup_boost::{
-    EngineApiExt, EngineApiServer, ExecutionMode, Health, Probes, RollupBoostServer,
-};
+use rollup_boost::{EngineApiExt, EngineApiServer, ExecutionMode, Health, Probes};
 use std::{fmt::Debug, sync::Arc};
 use thiserror::Error;
 
@@ -19,7 +17,7 @@ use url::Url;
 
 /// Configuration for the rollup-boost server.
 #[derive(Clone, Debug)]
-pub struct RollupBoostArgs {
+pub struct RollupBoostServerArgs {
     /// The initial execution mode of the rollup-boost server.
     pub initial_execution_mode: ExecutionMode,
     /// The block selection policy of the rollup-boost server.
@@ -30,12 +28,12 @@ pub struct RollupBoostArgs {
     /// This is default true assuming no builder CL set up
     pub ignore_unhealthy_builders: bool,
     /// Flashblocks configuration
-    pub flashblocks: Option<FlashblocksArgs>,
+    pub flashblocks: Option<FlashblocksClientArgs>,
 }
 
 /// Configuration for the Flashblocks client.
 #[derive(Clone, Debug)]
-pub struct FlashblocksArgs {
+pub struct FlashblocksClientArgs {
     /// Flashblocks Builder WebSocket URL
     pub flashblocks_builder_url: Url,
 
@@ -120,7 +118,7 @@ pub trait RollupBoostServerLike: Debug + Send + Sync {
 
 #[async_trait::async_trait]
 impl<T: EngineApiExt + Send + Sync + 'static + Debug> RollupBoostServerLike
-    for RollupBoostServer<T>
+    for rollup_boost::RollupBoostServer<T>
 {
     fn set_execution_mode(&self, execution_mode: ExecutionMode) {
         *self.execution_mode.lock() = execution_mode;
@@ -189,15 +187,18 @@ impl<T: EngineApiExt + Send + Sync + 'static + Debug> RollupBoostServerLike
 }
 
 /// Structure that wraps a rollup boost server and its probes.
+///
+/// TODO(@theochap, `<https://github.com/op-rs/kona/issues/3053>`): remove this wrapper and use the RollupBoostServer directly
+/// Remove the dynamic dispatch and use generics instead.
 #[derive(Debug)]
-pub struct RollupBoost {
+pub struct RollupBoostServer {
     /// The rollup boost server implementation
     pub server: Box<dyn RollupBoostServerLike + Send + Sync + 'static>,
     /// Rollup boost probes
     pub probes: Arc<Probes>,
 }
 
-impl RollupBoost {
+impl RollupBoostServer {
     /// Gets the health of the rollup boost server.
     pub fn get_health(&self) -> Health {
         self.probes.health()

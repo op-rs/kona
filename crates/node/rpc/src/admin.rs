@@ -80,7 +80,8 @@ impl AdminRpc {
     ///
     /// - `sequencer_sender`: The sender to the sequencer actor.
     /// - `network_sender`: The sender to the network actor.
-    /// - `execution_mode`: The rollup boost execution mode.
+    /// - `rollup_boost_sender`: Sender of admin queries to the rollup boost component of the engine
+    ///   actor.
     ///
     /// # Returns
     ///
