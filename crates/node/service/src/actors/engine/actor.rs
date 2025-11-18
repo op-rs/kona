@@ -14,7 +14,7 @@ use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use kona_rpc::{RollupBoostAdminQuery, RollupBoostHealthQuery};
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
-use std::{fmt::Debug, sync::Arc};
+use std::{fmt::Debug, sync::Arc, time::Duration};
 use tokio::{
     sync::{mpsc, oneshot, watch},
     task::JoinHandle,
@@ -127,14 +127,14 @@ pub struct EngineConfig {
     /// Builder jwt secret.
     pub builder_jwt_secret: JwtSecret,
     /// Builder timeout.
-    pub builder_timeout: u64,
+    pub builder_timeout: Duration,
 
     /// The engine rpc url.
     pub l2_url: Url,
     /// The engine jwt secret.
     pub l2_jwt_secret: JwtSecret,
     /// The l2 timeout.
-    pub l2_timeout: u64,
+    pub l2_timeout: Duration,
 
     /// The L1 rpc url.
     pub l1_url: Url,

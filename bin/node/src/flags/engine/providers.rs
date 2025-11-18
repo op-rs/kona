@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use url::Url;
 
 const DEFAULT_BUILDER_TIMEOUT: u64 = 30;
-const DEFAULT_L2_ENGINE_TIMEOUT: u64 = 30;
+const DEFAULT_L2_ENGINE_TIMEOUT: u64 = 30_000;
 
 const DEFAULT_L2_TRUST_RPC: bool = true;
 const DEFAULT_L1_TRUST_RPC: bool = true;
@@ -90,7 +90,7 @@ pub struct L2ClientArgs {
     /// This MUST be a valid path to a file containing the hex-encoded JWT secret.
     #[arg(long, visible_alias = "l2.jwt-path", env = "KONA_NODE_L2_ENGINE_JWT_PATH")]
     pub l2_engine_jwt_encoded: Option<JwtSecret>,
-    /// Timeout for http calls in seconds.
+    /// Timeout for http calls in milliseconds.
     #[arg(
         long,
         visible_alias = "l2.timeout",

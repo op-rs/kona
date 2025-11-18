@@ -21,7 +21,7 @@ use kona_registry::{L1Config, scr_rollup_config_by_alloy_ident};
 use op_alloy_network::Optimism;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use serde_json::from_reader;
-use std::{fs::File, io::Write, path::PathBuf, sync::Arc};
+use std::{fs::File, io::Write, path::PathBuf, sync::Arc, time::Duration};
 use strum::IntoEnumIterator;
 use tracing::{debug, error, info};
 
@@ -230,7 +230,6 @@ impl NodeCommand {
         let engine = EngineClient::rpc_client::<Optimism>(
             self.l2_client_args.l2_engine_rpc.clone(),
             jwt_secret,
-            self.l2_client_args.l2_engine_timeout,
         );
 
         let exchange = || async {
@@ -300,10 +299,10 @@ impl NodeCommand {
             config: Arc::new(cfg.clone()),
             builder_url: self.builder_client_args.l2_builder_rpc.clone(),
             builder_jwt_secret: self.builder_jwt_secret()?,
-            builder_timeout: self.builder_client_args.builder_timeout,
+            builder_timeout: Duration::from_millis(self.builder_client_args.builder_timeout),
             l2_url: self.l2_client_args.l2_engine_rpc.clone(),
             l2_jwt_secret: jwt_secret,
-            l2_timeout: self.l2_client_args.l2_engine_timeout,
+            l2_timeout: Duration::from_millis(self.l2_client_args.l2_engine_timeout),
             l1_url: self.l1_rpc_args.l1_eth_rpc.clone(),
             l1_beacon: self.l1_rpc_args.l1_beacon.clone(),
             mode: self.node_mode,

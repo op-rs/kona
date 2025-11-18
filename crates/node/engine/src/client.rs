@@ -82,10 +82,8 @@ pub struct EngineClient {
 
 impl EngineClient {
     /// Creates a new RPC client for the given address and JWT secret.
-    pub fn rpc_client<N: Network>(addr: Url, jwt: JwtSecret, timeout: u64) -> RootProvider<N> {
-        let hyper_client = Client::builder(TokioExecutor::new())
-            .http2_keep_alive_timeout(Duration::from_secs(timeout))
-            .build_http::<Full<Bytes>>();
+    pub fn rpc_client<N: Network>(addr: Url, jwt: JwtSecret) -> RootProvider<N> {
+        let hyper_client = Client::builder(TokioExecutor::new()).build_http::<Full<Bytes>>();
         let auth_layer = AuthLayer::new(jwt);
         let service = ServiceBuilder::new().layer(auth_layer).service(hyper_client);
         let layer_transport = HyperClient::with_service(service);
@@ -103,13 +101,13 @@ pub struct EngineClientBuilder {
     /// The builder JWT secret.
     pub builder_jwt: JwtSecret,
     /// The builder timeout.
-    pub builder_timeout: u64,
+    pub builder_timeout: Duration,
     /// The L2 Engine API endpoint URL.
     pub l2: Url,
     /// The L2 JWT secret.
     pub l2_jwt: JwtSecret,
     /// The L2 timeout.
-    pub l2_timeout: u64,
+    pub l2_timeout: Duration,
     /// The L1 RPC URL.
     pub l1_rpc: Url,
     /// The [`RollupConfig`] for determining Engine API versions based on hardfork activations.
@@ -150,13 +148,13 @@ impl EngineClientBuilder {
         let l2_client = rollup_boost::RpcClient::new(
             http::Uri::from_str(self.l2.to_string().as_str())?,
             self.l2_jwt,
-            self.l2_timeout,
+            self.l2_timeout.as_millis() as u64,
             rollup_boost::PayloadSource::L2,
         )?;
         let builder_client = rollup_boost::RpcClient::new(
             http::Uri::from_str(self.builder.to_string().as_str())?,
             self.builder_jwt,
-            self.builder_timeout,
+            self.builder_timeout.as_millis() as u64,
             rollup_boost::PayloadSource::Builder,
         )?;
 
@@ -214,7 +212,7 @@ impl EngineClientBuilder {
 
         // TODO(@theochap): remove this client, upstream the remaining EngineApiExt methods to the
         // RollupBoostServer
-        let engine = EngineClient::rpc_client::<Optimism>(self.l2, self.l2_jwt, self.l2_timeout);
+        let engine = EngineClient::rpc_client::<Optimism>(self.l2, self.l2_jwt);
 
         let l1_provider = RootProvider::new_http(self.l1_rpc);
 
