@@ -95,6 +95,10 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v5
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          large-packages: false
       - uses: ./.github/actions/setup
         with:
           components: llvm-tools-preview
