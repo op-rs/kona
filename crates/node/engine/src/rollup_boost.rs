@@ -77,7 +77,7 @@ pub enum RollupBoostServerError {
 impl From<RollupBoostServerError> for RpcError<TransportErrorKind> {
     fn from(error: RollupBoostServerError) -> Self {
         match error {
-            RollupBoostServerError::Jsonrpsee(error) => RpcError::ErrorResp(ErrorPayload {
+            RollupBoostServerError::Jsonrpsee(error) => Self::ErrorResp(ErrorPayload {
                 code: error.code().into(),
                 message: error.message().to_string().into(),
                 data: None,

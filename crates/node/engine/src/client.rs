@@ -268,7 +268,7 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
             Http<HyperAuthClient>,
         >>::new_payload_v2(&self.engine, payload);
 
-        record_call_time(call, Metrics::NEW_PAYLOAD_METHOD).await.map_err(Into::into)
+        record_call_time(call, Metrics::NEW_PAYLOAD_METHOD).await
     }
 
     async fn new_payload_v3(
@@ -330,7 +330,7 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
             Http<HyperAuthClient>,
         >>::get_payload_v2(&self.engine, payload_id);
 
-        record_call_time(call, Metrics::GET_PAYLOAD_METHOD).await.map_err(Into::into)
+        record_call_time(call, Metrics::GET_PAYLOAD_METHOD).await
     }
 
     async fn get_payload_v3(
