@@ -116,9 +116,9 @@ where
                 match node.as_ref() {
                     TrieNode::Blinded { commitment } => {
                         let trie_node = Self::get_trie_node(commitment.as_ref(), fetcher)?;
-                        Ok(Self::fetch_leaves(&trie_node, fetcher)?)
+                        Self::fetch_leaves(&trie_node, fetcher)
                     }
-                    node => Ok(Self::fetch_leaves(node, fetcher)?),
+                    node => Self::fetch_leaves(node, fetcher),
                 }
             }
             TrieNode::Empty => Ok(VecDeque::new()),
