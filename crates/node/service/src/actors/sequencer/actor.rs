@@ -116,12 +116,14 @@ where
         &mut self,
         payload_to_seal: Option<&UnsealedPayloadHandle>,
     ) -> Result<SealLastStartNextResult, SequencerActorError> {
-        let mut seal_duration = Duration::from_secs(0);
-        if let Some(to_seal) = payload_to_seal {
-            let seal_start = Instant::now();
-            self.seal_and_commit_payload_if_applicable(to_seal).await?;
-            seal_duration = seal_start.elapsed();
-        }
+        let seal_duration = match payload_to_seal {
+            Some(to_seal) => {
+                let seal_start = Instant::now();
+                self.seal_and_commit_payload_if_applicable(to_seal).await?;
+                seal_start.elapsed()
+            }
+            None => Duration::default(),
+        };
 
         let unsealed_payload_handle = self.build_unsealed_payload().await?;
 
