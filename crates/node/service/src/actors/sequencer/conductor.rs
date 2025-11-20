@@ -36,14 +36,12 @@ impl Conductor for ConductorClient {
         &self,
         payload: &OpExecutionPayloadEnvelope,
     ) -> Result<(), ConductorError> {
-        let _result: () = self.rpc.request("conductor_commitUnsafePayload", [payload]).await?;
-        Ok(())
+        self.rpc.request("conductor_commitUnsafePayload", [payload]).await.map_err(Into::into)
     }
 
     /// Override the leader of the conductor.
     async fn override_leader(&self) -> Result<(), ConductorError> {
-        let _result: () = self.rpc.request("conductor_overrideLeader", ()).await?;
-        Ok(())
+        self.rpc.request("conductor_overrideLeader", ()).await.map_err(Into::into)
     }
 }
 
@@ -56,14 +54,12 @@ impl ConductorClient {
 
     /// Check if the node is a leader of the conductor.
     pub async fn leader(&self) -> Result<bool, ConductorError> {
-        let result: bool = self.rpc.request("conductor_leader", ()).await?;
-        Ok(result)
+        self.rpc.request("conductor_leader", ()).await.map_err(Into::into)
     }
 
     /// Check if the conductor is active.
     pub async fn conductor_active(&self) -> Result<bool, ConductorError> {
-        let result: bool = self.rpc.request("conductor_active", ()).await?;
-        Ok(result)
+        self.rpc.request("conductor_active", ()).await.map_err(Into::into)
     }
 }
 
