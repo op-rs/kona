@@ -60,7 +60,6 @@ impl BlockEngineClient for QueuedBlockEngineClient {
     async fn reset_engine_forkchoice(&self) -> BlockEngineResult<()> {
         let (result_tx, mut result_rx) = mpsc::channel(1);
 
-        let _build_request_start = Instant::now();
         if self.reset_request_tx.send(ResetRequest { result_tx: Some(result_tx) }).await.is_err() {
             return Err(BlockEngineError::RequestError)
         }
@@ -81,7 +80,6 @@ impl BlockEngineClient for QueuedBlockEngineClient {
     ) -> BlockEngineResult<PayloadId> {
         let (payload_id_tx, mut payload_id_rx) = mpsc::channel(1);
 
-        let _build_request_start = Instant::now();
         if self
             .build_request_tx
             .send(BuildRequest { attributes, result_tx: payload_id_tx })
@@ -104,7 +102,6 @@ impl BlockEngineClient for QueuedBlockEngineClient {
     ) -> BlockEngineResult<OpExecutionPayloadEnvelope> {
         let (result_tx, mut result_rx) = mpsc::channel(1);
 
-        let _build_request_start = Instant::now();
         if self
             .seal_request_tx
             .send(SealRequest { payload_id, attributes, result_tx })
