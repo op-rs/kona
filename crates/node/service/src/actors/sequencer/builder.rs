@@ -1,7 +1,7 @@
 //! Builder for [`SequencerActor`].
 
 use crate::actors::{
-    BlockEngineClient,
+    BlockBuildingClient,
     sequencer::{Conductor, OriginSelector, SequencerActor, SequencerAdminQuery},
 };
 use kona_derive::AttributesBuilder;
@@ -14,19 +14,19 @@ use tokio_util::sync::CancellationToken;
 
 /// Builder for constructing a [`SequencerActor`].
 #[derive(Debug, Default)]
-pub struct SequencerActorBuilder<AB, C, OS, BE>
+pub struct SequencerActorBuilder<AB, C, OS, BB>
 where
     AB: AttributesBuilder,
     C: Conductor,
     OS: OriginSelector,
-    BE: BlockEngineClient,
+    BB: BlockBuildingClient,
 {
     /// Receiver for admin API requests.
     pub admin_api_rx: Option<mpsc::Receiver<SequencerAdminQuery>>,
     /// The attributes builder used for block building.
     pub attributes_builder: Option<AB>,
     /// The struct used to build blocks.
-    pub block_engine: Option<BE>,
+    pub block_engine: Option<BB>,
     /// The cancellation token, shared between all tasks.
     pub cancellation_token: Option<CancellationToken>,
     /// The optional conductor RPC client.
@@ -45,12 +45,12 @@ where
     pub unsafe_head_rx: Option<watch::Receiver<L2BlockInfo>>,
 }
 
-impl<AB, C, OS, BE> SequencerActorBuilder<AB, C, OS, BE>
+impl<AB, C, OS, BB> SequencerActorBuilder<AB, C, OS, BB>
 where
     AB: AttributesBuilder,
     C: Conductor,
     OS: OriginSelector,
-    BE: BlockEngineClient,
+    BB: BlockBuildingClient,
 {
     /// Creates a new empty [`SequencerActorBuilder`].
     pub const fn new() -> Self {
@@ -124,7 +124,7 @@ where
     }
 
     /// Sets the block engine.
-    pub fn with_block_engine(mut self, block_engine: BE) -> Self {
+    pub fn with_block_engine(mut self, block_engine: BB) -> Self {
         self.block_engine = Some(block_engine);
         self
     }
@@ -149,7 +149,7 @@ where
     /// # Panics
     ///
     /// Panics if any required field is not set.
-    pub fn build(self) -> Result<SequencerActor<AB, C, OS, BE>, String> {
+    pub fn build(self) -> Result<SequencerActor<AB, C, OS, BB>, String> {
         Ok(SequencerActor {
             admin_api_rx: self.admin_api_rx.expect("admin_api_rx is required"),
             attributes_builder: self.attributes_builder.expect("attributes_builder is required"),

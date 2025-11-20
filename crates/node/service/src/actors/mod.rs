@@ -7,9 +7,9 @@ pub use traits::{CancellableContext, NodeActor};
 
 mod engine;
 pub use engine::{
-    BlockEngineClient, BlockEngineError, BlockEngineResult, BuildRequest, EngineActor,
+    BlockBuildingClient, BlockEngineError, BlockEngineResult, BuildRequest, EngineActor,
     EngineConfig, EngineContext, EngineError, EngineInboundData, L2Finalizer,
-    QueuedBlockEngineClient, ResetRequest, SealRequest,
+    QueuedBlockBuildingClient, ResetRequest, SealRequest,
 };
 
 mod rpc;

@@ -3,7 +3,7 @@
 use crate::{
     CancellableContext, NodeActor,
     actors::{
-        BlockEngineClient,
+        BlockBuildingClient,
         engine::BlockEngineError,
         sequencer::{
             admin_api_client::SequencerAdminQuery,
@@ -57,19 +57,19 @@ struct SealLastStartNextResult {
 /// and scheduling them to be signed and gossipped by the P2P layer, extending the L2 chain with new
 /// blocks.
 #[derive(Debug)]
-pub struct SequencerActor<AB, C, OS, BE>
+pub struct SequencerActor<AB, C, OS, BB>
 where
     AB: AttributesBuilder,
     C: Conductor,
     OS: OriginSelector,
-    BE: BlockEngineClient,
+    BB: BlockBuildingClient,
 {
     /// Receiver for admin API requests.
     pub admin_api_rx: mpsc::Receiver<SequencerAdminQuery>,
     /// The attributes builder used for block building.
     pub attributes_builder: AB,
     /// The struct used to build blocks.
-    pub block_engine: BE,
+    pub block_engine: BB,
     /// The cancellation token, shared between all tasks.
     pub cancellation_token: CancellationToken,
     /// The optional conductor RPC client.
@@ -88,24 +88,24 @@ where
     pub unsafe_head_rx: watch::Receiver<L2BlockInfo>,
 }
 
-impl<AB, C, OS, BE> CancellableContext for SequencerActor<AB, C, OS, BE>
+impl<AB, C, OS, BB> CancellableContext for SequencerActor<AB, C, OS, BB>
 where
     AB: AttributesBuilder,
     C: Conductor,
     OS: OriginSelector,
-    BE: BlockEngineClient,
+    BB: BlockBuildingClient,
 {
     fn cancelled(&self) -> WaitForCancellationFuture<'_> {
         self.cancellation_token.cancelled()
     }
 }
 
-impl<AB, C, OS, BE> SequencerActor<AB, C, OS, BE>
+impl<AB, C, OS, BB> SequencerActor<AB, C, OS, BB>
 where
     AB: AttributesBuilder,
     C: Conductor,
     OS: OriginSelector,
-    BE: BlockEngineClient,
+    BB: BlockBuildingClient,
 {
     /// Seals and commits the last pending block, if one exists and starts the build job for the
     /// next L2 block, on top of the current unsafe head.
@@ -380,12 +380,12 @@ where
 }
 
 #[async_trait]
-impl<AB, C, OS, BE> NodeActor for SequencerActor<AB, C, OS, BE>
+impl<AB, C, OS, BB> NodeActor for SequencerActor<AB, C, OS, BB>
 where
     AB: AttributesBuilder + Sync + 'static,
     C: Conductor + Sync + 'static,
     OS: OriginSelector + Sync + 'static,
-    BE: BlockEngineClient + Sync + 'static,
+    BB: BlockBuildingClient + Sync + 'static,
 {
     type Error = SequencerActorError;
     type StartData = ();

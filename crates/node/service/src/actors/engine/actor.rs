@@ -1,7 +1,7 @@
 //! The [`EngineActor`].
 
 use super::{
-    BlockEngineClient, BlockEngineResult, EngineError, L2Finalizer, QueuedBlockEngineClient,
+    BlockBuildingClient, BlockEngineResult, EngineError, L2Finalizer, QueuedBlockBuildingClient,
 };
 use crate::{BlockEngineError, NodeActor, NodeMode, actors::CancellableContext};
 use alloy_rpc_types_engine::{JwtSecret, PayloadId};
@@ -100,9 +100,9 @@ pub struct EngineActor {
 
 /// The outbound data for the [`EngineActor`].
 #[derive(Debug)]
-pub struct EngineInboundData<BE: BlockEngineClient> {
+pub struct EngineInboundData<BB: BlockBuildingClient> {
     /// A trait object used to send block building requests to the [`EngineActor`].
-    pub block_engine: Option<BE>,
+    pub block_engine: Option<BB>,
     /// A channel to send [`OpAttributesWithParent`] to the engine actor.
     pub attributes_tx: mpsc::Sender<OpAttributesWithParent>,
     /// A channel to send [`OpExecutionPayloadEnvelope`] to the engine actor.
@@ -227,7 +227,7 @@ impl CancellableContext for EngineContext {
 
 impl EngineActor {
     /// Constructs a new [`EngineActor`] from the params.
-    pub fn new(config: EngineConfig) -> (EngineInboundData<QueuedBlockEngineClient>, Self) {
+    pub fn new(config: EngineConfig) -> (EngineInboundData<QueuedBlockBuildingClient>, Self) {
         let (finalized_l1_block_tx, finalized_l1_block_rx) = watch::channel(None);
         let (inbound_queries_tx, inbound_queries_rx) = mpsc::channel(1024);
         let (attributes_tx, attributes_rx) = mpsc::channel(1024);
@@ -238,7 +238,7 @@ impl EngineActor {
             let (build_tx, build_rx) = mpsc::channel(1024);
             let (seal_tx, seal_rx) = mpsc::channel(1024);
             let block_engine =
-                QueuedBlockEngineClient::new(build_tx, seal_tx, reset_request_tx.clone());
+                QueuedBlockBuildingClient::new(build_tx, seal_tx, reset_request_tx.clone());
             (Some(block_engine), Some(build_rx), Some(seal_rx))
         } else {
             (None, None, None)

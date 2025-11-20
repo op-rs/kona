@@ -13,7 +13,7 @@ use tokio::sync::mpsc;
 /// operations. The EngineActor requires the use of channels for communication, but
 /// this interface allows that to be abstracted from callers and allows easy testing.
 #[async_trait]
-pub trait BlockEngineClient: Debug + Send + Sync {
+pub trait BlockBuildingClient: Debug + Send + Sync {
     /// Resets the engine's forkchoice, awaiting confirmation that it succeeded or returning the
     /// error in performing the reset.
     async fn reset_engine_forkchoice(&self) -> BlockEngineResult<()>;
@@ -37,10 +37,10 @@ pub trait BlockEngineClient: Debug + Send + Sync {
     ) -> BlockEngineResult<OpExecutionPayloadEnvelope>;
 }
 
-/// Queue-based implementation of the [`BlockEngineClient`] trait. This handles all channel-based
+/// Queue-based implementation of the [`BlockBuildingClient`] trait. This handles all channel-based
 /// operations, providing a nice facade for callers.
 #[derive(Constructor, Debug)]
-pub struct QueuedBlockEngineClient {
+pub struct QueuedBlockBuildingClient {
     /// A channel to use to send build requests to the engine.
     /// Upon successful processing of the provided attributes, a `PayloadId` will be sent via the
     /// provided sender.
@@ -56,7 +56,7 @@ pub struct QueuedBlockEngineClient {
 }
 
 #[async_trait]
-impl BlockEngineClient for QueuedBlockEngineClient {
+impl BlockBuildingClient for QueuedBlockBuildingClient {
     async fn reset_engine_forkchoice(&self) -> BlockEngineResult<()> {
         let (result_tx, mut result_rx) = mpsc::channel(1);
 
@@ -122,7 +122,7 @@ impl BlockEngineClient for QueuedBlockEngineClient {
     }
 }
 
-/// The result of a [`BlockEngineClient`] call.
+/// The result of a [`BlockBuildingClient`] call.
 pub type BlockEngineResult<T> = Result<T, BlockEngineError>;
 
 /// Error making requests to the BlockEngine.

@@ -1,16 +1,16 @@
 use super::SequencerActor;
-use crate::{BlockEngineClient, Conductor, OriginSelector, SequencerAdminQuery};
+use crate::{BlockBuildingClient, Conductor, OriginSelector, SequencerAdminQuery};
 use alloy_primitives::B256;
 use kona_derive::AttributesBuilder;
 use kona_rpc::SequencerAdminAPIError;
 
 /// Handler for the Sequencer Admin API.
-impl<AB, C, OS, BE> SequencerActor<AB, C, OS, BE>
+impl<AB, C, OS, BB> SequencerActor<AB, C, OS, BB>
 where
     AB: AttributesBuilder,
     C: Conductor,
     OS: OriginSelector,
-    BE: BlockEngineClient,
+    BB: BlockBuildingClient,
 {
     /// Handles the provided [`SequencerAdminQuery`], sending the response via the provided sender.
     /// This function is used to decouple admin API logic from the response mechanism (channels).
