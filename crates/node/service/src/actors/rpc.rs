@@ -43,13 +43,13 @@ pub struct RpcActor<S: SequencerAdminAPIClient> {
     /// A launcher for the rpc.
     config: RpcBuilder,
 
-    _phantom: std::marker::PhantomData<S>,
+    phantom: std::marker::PhantomData<S>,
 }
 
 impl<S: SequencerAdminAPIClient> RpcActor<S> {
     /// Constructs a new [`RpcActor`] given the [`RpcBuilder`].
     pub const fn new(config: RpcBuilder) -> Self {
-        Self { config, _phantom: std::marker::PhantomData }
+        Self { config, phantom: std::marker::PhantomData }
     }
 }
 
