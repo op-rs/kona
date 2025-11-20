@@ -118,8 +118,9 @@ impl HintHandler for SingleChainHintHandler {
                 let mut blob_key = [0u8; 80];
                 blob_key[..48].copy_from_slice(commitment.as_ref());
                 for i in 0..FIELD_ELEMENTS_PER_BLOB {
+                    let i_usize = i as usize;
                     blob_key[48..].copy_from_slice(
-                        ROOTS_OF_UNITY[i as usize].into_bigint().to_bytes_be().as_ref(),
+                        ROOTS_OF_UNITY[i_usize].into_bigint().to_bytes_be().as_ref(),
                     );
                     let blob_key_hash = keccak256(blob_key.as_ref());
 
@@ -127,7 +128,7 @@ impl HintHandler for SingleChainHintHandler {
                         .set(PreimageKey::new_keccak256(*blob_key_hash).into(), blob_key.into())?;
                     kv_lock.set(
                         PreimageKey::new(*blob_key_hash, PreimageKeyType::Blob).into(),
-                        blob[(i as usize) << 5..(i as usize + 1) << 5].to_vec(),
+                        blob[i_usize << 5..(i_usize + 1) << 5].to_vec(),
                     )?;
                 }
 
