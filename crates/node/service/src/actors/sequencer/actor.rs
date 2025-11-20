@@ -10,8 +10,8 @@ use crate::{
             conductor::Conductor,
             error::SequencerActorError,
             metrics::{
-                update_build_duration_metrics, update_conductor_commitment_duration_metrics,
-                update_seal_duration_metrics,
+                update_attributes_build_duration_metrics, update_block_build_duration_metrics,
+                update_conductor_commitment_duration_metrics, update_seal_duration_metrics,
             },
             origin_selector::OriginSelector,
         },
@@ -182,7 +182,7 @@ where
         );
 
         // Build the payload attributes for the next block.
-        let _attributes_build_start = Instant::now();
+        let attributes_build_start = Instant::now();
 
         let attributes_with_parent = match self.build_attributes(unsafe_head, l1_origin).await? {
             Some(attrs) => attrs,
@@ -192,13 +192,15 @@ where
             }
         };
 
-        update_build_duration_metrics(_attributes_build_start.elapsed());
+        update_attributes_build_duration_metrics(attributes_build_start.elapsed());
 
         // Send the built attributes to the engine to be built.
-        let _build_request_start = Instant::now();
+        let build_request_start = Instant::now();
 
         let payload_id =
             self.block_engine.start_build_block(attributes_with_parent.clone()).await?;
+
+        update_block_build_duration_metrics(build_request_start.elapsed());
 
         Ok(Some(UnsealedPayloadHandle { payload_id, attributes_with_parent }))
     }
