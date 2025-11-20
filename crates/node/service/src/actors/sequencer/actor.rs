@@ -134,7 +134,7 @@ where
         &mut self,
         unsealed_payload_handle: &UnsealedPayloadHandle,
     ) -> Result<(), SequencerActorError> {
-        let _seal_request_start = Instant::now();
+        let seal_request_start = Instant::now();
 
         // Send the seal request to the engine to seal the unsealed block.
         let payload = self
@@ -145,7 +145,7 @@ where
             )
             .await?;
 
-        update_seal_duration_metrics(_seal_request_start.elapsed());
+        update_seal_duration_metrics(seal_request_start.elapsed());
 
         // If the conductor is available, commit the payload to it.
         if let Some(conductor) = &self.conductor {
