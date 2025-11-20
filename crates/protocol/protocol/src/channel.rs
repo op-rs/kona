@@ -202,8 +202,6 @@ mod test {
     };
 
     struct FrameValidityTestCase {
-        #[allow(dead_code)]
-        name: String,
         frames: Vec<Frame>,
         should_error: Vec<bool>,
         sizes: Vec<u64>,
