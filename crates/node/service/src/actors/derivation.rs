@@ -291,7 +291,7 @@ where
                                     .rollup_config()
                                     .is_interop_active(l2_safe_head.block_info.timestamp)
                                 {
-                                    reset_request_tx.send(((),None)).await.map_err(|e| {
+                                    reset_request_tx.send(ResetRequest{result_tx: None}).await.map_err(|e| {
                                         error!(target: "derivation", ?e, "Failed to send reset request");
                                         DerivationError::Sender(Box::new(e))
                                     })?;

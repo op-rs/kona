@@ -31,20 +31,34 @@ use url::Url;
 
 /// A request to build a payload.
 /// Contains the attributes to build and a channel to send back the resulting `PayloadId`.
-pub(crate) type BuildRequest = (OpAttributesWithParent, mpsc::Sender<PayloadId>);
+#[derive(Debug)]
+pub struct BuildRequest {
+    /// The [`OpAttributesWithParent`] from which the block build should be started.
+    pub attributes: OpAttributesWithParent,
+    /// The channel on which the result, successful or not, will be sent.
+    pub result_tx: mpsc::Sender<PayloadId>,
+}
 
 /// A request to reset the engine forkchoice.
 /// Optionally contains a channel to send back the response if the caller would like to know that
 /// the request was successfully processed.
-pub(crate) type ResetRequest = ((), Option<mpsc::Sender<BlockEngineResult<()>>>);
+#[derive(Debug)]
+pub struct ResetRequest {
+    /// response will be sent to this channel, if `Some`.
+    pub result_tx: Option<mpsc::Sender<BlockEngineResult<()>>>,
+}
 
-/// A request to seal a payload.
+/// A request to seal and canonicalize a payload.
 /// Contains the `PayloadId`, attributes, and a channel to send back the result.
-pub(crate) type SealRequest = (
-    PayloadId,
-    OpAttributesWithParent,
-    mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>,
-);
+#[derive(Debug)]
+pub struct SealRequest {
+    /// The `PayloadId` to seal and canonicalize.
+    pub payload_id: PayloadId,
+    /// The attributes necessary for the seal operation.
+    pub attributes: OpAttributesWithParent,
+    /// The channel on which the result, successful or not, will be sent.
+    pub result_tx: mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>,
+}
 
 /// The [`EngineActor`] is responsible for managing the operations sent to the execution layer's
 /// Engine API. To accomplish this, it uses the [`Engine`] task queue to order Engine API
@@ -572,7 +586,7 @@ impl NodeActor for EngineActor {
                         .reset(&derivation_signal_tx, &engine_l2_safe_head_tx, &mut self.finalizer)
                         .await;
 
-                    if let Some(((), Some(tx))) = reset {
+                    if let Some(ResetRequest{result_tx: Some(tx)}) = reset {
                         let response_payload = match &reset_res {
                             Ok(()) => Ok(()),
                             Err(_) => Err(BlockEngineError::ResetForkchoiceError),
@@ -585,7 +599,7 @@ impl NodeActor for EngineActor {
                     reset_res?;
                 }
                 Some(req) = OptionFuture::from(self.seal_request_rx.as_mut().map(|rx| rx.recv())), if self.seal_request_rx.is_some() => {
-                    let Some((payload_id, attributes, response_tx)) = req else {
+                    let Some(SealRequest{payload_id, attributes, result_tx}) = req else {
                         error!(target: "engine", "Seal request receiver closed unexpectedly while in sequencer mode");
                         cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
@@ -598,12 +612,12 @@ impl NodeActor for EngineActor {
                         attributes,
                         // The payload is not derived in this case.
                         false,
-                        Some(response_tx),
+                        Some(result_tx),
                     )));
                     state.engine.enqueue(task);
                 }
                 Some(req) = OptionFuture::from(self.build_request_rx.as_mut().map(|rx| rx.recv())), if self.build_request_rx.is_some() => {
-                    let Some((attributes, response_tx)) = req else {
+                    let Some(BuildRequest{attributes, result_tx}) = req else {
                         error!(target: "engine", "Build request receiver closed unexpectedly while in sequencer mode");
                         cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
@@ -613,7 +627,7 @@ impl NodeActor for EngineActor {
                         state.client.clone(),
                         state.rollup.clone(),
                         attributes,
-                        Some(response_tx),
+                        Some(result_tx),
                     )));
                     state.engine.enqueue(task);
                 }

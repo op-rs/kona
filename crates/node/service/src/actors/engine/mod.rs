@@ -1,8 +1,10 @@
 //! The [`EngineActor`] and its components.
 
 mod actor;
-pub(crate) use actor::{BuildRequest, ResetRequest, SealRequest};
-pub use actor::{EngineActor, EngineConfig, EngineContext, EngineInboundData};
+pub use actor::{
+    BuildRequest, EngineActor, EngineConfig, EngineContext, EngineInboundData, ResetRequest,
+    SealRequest,
+};
 
 mod error;
 pub use error::EngineError;

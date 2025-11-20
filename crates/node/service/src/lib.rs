@@ -14,8 +14,8 @@ pub use service::{InteropMode, NodeMode, RollupNode, RollupNodeBuilder};
 
 mod actors;
 pub use actors::{
-    BlockEngineClient, BlockEngineError, BlockEngineResult, CancellableContext, Conductor,
-    ConductorClient, ConductorError, DelayedL1OriginSelectorProvider, DerivationActor,
+    BlockEngineClient, BlockEngineError, BlockEngineResult, BuildRequest, CancellableContext,
+    Conductor, ConductorClient, ConductorError, DelayedL1OriginSelectorProvider, DerivationActor,
     DerivationBuilder, DerivationContext, DerivationError, DerivationInboundChannels,
     DerivationState, EngineActor, EngineConfig, EngineContext, EngineError, EngineInboundData,
     InboundDerivationMessage, L1OriginSelector, L1OriginSelectorError, L1OriginSelectorProvider,
@@ -23,9 +23,9 @@ pub use actors::{
     L1WatcherRpcState, L2Finalizer, NetworkActor, NetworkActorError, NetworkBuilder,
     NetworkBuilderError, NetworkConfig, NetworkContext, NetworkDriver, NetworkDriverError,
     NetworkHandler, NetworkInboundData, NodeActor, OriginSelector, PipelineBuilder,
-    QueuedBlockEngineClient, QueuedSequencerAdminAPIClient, RpcActor, RpcActorError, RpcContext,
-    SequencerActor, SequencerActorBuilder, SequencerActorError, SequencerAdminQuery,
-    SequencerConfig,
+    QueuedBlockEngineClient, QueuedSequencerAdminAPIClient, ResetRequest, RpcActor, RpcActorError,
+    RpcContext, SealRequest, SequencerActor, SequencerActorBuilder, SequencerActorError,
+    SequencerAdminQuery, SequencerConfig,
 };
 
 mod metrics;

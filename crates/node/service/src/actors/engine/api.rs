@@ -58,14 +58,14 @@ pub struct QueuedBlockEngineClient {
 #[async_trait]
 impl BlockEngineClient for QueuedBlockEngineClient {
     async fn reset_engine_forkchoice(&self) -> BlockEngineResult<()> {
-        let (response_tx, mut response_rx) = mpsc::channel(1);
+        let (result_tx, mut result_rx) = mpsc::channel(1);
 
         let _build_request_start = Instant::now();
-        if self.reset_request_tx.send(((), Some(response_tx))).await.is_err() {
+        if self.reset_request_tx.send(ResetRequest { result_tx: Some(result_tx) }).await.is_err() {
             return Err(BlockEngineError::RequestError)
         }
 
-        match response_rx.recv().await {
+        match result_rx.recv().await {
             Some(Ok(())) => Ok(()),
             Some(Err(x)) => Err(x),
             None => {
@@ -82,7 +82,12 @@ impl BlockEngineClient for QueuedBlockEngineClient {
         let (payload_id_tx, mut payload_id_rx) = mpsc::channel(1);
 
         let _build_request_start = Instant::now();
-        if self.build_request_tx.send((attributes, payload_id_tx)).await.is_err() {
+        if self
+            .build_request_tx
+            .send(BuildRequest { attributes, result_tx: payload_id_tx })
+            .await
+            .is_err()
+        {
             return Err(BlockEngineError::RequestError);
         }
 
@@ -97,16 +102,21 @@ impl BlockEngineClient for QueuedBlockEngineClient {
         payload_id: PayloadId,
         attributes: OpAttributesWithParent,
     ) -> BlockEngineResult<OpExecutionPayloadEnvelope> {
-        let (payload_tx, mut payload_rx) = mpsc::channel(1);
+        let (result_tx, mut result_rx) = mpsc::channel(1);
 
         let _build_request_start = Instant::now();
-        if self.seal_request_tx.send((payload_id, attributes, payload_tx)).await.is_err() {
+        if self
+            .seal_request_tx
+            .send(SealRequest { payload_id, attributes, result_tx })
+            .await
+            .is_err()
+        {
             return Err(BlockEngineError::RequestError)
         }
 
-        match payload_rx.recv().await {
-            Some(Ok(x)) => Ok(x),
-            Some(Err(x)) => Err(BlockEngineError::SealError(x)),
+        match result_rx.recv().await {
+            Some(Ok(payload)) => Ok(payload),
+            Some(Err(err)) => Err(BlockEngineError::SealError(err)),
             None => {
                 error!(target: "block_engine", "Failed to receive built payload");
                 Err(BlockEngineError::ResponseError)
