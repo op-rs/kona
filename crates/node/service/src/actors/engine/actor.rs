@@ -575,25 +575,24 @@ impl NodeActor for EngineActor {
                     return Ok(());
                 }
                 reset = self.reset_request_rx.recv() => {
-                    if reset.is_none() {
+                    let Some(ResetRequest{result_tx: result_tx_option}) = reset else {
                         error!(target: "engine", "Reset request receiver closed unexpectedly");
                         cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
-                    }
+                    };
+
                     warn!(target: "engine", "Received reset request");
 
                     let reset_res = state
                         .reset(&derivation_signal_tx, &engine_l2_safe_head_tx, &mut self.finalizer)
                         .await;
 
-                    if let Some(ResetRequest{result_tx: Some(tx)}) = reset {
-                        let response_payload = match &reset_res {
-                            Ok(()) => Ok(()),
-                            Err(_) => Err(BlockEngineError::ResetForkchoiceError),
-                        };
-                        // The only way this can fail is if the receiver is dropped, and if that is
-                        // an error case, it will be handled on the receiver's side, not here.
-                        let _ = tx.send(response_payload).await.map_err(|_| warn!(target: "engine", "Sending reset response failed"));
+                    // Send the result if there is a channel on which to do so.
+                    if let Some(tx) = result_tx_option {
+                        let response_payload = reset_res.as_ref().map(|_| ()).map_err(|_| BlockEngineError::ResetForkchoiceError);
+                        if tx.send(response_payload).await.is_err() {
+                            warn!(target: "engine", "Sending reset response failed");
+                        }
                     }
 
                     reset_res?;
