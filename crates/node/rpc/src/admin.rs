@@ -225,14 +225,14 @@ pub trait SequencerAdminAPIClient: Send + Sync + Debug {
 #[derive(Debug, Error)]
 pub enum SequencerAdminAPIError {
     /// Error sending request.
-    #[error("Error sending request.")]
-    RequestError,
+    #[error("Error sending request: {0}.")]
+    RequestError(String),
 
     /// Error receiving response.
-    #[error("Error receiving response.")]
-    ResponseError,
+    #[error("Error receiving response: {0}.")]
+    ResponseError(String),
 
     /// Error overriding leader.
-    #[error("Error overriding leader.")]
-    LeaderOverrideError,
+    #[error("Error overriding leader: {0}.")]
+    LeaderOverrideError(String),
 }

@@ -115,7 +115,7 @@ where
         if let Some(conductor) = self.conductor.as_mut() {
             if let Err(e) = conductor.override_leader().await {
                 error!(target: "sequencer::rpc", "Failed to override leader: {}", e);
-                return Err(SequencerAdminAPIError::LeaderOverrideError);
+                return Err(SequencerAdminAPIError::LeaderOverrideError(e.to_string()));
             }
             info!(target: "sequencer", "Overrode leader via the conductor service");
         }

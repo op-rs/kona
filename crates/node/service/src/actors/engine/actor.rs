@@ -589,7 +589,7 @@ impl NodeActor for EngineActor {
 
                     // Send the result if there is a channel on which to do so.
                     if let Some(tx) = result_tx_option {
-                        let response_payload = reset_res.as_ref().map(|_| ()).map_err(|_| BlockEngineError::ResetForkchoiceError);
+                        let response_payload = reset_res.as_ref().map(|_| ()).map_err(|e| BlockEngineError::ResetForkchoiceError(e.to_string()));
                         if tx.send(response_payload).await.is_err() {
                             warn!(target: "engine", "Sending reset response failed");
                         }

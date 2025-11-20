@@ -37,60 +37,66 @@ impl SequencerAdminAPIClient for QueuedSequencerAdminAPIClient {
     async fn is_sequencer_active(&self) -> Result<bool, SequencerAdminAPIError> {
         let (tx, rx) = oneshot::channel();
 
-        self.request_tx
-            .send(SequencerAdminQuery::SequencerActive(tx))
-            .await
-            .map_err(|_| SequencerAdminAPIError::RequestError)?;
-        rx.await.map_err(|_| SequencerAdminAPIError::ResponseError)?
+        self.request_tx.send(SequencerAdminQuery::SequencerActive(tx)).await.map_err(|_| {
+            SequencerAdminAPIError::RequestError("request channel closed".to_string())
+        })?;
+        rx.await.map_err(|_| {
+            SequencerAdminAPIError::ResponseError("response channel closed".to_string())
+        })?
     }
 
     async fn is_conductor_enabled(&self) -> Result<bool, SequencerAdminAPIError> {
         let (tx, rx) = oneshot::channel();
 
-        self.request_tx
-            .send(SequencerAdminQuery::ConductorEnabled(tx))
-            .await
-            .map_err(|_| SequencerAdminAPIError::RequestError)?;
-        rx.await.map_err(|_| SequencerAdminAPIError::ResponseError)?
+        self.request_tx.send(SequencerAdminQuery::ConductorEnabled(tx)).await.map_err(|_| {
+            SequencerAdminAPIError::RequestError("request channel closed".to_string())
+        })?;
+        rx.await.map_err(|_| {
+            SequencerAdminAPIError::ResponseError("response channel closed".to_string())
+        })?
     }
 
     async fn start_sequencer(&self) -> Result<(), SequencerAdminAPIError> {
         let (tx, rx) = oneshot::channel();
 
-        self.request_tx
-            .send(SequencerAdminQuery::StartSequencer(tx))
-            .await
-            .map_err(|_| SequencerAdminAPIError::RequestError)?;
-        rx.await.map_err(|_| SequencerAdminAPIError::ResponseError)?
+        self.request_tx.send(SequencerAdminQuery::StartSequencer(tx)).await.map_err(|_| {
+            SequencerAdminAPIError::RequestError("request channel closed".to_string())
+        })?;
+        rx.await.map_err(|_| {
+            SequencerAdminAPIError::ResponseError("response channel closed".to_string())
+        })?
     }
 
     async fn stop_sequencer(&self) -> Result<B256, SequencerAdminAPIError> {
         let (tx, rx) = oneshot::channel();
 
-        self.request_tx
-            .send(SequencerAdminQuery::StopSequencer(tx))
-            .await
-            .map_err(|_| SequencerAdminAPIError::RequestError)?;
-        rx.await.map_err(|_| SequencerAdminAPIError::ResponseError)?
+        self.request_tx.send(SequencerAdminQuery::StopSequencer(tx)).await.map_err(|_| {
+            SequencerAdminAPIError::RequestError("request channel closed".to_string())
+        })?;
+        rx.await.map_err(|_| {
+            SequencerAdminAPIError::ResponseError("response channel closed".to_string())
+        })?
     }
 
     async fn set_recovery_mode(&self, mode: bool) -> Result<(), SequencerAdminAPIError> {
         let (tx, rx) = oneshot::channel();
 
-        self.request_tx
-            .send(SequencerAdminQuery::SetRecoveryMode(mode, tx))
-            .await
-            .map_err(|_| SequencerAdminAPIError::RequestError)?;
-        rx.await.map_err(|_| SequencerAdminAPIError::ResponseError)?
+        self.request_tx.send(SequencerAdminQuery::SetRecoveryMode(mode, tx)).await.map_err(
+            |_| SequencerAdminAPIError::RequestError("request channel closed".to_string()),
+        )?;
+        rx.await.map_err(|_| {
+            SequencerAdminAPIError::ResponseError("response channel closed".to_string())
+        })?
     }
 
     async fn override_leader(&self) -> Result<(), SequencerAdminAPIError> {
         let (tx, rx) = oneshot::channel();
 
-        self.request_tx
-            .send(SequencerAdminQuery::OverrideLeader(tx))
-            .await
-            .map_err(|_| SequencerAdminAPIError::RequestError)?;
-        rx.await.map_err(|_| SequencerAdminAPIError::ResponseError)?
+        self.request_tx.send(SequencerAdminQuery::OverrideLeader(tx)).await.map_err(|_| {
+            SequencerAdminAPIError::RequestError("request channel closed".to_string())
+        })?;
+        rx.await.map_err(|_| {
+            SequencerAdminAPIError::ResponseError("response channel closed".to_string())
+        })?
     }
 }

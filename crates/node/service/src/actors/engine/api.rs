@@ -5,7 +5,7 @@ use derive_more::Constructor;
 use kona_engine::{BuildTaskError, SealTaskError};
 use kona_protocol::OpAttributesWithParent;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
-use std::{fmt::Debug, time::Instant};
+use std::fmt::Debug;
 use thiserror::Error;
 use tokio::sync::mpsc;
 
@@ -61,7 +61,7 @@ impl BlockEngineClient for QueuedBlockEngineClient {
         let (result_tx, mut result_rx) = mpsc::channel(1);
 
         if self.reset_request_tx.send(ResetRequest { result_tx: Some(result_tx) }).await.is_err() {
-            return Err(BlockEngineError::RequestError)
+            return Err(BlockEngineError::RequestError("request channel closed.".to_string()))
         }
 
         match result_rx.recv().await {
@@ -69,7 +69,7 @@ impl BlockEngineClient for QueuedBlockEngineClient {
             Some(Err(x)) => Err(x),
             None => {
                 error!(target: "block_engine", "Failed to receive built payload");
-                Err(BlockEngineError::ResponseError)
+                Err(BlockEngineError::ResponseError("response channel closed.".to_string()))
             }
         }
     }
@@ -86,12 +86,12 @@ impl BlockEngineClient for QueuedBlockEngineClient {
             .await
             .is_err()
         {
-            return Err(BlockEngineError::RequestError);
+            return Err(BlockEngineError::RequestError("request channel closed.".to_string()));
         }
 
         payload_id_rx.recv().await.ok_or_else(|| {
             error!(target: "block_engine", "Failed to receive payload for initiated block build");
-            BlockEngineError::ResponseError
+            BlockEngineError::ResponseError("response channel closed.".to_string())
         })
     }
 
@@ -108,7 +108,7 @@ impl BlockEngineClient for QueuedBlockEngineClient {
             .await
             .is_err()
         {
-            return Err(BlockEngineError::RequestError)
+            return Err(BlockEngineError::RequestError("request channel closed.".to_string()));
         }
 
         match result_rx.recv().await {
@@ -116,7 +116,7 @@ impl BlockEngineClient for QueuedBlockEngineClient {
             Some(Err(err)) => Err(BlockEngineError::SealError(err)),
             None => {
                 error!(target: "block_engine", "Failed to receive built payload");
-                Err(BlockEngineError::ResponseError)
+                Err(BlockEngineError::ResponseError("response channel closed.".to_string()))
             }
         }
     }
@@ -129,13 +129,13 @@ pub type BlockEngineResult<T> = Result<T, BlockEngineError>;
 #[derive(Debug, Error)]
 pub enum BlockEngineError {
     /// Error making a request to the engine. The request never made it there.
-    #[error("Error making a request to the engine.")]
-    RequestError,
+    #[error("Error making a request to the engine: {0}.")]
+    RequestError(String),
 
     /// Error receiving response from the engine.
     /// This means the request may or may not have succeeded.
-    #[error("Error receiving response from the engine.")]
-    ResponseError,
+    #[error("Error receiving response from the engine: {0}..")]
+    ResponseError(String),
 
     /// An error occurred starting to build a block.
     #[error(transparent)]
@@ -146,6 +146,6 @@ pub enum BlockEngineError {
     SealError(#[from] SealTaskError),
 
     /// An error occurred performing the reset.
-    #[error("An error occurred performing the reset.")]
-    ResetForkchoiceError,
+    #[error("An error occurred performing the reset: {0}.")]
+    ResetForkchoiceError(String),
 }
