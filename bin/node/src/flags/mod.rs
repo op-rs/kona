@@ -20,3 +20,9 @@ pub use sequencer::SequencerArgs;
 
 mod signer;
 pub use signer::{SignerArgs, SignerArgsParseError};
+
+mod engine;
+pub use engine::{
+    BuilderClientArgs, FlashblocksFlags, FlashblocksWebsocketFlags, L1ClientArgs, L2ClientArgs,
+    RollupBoostFlags,
+};

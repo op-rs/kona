@@ -4,8 +4,9 @@ use crate::{NodeActor, actors::CancellableContext};
 use async_trait::async_trait;
 use kona_gossip::P2pRpcRequest;
 use kona_rpc::{
-    AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzResponse, NetworkAdminQuery,
-    OpP2PApiServer, RollupNodeApiServer, SequencerAdminQuery, WsRPC, WsServer,
+    AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzApiServer, HealthzRpc,
+    NetworkAdminQuery, OpP2PApiServer, RollupBoostAdminQuery, RollupBoostHealthQuery,
+    RollupNodeApiServer, SequencerAdminQuery, WsRPC, WsServer,
 };
 use std::time::Duration;
 
@@ -65,6 +66,10 @@ pub struct RpcContext {
     pub engine_query: mpsc::Sender<EngineQueries>,
     /// The cancellation token, shared between all tasks.
     pub cancellation: CancellationToken,
+    /// The rollup boost admin rpc sender.
+    pub rollup_boost_admin: mpsc::Sender<RollupBoostAdminQuery>,
+    /// The rollup boost health rpc sender.
+    pub rollup_boost_health: mpsc::Sender<RollupBoostHealthQuery>,
 }
 
 impl CancellableContext for RpcContext {
@@ -121,22 +126,20 @@ impl NodeActor for RpcActor {
             engine_query,
             network_admin,
             sequencer_admin,
+            rollup_boost_admin,
+            rollup_boost_health,
         }: Self::OutboundData,
     ) -> Result<(), Self::Error> {
         let mut modules = RpcModule::new(());
 
-        modules.register_method("healthz", |_, _, _| {
-            let response = HealthzResponse { version: std::env!("CARGO_PKG_VERSION").to_string() };
-            jsonrpsee::core::RpcResult::Ok(response)
-        })?;
+        modules.merge(HealthzRpc::new(rollup_boost_health).into_rpc())?;
 
         // Build the p2p rpc module.
         modules.merge(P2pRpc::new(p2p_network).into_rpc())?;
 
         // Build the admin rpc module.
         modules.merge(
-            AdminRpc { sequencer_sender: sequencer_admin, network_sender: network_admin }
-                .into_rpc(),
+            AdminRpc::new(sequencer_admin, network_admin, Some(rollup_boost_admin)).into_rpc(),
         )?;
 
         // Create context for communication between actors.

@@ -8,6 +8,9 @@ use jsonrpsee::{
     types::{ErrorCode, ErrorObject},
 };
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
+use rollup_boost::{
+    ExecutionMode, GetExecutionModeResponse, SetExecutionModeRequest, SetExecutionModeResponse,
+};
 use tokio::sync::oneshot;
 
 /// The query types to the sequencer actor for the admin api.
@@ -37,8 +40,25 @@ pub enum NetworkAdminQuery {
     },
 }
 
+/// The query types to the rollup boost component of the engine actor.
+/// Only set when rollup boost is enabled.
+#[derive(Debug)]
+pub enum RollupBoostAdminQuery {
+    /// An admin rpc request to set the execution mode.
+    SetExecutionMode {
+        /// The execution mode to set.
+        execution_mode: ExecutionMode,
+    },
+    /// An admin rpc request to get the execution mode.
+    GetExecutionMode {
+        /// The sender to send the execution mode to.
+        sender: oneshot::Sender<ExecutionMode>,
+    },
+}
+
 type SequencerQuerySender = tokio::sync::mpsc::Sender<SequencerAdminQuery>;
 type NetworkAdminQuerySender = tokio::sync::mpsc::Sender<NetworkAdminQuery>;
+type RollupBoostAdminQuerySender = tokio::sync::mpsc::Sender<RollupBoostAdminQuery>;
 
 /// The admin rpc server.
 #[derive(Debug)]
@@ -47,6 +67,32 @@ pub struct AdminRpc {
     pub sequencer_sender: Option<SequencerQuerySender>,
     /// The sender to the network actor.
     pub network_sender: NetworkAdminQuerySender,
+    /// The sender to the rollup boost component of the engine actor.
+    /// Only set when rollup boost is enabled.
+    pub rollup_boost_sender: Option<RollupBoostAdminQuerySender>,
+}
+
+impl AdminRpc {
+    /// Constructs a new [`AdminRpc`] given the sequencer sender, network sender, and execution
+    /// mode.
+    ///
+    /// # Parameters
+    ///
+    /// - `sequencer_sender`: The sender to the sequencer actor.
+    /// - `network_sender`: The sender to the network actor.
+    /// - `rollup_boost_sender`: Sender of admin queries to the rollup boost component of the engine
+    ///   actor.
+    ///
+    /// # Returns
+    ///
+    /// A new [`AdminRpc`] instance.
+    pub const fn new(
+        sequencer_sender: Option<SequencerQuerySender>,
+        network_sender: NetworkAdminQuerySender,
+        rollup_boost_sender: Option<RollupBoostAdminQuerySender>,
+    ) -> Self {
+        Self { sequencer_sender, network_sender, rollup_boost_sender }
+    }
 }
 
 #[async_trait]
@@ -140,5 +186,39 @@ impl AdminApiServer for AdminRpc {
             .send(SequencerAdminQuery::OverrideLeader)
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+    }
+
+    async fn set_execution_mode(
+        &self,
+        request: SetExecutionModeRequest,
+    ) -> RpcResult<SetExecutionModeResponse> {
+        let Some(ref rollup_boost_sender) = self.rollup_boost_sender else {
+            return Err(ErrorObject::from(ErrorCode::MethodNotFound));
+        };
+
+        rollup_boost_sender
+            .send(RollupBoostAdminQuery::SetExecutionMode {
+                execution_mode: request.execution_mode,
+            })
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+        Ok(SetExecutionModeResponse { execution_mode: request.execution_mode })
+    }
+
+    async fn get_execution_mode(&self) -> RpcResult<GetExecutionModeResponse> {
+        let Some(ref rollup_boost_sender) = self.rollup_boost_sender else {
+            return Err(ErrorObject::from(ErrorCode::MethodNotFound));
+        };
+
+        let (tx, rx) = oneshot::channel();
+
+        rollup_boost_sender
+            .send(RollupBoostAdminQuery::GetExecutionMode { sender: tx })
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        rx.await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+            .map(|execution_mode| GetExecutionModeResponse { execution_mode })
     }
 }
