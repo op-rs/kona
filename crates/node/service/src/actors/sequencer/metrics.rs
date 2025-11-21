@@ -1,13 +1,16 @@
 use std::time::Duration;
 
-use crate::{BlockBuildingClient, Conductor, OriginSelector, SequencerActor};
+use crate::{
+    BlockBuildingClient, Conductor, OriginSelector, SequencerActor, UnsafePayloadGossipClient,
+};
 use kona_derive::AttributesBuilder;
 
 /// SequencerActor metrics-related method implementations.
-impl<AB, C, OS, BB> SequencerActor<AB, C, OS, BB>
+impl<AB, BB, C, G, OS> SequencerActor<AB, BB, C, G, OS>
 where
     AB: AttributesBuilder,
     C: Conductor,
+    G: UnsafePayloadGossipClient,
     OS: OriginSelector,
     BB: BlockBuildingClient,
 {

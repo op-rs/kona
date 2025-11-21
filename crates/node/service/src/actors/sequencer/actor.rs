@@ -1,7 +1,7 @@
 //! The [`SequencerActor`].
 
 use crate::{
-    CancellableContext, NodeActor,
+    CancellableContext, NodeActor, UnsafePayloadGossipClient,
     actors::{
         BlockBuildingClient,
         engine::BlockEngineError,
@@ -23,7 +23,7 @@ use kona_derive::{AttributesBuilder, PipelineErrorKind};
 use kona_engine::{InsertTaskError, SealTaskError, SynchronizeTaskError};
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
-use op_alloy_rpc_types_engine::{OpExecutionPayloadEnvelope, OpPayloadAttributes};
+use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use std::{
     sync::Arc,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
@@ -54,12 +54,13 @@ struct SealLastStartNextResult {
 /// and scheduling them to be signed and gossipped by the P2P layer, extending the L2 chain with new
 /// blocks.
 #[derive(Debug)]
-pub struct SequencerActor<AB, C, OS, BB>
+pub struct SequencerActor<AB, BB, C, G, OS>
 where
     AB: AttributesBuilder,
-    C: Conductor,
-    OS: OriginSelector,
     BB: BlockBuildingClient,
+    C: Conductor,
+    G: UnsafePayloadGossipClient,
+    OS: OriginSelector,
 {
     /// Receiver for admin API requests.
     pub admin_api_rx: mpsc::Receiver<SequencerAdminQuery>,
@@ -71,8 +72,6 @@ where
     pub cancellation_token: CancellationToken,
     /// The optional conductor RPC client.
     pub conductor: Option<C>,
-    /// A sender to asynchronously sign and gossip built payloads to the network actor.
-    pub gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
     /// Whether the sequencer is active.
     pub is_active: bool,
     /// Whether the sequencer is in recovery mode.
@@ -81,26 +80,30 @@ where
     pub origin_selector: OS,
     /// The rollup configuration.
     pub rollup_config: Arc<RollupConfig>,
+    /// A client to asynchronously sign and gossip built payloads to the network actor.
+    pub unsafe_payload_gossip_client: G,
 }
 
-impl<AB, C, OS, BB> CancellableContext for SequencerActor<AB, C, OS, BB>
+impl<AB, BB, C, G, OS> CancellableContext for SequencerActor<AB, BB, C, G, OS>
 where
     AB: AttributesBuilder,
-    C: Conductor,
-    OS: OriginSelector,
     BB: BlockBuildingClient,
+    C: Conductor,
+    G: UnsafePayloadGossipClient,
+    OS: OriginSelector,
 {
     fn cancelled(&self) -> WaitForCancellationFuture<'_> {
         self.cancellation_token.cancelled()
     }
 }
 
-impl<AB, C, OS, BB> SequencerActor<AB, C, OS, BB>
+impl<AB, BB, C, G, OS> SequencerActor<AB, BB, C, G, OS>
 where
     AB: AttributesBuilder,
-    C: Conductor,
-    OS: OriginSelector,
     BB: BlockBuildingClient,
+    C: Conductor,
+    G: UnsafePayloadGossipClient,
+    OS: OriginSelector,
 {
     /// Seals and commits the last pending block, if one exists and starts the build job for the
     /// next L2 block, on top of the current unsafe head.
@@ -154,7 +157,10 @@ where
             update_conductor_commitment_duration_metrics(_conductor_commitment_start.elapsed());
         }
 
-        self.schedule_gossip(payload).await
+        self.unsafe_payload_gossip_client
+            .schedule_execution_payload_gossip(payload)
+            .await
+            .map_err(Into::into)
     }
 
     /// Starts building an L2 block by creating and populating payload attributes referencing the
@@ -341,20 +347,6 @@ where
         true
     }
 
-    /// Schedules a built [`OpExecutionPayloadEnvelope`] to be signed and gossipped.
-    async fn schedule_gossip(
-        &mut self,
-        payload: OpExecutionPayloadEnvelope,
-    ) -> Result<(), SequencerActorError> {
-        // Send the payload to the P2P layer to be signed and gossipped.
-        if let Err(err) = self.gossip_payload_tx.send(payload).await {
-            error!(target: "sequencer", ?err, "Failed to send payload to be signed and gossipped");
-            return Err(SequencerActorError::ChannelClosed);
-        }
-
-        Ok(())
-    }
-
     /// Schedules the initial engine reset request and waits for the unsafe head to be updated.
     async fn schedule_initial_reset(&mut self) -> Result<(), SequencerActorError> {
         // Reset the engine, in order to initialize the engine state.
@@ -368,12 +360,13 @@ where
 }
 
 #[async_trait]
-impl<AB, C, OS, BB> NodeActor for SequencerActor<AB, C, OS, BB>
+impl<AB, BB, C, G, OS> NodeActor for SequencerActor<AB, BB, C, G, OS>
 where
     AB: AttributesBuilder + Sync + 'static,
-    C: Conductor + Sync + 'static,
-    OS: OriginSelector + Sync + 'static,
     BB: BlockBuildingClient + Sync + 'static,
+    C: Conductor + Sync + 'static,
+    G: UnsafePayloadGossipClient + Sync + 'static,
+    OS: OriginSelector + Sync + 'static,
 {
     type Error = SequencerActorError;
     type StartData = ();

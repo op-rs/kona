@@ -7,7 +7,7 @@ use crate::{
     QueuedSequencerAdminAPIClient, RpcActor, RpcContext, SequencerConfig,
     actors::{
         DerivationInboundChannels, EngineInboundData, L1WatcherRpcInboundChannels,
-        NetworkInboundData, SequencerActorBuilder,
+        NetworkInboundData, QueuedUnsafePayloadGossipClient, SequencerActorBuilder,
     },
 };
 use alloy_provider::RootProvider;
@@ -242,7 +242,9 @@ impl RollupNode {
                         .with_attributes_builder(self.create_attributes_builder())
                         .with_block_building_client(block_building_client)
                         .with_cancellation_token(cancellation.clone())
-                        .with_gossip_payload_sender(gossip_payload_tx.clone())
+                        .with_unsafe_payload_gossip_client(QueuedUnsafePayloadGossipClient::new(
+                            gossip_payload_tx.clone(),
+                        ))
                         .with_origin_selector(origin_selector)
                         .build()
                         .expect("Failed to build SequencerActor"),

@@ -31,6 +31,7 @@ mod network;
 pub use network::{
     NetworkActor, NetworkActorError, NetworkBuilder, NetworkBuilderError, NetworkConfig,
     NetworkContext, NetworkDriver, NetworkDriverError, NetworkHandler, NetworkInboundData,
+    QueuedUnsafePayloadGossipClient, UnsafePayloadGossipClient, UnsafePayloadGossipClientError,
 };
 
 mod sequencer;
