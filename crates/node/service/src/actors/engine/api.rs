@@ -60,18 +60,15 @@ impl BlockBuildingClient for QueuedBlockBuildingClient {
     async fn reset_engine_forkchoice(&self) -> BlockEngineResult<()> {
         let (result_tx, mut result_rx) = mpsc::channel(1);
 
-        if self.reset_request_tx.send(ResetRequest { result_tx: Some(result_tx) }).await.is_err() {
-            return Err(BlockEngineError::RequestError("request channel closed.".to_string()))
-        }
+        self.reset_request_tx
+            .send(ResetRequest { result_tx: Some(result_tx) })
+            .await
+            .map_err(|_| BlockEngineError::RequestError("request channel closed.".to_string()))?;
 
-        match result_rx.recv().await {
-            Some(Ok(())) => Ok(()),
-            Some(Err(x)) => Err(x),
-            None => {
-                error!(target: "block_engine", "Failed to receive built payload");
-                Err(BlockEngineError::ResponseError("response channel closed.".to_string()))
-            }
-        }
+        result_rx.recv().await.ok_or_else(|| {
+            error!(target: "block_engine", "Failed to receive built payload");
+            BlockEngineError::ResponseError("response channel closed.".to_string())
+        })?
     }
 
     async fn start_build_block(
@@ -102,14 +99,10 @@ impl BlockBuildingClient for QueuedBlockBuildingClient {
     ) -> BlockEngineResult<OpExecutionPayloadEnvelope> {
         let (result_tx, mut result_rx) = mpsc::channel(1);
 
-        if self
-            .seal_request_tx
+        self.seal_request_tx
             .send(SealRequest { payload_id, attributes, result_tx })
             .await
-            .is_err()
-        {
-            return Err(BlockEngineError::RequestError("request channel closed.".to_string()));
-        }
+            .map_err(|_| BlockEngineError::RequestError("request channel closed.".to_string()))?;
 
         match result_rx.recv().await {
             Some(Ok(payload)) => Ok(payload),
