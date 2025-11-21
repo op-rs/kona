@@ -184,12 +184,10 @@ where
         // Build the payload attributes for the next block.
         let attributes_build_start = Instant::now();
 
-        let attributes_with_parent = match self.build_attributes(unsafe_head, l1_origin).await? {
-            Some(attrs) => attrs,
-            None => {
-                // Temporary error or reset - retry on next tick.
-                return Ok(None);
-            }
+        let Some(attributes_with_parent) = self.build_attributes(unsafe_head, l1_origin).await?
+        else {
+            // Temporary error or reset - retry on next tick.
+            return Ok(None);
         };
 
         update_attributes_build_duration_metrics(attributes_build_start.elapsed());
