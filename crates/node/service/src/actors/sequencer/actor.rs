@@ -169,9 +169,9 @@ where
     ) -> Result<Option<UnsealedPayloadHandle>, SequencerActorError> {
         let unsafe_head = *self.unsafe_head_rx.borrow();
 
-        let l1_origin = match self.get_next_payload_l1_origin(unsafe_head).await {
-            Ok(value) => value,
-            Err(value) => return value,
+        let Some(l1_origin) = self.get_next_payload_l1_origin(unsafe_head).await? else {
+            // Temporary error - retry on next tick.
+            return Ok(None);
         };
 
         info!(
@@ -206,10 +206,11 @@ where
     }
 
     /// Determines and validates the L1 origin block for the provided L2 unsafe head.
+    /// Returns `Ok(None)` for temporary errors that should be retried.
     async fn get_next_payload_l1_origin(
         &mut self,
         unsafe_head: L2BlockInfo,
-    ) -> Result<BlockInfo, Result<Option<UnsealedPayloadHandle>, SequencerActorError>> {
+    ) -> Result<Option<BlockInfo>, SequencerActorError> {
         let l1_origin = match self
             .origin_selector
             .next_l1_origin(unsafe_head, self.in_recovery_mode)
@@ -222,7 +223,7 @@ where
                     ?err,
                     "Temporary error occurred while selecting next L1 origin. Re-attempting on next tick."
                 );
-                return Err(Ok(None));
+                return Ok(None);
             }
         };
 
@@ -236,12 +237,10 @@ where
                 unsafe_head_l1_origin = ?unsafe_head.l1_origin,
                 "Cannot build new L2 block on inconsistent L1 origin, resetting engine"
             );
-            match self.block_engine.reset_engine_forkchoice().await {
-                Err(err) => return Err(Err(SequencerActorError::BlockEngine(err))),
-                Ok(_) => return Err(Ok(None)),
-            }
+            self.block_engine.reset_engine_forkchoice().await?;
+            return Ok(None);
         }
-        Ok(l1_origin)
+        Ok(Some(l1_origin))
     }
 
     /// Builds the OpAttributesWithParent for the next block to build. If None is returned, it
