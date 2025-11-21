@@ -66,8 +66,6 @@ where
         info!(target: "sequencer", "Starting sequencer");
         self.is_active = true;
 
-        // Update metrics, if configured.
-        #[cfg(feature = "metrics")]
         self.update_metrics();
 
         Ok(())
@@ -77,8 +75,6 @@ where
         info!(target: "sequencer", "Stopping sequencer");
         self.is_active = false;
 
-        // Update metrics, if configured.
-        #[cfg(feature = "metrics")]
         self.update_metrics();
 
         Ok(self.unsafe_head_rx.borrow().hash())
@@ -91,8 +87,6 @@ where
         self.in_recovery_mode = is_active;
         info!(target: "sequencer", is_active, "Updated recovery mode");
 
-        // Update metrics, if configured.
-        #[cfg(feature = "metrics")]
         self.update_metrics();
 
         Ok(())
@@ -105,11 +99,9 @@ where
                 return Err(SequencerAdminAPIError::LeaderOverrideError(e.to_string()));
             }
             info!(target: "sequencer", "Overrode leader via the conductor service");
-        }
 
-        // Update metrics, if configured.
-        #[cfg(feature = "metrics")]
-        self.update_metrics();
+            self.update_metrics();
+        }
 
         Ok(())
     }

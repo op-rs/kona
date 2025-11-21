@@ -21,8 +21,6 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, watch};
 use tokio_util::sync::CancellationToken;
 
-// TODO: make this an arg that gets passed through instead of a constant.
-//  REVIEW NOTE: Make sure we do this in this PR or link a newly-created issue here.
 const DERIVATION_PROVIDER_CACHE_SIZE: usize = 1024;
 
 /// The standard implementation of the [RollupNode] service, using the governance approved OP Stack

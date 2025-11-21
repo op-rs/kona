@@ -12,7 +12,7 @@ where
     BB: BlockBuildingClient,
 {
     /// Updates the metrics for the sequencer actor.
-    pub(in crate::actors::sequencer) fn update_metrics(&self) {
+    pub(super) fn update_metrics(&self) {
         // no-op if disabled.
         #[cfg(feature = "metrics")]
         {
@@ -28,20 +28,18 @@ where
 }
 
 #[inline]
-pub(in crate::actors::sequencer) fn update_attributes_build_duration_metrics(duration: Duration) {
+pub(super) fn update_attributes_build_duration_metrics(duration: Duration) {
     // Log the attributes build duration, if metrics are enabled.
     kona_macros::set!(gauge, crate::Metrics::SEQUENCER_ATTRIBUTES_BUILDER_DURATION, duration);
 }
 
 #[inline]
-pub(in crate::actors::sequencer) fn update_conductor_commitment_duration_metrics(
-    duration: Duration,
-) {
+pub(super) fn update_conductor_commitment_duration_metrics(duration: Duration) {
     kona_macros::set!(gauge, crate::Metrics::SEQUENCER_CONDUCTOR_COMMITMENT_DURATION, duration);
 }
 
 #[inline]
-pub(in crate::actors::sequencer) fn update_block_build_duration_metrics(duration: Duration) {
+pub(super) fn update_block_build_duration_metrics(duration: Duration) {
     kona_macros::set!(
         gauge,
         crate::Metrics::SEQUENCER_BLOCK_BUILDING_START_TASK_DURATION,
@@ -50,7 +48,7 @@ pub(in crate::actors::sequencer) fn update_block_build_duration_metrics(duration
 }
 
 #[inline]
-pub(in crate::actors::sequencer) fn update_seal_duration_metrics(duration: Duration) {
+pub(super) fn update_seal_duration_metrics(duration: Duration) {
     // Log the block building seal task duration, if metrics are enabled.
     kona_macros::set!(gauge, crate::Metrics::SEQUENCER_BLOCK_BUILDING_SEAL_TASK_DURATION, duration);
 }
