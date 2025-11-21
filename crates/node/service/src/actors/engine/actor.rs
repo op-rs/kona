@@ -1,6 +1,9 @@
 //! The [`EngineActor`].
 
-use super::{EngineError, L2Finalizer};
+use super::{
+    BlockBuildingClient, BlockEngineResult, EngineError, L2Finalizer, QueuedBlockBuildingClient,
+};
+use crate::{BlockEngineError, NodeActor, NodeMode, actors::CancellableContext};
 use alloy_rpc_types_engine::{JwtSecret, PayloadId};
 use async_trait::async_trait;
 use futures::{FutureExt, future::OptionFuture};
@@ -8,8 +11,8 @@ use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
     BuildTask, ConsolidateTask, Engine, EngineClient, EngineClientBuilder,
     EngineClientBuilderError, EngineQueries, EngineState as InnerEngineState, EngineTask,
-    EngineTaskError, EngineTaskErrorSeverity, InsertTask, RollupBoostServerArgs, SealError,
-    SealTask,
+    EngineTaskError, EngineTaskErrorSeverity, InsertTask, RollupBoostServerArgs, SealTask,
+    SealTaskError,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
@@ -26,19 +29,36 @@ use tokio_util::{
 };
 use url::Url;
 
-use crate::{NodeActor, NodeMode, actors::CancellableContext};
-
 /// A request to build a payload.
 /// Contains the attributes to build and a channel to send back the resulting `PayloadId`.
-pub(crate) type BuildRequest = (OpAttributesWithParent, mpsc::Sender<PayloadId>);
+#[derive(Debug)]
+pub struct BuildRequest {
+    /// The [`OpAttributesWithParent`] from which the block build should be started.
+    pub attributes: OpAttributesWithParent,
+    /// The channel on which the result, successful or not, will be sent.
+    pub result_tx: mpsc::Sender<PayloadId>,
+}
 
-/// A request to seal a payload.
+/// A request to reset the engine forkchoice.
+/// Optionally contains a channel to send back the response if the caller would like to know that
+/// the request was successfully processed.
+#[derive(Debug)]
+pub struct ResetRequest {
+    /// response will be sent to this channel, if `Some`.
+    pub result_tx: Option<mpsc::Sender<BlockEngineResult<()>>>,
+}
+
+/// A request to seal and canonicalize a payload.
 /// Contains the `PayloadId`, attributes, and a channel to send back the result.
-pub(crate) type SealRequest = (
-    PayloadId,
-    OpAttributesWithParent,
-    mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealError>>,
-);
+#[derive(Debug)]
+pub struct SealRequest {
+    /// The `PayloadId` to seal and canonicalize.
+    pub payload_id: PayloadId,
+    /// The attributes necessary for the seal operation.
+    pub attributes: OpAttributesWithParent,
+    /// The channel on which the result, successful or not, will be sent.
+    pub result_tx: mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>,
+}
 
 /// The [`EngineActor`] is responsible for managing the operations sent to the execution layer's
 /// Engine API. To accomplish this, it uses the [`Engine`] task queue to order Engine API
@@ -51,10 +71,10 @@ pub struct EngineActor {
     attributes_rx: mpsc::Receiver<OpAttributesWithParent>,
     /// A channel to receive [`OpExecutionPayloadEnvelope`] from the network actor.
     unsafe_block_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
-    /// A channel to receive reset requests.
-    reset_request_rx: mpsc::Receiver<()>,
     /// Handler for inbound queries to the engine.
     inbound_queries: mpsc::Receiver<EngineQueries>,
+    /// A channel to receive reset requests.
+    reset_request_rx: mpsc::Receiver<ResetRequest>,
     /// A channel to receive build requests.
     /// Upon successful processing of the provided attributes, a `PayloadId` will be sent via the
     /// provided sender.
@@ -80,21 +100,9 @@ pub struct EngineActor {
 
 /// The outbound data for the [`EngineActor`].
 #[derive(Debug)]
-pub struct EngineInboundData {
-    /// A channel to use to send build requests to the [`EngineActor`].
-    /// Upon successful processing of the provided attributes, a `PayloadId` will be sent via the
-    /// provided sender.
-    /// ## Note
-    /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
-    /// mode.
-    pub build_request_tx: Option<mpsc::Sender<BuildRequest>>,
-    /// A channel to send seal requests to the [`EngineActor`].
-    /// If provided, the success/fail result of the sealing operation will be sent via the provided
-    /// sender.
-    /// ## Note
-    /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
-    /// mode.
-    pub seal_request_tx: Option<mpsc::Sender<SealRequest>>,
+pub struct EngineInboundData<BB: BlockBuildingClient> {
+    /// A trait object used to send block building requests to the [`EngineActor`].
+    pub block_engine: Option<BB>,
     /// A channel to send [`OpAttributesWithParent`] to the engine actor.
     pub attributes_tx: mpsc::Sender<OpAttributesWithParent>,
     /// A channel to send [`OpExecutionPayloadEnvelope`] to the engine actor.
@@ -106,7 +114,7 @@ pub struct EngineInboundData {
     /// state upon completion.
     pub unsafe_block_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
     /// A channel to send reset requests.
-    pub reset_request_tx: mpsc::Sender<()>,
+    pub reset_request_tx: mpsc::Sender<ResetRequest>,
     /// Handler to send inbound queries to the engine.
     pub inbound_queries_tx: mpsc::Sender<EngineQueries>,
     /// A channel that sends new finalized L1 blocks intermittently.
@@ -219,21 +227,22 @@ impl CancellableContext for EngineContext {
 
 impl EngineActor {
     /// Constructs a new [`EngineActor`] from the params.
-    pub fn new(config: EngineConfig) -> (EngineInboundData, Self) {
+    pub fn new(config: EngineConfig) -> (EngineInboundData<QueuedBlockBuildingClient>, Self) {
         let (finalized_l1_block_tx, finalized_l1_block_rx) = watch::channel(None);
         let (inbound_queries_tx, inbound_queries_rx) = mpsc::channel(1024);
         let (attributes_tx, attributes_rx) = mpsc::channel(1024);
         let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
         let (reset_request_tx, reset_request_rx) = mpsc::channel(1024);
 
-        let (build_request_tx, build_request_rx, seal_request_tx, seal_request_rx) =
-            if config.mode.is_sequencer() {
-                let (build_tx, build_rx) = mpsc::channel(1024);
-                let (seal_tx, seal_rx) = mpsc::channel(1024);
-                (Some(build_tx), Some(build_rx), Some(seal_tx), Some(seal_rx))
-            } else {
-                (None, None, None, None)
-            };
+        let (block_engine, build_request_rx, seal_request_rx) = if config.mode.is_sequencer() {
+            let (build_tx, build_rx) = mpsc::channel(1024);
+            let (seal_tx, seal_rx) = mpsc::channel(1024);
+            let block_engine =
+                QueuedBlockBuildingClient::new(build_tx, seal_tx, reset_request_tx.clone());
+            (Some(block_engine), Some(build_rx), Some(seal_rx))
+        } else {
+            (None, None, None)
+        };
 
         let (rollup_boost_admin_query_tx, rollup_boost_admin_query_rx) = mpsc::channel(1024);
         let (rollup_boost_health_query_tx, rollup_boost_health_query_rx) = mpsc::channel(1024);
@@ -252,8 +261,7 @@ impl EngineActor {
         };
 
         let outbound_data = EngineInboundData {
-            build_request_tx,
-            seal_request_tx,
+            block_engine,
             finalized_l1_block_tx,
             inbound_queries_tx,
             attributes_tx,
@@ -472,13 +480,7 @@ impl EngineActorState {
 #[async_trait]
 impl NodeActor for EngineActor {
     type Error = EngineError;
-    type OutboundData = EngineContext;
-    type InboundData = EngineInboundData;
-    type Builder = EngineConfig;
-
-    fn build(config: Self::Builder) -> (Self::InboundData, Self) {
-        Self::new(config)
-    }
+    type StartData = EngineContext;
 
     async fn start(
         mut self,
@@ -488,7 +490,7 @@ impl NodeActor for EngineActor {
             sync_complete_tx,
             derivation_signal_tx,
             mut engine_unsafe_head_tx,
-        }: Self::OutboundData,
+        }: Self::StartData,
     ) -> Result<(), Self::Error> {
         let mut state = self.builder.build_state()?;
 
@@ -573,18 +575,30 @@ impl NodeActor for EngineActor {
                     return Ok(());
                 }
                 reset = self.reset_request_rx.recv() => {
-                    if reset.is_none() {
+                    let Some(ResetRequest{result_tx: result_tx_option}) = reset else {
                         error!(target: "engine", "Reset request receiver closed unexpectedly");
                         cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
-                    }
+                    };
+
                     warn!(target: "engine", "Received reset request");
-                    state
+
+                    let reset_res = state
                         .reset(&derivation_signal_tx, &engine_l2_safe_head_tx, &mut self.finalizer)
-                        .await?;
+                        .await;
+
+                    // Send the result if there is a channel on which to do so.
+                    if let Some(tx) = result_tx_option {
+                        let response_payload = reset_res.as_ref().map(|_| ()).map_err(|e| BlockEngineError::ResetForkchoiceError(e.to_string()));
+                        if tx.send(response_payload).await.is_err() {
+                            warn!(target: "engine", "Sending reset response failed");
+                        }
+                    }
+
+                    reset_res?;
                 }
                 Some(req) = OptionFuture::from(self.seal_request_rx.as_mut().map(|rx| rx.recv())), if self.seal_request_rx.is_some() => {
-                    let Some((payload_id, attributes, response_tx)) = req else {
+                    let Some(SealRequest{payload_id, attributes, result_tx}) = req else {
                         error!(target: "engine", "Seal request receiver closed unexpectedly while in sequencer mode");
                         cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
@@ -597,12 +611,12 @@ impl NodeActor for EngineActor {
                         attributes,
                         // The payload is not derived in this case.
                         false,
-                        Some(response_tx),
+                        Some(result_tx),
                     )));
                     state.engine.enqueue(task);
                 }
                 Some(req) = OptionFuture::from(self.build_request_rx.as_mut().map(|rx| rx.recv())), if self.build_request_rx.is_some() => {
-                    let Some((attributes, response_tx)) = req else {
+                    let Some(BuildRequest{attributes, result_tx}) = req else {
                         error!(target: "engine", "Build request receiver closed unexpectedly while in sequencer mode");
                         cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
@@ -612,7 +626,7 @@ impl NodeActor for EngineActor {
                         state.client.clone(),
                         state.rollup.clone(),
                         attributes,
-                        Some(response_tx),
+                        Some(result_tx),
                     )));
                     state.engine.enqueue(task);
                 }

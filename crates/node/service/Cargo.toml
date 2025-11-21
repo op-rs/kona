@@ -77,6 +77,7 @@ rand.workspace = true
 anyhow.workspace = true
 backon.workspace = true
 http = "1"
+mockall.workspace = true
 alloy-primitives = { workspace = true, features = ["k256"] }
 alloy-rpc-types-engine = { workspace = true, features = ["arbitrary"] }
 alloy-consensus = { workspace = true, features = ["arbitrary"] }

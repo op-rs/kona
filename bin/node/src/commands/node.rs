@@ -16,7 +16,7 @@ use clap::Parser;
 use kona_cli::{LogConfig, MetricsArgs};
 use kona_engine::{EngineClient, HyperAuthClient};
 use kona_genesis::{L1ChainConfig, RollupConfig};
-use kona_node_service::{EngineConfig, NodeMode, RollupNodeBuilder, RollupNodeService};
+use kona_node_service::{EngineConfig, NodeMode, RollupNodeBuilder};
 use kona_registry::{L1Config, scr_rollup_config_by_alloy_ident};
 use op_alloy_network::Optimism;
 use op_alloy_provider::ext::engine::OpEngineApi;
