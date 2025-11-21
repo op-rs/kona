@@ -14,10 +14,7 @@ where
 {
     /// Handles the provided [`SequencerAdminQuery`], sending the response via the provided sender.
     /// This function is used to decouple admin API logic from the response mechanism (channels).
-    pub(in crate::actors::sequencer) async fn handle_admin_query(
-        &mut self,
-        query: SequencerAdminQuery,
-    ) {
+    pub(super) async fn handle_admin_query(&mut self, query: SequencerAdminQuery) {
         match query {
             SequencerAdminQuery::SequencerActive(tx) => {
                 if tx.send(self.is_sequencer_active().await).is_err() {
@@ -52,21 +49,15 @@ where
         }
     }
 
-    pub(in crate::actors::sequencer) async fn is_sequencer_active(
-        &self,
-    ) -> Result<bool, SequencerAdminAPIError> {
+    pub(super) async fn is_sequencer_active(&self) -> Result<bool, SequencerAdminAPIError> {
         Ok(self.is_active)
     }
 
-    pub(in crate::actors::sequencer) async fn is_conductor_enabled(
-        &self,
-    ) -> Result<bool, SequencerAdminAPIError> {
+    pub(super) async fn is_conductor_enabled(&self) -> Result<bool, SequencerAdminAPIError> {
         Ok(self.conductor.is_some())
     }
 
-    pub(in crate::actors::sequencer) async fn start_sequencer(
-        &mut self,
-    ) -> Result<(), SequencerAdminAPIError> {
+    pub(super) async fn start_sequencer(&mut self) -> Result<(), SequencerAdminAPIError> {
         if self.is_active {
             info!(target: "sequencer", "received request to start sequencer, but it is already started");
             return Ok(());
@@ -82,9 +73,7 @@ where
         Ok(())
     }
 
-    pub(in crate::actors::sequencer) async fn stop_sequencer(
-        &mut self,
-    ) -> Result<B256, SequencerAdminAPIError> {
+    pub(super) async fn stop_sequencer(&mut self) -> Result<B256, SequencerAdminAPIError> {
         info!(target: "sequencer", "Stopping sequencer");
         self.is_active = false;
 
@@ -95,7 +84,7 @@ where
         Ok(self.unsafe_head_rx.borrow().hash())
     }
 
-    pub(in crate::actors::sequencer) async fn set_recovery_mode(
+    pub(super) async fn set_recovery_mode(
         &mut self,
         is_active: bool,
     ) -> Result<(), SequencerAdminAPIError> {
@@ -109,9 +98,7 @@ where
         Ok(())
     }
 
-    pub(in crate::actors::sequencer) async fn override_leader(
-        &mut self,
-    ) -> Result<(), SequencerAdminAPIError> {
+    pub(super) async fn override_leader(&mut self) -> Result<(), SequencerAdminAPIError> {
         if let Some(conductor) = self.conductor.as_mut() {
             if let Err(e) = conductor.override_leader().await {
                 error!(target: "sequencer::rpc", "Failed to override leader: {}", e);
