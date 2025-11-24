@@ -72,7 +72,6 @@ pub fn to_system_config(
         ..Default::default()
     };
 
-    // here
     // After holocene's activation, the EIP-1559 parameters are stored in the block header's nonce.
     if rollup_config.is_jovian_active(block.header.timestamp) {
         let (elasticity, denominator, min_base_fee) =
