@@ -48,7 +48,7 @@ impl EngineForkchoiceVersion {
 /// - V2: Basic payload processing
 /// - V3: Adds Cancun/Ecotone support
 /// - V4: Adds Isthmus hardfork features
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EngineNewPayloadVersion {
     /// Version 2: Basic payload processing for early hardforks.
     V2,
