@@ -2,7 +2,7 @@
 
 use alloc::vec::Vec;
 use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{Address, B256, Bytes, Log, TxKind, U64, U256, b256};
+use alloy_primitives::{Address, B256, Bytes, Log, TxKind, U256, b256};
 use op_alloy_consensus::{TxDeposit, UserDepositSource};
 
 /// Deposit log event abi signature.
@@ -44,16 +44,27 @@ pub enum DepositError {
     #[error("Invalid u64 opaque data content offset: {0}")]
     InvalidOpaqueDataOffset(Bytes),
     /// Invalid opaque data content length.
-    #[error("Invalid u64 opaque data content length: {0}")]
-    InvalidOpaqueDataLength(Bytes),
+    #[error("Invalid u64 opaque data content length: expected {expected}, actual {actual}")]
+    InvalidOpaqueDataLength {
+        /// Expected length.
+        expected: usize,
+        /// Actual length.
+        actual: usize,
+    },
+    /// Invalid opaque data.
+    #[error("Invalid opaque data padding. Not all zeros or incorrect length: {0}")]
+    InvalidOpaqueDataPadding(Bytes),
+    /// Opaque content length overflow.
+    #[error("Opaque content length overflow: {0}")]
+    OpaqueContentOverflow(Bytes),
     /// Opaque data length exceeds the deposit log event data length.
     /// Specified: [usize] (data length), Actual: [usize] (opaque data length).
     #[error("Specified opaque data length {1} exceeds the deposit log event data length {0}")]
-    OpaqueDataOverflow(usize, usize),
+    OpaqueDataOverflow(u64, usize),
     /// Opaque data with padding exceeds the specified data length.
     /// Specified: [usize] (data length), Actual: [usize] (opaque data length).
     #[error("Opaque data with padding exceeds the specified data length: {1} > {0}")]
-    PaddedOpaqueDataOverflow(usize, usize),
+    PaddedOpaqueDataOverflow(usize, u64),
     /// An invalid deposit version.
     #[error("Invalid deposit version: {0}")]
     InvalidVersion(B256),
@@ -128,40 +139,54 @@ pub fn decode_deposit(block_hash: B256, index: usize, log: &Log) -> Result<Bytes
     // | 32     | [0; 24] . {U64 big endian, hex encoded length}  |
     // ------------------------------------------------------------
 
-    let opaque_content_offset: U64 = U64::try_from_be_slice(&log.data.data[24..32]).ok_or(
-        DepositError::InvalidOpaqueDataOffset(Bytes::copy_from_slice(&log.data.data[24..32])),
-    )?;
-    if opaque_content_offset != U64::from(32) {
+    let opaque_content_offset: U256 = U256::from_be_slice(&log.data.data[0..32]);
+    if opaque_content_offset != U256::from(32) {
         return Err(DepositError::InvalidOpaqueDataOffset(Bytes::copy_from_slice(
-            &log.data.data[24..32],
+            &log.data.data[0..32],
         )));
     }
 
     // The next 32 bytes indicate the length of the opaqueData content.
-    let opaque_content_len =
-        u64::from_be_bytes(log.data.data[56..64].try_into().map_err(|_| {
-            DepositError::InvalidOpaqueDataLength(Bytes::copy_from_slice(&log.data.data[56..64]))
-        })?);
-    if opaque_content_len as usize > log.data.data.len() - 64 {
-        return Err(DepositError::OpaqueDataOverflow(
-            opaque_content_len as usize,
-            log.data.data.len() - 64,
-        ));
+    let opaque_content_len: U256 = U256::from_be_slice(&log.data.data[32..64]);
+    let opaque_content_len: u64 = opaque_content_len.try_into().map_err(|_| {
+        DepositError::OpaqueContentOverflow(Bytes::copy_from_slice(&log.data.data[32..64]))
+    })?;
+    if opaque_content_len > (log.data.data.len() - 64) as u64 {
+        return Err(DepositError::OpaqueDataOverflow(opaque_content_len, log.data.data.len() - 64));
     }
-    let padded_len = opaque_content_len.checked_add(32).ok_or(DepositError::OpaqueDataOverflow(
-        opaque_content_len as usize,
-        log.data.data.len() - 64,
-    ))?;
-    if padded_len as usize <= log.data.data.len() - 64 {
+    let padded_len = opaque_content_len
+        .checked_add(32)
+        .ok_or(DepositError::OpaqueDataOverflow(opaque_content_len, log.data.data.len() - 64))?;
+    if padded_len <= (log.data.data.len() - 64) as u64 {
         return Err(DepositError::PaddedOpaqueDataOverflow(
             log.data.data.len() - 64,
-            opaque_content_len as usize,
+            opaque_content_len,
         ));
     }
 
     // The remaining data is the opaqueData which is tightly packed and then padded to 32 bytes by
     // the EVM.
-    let opaque_data = &log.data.data[64..64 + opaque_content_len as usize];
+    let Some(opaque_data) = &log.data.data.get(64..64 + opaque_content_len as usize) else {
+        return Err(DepositError::InvalidOpaqueDataLength {
+            expected: opaque_content_len as usize,
+            actual: log.data.data.len().saturating_sub(64),
+        });
+    };
+
+    // Ensure that the remaining data is only zeros.
+    // The padding ends at the next multiple of 32 after the opaque data.
+    let padding_end = 64 + (opaque_content_len / 32 + 1) * 32;
+    if !log
+        .data
+        .data
+        .get(64 + opaque_content_len as usize..padding_end as usize)
+        .is_some_and(|data| data.iter().all(|&b| b == 0))
+    {
+        return Err(DepositError::InvalidOpaqueDataPadding(Bytes::copy_from_slice(
+            &log.data.data[64..],
+        )));
+    }
+
     let source = UserDepositSource::new(block_hash, index as u64);
 
     let mut deposit_tx = TxDeposit {
@@ -237,7 +262,7 @@ pub(crate) fn unmarshal_deposit_version0(
 mod test {
     use super::*;
     use alloc::vec;
-    use alloy_primitives::{LogData, address, b256, hex};
+    use alloy_primitives::{LogData, U64, address, b256, hex};
 
     #[test]
     fn test_decode_deposit_invalid_first_topic() {
