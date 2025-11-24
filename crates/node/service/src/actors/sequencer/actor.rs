@@ -28,10 +28,7 @@ use std::{
     sync::Arc,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
-use tokio::{
-    select,
-    sync::{mpsc, watch},
-};
+use tokio::{select, sync::mpsc};
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
 /// The handle to a block that has been started but not sealed.
@@ -69,7 +66,7 @@ where
     /// The attributes builder used for block building.
     pub attributes_builder: AB,
     /// The struct used to build blocks.
-    pub block_engine: BB,
+    pub block_building_client: BB,
     /// The cancellation token, shared between all tasks.
     pub cancellation_token: CancellationToken,
     /// The optional conductor RPC client.
@@ -84,8 +81,6 @@ where
     pub origin_selector: OS,
     /// The rollup configuration.
     pub rollup_config: Arc<RollupConfig>,
-    /// Watch channel to observe the unsafe head of the engine.
-    pub unsafe_head_rx: watch::Receiver<L2BlockInfo>,
 }
 
 impl<AB, C, OS, BB> CancellableContext for SequencerActor<AB, C, OS, BB>
@@ -140,7 +135,7 @@ where
 
         // Send the seal request to the engine to seal the unsealed block.
         let payload = self
-            .block_engine
+            .block_building_client
             .seal_and_canonicalize_block(
                 unsealed_payload_handle.payload_id,
                 unsealed_payload_handle.attributes_with_parent.clone(),
@@ -167,7 +162,7 @@ where
     async fn build_unsealed_payload(
         &mut self,
     ) -> Result<Option<UnsealedPayloadHandle>, SequencerActorError> {
-        let unsafe_head = *self.unsafe_head_rx.borrow();
+        let unsafe_head = self.block_building_client.get_unsafe_head().await?;
 
         let Some(l1_origin) = self.get_next_payload_l1_origin(unsafe_head).await? else {
             // Temporary error - retry on next tick.
@@ -196,7 +191,7 @@ where
         let build_request_start = Instant::now();
 
         let payload_id =
-            self.block_engine.start_build_block(attributes_with_parent.clone()).await?;
+            self.block_building_client.start_build_block(attributes_with_parent.clone()).await?;
 
         update_block_build_duration_metrics(build_request_start.elapsed());
 
@@ -235,7 +230,7 @@ where
                 unsafe_head_l1_origin = ?unsafe_head.l1_origin,
                 "Cannot build new L2 block on inconsistent L1 origin, resetting engine"
             );
-            self.block_engine.reset_engine_forkchoice().await?;
+            self.block_building_client.reset_engine_forkchoice().await?;
             return Ok(None);
         }
         Ok(Some(l1_origin))
@@ -259,7 +254,7 @@ where
                 return Ok(None);
             }
             Err(PipelineErrorKind::Reset(_)) => {
-                if let Err(err) = self.block_engine.reset_engine_forkchoice().await {
+                if let Err(err) = self.block_building_client.reset_engine_forkchoice().await {
                     error!(target: "sequencer", ?err, "Failed to reset engine");
                     return Err(SequencerActorError::ChannelClosed);
                 }
@@ -362,21 +357,13 @@ where
 
     /// Schedules the initial engine reset request and waits for the unsafe head to be updated.
     async fn schedule_initial_reset(&mut self) -> Result<(), SequencerActorError> {
-        // Schedule a reset of the engine, in order to initialize the engine state.
-        if let Err(err) = self.block_engine.reset_engine_forkchoice().await {
+        // Reset the engine, in order to initialize the engine state.
+        // NB: this call waits for confirmation that the reset succeeded and we can proceed with
+        // post-reset logic.
+        self.block_building_client.reset_engine_forkchoice().await.map_err(|err| {
             error!(target: "sequencer", ?err, "Failed to send reset request to engine");
-            return Err(SequencerActorError::ChannelClosed);
-        }
-
-        // Wait for the reset request to be processed before starting the block building loop.
-        //
-        // We know that the reset has concluded when the unsafe head watch channel is updated.
-        if self.unsafe_head_rx.changed().await.is_err() {
-            error!(target: "sequencer", "Failed to receive unsafe head update after reset request");
-            return Err(SequencerActorError::ChannelClosed);
-        }
-
-        Ok(())
+            err.into()
+        })
     }
 }
 

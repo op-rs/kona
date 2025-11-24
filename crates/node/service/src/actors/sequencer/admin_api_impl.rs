@@ -77,7 +77,12 @@ where
 
         self.update_metrics();
 
-        Ok(self.unsafe_head_rx.borrow().hash())
+        self.block_building_client.get_unsafe_head().await
+            .map(|h| h.hash())
+            .map_err(|e| {
+                error!(target: "sequencer", err=?e, "Error fetching unsafe head after stopping sequencer, which should never happen.");
+                SequencerAdminAPIError::StopError("Error fetching unsafe head. Sequencer is stopped, but current unsafe hash is unavailable.".to_string())
+            })
     }
 
     pub(super) async fn set_recovery_mode(

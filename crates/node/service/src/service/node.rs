@@ -3,8 +3,8 @@ use crate::{
     ConductorClient, DelayedL1OriginSelectorProvider, DerivationActor, DerivationBuilder,
     DerivationContext, EngineActor, EngineConfig, EngineContext, InteropMode, L1OriginSelector,
     L1WatcherRpc, L1WatcherRpcContext, L1WatcherRpcState, NetworkActor, NetworkBuilder,
-    NetworkConfig, NetworkContext, NodeActor, NodeMode, QueuedSequencerAdminAPIClient, RpcActor,
-    RpcContext, SequencerConfig,
+    NetworkConfig, NetworkContext, NodeActor, NodeMode, QueuedBlockBuildingClient,
+    QueuedSequencerAdminAPIClient, RpcActor, RpcContext, SequencerConfig,
     actors::{
         DerivationInboundChannels, EngineInboundData, L1WatcherRpcInboundChannels,
         NetworkInboundData, SequencerActorBuilder,
@@ -13,12 +13,11 @@ use crate::{
 use alloy_provider::RootProvider;
 use kona_derive::StatefulAttributesBuilder;
 use kona_genesis::{L1ChainConfig, RollupConfig};
-use kona_protocol::L2BlockInfo;
 use kona_providers_alloy::{AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient};
 use kona_rpc::RpcBuilder;
 use op_alloy_network::Optimism;
 use std::sync::Arc;
-use tokio::sync::{mpsc, watch};
+use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 const DERIVATION_PROVIDER_CACHE_SIZE: usize = 1024;
@@ -160,14 +159,16 @@ impl RollupNode {
         // Create the engine actor.
         let (
             EngineInboundData {
-                block_engine,
                 attributes_tx,
-                unsafe_block_tx,
-                reset_request_tx,
-                inbound_queries_tx: engine_rpc,
+                build_request_tx,
                 finalized_l1_block_tx,
+                inbound_queries_tx: engine_rpc,
+                reset_request_tx,
                 rollup_boost_admin_query_tx: rollup_boost_admin_rpc,
                 rollup_boost_health_query_tx: rollup_boost_health_rpc,
+                seal_request_tx,
+                unsafe_block_tx,
+                unsafe_head_rx,
             },
             engine,
         ) = EngineActor::new(self.engine_config());
@@ -186,30 +187,22 @@ impl RollupNode {
         // Create the RPC server actor.
         let rpc = self.rpc_builder().map(RpcActor::new);
 
-        let (sequencer_actor_builder, sequencer_admin_api_client, engine_unsafe_head_tx) =
-            if self.mode().is_sequencer() {
-                let (unsafe_head_tx, unsafe_head_rx) = watch::channel(L2BlockInfo::default());
+        let (sequencer_actor_builder, sequencer_admin_api_client) = if self.mode().is_sequencer() {
+            // Create the admin API channel
+            let (admin_api_tx, admin_api_rx) = mpsc::channel(1024);
 
-                // Create the admin API channel
-                let (admin_api_tx, admin_api_rx) = mpsc::channel(1024);
+            let cfg = self.sequencer_config.clone();
 
-                let cfg = self.sequencer_config.clone();
+            let builder = SequencerActorBuilder::new()
+                .with_active_status(!cfg.sequencer_stopped)
+                .with_recovery_mode_status(cfg.sequencer_recovery_mode)
+                .with_rollup_config(self.config.clone())
+                .with_admin_api_receiver(admin_api_rx);
 
-                let builder = SequencerActorBuilder::new()
-                    .with_active_status(!cfg.sequencer_stopped)
-                    .with_recovery_mode_status(cfg.sequencer_recovery_mode)
-                    .with_rollup_config(self.config.clone())
-                    .with_admin_api_receiver(admin_api_rx)
-                    .with_unsafe_head_watch_receiver(unsafe_head_rx);
-
-                (
-                    Some(builder),
-                    Some(QueuedSequencerAdminAPIClient::new(admin_api_tx)),
-                    Some(unsafe_head_tx),
-                )
-            } else {
-                (None, None, None)
-            };
+            (Some(builder), Some(QueuedSequencerAdminAPIClient::new(admin_api_tx)))
+        } else {
+            (None, None)
+        };
 
         // 2. CONFIGURE DEPENDENCIES
 
@@ -226,9 +219,18 @@ impl RollupNode {
 
                 let origin_selector = L1OriginSelector::new(self.config.clone(), l1_provider);
 
-                let unwrapped_block_engine = block_engine.expect(
-                    "`block_engine` not set while in sequencer mode. This should never happen.",
-                );
+                let block_building_client = QueuedBlockBuildingClient {
+                    build_request_tx: build_request_tx.expect(
+                        "build_request_tx is None in sequencer mode. This should never happen.",
+                    ),
+                    reset_request_tx: reset_request_tx.clone(),
+                    seal_request_tx: seal_request_tx.expect(
+                        "seal_request_tx is None in sequencer mode. This should never happen.",
+                    ),
+                    unsafe_head_rx: unsafe_head_rx.expect(
+                        "unsafe_head_rx is None in sequencer mode. This should never happen.",
+                    ),
+                };
 
                 // Conditionally add conductor if configured
                 if let Some(conductor_url) = cfg.conductor_rpc_url {
@@ -238,7 +240,7 @@ impl RollupNode {
                 Some(
                     builder
                         .with_attributes_builder(self.create_attributes_builder())
-                        .with_block_engine(unwrapped_block_engine)
+                        .with_block_building_client(block_building_client)
                         .with_cancellation_token(cancellation.clone())
                         .with_gossip_payload_sender(gossip_payload_tx.clone())
                         .with_origin_selector(origin_selector)
@@ -290,7 +292,6 @@ impl RollupNode {
                     engine,
                     EngineContext {
                         engine_l2_safe_head_tx,
-                        engine_unsafe_head_tx,
                         sync_complete_tx: el_sync_complete_tx,
                         derivation_signal_tx,
                         cancellation: cancellation.clone(),

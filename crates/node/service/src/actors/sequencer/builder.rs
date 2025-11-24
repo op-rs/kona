@@ -6,10 +6,9 @@ use crate::actors::{
 };
 use kona_derive::AttributesBuilder;
 use kona_genesis::RollupConfig;
-use kona_protocol::L2BlockInfo;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::sync::Arc;
-use tokio::sync::{mpsc, watch};
+use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 /// Builder for constructing a [`SequencerActor`].
@@ -26,7 +25,7 @@ where
     /// The attributes builder used for block building.
     pub attributes_builder: Option<AB>,
     /// The struct used to build blocks.
-    pub block_engine: Option<BB>,
+    pub block_building_client: Option<BB>,
     /// The cancellation token, shared between all tasks.
     pub cancellation_token: Option<CancellationToken>,
     /// The optional conductor RPC client.
@@ -41,8 +40,6 @@ where
     pub origin_selector: Option<OS>,
     /// The rollup configuration.
     pub rollup_config: Option<Arc<RollupConfig>>,
-    /// Watch channel to observe the unsafe head of the engine.
-    pub unsafe_head_rx: Option<watch::Receiver<L2BlockInfo>>,
 }
 
 impl<AB, C, OS, BB> SequencerActorBuilder<AB, C, OS, BB>
@@ -57,7 +54,7 @@ where
         Self {
             admin_api_rx: None,
             attributes_builder: None,
-            block_engine: None,
+            block_building_client: None,
             cancellation_token: None,
             conductor: None,
             gossip_payload_tx: None,
@@ -65,7 +62,6 @@ where
             in_recovery_mode: None,
             origin_selector: None,
             rollup_config: None,
-            unsafe_head_rx: None,
         }
     }
 
@@ -96,15 +92,6 @@ where
         self
     }
 
-    /// Sets the unsafe head receiver.
-    pub fn with_unsafe_head_watch_receiver(
-        mut self,
-        unsafe_head_rx: watch::Receiver<L2BlockInfo>,
-    ) -> Self {
-        self.unsafe_head_rx = Some(unsafe_head_rx);
-        self
-    }
-
     /// Sets the attributes builder.
     pub fn with_attributes_builder(mut self, attributes_builder: AB) -> Self {
         self.attributes_builder = Some(attributes_builder);
@@ -124,8 +111,8 @@ where
     }
 
     /// Sets the block engine.
-    pub fn with_block_engine(mut self, block_engine: BB) -> Self {
-        self.block_engine = Some(block_engine);
+    pub fn with_block_building_client(mut self, block_building_client: BB) -> Self {
+        self.block_building_client = Some(block_building_client);
         self
     }
 
@@ -153,7 +140,9 @@ where
         Ok(SequencerActor {
             admin_api_rx: self.admin_api_rx.expect("admin_api_rx is required"),
             attributes_builder: self.attributes_builder.expect("attributes_builder is required"),
-            block_engine: self.block_engine.expect("block_engine is required"),
+            block_building_client: self
+                .block_building_client
+                .expect("block_building_client is required"),
             cancellation_token: self.cancellation_token.expect("cancellation is required"),
             conductor: self.conductor,
             gossip_payload_tx: self.gossip_payload_tx.expect("gossip_payload_tx is required"),
@@ -161,7 +150,6 @@ where
             in_recovery_mode: self.in_recovery_mode.expect("initial recovery mode status not set"),
             origin_selector: self.origin_selector.expect("origin_selector is required"),
             rollup_config: self.rollup_config.expect("rollup_config is required"),
-            unsafe_head_rx: self.unsafe_head_rx.expect("unsafe_head_rx is required"),
         })
     }
 }
