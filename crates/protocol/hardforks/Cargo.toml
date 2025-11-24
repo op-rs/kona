@@ -17,6 +17,7 @@ workspace = true
 [dependencies]
 # Workspace
 kona-protocol.workspace = true
+kona-genesis.workspace = true
 
 # Alloy
 alloy-eips.workspace = true
@@ -24,6 +25,7 @@ alloy-primitives = { workspace = true, features = ["rlp"] }
 
 # OP Alloy
 op-alloy-consensus.workspace = true
+alloy-op-hardforks.workspace = true
 
 [dev-dependencies]
 alloy-primitives = { workspace = true, features = ["rand", "arbitrary"] }

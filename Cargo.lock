@@ -296,8 +296,6 @@ dependencies = [
 [[package]]
 name = "alloy-hardforks"
 version = "0.4.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e29d7eacf42f89c21d7f089916d0bdb4f36139a31698790e8837d2dbbd4b2c3"
 dependencies = [
  "alloy-chains",
  "alloy-eip2124",
@@ -4710,6 +4708,7 @@ version = "0.4.5"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
+ "alloy-op-hardforks",
  "alloy-primitives",
  "alloy-rlp",
  "alloy-rpc-types-engine",
@@ -4783,6 +4782,7 @@ dependencies = [
  "alloy-json-rpc",
  "alloy-network",
  "alloy-network-primitives",
+ "alloy-op-hardforks",
  "alloy-primitives",
  "alloy-provider",
  "alloy-rpc-client",
@@ -4798,6 +4798,7 @@ dependencies = [
  "jsonrpsee",
  "jsonrpsee-types",
  "kona-genesis",
+ "kona-hardforks",
  "kona-macros",
  "kona-protocol",
  "kona-registry",
@@ -4927,7 +4928,9 @@ name = "kona-hardforks"
 version = "0.4.5"
 dependencies = [
  "alloy-eips",
+ "alloy-op-hardforks",
  "alloy-primitives",
+ "kona-genesis",
  "kona-protocol",
  "op-alloy-consensus 0.22.2",
  "op-revm 14.1.0",

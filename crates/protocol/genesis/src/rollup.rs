@@ -1,6 +1,7 @@
 //! Rollup Config Types
 
 use crate::{AltDAConfig, BaseFeeConfig, ChainGenesis, HardForkConfig, OP_MAINNET_BASE_FEE_CONFIG};
+use alloc::{vec, vec::Vec};
 use alloy_chains::Chain;
 use alloy_hardforks::{EthereumHardfork, EthereumHardforks, ForkCondition};
 use alloy_op_hardforks::{OpHardfork, OpHardforks};
@@ -192,6 +193,11 @@ impl RollupConfig {
 }
 
 impl RollupConfig {
+    /// Always returns true
+    pub fn is_bedrock_active(&self, _timestamp: u64) -> bool {
+        true
+    }
+
     /// Returns true if Regolith is active at the given timestamp.
     pub fn is_regolith_active(&self, timestamp: u64) -> bool {
         self.hardforks.regolith_time.is_some_and(|t| timestamp >= t) ||
@@ -392,6 +398,53 @@ impl RollupConfig {
             }
         }
     }
+
+    /// Builds a vector with a value for each active hardfork in chronological order for a given l2
+    /// block.
+    pub fn active_hardforks(&self, l2_time: u64) -> Vec<OpHardfork> {
+        let mut hardforks = vec![];
+        if self.is_bedrock_active(l2_time) {
+            hardforks.push(OpHardfork::Bedrock);
+        }
+        if self.is_regolith_active(l2_time) {
+            hardforks.push(OpHardfork::Regolith);
+        }
+        if self.is_canyon_active(l2_time) {
+            hardforks.push(OpHardfork::Canyon);
+        }
+        if self.is_ecotone_active(l2_time) {
+            hardforks.push(OpHardfork::Ecotone);
+        }
+        if self.is_fjord_active(l2_time) {
+            hardforks.push(OpHardfork::Fjord);
+        }
+        if self.is_granite_active(l2_time) {
+            hardforks.push(OpHardfork::Granite);
+        }
+        if self.is_isthmus_active(l2_time) {
+            hardforks.push(OpHardfork::Isthmus);
+        }
+        if self.is_holocene_active(l2_time) {
+            hardforks.push(OpHardfork::Holocene);
+        }
+        if self.is_isthmus_active(l2_time) {
+            hardforks.push(OpHardfork::Isthmus);
+        }
+        if self.is_jovian_active(l2_time) {
+            hardforks.push(OpHardfork::Jovian);
+        }
+        if self.is_interop_active(l2_time) {
+            hardforks.push(OpHardfork::Interop);
+        }
+
+        hardforks
+    }
+
+    // review: this overlaps a bit with `spec_id`
+    /// Return the latest hardfork
+    pub fn latest_hardfork(&self, l2_time: u64) -> OpHardfork {
+        *self.active_hardforks(l2_time).last().expect("no hardfork active")
+    }
 }
 
 impl EthereumHardforks for RollupConfig {
@@ -466,7 +519,6 @@ impl OpHardforks for RollupConfig {
                 .interop_time
                 .map(ForkCondition::Timestamp)
                 .unwrap_or(ForkCondition::Never),
-            _ => ForkCondition::Never,
         }
     }
 }

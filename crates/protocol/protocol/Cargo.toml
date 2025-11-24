@@ -17,6 +17,7 @@ workspace = true
 [dependencies]
 # Workspace
 kona-genesis.workspace = true
+#kona-hardforks.workspace = true
 
 # OP Alloy
 op-alloy-consensus.workspace = true

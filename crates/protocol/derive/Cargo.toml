@@ -42,6 +42,7 @@ tracing-subscriber = { workspace = true, optional = true, features = ["fmt"] }
 
 # `metrics` feature
 metrics = { workspace = true, optional = true }
+alloy-op-hardforks.workspace = true
 
 [dev-dependencies]
 spin.workspace = true
