@@ -194,7 +194,7 @@ impl RollupConfig {
 
 impl RollupConfig {
     /// Always returns true
-    pub fn is_bedrock_active(&self, _timestamp: u64) -> bool {
+    pub const fn is_bedrock_active(&self, _timestamp: u64) -> bool {
         true
     }
 
