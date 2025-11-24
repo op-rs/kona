@@ -110,17 +110,17 @@ impl BuildTask {
 
         let forkchoice_version = EngineForkchoiceVersion::from_cfg(
             &self.cfg,
-            attributes_envelope.inner.payload_attributes.timestamp,
+            attributes_envelope.attributes.payload_attributes.timestamp,
         );
         let update = match forkchoice_version {
             EngineForkchoiceVersion::V3 => {
                 engine_client
-                    .fork_choice_updated_v3(new_forkchoice, Some(attributes_envelope.inner))
+                    .fork_choice_updated_v3(new_forkchoice, Some(attributes_envelope.attributes))
                     .await
             }
             EngineForkchoiceVersion::V2 => {
                 engine_client
-                    .fork_choice_updated_v2(new_forkchoice, Some(attributes_envelope.inner))
+                    .fork_choice_updated_v2(new_forkchoice, Some(attributes_envelope.attributes))
                     .await
             }
         }
@@ -156,7 +156,7 @@ impl EngineTaskExt for BuildTask {
     async fn execute(&self, state: &mut EngineState) -> Result<PayloadId, BuildTaskError> {
         debug!(
             target: "engine_builder",
-            txs = self.attributes.inner().transactions.as_ref().map_or(0, |txs| txs.len()),
+            txs = self.attributes.attributes().transactions.as_ref().map_or(0, |txs| txs.len()),
             is_deposits = self.attributes.is_deposits_only(),
             "Starting new build job"
         );
