@@ -16,7 +16,7 @@ use kona_engine::{
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
-use kona_rpc::{RollupBoostAdminQuery, RollupBoostHealthQuery};
+use kona_rpc::{RollupBoostAdminError, RollupBoostAdminQuery, RollupBoostHealthQuery};
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{fmt::Debug, sync::Arc, time::Duration};
 use tokio::{
@@ -318,8 +318,10 @@ impl EngineActorState {
                         };
 
                         match admin_query {
-                            RollupBoostAdminQuery::SetExecutionMode { execution_mode } => {
-                                rollup_boost.server.set_execution_mode(execution_mode);
+                            RollupBoostAdminQuery::SetExecutionMode { execution_mode, response_tx } => {
+                                let result=rollup_boost.server.set_execution_mode(execution_mode).map_err(|_| RollupBoostAdminError::FailedToSetExecutionMode);
+
+                                response_tx.send(result).unwrap();
                             }
                             RollupBoostAdminQuery::GetExecutionMode { sender } => {
                                 let execution_mode = rollup_boost.server.get_execution_mode();

@@ -25,6 +25,14 @@ pub enum NetworkAdminQuery {
     },
 }
 
+/// An error that can occur when running Rollup Boost Admin Commands.
+#[derive(Error, Debug)]
+pub enum RollupBoostAdminError {
+    /// Error while setting the execution mode.
+    #[error("Rollup boost error: Failed to set execution mode.")]
+    FailedToSetExecutionMode,
+}
+
 /// The query types to the rollup boost component of the engine actor.
 /// Only set when rollup boost is enabled.
 #[derive(Debug)]
@@ -33,6 +41,9 @@ pub enum RollupBoostAdminQuery {
     SetExecutionMode {
         /// The execution mode to set.
         execution_mode: ExecutionMode,
+
+        /// The sender to use for confirmation response / error.
+        response_tx: oneshot::Sender<Result<(), RollupBoostAdminError>>,
     },
     /// An admin rpc request to get the execution mode.
     GetExecutionMode {
@@ -172,13 +183,25 @@ impl<S: SequencerAdminAPIClient + 'static> AdminApiServer for AdminRpc<S> {
             return Err(ErrorObject::from(ErrorCode::MethodNotFound));
         };
 
+        let (tx, rx) = oneshot::channel();
+
         rollup_boost_sender
             .send(RollupBoostAdminQuery::SetExecutionMode {
                 execution_mode: request.execution_mode,
+                response_tx: tx,
             })
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
-        Ok(SetExecutionModeResponse { execution_mode: request.execution_mode })
+
+        match rx.await {
+            Ok(Ok(_)) => Ok(SetExecutionModeResponse { execution_mode: request.execution_mode }),
+            Ok(Err(err)) => Err(ErrorObject::owned(
+                ErrorCode::InternalError.code(),
+                format!("Failed to set execution mode: {err}"),
+                None::<()>,
+            )),
+            Err(_closed) => Err(ErrorObject::from(ErrorCode::InternalError)),
+        }
     }
 
     async fn get_execution_mode(&self) -> RpcResult<GetExecutionModeResponse> {
