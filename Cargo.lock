@@ -4793,6 +4793,7 @@ dependencies = [
  "arbitrary",
  "async-trait",
  "derive_more",
+ "futures",
  "http",
  "http-body-util",
  "jsonrpsee",
