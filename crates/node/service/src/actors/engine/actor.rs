@@ -65,7 +65,7 @@ pub struct SealRequest {
 pub struct EngineActor {
     /// A channel to receive [`OpAttributesWithParent`] from the derivation actor.
     attributes_rx: mpsc::Receiver<OpAttributesWithParent>,
-    /// The [`EngineActorState`] used to build the actor.
+    /// The [`EngineConfig`] used to build the actor.
     builder: EngineConfig,
     /// A channel to receive build requests.
     /// Upon successful processing of the provided attributes, a `PayloadId` will be sent via the
@@ -238,6 +238,15 @@ impl CancellableContext for EngineContext {
     }
 }
 
+struct SequencerChannels {
+    build_request_rx: Option<mpsc::Receiver<BuildRequest>>,
+    build_request_tx: Option<mpsc::Sender<BuildRequest>>,
+    seal_request_rx: Option<mpsc::Receiver<SealRequest>>,
+    seal_request_tx: Option<mpsc::Sender<SealRequest>>,
+    unsafe_head_rx: Option<watch::Receiver<L2BlockInfo>>,
+    unsafe_head_tx: Option<watch::Sender<L2BlockInfo>>,
+}
+
 impl EngineActor {
     /// Constructs a new [`EngineActor`] from the params.
     pub fn new(config: EngineConfig) -> (EngineInboundData, Self) {
@@ -247,28 +256,28 @@ impl EngineActor {
         let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
         let (reset_request_tx, reset_request_rx) = mpsc::channel(1024);
 
-        let (
-            build_request_rx,
-            build_request_tx,
-            seal_request_rx,
-            seal_request_tx,
-            unsafe_head_rx,
-            unsafe_head_tx,
-        ) = if config.mode.is_sequencer() {
+        let sequencer_channels = if config.mode.is_sequencer() {
             let (build_request_tx, build_request_rx) = mpsc::channel(1024);
             let (seal_request_tx, seal_request_rx) = mpsc::channel(1024);
             let (unsafe_head_tx, unsafe_head_rx) = watch::channel(L2BlockInfo::default());
 
-            (
-                Some(build_request_rx),
-                Some(build_request_tx),
-                Some(seal_request_rx),
-                Some(seal_request_tx),
-                Some(unsafe_head_rx),
-                Some(unsafe_head_tx),
-            )
+            SequencerChannels {
+                build_request_rx: Some(build_request_rx),
+                build_request_tx: Some(build_request_tx),
+                seal_request_rx: Some(seal_request_rx),
+                seal_request_tx: Some(seal_request_tx),
+                unsafe_head_rx: Some(unsafe_head_rx),
+                unsafe_head_tx: Some(unsafe_head_tx),
+            }
         } else {
-            (None, None, None, None, None, None)
+            SequencerChannels {
+                build_request_rx: None,
+                build_request_tx: None,
+                seal_request_rx: None,
+                seal_request_tx: None,
+                unsafe_head_rx: None,
+                unsafe_head_tx: None,
+            }
         };
 
         let (rollup_boost_admin_query_tx, rollup_boost_admin_query_rx) = mpsc::channel(1024);
@@ -278,11 +287,11 @@ impl EngineActor {
             builder: config,
             attributes_rx,
             unsafe_block_rx,
-            unsafe_head_tx,
+            unsafe_head_tx: sequencer_channels.unsafe_head_tx,
             reset_request_rx,
             inbound_queries: inbound_queries_rx,
-            build_request_rx,
-            seal_request_rx,
+            build_request_rx: sequencer_channels.build_request_rx,
+            seal_request_rx: sequencer_channels.seal_request_rx,
             finalizer: L2Finalizer::new(finalized_l1_block_rx),
             rollup_boost_admin_query_rx,
             rollup_boost_health_query_rx,
@@ -290,15 +299,15 @@ impl EngineActor {
 
         let outbound_data = EngineInboundData {
             attributes_tx,
-            build_request_tx,
+            build_request_tx: sequencer_channels.build_request_tx,
             finalized_l1_block_tx,
             inbound_queries_tx,
             reset_request_tx,
             rollup_boost_admin_query_tx,
             rollup_boost_health_query_tx,
-            seal_request_tx,
+            seal_request_tx: sequencer_channels.seal_request_tx,
             unsafe_block_tx,
-            unsafe_head_rx,
+            unsafe_head_rx: sequencer_channels.unsafe_head_rx,
         };
 
         (outbound_data, actor)
