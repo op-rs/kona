@@ -7,13 +7,26 @@ use kona_derive::AttributesBuilder;
 use kona_rpc::SequencerAdminAPIError;
 
 /// Handler for the Sequencer Admin API.
-impl<AB, BB, C, G, OS> SequencerActor<AB, BB, C, G, OS>
+impl<
+    AttributesBuilder_,
+    BlockBuildingClient_,
+    Conductor_,
+    OriginSelector_,
+    UnsafePayloadGossipClient_,
+>
+    SequencerActor<
+        AttributesBuilder_,
+        BlockBuildingClient_,
+        Conductor_,
+        OriginSelector_,
+        UnsafePayloadGossipClient_,
+    >
 where
-    AB: AttributesBuilder,
-    BB: BlockBuildingClient,
-    C: Conductor,
-    G: UnsafePayloadGossipClient,
-    OS: OriginSelector,
+    AttributesBuilder_: AttributesBuilder,
+    BlockBuildingClient_: BlockBuildingClient,
+    Conductor_: Conductor,
+    OriginSelector_: OriginSelector,
+    UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
 {
     /// Handles the provided [`SequencerAdminQuery`], sending the response via the provided sender.
     /// This function is used to decouple admin API logic from the response mechanism (channels).

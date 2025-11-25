@@ -6,13 +6,26 @@ use crate::{
 use kona_derive::AttributesBuilder;
 
 /// SequencerActor metrics-related method implementations.
-impl<AB, BB, C, G, OS> SequencerActor<AB, BB, C, G, OS>
+impl<
+    AttributesBuilder_,
+    BlockBuildingClient_,
+    Conductor_,
+    OriginSelector_,
+    UnsafePayloadGossipClient_,
+>
+    SequencerActor<
+        AttributesBuilder_,
+        BlockBuildingClient_,
+        Conductor_,
+        OriginSelector_,
+        UnsafePayloadGossipClient_,
+    >
 where
-    AB: AttributesBuilder,
-    C: Conductor,
-    G: UnsafePayloadGossipClient,
-    OS: OriginSelector,
-    BB: BlockBuildingClient,
+    AttributesBuilder_: AttributesBuilder,
+    BlockBuildingClient_: BlockBuildingClient,
+    Conductor_: Conductor,
+    OriginSelector_: OriginSelector,
+    UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
 {
     /// Updates the metrics for the sequencer actor.
     pub(super) fn update_metrics(&self) {

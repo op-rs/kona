@@ -54,56 +54,87 @@ struct SealLastStartNextResult {
 /// and scheduling them to be signed and gossipped by the P2P layer, extending the L2 chain with new
 /// blocks.
 #[derive(Debug)]
-pub struct SequencerActor<AB, BB, C, G, OS>
-where
-    AB: AttributesBuilder,
-    BB: BlockBuildingClient,
-    C: Conductor,
-    G: UnsafePayloadGossipClient,
-    OS: OriginSelector,
+pub struct SequencerActor<
+    AttributesBuilder_,
+    BlockBuildingClient_,
+    Conductor_,
+    OriginSelector_,
+    UnsafePayloadGossipClient_,
+> where
+    AttributesBuilder_: AttributesBuilder,
+    BlockBuildingClient_: BlockBuildingClient,
+    Conductor_: Conductor,
+    OriginSelector_: OriginSelector,
+    UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
 {
     /// Receiver for admin API requests.
     pub admin_api_rx: mpsc::Receiver<SequencerAdminQuery>,
     /// The attributes builder used for block building.
-    pub attributes_builder: AB,
+    pub attributes_builder: AttributesBuilder_,
     /// The struct used to build blocks.
-    pub block_building_client: BB,
+    pub block_building_client: BlockBuildingClient_,
     /// The cancellation token, shared between all tasks.
     pub cancellation_token: CancellationToken,
     /// The optional conductor RPC client.
-    pub conductor: Option<C>,
+    pub conductor: Option<Conductor_>,
     /// Whether the sequencer is active.
     pub is_active: bool,
     /// Whether the sequencer is in recovery mode.
     pub in_recovery_mode: bool,
     /// The struct used to determine the next L1 origin.
-    pub origin_selector: OS,
+    pub origin_selector: OriginSelector_,
     /// The rollup configuration.
     pub rollup_config: Arc<RollupConfig>,
     /// A client to asynchronously sign and gossip built payloads to the network actor.
-    pub unsafe_payload_gossip_client: G,
+    pub unsafe_payload_gossip_client: UnsafePayloadGossipClient_,
 }
 
-impl<AB, BB, C, G, OS> CancellableContext for SequencerActor<AB, BB, C, G, OS>
+impl<
+    AttributesBuilder_,
+    BlockBuildingClient_,
+    Conductor_,
+    OriginSelector_,
+    UnsafePayloadGossipClient_,
+> CancellableContext
+    for SequencerActor<
+        AttributesBuilder_,
+        BlockBuildingClient_,
+        Conductor_,
+        OriginSelector_,
+        UnsafePayloadGossipClient_,
+    >
 where
-    AB: AttributesBuilder,
-    BB: BlockBuildingClient,
-    C: Conductor,
-    G: UnsafePayloadGossipClient,
-    OS: OriginSelector,
+    AttributesBuilder_: AttributesBuilder,
+    BlockBuildingClient_: BlockBuildingClient,
+    Conductor_: Conductor,
+    OriginSelector_: OriginSelector,
+    UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
 {
     fn cancelled(&self) -> WaitForCancellationFuture<'_> {
         self.cancellation_token.cancelled()
     }
 }
 
-impl<AB, BB, C, G, OS> SequencerActor<AB, BB, C, G, OS>
+impl<
+    AttributesBuilder_,
+    BlockBuildingClient_,
+    Conductor_,
+    OriginSelector_,
+    UnsafePayloadGossipClient_,
+>
+    SequencerActor<
+        AttributesBuilder_,
+        BlockBuildingClient_,
+        Conductor_,
+        OriginSelector_,
+        UnsafePayloadGossipClient_,
+    >
 where
-    AB: AttributesBuilder,
-    BB: BlockBuildingClient,
-    C: Conductor,
-    G: UnsafePayloadGossipClient,
-    OS: OriginSelector,
+    AttributesBuilder_: AttributesBuilder,
+    BlockBuildingClient_: BlockBuildingClient,
+    Conductor_: Conductor,
+    OriginSelector_: OriginSelector,
+    UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
 {
     /// Seals and commits the last pending block, if one exists and starts the build job for the
     /// next L2 block, on top of the current unsafe head.
@@ -360,13 +391,26 @@ where
 }
 
 #[async_trait]
-impl<AB, BB, C, G, OS> NodeActor for SequencerActor<AB, BB, C, G, OS>
+impl<
+    AttributesBuilder_,
+    BlockBuildingClient_,
+    Conductor_,
+    OriginSelector_,
+    UnsafePayloadGossipClient_,
+> NodeActor
+    for SequencerActor<
+        AttributesBuilder_,
+        BlockBuildingClient_,
+        Conductor_,
+        OriginSelector_,
+        UnsafePayloadGossipClient_,
+    >
 where
-    AB: AttributesBuilder + Sync + 'static,
-    BB: BlockBuildingClient + Sync + 'static,
-    C: Conductor + Sync + 'static,
-    G: UnsafePayloadGossipClient + Sync + 'static,
-    OS: OriginSelector + Sync + 'static,
+    AttributesBuilder_: AttributesBuilder + Sync + 'static,
+    BlockBuildingClient_: BlockBuildingClient + Sync + 'static,
+    Conductor_: Conductor + Sync + 'static,
+    OriginSelector_: OriginSelector + Sync + 'static,
+    UnsafePayloadGossipClient_: UnsafePayloadGossipClient + Sync + 'static,
 {
     type Error = SequencerActorError;
     type StartData = ();
