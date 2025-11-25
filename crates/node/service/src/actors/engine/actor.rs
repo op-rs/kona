@@ -1,8 +1,6 @@
 //! The [`EngineActor`].
 
-use super::{
-    BlockBuildingClient, BlockEngineResult, EngineError, L2Finalizer, QueuedBlockBuildingClient,
-};
+use super::{BlockEngineResult, EngineError, L2Finalizer};
 use crate::{BlockEngineError, NodeActor, NodeMode, actors::CancellableContext};
 use alloy_rpc_types_engine::{JwtSecret, PayloadId};
 use async_trait::async_trait;
@@ -65,16 +63,10 @@ pub struct SealRequest {
 /// interactions based off of the [`Ord`] implementation of [`EngineTask`].
 #[derive(Debug)]
 pub struct EngineActor {
-    /// The [`EngineActorState`] used to build the actor.
-    builder: EngineConfig,
     /// A channel to receive [`OpAttributesWithParent`] from the derivation actor.
     attributes_rx: mpsc::Receiver<OpAttributesWithParent>,
-    /// A channel to receive [`OpExecutionPayloadEnvelope`] from the network actor.
-    unsafe_block_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
-    /// Handler for inbound queries to the engine.
-    inbound_queries: mpsc::Receiver<EngineQueries>,
-    /// A channel to receive reset requests.
-    reset_request_rx: mpsc::Receiver<ResetRequest>,
+    /// The [`EngineConfig`] used to build the actor.
+    builder: EngineConfig,
     /// A channel to receive build requests.
     /// Upon successful processing of the provided attributes, a `PayloadId` will be sent via the
     /// provided sender.
@@ -82,29 +74,58 @@ pub struct EngineActor {
     /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
     /// mode.
     build_request_rx: Option<mpsc::Receiver<BuildRequest>>,
-    /// A channel to receive seal requests.
-    /// The success/fail result of the sealing operation will be sent via the provided sender.
-    /// ## Note
-    /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
-    /// mode.
-    seal_request_rx: Option<mpsc::Receiver<SealRequest>>,
     /// The [`L2Finalizer`], used to finalize L2 blocks.
     finalizer: L2Finalizer,
+    /// Handler for inbound queries to the engine.
+    inbound_queries: mpsc::Receiver<EngineQueries>,
+    /// A channel to receive reset requests.
+    reset_request_rx: mpsc::Receiver<ResetRequest>,
     /// Shared admin query handle (from rollup-boost), exposed for RPC wiring.
     /// Only set when rollup boost is enabled.
     pub rollup_boost_admin_query_rx: mpsc::Receiver<RollupBoostAdminQuery>,
     /// Shared health handle (from rollup-boost), exposed for RPC wiring.
     /// Only set when rollup boost is enabled.
     pub rollup_boost_health_query_rx: mpsc::Receiver<RollupBoostHealthQuery>,
+    /// A channel to receive seal requests.
+    /// The success/fail result of the sealing operation will be sent via the provided sender.
+    /// ## Note
+    /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
+    /// mode.
+    seal_request_rx: Option<mpsc::Receiver<SealRequest>>,
+    /// A channel to receive [`OpExecutionPayloadEnvelope`] from the network actor.
+    unsafe_block_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
+    /// A channel to use to relay the current unsafe head.
+    /// ## Note
+    /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
+    /// mode.
+    unsafe_head_tx: Option<watch::Sender<L2BlockInfo>>,
 }
 
 /// The outbound data for the [`EngineActor`].
 #[derive(Debug)]
-pub struct EngineInboundData<BB: BlockBuildingClient> {
-    /// A trait object used to send block building requests to the [`EngineActor`].
-    pub block_engine: Option<BB>,
+pub struct EngineInboundData {
     /// A channel to send [`OpAttributesWithParent`] to the engine actor.
     pub attributes_tx: mpsc::Sender<OpAttributesWithParent>,
+    /// A channel to use to send [`BuildRequest`] payloads to the engine actor.
+    ///
+    /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
+    /// mode.
+    pub build_request_tx: Option<mpsc::Sender<BuildRequest>>,
+    /// A channel that sends new finalized L1 blocks intermittently.
+    pub finalized_l1_block_tx: watch::Sender<Option<BlockInfo>>,
+    /// Handler to send inbound queries to the engine.
+    pub inbound_queries_tx: mpsc::Sender<EngineQueries>,
+    /// A channel to send reset requests.
+    pub reset_request_tx: mpsc::Sender<ResetRequest>,
+    /// A channel to send rollup boost admin queries to the engine actor.
+    pub rollup_boost_admin_query_tx: mpsc::Sender<RollupBoostAdminQuery>,
+    /// A channel to send rollup boost health queries to the engine actor.
+    pub rollup_boost_health_query_tx: mpsc::Sender<RollupBoostHealthQuery>,
+    /// A channel to use to send [`SealRequest`] payloads to the engine actor.
+    ///
+    /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
+    /// mode.
+    pub seal_request_tx: Option<mpsc::Sender<SealRequest>>,
     /// A channel to send [`OpExecutionPayloadEnvelope`] to the engine actor.
     ///
     /// ## Note
@@ -113,16 +134,11 @@ pub struct EngineInboundData<BB: BlockBuildingClient> {
     /// trigger [`BuildTask`] tasks which should insert the block newly built to the engine
     /// state upon completion.
     pub unsafe_block_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
-    /// A channel to send reset requests.
-    pub reset_request_tx: mpsc::Sender<ResetRequest>,
-    /// Handler to send inbound queries to the engine.
-    pub inbound_queries_tx: mpsc::Sender<EngineQueries>,
-    /// A channel that sends new finalized L1 blocks intermittently.
-    pub finalized_l1_block_tx: watch::Sender<Option<BlockInfo>>,
-    /// A channel to send rollup boost admin queries to the engine actor.
-    pub rollup_boost_admin_query_tx: mpsc::Sender<RollupBoostAdminQuery>,
-    /// A channel to send rollup boost health queries to the engine actor.
-    pub rollup_boost_health_query_tx: mpsc::Sender<RollupBoostHealthQuery>,
+    /// A receiver to use to view the latest unsafe head [`L2BlockInfo`] and await its changes.
+    ///
+    /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
+    /// mode.
+    pub unsafe_head_rx: Option<watch::Receiver<L2BlockInfo>>,
 }
 
 /// Configuration for the Engine Actor.
@@ -205,9 +221,6 @@ pub(super) struct EngineActorState {
 pub struct EngineContext {
     /// The cancellation token, shared between all tasks.
     pub cancellation: CancellationToken,
-    /// A sender for L2 unsafe head update notifications.
-    /// Is optional because it is only used in sequencer mode.
-    pub engine_unsafe_head_tx: Option<watch::Sender<L2BlockInfo>>,
     /// The sender for L2 safe head update notifications.
     pub engine_l2_safe_head_tx: watch::Sender<L2BlockInfo>,
     /// A channel to send a signal that EL sync has completed. Informs the derivation actor to
@@ -225,23 +238,46 @@ impl CancellableContext for EngineContext {
     }
 }
 
+struct SequencerChannels {
+    build_request_rx: Option<mpsc::Receiver<BuildRequest>>,
+    build_request_tx: Option<mpsc::Sender<BuildRequest>>,
+    seal_request_rx: Option<mpsc::Receiver<SealRequest>>,
+    seal_request_tx: Option<mpsc::Sender<SealRequest>>,
+    unsafe_head_rx: Option<watch::Receiver<L2BlockInfo>>,
+    unsafe_head_tx: Option<watch::Sender<L2BlockInfo>>,
+}
+
 impl EngineActor {
     /// Constructs a new [`EngineActor`] from the params.
-    pub fn new(config: EngineConfig) -> (EngineInboundData<QueuedBlockBuildingClient>, Self) {
+    pub fn new(config: EngineConfig) -> (EngineInboundData, Self) {
         let (finalized_l1_block_tx, finalized_l1_block_rx) = watch::channel(None);
         let (inbound_queries_tx, inbound_queries_rx) = mpsc::channel(1024);
         let (attributes_tx, attributes_rx) = mpsc::channel(1024);
         let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
         let (reset_request_tx, reset_request_rx) = mpsc::channel(1024);
 
-        let (block_engine, build_request_rx, seal_request_rx) = if config.mode.is_sequencer() {
-            let (build_tx, build_rx) = mpsc::channel(1024);
-            let (seal_tx, seal_rx) = mpsc::channel(1024);
-            let block_engine =
-                QueuedBlockBuildingClient::new(build_tx, seal_tx, reset_request_tx.clone());
-            (Some(block_engine), Some(build_rx), Some(seal_rx))
+        let sequencer_channels = if config.mode.is_sequencer() {
+            let (build_request_tx, build_request_rx) = mpsc::channel(1024);
+            let (seal_request_tx, seal_request_rx) = mpsc::channel(1024);
+            let (unsafe_head_tx, unsafe_head_rx) = watch::channel(L2BlockInfo::default());
+
+            SequencerChannels {
+                build_request_rx: Some(build_request_rx),
+                build_request_tx: Some(build_request_tx),
+                seal_request_rx: Some(seal_request_rx),
+                seal_request_tx: Some(seal_request_tx),
+                unsafe_head_rx: Some(unsafe_head_rx),
+                unsafe_head_tx: Some(unsafe_head_tx),
+            }
         } else {
-            (None, None, None)
+            SequencerChannels {
+                build_request_rx: None,
+                build_request_tx: None,
+                seal_request_rx: None,
+                seal_request_tx: None,
+                unsafe_head_rx: None,
+                unsafe_head_tx: None,
+            }
         };
 
         let (rollup_boost_admin_query_tx, rollup_boost_admin_query_rx) = mpsc::channel(1024);
@@ -251,24 +287,27 @@ impl EngineActor {
             builder: config,
             attributes_rx,
             unsafe_block_rx,
+            unsafe_head_tx: sequencer_channels.unsafe_head_tx,
             reset_request_rx,
             inbound_queries: inbound_queries_rx,
-            build_request_rx,
-            seal_request_rx,
+            build_request_rx: sequencer_channels.build_request_rx,
+            seal_request_rx: sequencer_channels.seal_request_rx,
             finalizer: L2Finalizer::new(finalized_l1_block_rx),
             rollup_boost_admin_query_rx,
             rollup_boost_health_query_rx,
         };
 
         let outbound_data = EngineInboundData {
-            block_engine,
+            attributes_tx,
+            build_request_tx: sequencer_channels.build_request_tx,
             finalized_l1_block_tx,
             inbound_queries_tx,
-            attributes_tx,
-            unsafe_block_tx,
             reset_request_tx,
             rollup_boost_admin_query_tx,
             rollup_boost_health_query_tx,
+            seal_request_tx: sequencer_channels.seal_request_tx,
+            unsafe_block_tx,
+            unsafe_head_rx: sequencer_channels.unsafe_head_rx,
         };
 
         (outbound_data, actor)
@@ -489,7 +528,6 @@ impl NodeActor for EngineActor {
             engine_l2_safe_head_tx,
             sync_complete_tx,
             derivation_signal_tx,
-            mut engine_unsafe_head_tx,
         }: Self::StartData,
     ) -> Result<(), Self::Error> {
         let mut state = self.builder.build_state()?;
@@ -557,7 +595,7 @@ impl NodeActor for EngineActor {
                         }
 
                         // If the unsafe head has updated, propagate it to the outbound channels.
-                        if let Some(unsafe_head_tx) = engine_unsafe_head_tx.as_mut() {
+                        if let Some(unsafe_head_tx) = self.unsafe_head_tx.as_mut() {
                             unsafe_head_tx.send_if_modified(|val| {
                                 let new_head = state.engine.state().sync_state.unsafe_head();
                                 (*val != new_head).then(|| *val = new_head).is_some()

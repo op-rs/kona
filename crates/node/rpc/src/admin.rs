@@ -232,6 +232,10 @@ pub enum SequencerAdminAPIError {
     #[error("Error receiving response: {0}.")]
     ResponseError(String),
 
+    /// Error stopping sequencer.
+    #[error("Error stopping sequencer: {0}.")]
+    StopError(String),
+
     /// Error overriding leader.
     #[error("Error overriding leader: {0}.")]
     LeaderOverrideError(String),
