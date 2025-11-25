@@ -64,6 +64,12 @@ impl Registry {
 mod tests {
     use super::*;
     use alloc::string::{String, ToString};
+    use alloy_op_hardforks::{
+        BASE_MAINNET_ISTHMUS_TIMESTAMP, BASE_MAINNET_JOVIAN_TIMESTAMP,
+        BASE_SEPOLIA_ISTHMUS_TIMESTAMP, BASE_SEPOLIA_JOVIAN_TIMESTAMP,
+        OP_MAINNET_ISTHMUS_TIMESTAMP, OP_MAINNET_JOVIAN_TIMESTAMP, OP_SEPOLIA_ISTHMUS_TIMESTAMP,
+        OP_SEPOLIA_JOVIAN_TIMESTAMP,
+    };
     use alloy_primitives::address;
     use kona_genesis::{AddressList, OP_MAINNET_BASE_FEE_CONFIG, Roles, SuperchainLevel};
 
@@ -91,49 +97,21 @@ mod tests {
             alt_da: None,
             genesis: crate::test_utils::BASE_MAINNET_CONFIG.genesis,
             roles: Some(Roles {
-                system_config_owner: Some(
-                    "14536667Cd30e52C0b458BaACcB9faDA7046E056".parse().unwrap(),
-                ),
                 proxy_admin_owner: Some(
                     "7bB41C3008B3f03FE483B28b8DB90e19Cf07595c".parse().unwrap(),
                 ),
-                guardian: Some("09f7150d8c019bef34450d6920f6b3608cefdaf2".parse().unwrap()),
-                challenger: Some("6F8C5bA3F59ea3E76300E3BEcDC231D656017824".parse().unwrap()),
-                proposer: Some("642229f238fb9dE03374Be34B0eD8D9De80752c5".parse().unwrap()),
-                unsafe_block_signer: Some(
-                    "Af6E19BE0F9cE7f8afd49a1824851023A8249e8a".parse().unwrap(),
-                ),
-                batch_submitter: Some("5050F69a9786F081509234F1a7F4684b5E5b76C9".parse().unwrap()),
+                ..Default::default()
             }),
             addresses: Some(AddressList {
-                address_manager: address!("8EfB6B5c4767B09Dc9AA6Af4eAA89F749522BaE2"),
-                l1_cross_domain_messenger_proxy: address!(
-                    "866E82a600A1414e583f7F13623F1aC5d58b0Afa"
-                ),
-                l1_erc721_bridge_proxy: address!("608d94945A64503E642E6370Ec598e519a2C1E53"),
-                l1_standard_bridge_proxy: address!("3154Cf16ccdb4C6d922629664174b904d80F2C35"),
-                l2_output_oracle_proxy: Some(address!("56315b90c40730925ec5485cf004d835058518A0")),
-                optimism_mintable_erc20_factory_proxy: address!(
-                    "05cc379EBD9B30BbA19C6fA282AB29218EC61D84"
-                ),
-                optimism_portal_proxy: address!("49048044D57e1C92A77f79988d21Fa8fAF74E97e"),
-                system_config_proxy: address!("73a79Fab69143498Ed3712e519A88a918e1f4072"),
-                proxy_admin: address!("0475cBCAebd9CE8AfA5025828d5b98DFb67E059E"),
-                superchain_config: None,
-                anchor_state_registry_proxy: Some(address!(
-                    "496286e5eE7758de84Dd17e6d2d97afC2ACE4cc7"
+                l1_standard_bridge_proxy: Some(address!(
+                    "3154Cf16ccdb4C6d922629664174b904d80F2C35"
                 )),
-                delayed_weth_proxy: Some(address!("3E8a0B63f57e975c268d610ece93da5f78c01321")),
+                optimism_portal_proxy: Some(address!("49048044D57e1C92A77f79988d21Fa8fAF74E97e")),
+                system_config_proxy: Some(address!("73a79Fab69143498Ed3712e519A88a918e1f4072")),
                 dispute_game_factory_proxy: Some(address!(
                     "43edb88c4b80fdd2adff2412a7bebf9df42cb40e"
                 )),
-                fault_dispute_game: Some(address!("E17d670043c3cDd705a3223B3D89A228A1f07F0f")),
-                mips: Some(address!("F027F4A985560fb13324e943edf55ad6F1d15Dc1")),
-                permissioned_dispute_game: Some(address!(
-                    "E749aA49c3eDAF1DCb997eA3DAC23dff72bcb826"
-                )),
-                preimage_oracle: Some(address!("1fb8cdFc6831fc866Ed9C51aF8817Da5c287aDD3")),
-                data_availability_challenge: None,
+                ..Default::default()
             }),
             gas_paying_token: None,
         };
@@ -147,5 +125,43 @@ mod tests {
             *superchains.rollup_configs.get(&10).unwrap(),
             crate::test_utils::OP_MAINNET_CONFIG
         );
+    }
+
+    #[test]
+    fn test_isthmus_timestamps() {
+        let superchains = Registry::from_chain_list();
+        let op_mainnet_config = superchains.rollup_configs.get(&10).unwrap();
+        assert_eq!(op_mainnet_config.hardforks.isthmus_time, Some(OP_MAINNET_ISTHMUS_TIMESTAMP));
+
+        let op_sepolia_config = superchains.rollup_configs.get(&11155420).unwrap();
+        assert_eq!(op_sepolia_config.hardforks.isthmus_time, Some(OP_SEPOLIA_ISTHMUS_TIMESTAMP));
+
+        let base_mainnet_config = superchains.rollup_configs.get(&8453).unwrap();
+        assert_eq!(
+            base_mainnet_config.hardforks.isthmus_time,
+            Some(BASE_MAINNET_ISTHMUS_TIMESTAMP)
+        );
+
+        let base_sepolia_config = superchains.rollup_configs.get(&84532).unwrap();
+        assert_eq!(
+            base_sepolia_config.hardforks.isthmus_time,
+            Some(BASE_SEPOLIA_ISTHMUS_TIMESTAMP)
+        );
+    }
+
+    #[test]
+    fn test_jovian_timestamps() {
+        let superchains = Registry::from_chain_list();
+        let op_mainnet_config = superchains.rollup_configs.get(&10).unwrap();
+        assert_eq!(op_mainnet_config.hardforks.jovian_time, Some(OP_MAINNET_JOVIAN_TIMESTAMP));
+
+        let op_sepolia_config = superchains.rollup_configs.get(&11155420).unwrap();
+        assert_eq!(op_sepolia_config.hardforks.jovian_time, Some(OP_SEPOLIA_JOVIAN_TIMESTAMP));
+
+        let base_mainnet_config = superchains.rollup_configs.get(&8453).unwrap();
+        assert_eq!(base_mainnet_config.hardforks.jovian_time, Some(BASE_MAINNET_JOVIAN_TIMESTAMP));
+
+        let base_sepolia_config = superchains.rollup_configs.get(&84532).unwrap();
+        assert_eq!(base_sepolia_config.hardforks.jovian_time, Some(BASE_SEPOLIA_JOVIAN_TIMESTAMP));
     }
 }

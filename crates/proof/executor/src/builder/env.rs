@@ -8,7 +8,7 @@ use crate::{
     },
 };
 use alloy_consensus::{BlockHeader, Header};
-use alloy_eips::{eip1559::BaseFeeParams, eip7840::BlobParams};
+use alloy_eips::{calc_next_block_base_fee, eip1559::BaseFeeParams, eip7840::BlobParams};
 use alloy_evm::{EvmEnv, EvmFactory};
 use alloy_primitives::U256;
 use kona_genesis::RollupConfig;
@@ -38,7 +38,7 @@ where
         base_fee_params: &BaseFeeParams,
         min_base_fee: u64,
     ) -> ExecutorResult<EvmEnv<OpSpecId>> {
-        let block_env = Self::prepare_block_env(
+        let block_env = self.prepare_block_env(
             spec_id,
             parent_header,
             payload_attrs,
@@ -56,8 +56,44 @@ where
             .with_spec(self.config.spec_id(timestamp))
     }
 
+    fn next_block_base_fee(
+        &self,
+        params: BaseFeeParams,
+        parent: &Header,
+        min_base_fee: u64,
+    ) -> Option<u64> {
+        if !self.config.is_jovian_active(parent.timestamp()) {
+            return parent.next_block_base_fee(params);
+        }
+
+        // Starting from Jovian, we use the maximum of the gas used and the blob gas used to
+        // calculate the next base fee.
+        let gas_used = if parent.blob_gas_used().unwrap_or_default() > parent.gas_used() {
+            parent.blob_gas_used().unwrap_or_default()
+        } else {
+            parent.gas_used()
+        };
+
+        let mut next_block_base_fee = calc_next_block_base_fee(
+            gas_used,
+            parent.gas_limit(),
+            parent.base_fee_per_gas().unwrap_or_default(),
+            params,
+        );
+
+        // If the next block base fee is less than the min base fee, set it to the min base fee.
+        // # Note
+        // Before Jovian activation, the min-base-fee is 0 so this is a no-op.
+        if next_block_base_fee < min_base_fee {
+            next_block_base_fee = min_base_fee;
+        }
+
+        Some(next_block_base_fee)
+    }
+
     /// Prepares a [BlockEnv] with the given [OpPayloadAttributes].
     pub(crate) fn prepare_block_env(
+        &self,
         spec_id: OpSpecId,
         parent_header: &Header,
         payload_attrs: &OpPayloadAttributes,
@@ -77,15 +113,9 @@ where
             .or_else(|| spec_id.is_enabled_in(OpSpecId::ECOTONE).then_some(0))
             .map(|excess| BlobExcessGasAndPrice::new(excess, fraction));
 
-        let mut next_block_base_fee =
-            parent_header.next_block_base_fee(*base_fee_params).unwrap_or_default();
-
-        // If the next block base fee is less than the min base fee, set it to the min base fee.
-        // # Note
-        // Before Jovian activation, the min-base-fee is 0 so this is a no-op.
-        if next_block_base_fee < min_base_fee {
-            next_block_base_fee = min_base_fee;
-        }
+        let next_block_base_fee = self
+            .next_block_base_fee(*base_fee_params, parent_header, min_base_fee)
+            .unwrap_or_default();
 
         Ok(BlockEnv {
             number: U256::from(parent_header.number + 1),

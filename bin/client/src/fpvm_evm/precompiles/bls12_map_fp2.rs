@@ -33,10 +33,13 @@ where
     }
 
     if input.len() != PADDED_FP2_LENGTH {
-        return Err(PrecompileError::Other(alloc::format!(
-            "MAP_FP2_TO_G2 input should be {PADDED_FP2_LENGTH} bytes, was {}",
-            input.len()
-        )));
+        return Err(PrecompileError::Other(
+            alloc::format!(
+                "MAP_FP2_TO_G2 input should be {PADDED_FP2_LENGTH} bytes, was {}",
+                input.len()
+            )
+            .into(),
+        ));
     }
 
     let precompile = bls12_381::map_fp2_to_g2::PRECOMPILE;
@@ -46,7 +49,7 @@ where
         oracle_reader,
         &[precompile.address().as_slice(), &MAP_FP2_TO_G2_BASE_GAS_FEE.to_be_bytes(), input]
     })
-    .map_err(|e| PrecompileError::Other(e.to_string()))?;
+    .map_err(|e| PrecompileError::Other(e.to_string().into()))?;
 
     Ok(PrecompileOutput::new(MAP_FP2_TO_G2_BASE_GAS_FEE, result_data.into()))
 }

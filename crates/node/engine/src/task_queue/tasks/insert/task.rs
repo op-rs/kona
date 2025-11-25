@@ -112,7 +112,10 @@ impl EngineTaskExt for InsertTask {
         // Check the `engine_newPayload` response.
         let response = match response {
             Ok(resp) => resp,
-            Err(e) => return Err(InsertTaskError::InsertFailed(e)),
+            Err(e) => {
+                warn!(target: "engine", "Failed to insert new payload: {e}");
+                return Err(InsertTaskError::InsertFailed(e));
+            }
         };
         if !self.check_new_payload_status(&response.status) {
             return Err(InsertTaskError::UnexpectedPayloadStatus(response.status));

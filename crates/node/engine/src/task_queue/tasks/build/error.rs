@@ -1,13 +1,10 @@
 //! Contains error types for the [crate::SynchronizeTask].
 
 use crate::{
-    EngineTaskError, InsertTaskError, SynchronizeTaskError,
-    task_queue::tasks::task::EngineTaskErrorSeverity,
+    EngineTaskError, SynchronizeTaskError, task_queue::tasks::task::EngineTaskErrorSeverity,
 };
-use alloy_rpc_types_engine::PayloadStatusEnum;
+use alloy_rpc_types_engine::{PayloadId, PayloadStatusEnum};
 use alloy_transport::{RpcError, TransportErrorKind};
-use kona_protocol::FromBlockError;
-use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use thiserror::Error;
 use tokio::sync::mpsc;
 
@@ -47,7 +44,7 @@ pub enum EngineBuildError {
     EngineSyncing,
 }
 
-/// An error that occurs when running the [crate::SynchronizeTask].
+/// An error that occurs when running the [crate::BuildTask].
 #[derive(Debug, Error)]
 pub enum BuildTaskError {
     /// An error occurred when building the payload attributes in the engine.
@@ -56,41 +53,15 @@ pub enum BuildTaskError {
     /// The initial forkchoice update call to the engine api failed.
     #[error(transparent)]
     ForkchoiceUpdateFailed(#[from] SynchronizeTaskError),
-    /// Impossible to insert the payload into the engine.
-    #[error(transparent)]
-    PayloadInsertionFailed(#[from] Box<InsertTaskError>),
-    /// The get payload call to the engine api failed.
-    #[error(transparent)]
-    GetPayloadFailed(RpcError<TransportErrorKind>),
-    /// A deposit-only payload failed to import.
-    #[error("Deposit-only payload failed to import")]
-    DepositOnlyPayloadFailed,
-    /// Failed to re-attempt payload import with deposit-only payload.
-    #[error("Failed to re-attempt payload import with deposit-only payload")]
-    DepositOnlyPayloadReattemptFailed,
-    /// The payload is invalid, and the derivation pipeline must
-    /// be flushed post-holocene.
-    #[error("Invalid payload, must flush post-holocene")]
-    HoloceneInvalidFlush,
-    /// Failed to convert a [`OpExecutionPayload`] to a [`L2BlockInfo`].
-    ///
-    /// [`OpExecutionPayload`]: op_alloy_rpc_types_engine::OpExecutionPayload
-    /// [`L2BlockInfo`]: kona_protocol::L2BlockInfo
-    #[error(transparent)]
-    FromBlock(#[from] FromBlockError),
     /// Error sending the built payload envelope.
     #[error(transparent)]
-    MpscSend(#[from] Box<mpsc::error::SendError<OpExecutionPayloadEnvelope>>),
-    /// The clock went backwards.
-    #[error("The clock went backwards")]
-    ClockWentBackwards,
+    MpscSend(#[from] Box<mpsc::error::SendError<PayloadId>>),
 }
 
 impl EngineTaskError for BuildTaskError {
     fn severity(&self) -> EngineTaskErrorSeverity {
         match self {
             Self::ForkchoiceUpdateFailed(inner) => inner.severity(),
-            Self::PayloadInsertionFailed(inner) => inner.severity(),
             Self::EngineBuildError(EngineBuildError::FinalizedAheadOfUnsafe(_, _)) => {
                 EngineTaskErrorSeverity::Critical
             }
@@ -109,13 +80,7 @@ impl EngineTaskError for BuildTaskError {
             Self::EngineBuildError(EngineBuildError::EngineSyncing) => {
                 EngineTaskErrorSeverity::Temporary
             }
-            Self::GetPayloadFailed(_) => EngineTaskErrorSeverity::Temporary,
-            Self::HoloceneInvalidFlush => EngineTaskErrorSeverity::Flush,
-            Self::DepositOnlyPayloadReattemptFailed => EngineTaskErrorSeverity::Critical,
-            Self::DepositOnlyPayloadFailed => EngineTaskErrorSeverity::Critical,
-            Self::FromBlock(_) => EngineTaskErrorSeverity::Critical,
             Self::MpscSend(_) => EngineTaskErrorSeverity::Critical,
-            Self::ClockWentBackwards => EngineTaskErrorSeverity::Critical,
         }
     }
 }
