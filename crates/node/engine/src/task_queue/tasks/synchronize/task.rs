@@ -27,7 +27,7 @@ use tokio::time::Instant;
 /// ## Automatic Integration
 ///
 /// Unlike the legacy `ForkchoiceTask`, forkchoice updates during block building are now
-/// handled automatically within [`BuildTask`], eliminating the need for explicit
+/// explicitly handled within [`BuildTask`], eliminating the need for explicit
 /// forkchoice management in most user scenarios.
 ///
 /// [`InsertTask`]: crate::InsertTask
@@ -133,12 +133,17 @@ impl EngineTaskExt for SynchronizeTask {
 
         let valid_response = response.map_err(|e| {
             // Fatal forkchoice update error.
-            e.as_error_resp()
+            let error = e
+                .as_error_resp()
                 .and_then(|e| {
                     (e.code == INVALID_FORK_CHOICE_STATE_ERROR as i64)
                         .then_some(SynchronizeTaskError::InvalidForkchoiceState)
                 })
-                .unwrap_or_else(|| SynchronizeTaskError::ForkchoiceUpdateFailed(e))
+                .unwrap_or_else(|| SynchronizeTaskError::ForkchoiceUpdateFailed(e));
+
+            debug!(target: "engine", error = ?error, "Unexpected forkchoice update error");
+
+            error
         })?;
 
         self.check_forkchoice_updated_status(state, &valid_response.payload_status.status)?;

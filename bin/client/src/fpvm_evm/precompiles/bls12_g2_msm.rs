@@ -37,15 +37,19 @@ where
     let input_len = input.len();
 
     if input_len > BLS12_MAX_G2_MSM_SIZE_ISTHMUS {
-        return Err(PrecompileError::Other(alloc::format!(
-            "G2MSM input length must be at most {BLS12_MAX_G2_MSM_SIZE_ISTHMUS}"
-        )));
+        return Err(PrecompileError::Other(
+            alloc::format!("G2MSM input length must be at most {BLS12_MAX_G2_MSM_SIZE_ISTHMUS}")
+                .into(),
+        ));
     }
 
     if input_len == 0 || !input_len.is_multiple_of(G2_MSM_INPUT_LENGTH) {
-        return Err(PrecompileError::Other(alloc::format!(
-            "G2MSM input length should be multiple of {G2_MSM_INPUT_LENGTH}, was {input_len}"
-        )));
+        return Err(PrecompileError::Other(
+            alloc::format!(
+                "G2MSM input length should be multiple of {G2_MSM_INPUT_LENGTH}, was {input_len}"
+            )
+            .into(),
+        ));
     }
 
     let k = input_len / G2_MSM_INPUT_LENGTH;
@@ -61,7 +65,7 @@ where
         oracle_reader,
         &[precompile.address().as_slice(), &required_gas.to_be_bytes(), input]
     })
-    .map_err(|e| PrecompileError::Other(e.to_string()))?;
+    .map_err(|e| PrecompileError::Other(e.to_string().into()))?;
 
     Ok(PrecompileOutput::new(required_gas, result_data.into()))
 }
@@ -78,9 +82,10 @@ where
     O: PreimageOracleClient + Send + Sync,
 {
     if input.len() > BLS12_MAX_G2_MSM_SIZE_JOVIAN {
-        return Err(PrecompileError::Other(alloc::format!(
-            "G2MSM input length must be at most {BLS12_MAX_G2_MSM_SIZE_JOVIAN}"
-        )));
+        return Err(PrecompileError::Other(
+            alloc::format!("G2MSM input length must be at most {BLS12_MAX_G2_MSM_SIZE_JOVIAN}")
+                .into(),
+        ));
     }
 
     fpvm_bls12_g2_msm(input, gas_limit, hint_writer, oracle_reader)

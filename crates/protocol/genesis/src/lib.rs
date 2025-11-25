@@ -31,7 +31,8 @@ pub use params::{
 
 mod superchain;
 pub use superchain::{
-    Superchain, SuperchainConfig, SuperchainL1Info, SuperchainLevel, Superchains,
+    Chain, ChainList, FaultProofs, Superchain, SuperchainConfig, SuperchainL1Info, SuperchainLevel,
+    SuperchainParent, Superchains,
 };
 
 mod updates;
