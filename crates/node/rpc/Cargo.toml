@@ -52,6 +52,7 @@ serde = { workspace = true, features = ["std"] }
 
 # `jsonrpsee`
 jsonrpsee = { workspace = true, features = ["macros", "server"] }
+jsonrpsee-types.workspace = true
 getrandom = { workspace = true, features = ["wasm_js"] } # req for wasm32-unknown-unknown
 op-alloy-rpc-jsonrpsee.workspace = true
 

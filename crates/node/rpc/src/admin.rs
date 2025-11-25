@@ -8,6 +8,7 @@ use jsonrpsee::{
     core::RpcResult,
     types::{ErrorCode, ErrorObject},
 };
+use kona_engine::RollupBoostServerError;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use rollup_boost::{
     ExecutionMode, GetExecutionModeResponse, SetExecutionModeRequest, SetExecutionModeResponse,
@@ -29,8 +30,8 @@ pub enum NetworkAdminQuery {
 #[derive(Error, Debug)]
 pub enum RollupBoostAdminError {
     /// Error while setting the execution mode.
-    #[error("Rollup boost error: Failed to set execution mode.")]
-    FailedToSetExecutionMode,
+    #[error("Rollup boost error: {0}")]
+    FailedToSetExecutionMode(#[from] RollupBoostServerError),
 }
 
 /// The query types to the rollup boost component of the engine actor.
