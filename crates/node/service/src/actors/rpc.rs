@@ -47,7 +47,7 @@ pub struct RpcActor<S: SequencerAdminAPIClient, RB: RpcBuilderProvider> {
 }
 
 impl<S: SequencerAdminAPIClient, RB: RpcBuilderProvider> RpcActor<S, RB> {
-    /// Constructs a new [`RpcActor`] given the [`RpcBuilder`].
+    /// Constructs a new [`RpcActor`] given a [`RpcBuilderProvider`].
     pub const fn new(config: RB) -> Self {
         Self { config, phantom: std::marker::PhantomData }
     }
