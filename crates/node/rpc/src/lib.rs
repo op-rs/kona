@@ -16,7 +16,7 @@ pub use admin::{
 };
 
 mod config;
-pub use config::RpcBuilder;
+pub use config::{RpcBuilder, RpcBuilderProvider};
 
 mod net;
 pub use net::P2pRpc;
