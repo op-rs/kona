@@ -23,6 +23,6 @@ pub enum SequencerActorError {
     #[error(transparent)]
     BuildError(#[from] BuildTaskError),
     /// An error occurred while attempting to schedule unsafe payload gossip.
-    #[error(transparent)]
+    #[error("An error occurred while attempting to schedule unsafe payload gossip: {0}")]
     PayloadGossip(#[from] UnsafePayloadGossipClientError),
 }

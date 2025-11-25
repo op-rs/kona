@@ -22,7 +22,7 @@ pub trait UnsafePayloadGossipClient: Send + Sync + Debug {
 #[derive(Debug, Error)]
 pub enum UnsafePayloadGossipClientError {
     /// Error sending request.
-    #[error("Error sending request: {0}.")]
+    #[error("Error sending request: {0}")]
     RequestError(String),
 }
 
