@@ -319,7 +319,7 @@ impl EngineActorState {
 
                         match admin_query {
                             RollupBoostAdminQuery::SetExecutionMode { execution_mode, response_tx } => {
-                                let result=rollup_boost.server.set_execution_mode(execution_mode).map_err(|err| RollupBoostAdminError::FailedToSetExecutionMode(err));
+                                let result=rollup_boost.server.set_execution_mode(execution_mode).map_err( RollupBoostAdminError::FailedToSetExecutionMode);
 
                                 response_tx.send(result).unwrap();
                             }

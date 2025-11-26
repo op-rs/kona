@@ -10,9 +10,7 @@ use jsonrpsee::{
 };
 use kona_engine::RollupBoostServerError;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
-use rollup_boost::{
-    ExecutionMode, GetExecutionModeResponse, SetExecutionModeRequest, SetExecutionModeResponse,
-};
+use rollup_boost::{ExecutionMode, GetExecutionModeResponse, SetExecutionModeRequest};
 use thiserror::Error;
 use tokio::sync::oneshot;
 
@@ -176,10 +174,7 @@ impl<S: SequencerAdminAPIClient + 'static> AdminApiServer for AdminRpc<S> {
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
-    async fn set_execution_mode(
-        &self,
-        request: SetExecutionModeRequest,
-    ) -> RpcResult<SetExecutionModeResponse> {
+    async fn set_execution_mode(&self, request: SetExecutionModeRequest) -> RpcResult<()> {
         let Some(ref rollup_boost_sender) = self.rollup_boost_sender else {
             return Err(ErrorObject::from(ErrorCode::MethodNotFound));
         };
@@ -195,7 +190,7 @@ impl<S: SequencerAdminAPIClient + 'static> AdminApiServer for AdminRpc<S> {
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
 
         match rx.await {
-            Ok(Ok(_)) => Ok(SetExecutionModeResponse { execution_mode: request.execution_mode }),
+            Ok(Ok(_)) => Ok(()),
             Ok(Err(err)) => Err(ErrorObject::owned(
                 ErrorCode::InternalError.code(),
                 format!("Failed to set execution mode: {err}"),
