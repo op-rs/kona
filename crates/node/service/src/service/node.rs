@@ -171,7 +171,7 @@ impl RollupNode {
                 unsafe_head_rx,
             },
             engine,
-        ) = EngineActor::new(self.engine_config());
+        ) = EngineActor::new(self.engine_config())?;
 
         // Create the p2p actor.
         let (
@@ -220,16 +220,10 @@ impl RollupNode {
                 let origin_selector = L1OriginSelector::new(self.config.clone(), l1_provider);
 
                 let block_building_client = QueuedBlockBuildingClient {
-                    build_request_tx: build_request_tx.expect(
-                        "build_request_tx is None in sequencer mode. This should never happen.",
-                    ),
+                    build_request_tx: build_request_tx.unwrap(),
                     reset_request_tx: reset_request_tx.clone(),
-                    seal_request_tx: seal_request_tx.expect(
-                        "seal_request_tx is None in sequencer mode. This should never happen.",
-                    ),
-                    unsafe_head_rx: unsafe_head_rx.expect(
-                        "unsafe_head_rx is None in sequencer mode. This should never happen.",
-                    ),
+                    seal_request_tx: seal_request_tx.unwrap(),
+                    unsafe_head_rx: unsafe_head_rx.unwrap(),
                 };
 
                 // Conditionally add conductor if configured

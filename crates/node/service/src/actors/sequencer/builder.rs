@@ -13,6 +13,8 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
+use super::SequencerActorError;
+
 /// Builder for constructing a [`SequencerActor`].
 #[derive(Debug, Default)]
 pub struct SequencerActorBuilder<
@@ -171,23 +173,37 @@ where
             OriginSelector_,
             UnsafePayloadGossipClient_,
         >,
-        String,
+        SequencerActorError,
     > {
         Ok(SequencerActor {
-            admin_api_rx: self.admin_api_rx.expect("admin_api_rx is required"),
-            attributes_builder: self.attributes_builder.expect("attributes_builder is required"),
+            admin_api_rx: self
+                .admin_api_rx
+                .ok_or(SequencerActorError::MissingField("admin_api_rx".to_string()))?,
+            attributes_builder: self
+                .attributes_builder
+                .ok_or(SequencerActorError::MissingField("attributes_builder".to_string()))?,
             block_building_client: self
                 .block_building_client
-                .expect("block_building_client is required"),
-            cancellation_token: self.cancellation_token.expect("cancellation is required"),
+                .ok_or(SequencerActorError::MissingField("block_building_client".to_string()))?,
+            cancellation_token: self
+                .cancellation_token
+                .ok_or(SequencerActorError::MissingField("cancellation_token".to_string()))?,
             conductor: self.conductor,
-            is_active: self.is_active.expect("initial active status not set"),
-            in_recovery_mode: self.in_recovery_mode.expect("initial recovery mode status not set"),
-            origin_selector: self.origin_selector.expect("origin_selector is required"),
-            rollup_config: self.rollup_config.expect("rollup_config is required"),
-            unsafe_payload_gossip_client: self
-                .unsafe_payload_gossip_client
-                .expect("unsafe_payload_gossip_client is required"),
+            is_active: self
+                .is_active
+                .ok_or(SequencerActorError::MissingField("is_active".to_string()))?,
+            in_recovery_mode: self
+                .in_recovery_mode
+                .ok_or(SequencerActorError::MissingField("in_recovery_mode".to_string()))?,
+            origin_selector: self
+                .origin_selector
+                .ok_or(SequencerActorError::MissingField("origin_selector".to_string()))?,
+            rollup_config: self
+                .rollup_config
+                .ok_or(SequencerActorError::MissingField("rollup_config".to_string()))?,
+            unsafe_payload_gossip_client: self.unsafe_payload_gossip_client.ok_or(
+                SequencerActorError::MissingField("unsafe_payload_gossip_client".to_string()),
+            )?,
         })
     }
 }
