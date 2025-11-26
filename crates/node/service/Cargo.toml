@@ -18,7 +18,7 @@ kona-disc.workspace = true
 kona-engine.workspace = true
 kona-sources.workspace = true
 kona-genesis.workspace = true
-kona-derive.workspace = true
+kona-derive = {workspace = true, features = ["test-utils"]}
 kona-protocol.workspace = true
 kona-providers-alloy.workspace = true
 kona-rpc.workspace = true

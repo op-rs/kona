@@ -6,6 +6,7 @@ use thiserror::Error;
 use tokio::sync::mpsc;
 
 /// Client used to schedule unsafe [`OpExecutionPayloadEnvelope`] to be gossiped.
+#[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait UnsafePayloadGossipClient: Send + Sync + Debug {
     /// This is a fire-and-forget function that schedules the provided
