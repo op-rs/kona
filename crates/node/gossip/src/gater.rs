@@ -142,6 +142,23 @@ impl ConnectionGater {
         })
     }
 
+    /// Returns `true` if the given [`Multiaddr`] contains a DNS-based address.
+    ///
+    /// DNS addresses (`/dns4/...`, `/dns6/...`, `/dns/...`, `/dnsaddr/...`) require
+    /// resolution before the IP can be determined, so IP-based blocking cannot be
+    /// applied until after the connection is established.
+    pub fn is_dns_multiaddr(addr: &Multiaddr) -> bool {
+        addr.iter().any(|component| {
+            matches!(
+                component,
+                libp2p::multiaddr::Protocol::Dns(_)
+                    | libp2p::multiaddr::Protocol::Dns4(_)
+                    | libp2p::multiaddr::Protocol::Dns6(_)
+                    | libp2p::multiaddr::Protocol::Dnsaddr(_)
+            )
+        })
+    }
+
     /// Checks if a given [`IpAddr`] is within any of the `blocked_subnets`.
     pub fn check_ip_in_blocked_subnets(&self, ip_addr: &IpAddr) -> bool {
         for subnet in &self.blocked_subnets {
@@ -186,6 +203,13 @@ impl ConnectionGate for ConnectionGater {
             debug!(target: "gossip", peer=?addr, "Peer is blocked, not dialing");
             kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "blocked_peer", "peer" => peer_id.to_string());
             return Err(DialError::PeerBlocked { peer_id });
+        }
+
+        // For DNS-based multiaddrs, we skip IP-based checks since the IP is not yet known.
+        // libp2p will handle DNS resolution during the dial attempt.
+        if Self::is_dns_multiaddr(addr) {
+            debug!(target: "gossip", peer=?addr, "DNS multiaddr detected, skipping IP-based checks");
+            return Ok(());
         }
 
         // There must be a reachable IP Address in the Multiaddr protocol stack.
@@ -368,4 +392,78 @@ fn test_dial_error_handling() {
     // Second dial should fail with AlreadyDialing
     let result = gater.can_dial(&valid_addr);
     assert!(matches!(result, Err(DialError::AlreadyDialing { .. })));
+}
+
+#[test]
+fn test_dns_multiaddr_detection() {
+    use std::str::FromStr;
+
+    // Test DNS4 multiaddr
+    let dns4_addr = Multiaddr::from_str(
+        "/dns4/example.com/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
+    )
+    .unwrap();
+    assert!(ConnectionGater::is_dns_multiaddr(&dns4_addr));
+
+    // Test DNS6 multiaddr
+    let dns6_addr = Multiaddr::from_str(
+        "/dns6/example.com/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
+    )
+    .unwrap();
+    assert!(ConnectionGater::is_dns_multiaddr(&dns6_addr));
+
+    // Test DNS multiaddr (generic)
+    let dns_addr = Multiaddr::from_str(
+        "/dns/example.com/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
+    )
+    .unwrap();
+    assert!(ConnectionGater::is_dns_multiaddr(&dns_addr));
+
+    // Test dnsaddr multiaddr
+    let dnsaddr = Multiaddr::from_str(
+        "/dnsaddr/example.com/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
+    )
+    .unwrap();
+    assert!(ConnectionGater::is_dns_multiaddr(&dnsaddr));
+
+    // Test IP4 multiaddr (should NOT be detected as DNS)
+    let ip4_addr = Multiaddr::from_str(
+        "/ip4/127.0.0.1/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
+    )
+    .unwrap();
+    assert!(!ConnectionGater::is_dns_multiaddr(&ip4_addr));
+
+    // Test IP6 multiaddr (should NOT be detected as DNS)
+    let ip6_addr = Multiaddr::from_str(
+        "/ip6/::1/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
+    )
+    .unwrap();
+    assert!(!ConnectionGater::is_dns_multiaddr(&ip6_addr));
+}
+
+#[test]
+fn test_dns_multiaddr_can_dial() {
+    use crate::ConnectionGate;
+    use std::str::FromStr;
+
+    let mut gater = ConnectionGater::new(GaterConfig::default());
+
+    // DNS4 multiaddr should be allowed to dial (IP checks skipped)
+    let dns4_addr = Multiaddr::from_str(
+        "/dns4/example.com/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
+    )
+    .unwrap();
+    assert!(gater.can_dial(&dns4_addr).is_ok());
+
+    // Real-world DNS multiaddr format (like the one from the issue)
+    let real_world_dns = Multiaddr::from_str(
+        "/dns4/alfonso-0-opn-reth-a-rpc-1-p2p.primary.infra.dev.oplabs.cloud/tcp/9003/p2p/16Uiu2HAmUSo81N6iNQNKZCiqDAg5Mcmh9gwvPgKmKj1HH6qCR4Kq",
+    )
+    .unwrap();
+    assert!(gater.can_dial(&real_world_dns).is_ok());
+
+    // DNS multiaddr with blocked peer should still be blocked
+    let peer_id = ConnectionGater::peer_id_from_addr(&dns4_addr).unwrap();
+    gater.block_peer(&peer_id);
+    assert!(gater.can_dial(&dns4_addr).is_err());
 }
