@@ -135,18 +135,20 @@ impl PipelineBuilder for DerivationBuilder {
             self.l2_trust_rpc,
         );
 
+        let blob_provider = OnlineBlobProvider::init(self.l1_beacon.clone()).await;
+
         let pipeline = match self.interop_mode {
             InteropMode::Polled => OnlinePipeline::new_polled(
                 self.rollup_config.clone(),
                 self.l1_config.clone(),
-                OnlineBlobProvider::init(self.l1_beacon.clone()).await,
+                blob_provider,
                 l1_derivation_provider,
                 l2_derivation_provider,
             ),
             InteropMode::Indexed => OnlinePipeline::new_indexed(
                 self.rollup_config.clone(),
                 self.l1_config.clone(),
-                OnlineBlobProvider::init(self.l1_beacon.clone()).await,
+                blob_provider,
                 l1_derivation_provider,
                 l2_derivation_provider,
             ),

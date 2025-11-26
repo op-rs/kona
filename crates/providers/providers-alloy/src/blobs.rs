@@ -12,6 +12,9 @@ use kona_derive::{BlobProvider, BlobProviderError};
 use kona_protocol::BlockInfo;
 use std::{boxed::Box, string::ToString, vec::Vec};
 
+/// The default slot interval used for the time to slot conversion.
+const DEFAULT_SLOT_INTERVAL: u64 = 12;
+
 /// A boxed blob with index.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BoxedBlobWithIndex {
@@ -33,11 +36,9 @@ pub struct OnlineBlobProvider<B: BeaconClient> {
 }
 
 impl<B: BeaconClient> OnlineBlobProvider<B> {
-    /// Creates a new instance of the [OnlineBlobProvider].
+    /// Initializes a new instance of the [OnlineBlobProvider] from the given chain ID.
     ///
-    /// The `genesis_time` and `slot_interval` arguments are _optional_ and the
-    /// [OnlineBlobProvider] will attempt to load them dynamically at runtime if they are not
-    /// provided.
+    /// This falls back to a known default slot interval for mainnet and sepolia.
     ///
     /// ## Panics
     /// Panics if the genesis time or slot interval cannot be loaded from the beacon client.
@@ -48,13 +49,14 @@ impl<B: BeaconClient> OnlineBlobProvider<B> {
             .map(|r| r.data.genesis_time)
             .map_err(|e| BlobProviderError::Backend(e.to_string()))
             .expect("Failed to load genesis time from beacon client");
-        let slot_interval = beacon_client
-            .config_spec()
-            .await
-            .map(|r| r.data.seconds_per_slot)
-            .map_err(|e| BlobProviderError::Backend(e.to_string()))
-            .expect("Failed to load slot interval from beacon client");
-        Self { beacon_client, genesis_time, slot_interval }
+
+        if let Ok(slot_interval) =
+            beacon_client.config_spec().await.map(|r| r.data.seconds_per_slot)
+        {
+            return Self { beacon_client, genesis_time, slot_interval };
+        }
+
+        Self { beacon_client, genesis_time, slot_interval: DEFAULT_SLOT_INTERVAL }
     }
 
     /// Computes the slot for the given timestamp.

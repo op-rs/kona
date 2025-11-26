@@ -277,12 +277,14 @@ impl SingleChainHost {
                 .ok_or(SingleChainHostError::Other("Provider must be set"))?,
         )
         .await;
+
         let blob_provider = OnlineBlobProvider::init(OnlineBeaconClient::new_http(
             self.l1_beacon_address
                 .clone()
                 .ok_or(SingleChainHostError::Other("Beacon API URL must be set"))?,
         ))
         .await;
+
         let l2_provider = rpc_provider::<Optimism>(
             self.l2_node_address
                 .as_ref()
