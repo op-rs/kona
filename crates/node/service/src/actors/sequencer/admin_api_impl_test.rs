@@ -11,7 +11,7 @@ use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo};
 use kona_rpc::{SequencerAdminAPIError, StopSequencerError};
 use rstest::rstest;
-use std::sync::Arc;
+use std::{sync::Arc, vec};
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 
@@ -162,7 +162,7 @@ async fn test_stop_sequencer_success(
     let expected_hash = unsafe_head.hash();
 
     let mut client = MockBlockBuildingClient::new();
-    client.expect_get_unsafe_head().return_once(move || Ok(unsafe_head));
+    client.expect_get_unsafe_head().times(1).return_once(move || Ok(unsafe_head));
 
     let mut actor = test_builder()
         .with_block_building_client(client)
@@ -202,6 +202,7 @@ async fn test_stop_sequencer_error_fetching_unsafe_head(#[values(true, false)] v
     let mut client = MockBlockBuildingClient::new();
     client
         .expect_get_unsafe_head()
+        .times(1)
         .return_once(|| Err(BlockEngineError::RequestError("whoops!".to_string())));
 
     let mut actor = test_builder().with_block_building_client(client).build().unwrap();
@@ -279,13 +280,13 @@ async fn test_override_leader(
             test_builder()
         } else if conductor_error {
             let mut conductor = MockConductor::new();
-            conductor.expect_override_leader().return_once(move || {
+            conductor.expect_override_leader().times(1).return_once(move || {
                 Err(ConductorError::Rpc(RpcError::local_usage_str(conductor_error_string)))
             });
             test_builder().with_conductor(conductor)
         } else {
             let mut conductor = MockConductor::new();
-            conductor.expect_override_leader().return_once(|| Ok(()));
+            conductor.expect_override_leader().times(1).return_once(|| Ok(()));
             test_builder().with_conductor(conductor)
         }
     }
@@ -314,5 +315,67 @@ async fn test_override_leader(
         );
     } else {
         assert!(result.is_ok())
+    }
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_handle_admin_query_resilient_to_dropped_receiver() {
+    let mut conductor = MockConductor::new();
+    conductor.expect_override_leader().times(1).returning(|| Ok(()));
+
+    let unsafe_head = L2BlockInfo {
+        block_info: BlockInfo { hash: B256::from([1u8; 32]), ..Default::default() },
+        ..Default::default()
+    };
+    let mut client = MockBlockBuildingClient::new();
+    client.expect_get_unsafe_head().times(1).returning(move || Ok(unsafe_head));
+
+    let mut actor = test_builder()
+        .with_conductor(conductor)
+        .with_block_building_client(client)
+        .build()
+        .unwrap();
+
+    let mut queries: Vec<SequencerAdminQuery> = Vec::new();
+    {
+        // immediately drop receiver
+        let (tx, _rx) = oneshot::channel();
+        queries.push(SequencerAdminQuery::SequencerActive(tx));
+    }
+    {
+        // immediately drop receiver
+        let (tx, _rx) = oneshot::channel();
+        queries.push(SequencerAdminQuery::StartSequencer(tx));
+    }
+    {
+        // immediately drop receiver
+        let (tx, _rx) = oneshot::channel();
+        queries.push(SequencerAdminQuery::StopSequencer(tx));
+    }
+    {
+        // immediately drop receiver
+        let (tx, _rx) = oneshot::channel();
+        queries.push(SequencerAdminQuery::ConductorEnabled(tx));
+    }
+    {
+        // immediately drop receiver
+        let (tx, _rx) = oneshot::channel();
+        queries.push(SequencerAdminQuery::RecoveryMode(tx));
+    }
+    {
+        // immediately drop receiver
+        let (tx, _rx) = oneshot::channel();
+        queries.push(SequencerAdminQuery::SetRecoveryMode(true, tx));
+    }
+    {
+        // immediately drop receiver
+        let (tx, _rx) = oneshot::channel();
+        queries.push(SequencerAdminQuery::OverrideLeader(tx));
+    }
+
+    // None of these should fail even if the receiver is dropped
+    for query in queries {
+        actor.handle_admin_query(query).await;
     }
 }
