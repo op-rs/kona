@@ -1,3 +1,5 @@
+//! This crate contains the core logic for the sp1 proof.
+
 pub mod boot;
 pub use boot::AGGREGATION_OUTPUTS_SIZE;
 

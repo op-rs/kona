@@ -3,16 +3,16 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
 use alloy_primitives::{Address, Bytes};
 use op_revm::{
-    OpSpecId,
     precompiles::{fjord, granite, isthmus},
+    OpSpecId,
 };
 use revm::{
     context::{Cfg, ContextTr},
     handler::{EthPrecompiles, PrecompileProvider},
     interpreter::{CallInput, CallInputs, Gas, InstructionResult, InterpreterResult},
     precompile::{
-        Precompile as PrecompileWithAddress, PrecompileError, Precompiles, bn254,
-        kzg_point_evaluation, secp256k1, secp256r1,
+        bn254, kzg_point_evaluation, secp256k1, secp256r1, Precompile as PrecompileWithAddress,
+        PrecompileError, Precompiles,
     },
     primitives::hardfork::SpecId,
 };
@@ -72,17 +72,17 @@ impl OpZkvmPrecompiles {
     #[inline]
     pub fn new_with_spec(spec: OpSpecId) -> Self {
         let precompiles = match spec {
-            spec @ (OpSpecId::BEDROCK |
-            OpSpecId::REGOLITH |
-            OpSpecId::CANYON |
-            OpSpecId::ECOTONE) => Precompiles::new(spec.into_eth_spec().into()).clone(),
+            spec @ (OpSpecId::BEDROCK
+            | OpSpecId::REGOLITH
+            | OpSpecId::CANYON
+            | OpSpecId::ECOTONE) => Precompiles::new(spec.into_eth_spec().into()).clone(),
             OpSpecId::FJORD => fjord().clone(),
             OpSpecId::GRANITE | OpSpecId::HOLOCENE => granite().clone(),
             OpSpecId::ISTHMUS | OpSpecId::INTEROP | OpSpecId::OSAKA | OpSpecId::JOVIAN => {
                 isthmus().clone()
             }
         };
-        let mut precompiles_owned = precompiles.clone();
+        let mut precompiles_owned = precompiles;
         precompiles_owned.extend(get_precompiles());
         let precompiles = Box::leak(Box::new(precompiles_owned));
 

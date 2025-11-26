@@ -1,3 +1,5 @@
+//! Utilities for network configuration and signer retrieval.
+
 use std::env;
 
 use anyhow::{Context, Result, anyhow};

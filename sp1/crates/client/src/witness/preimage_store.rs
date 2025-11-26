@@ -1,3 +1,5 @@
+//! Preimage store implementation for the zkVM.
+
 use alloy_primitives::keccak256;
 use async_trait::async_trait;
 use kona_preimage::{
@@ -9,6 +11,7 @@ use serde::{Deserialize as SerdeDeserialize, Serialize as SerdeSerialize};
 use sha2::Digest;
 use std::collections::HashMap;
 
+/// In-memory preimage store for use in the zkVM.
 #[derive(
     Clone,
     Debug,
@@ -20,10 +23,11 @@ use std::collections::HashMap;
     rkyv::Deserialize,
 )]
 pub struct PreimageStore {
-    pub preimage_map: HashMap<PreimageKey, Vec<u8>>,
+    preimage_map: HashMap<PreimageKey, Vec<u8>>,
 }
 
 impl PreimageStore {
+    /// Check that all preimages are valid.
     pub fn check_preimages(&self) -> PreimageOracleResult<()> {
         for (key, value) in &self.preimage_map {
             check_preimage(key, value)?;
@@ -31,6 +35,7 @@ impl PreimageStore {
         Ok(())
     }
 
+    /// Adds a preimage to storage
     pub fn save_preimage(&mut self, key: PreimageKey, value: Vec<u8>) {
         check_preimage(&key, &value).expect("Invalid preimage");
         if let Some(old) = self.preimage_map.insert(key, value.clone()) {

@@ -1,3 +1,5 @@
+//! Metrics utilities for the host application.
+
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     thread,
@@ -42,6 +44,7 @@ pub trait MetricsGauge: Sized + IntoEnumIterator + EnumMessage + ToString {
     }
 }
 
+/// Initialize the metrics server on the given port.
 pub fn init_metrics(port: &u16) {
     let builder = PrometheusBuilder::new().with_http_listener(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),

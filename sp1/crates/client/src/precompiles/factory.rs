@@ -8,10 +8,10 @@ use op_revm::{
     OpTransactionError,
 };
 use revm::{
-    Context, Inspector,
-    context::{BlockEnv, Evm as RevmEvm, TxEnv, result::EVMError},
+    context::{result::EVMError, BlockEnv, Evm as RevmEvm, TxEnv},
     handler::instructions::EthInstructions,
     inspector::NoOpInspector,
+    Context, Inspector,
 };
 
 /// Factory producing [`OpEvm`]s with FPVM-accelerated precompile overrides enabled.
@@ -20,7 +20,7 @@ pub struct ZkvmOpEvmFactory {}
 
 impl ZkvmOpEvmFactory {
     /// Creates a new [`ZkvmOpEvmFactory`].
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {}
     }
 }

@@ -1,3 +1,5 @@
+//! Client-specific utilities to support L2 block derivation.
+
 use alloy_consensus::BlockBody;
 use alloy_primitives::B256;
 use alloy_rlp::Decodable;

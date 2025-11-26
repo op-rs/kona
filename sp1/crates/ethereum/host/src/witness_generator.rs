@@ -1,11 +1,13 @@
+//! This module defines the witness generator for ETHDA SP1 host.
+
 use anyhow::Result;
 use async_trait::async_trait;
 use kona_proof::l1::OracleBlobProvider;
 use kona_sp1_client_utils::witness::DefaultWitnessData;
 use kona_sp1_ethereum_client_utils::executor::ETHDAWitnessExecutor;
 use kona_sp1_host_utils::witness_generation::{
-    DefaultOracleBase, WitnessGenerator, online_blob_store::OnlineBlobStore,
-    preimage_witness_collector::PreimageWitnessCollector,
+    online_blob_store::OnlineBlobStore, preimage_witness_collector::PreimageWitnessCollector,
+    DefaultOracleBase, WitnessGenerator,
 };
 use rkyv::to_bytes;
 use sp1_sdk::SP1Stdin;
@@ -15,7 +17,10 @@ type WitnessExecutor = ETHDAWitnessExecutor<
     OnlineBlobStore<OracleBlobProvider<DefaultOracleBase>>,
 >;
 
+/// Witness generator for ETHDA SP1 host.
+#[expect(missing_debug_implementations)]
 pub struct ETHDAWitnessGenerator {
+    /// The witness executor.
     pub executor: WitnessExecutor,
 }
 

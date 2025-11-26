@@ -1,14 +1,24 @@
+//! Types related to the aggregation program.
+
 use alloy_primitives::{Address, B256};
 use alloy_sol_types::sol;
 use serde::{Deserialize, Serialize};
 
 use crate::boot::BootInfoStruct;
 
+/// The inputs to the aggregation program.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AggregationInputs {
+    /// List of [BootInfoStruct] for each block being aggregated.
     pub boot_infos: Vec<BootInfoStruct>,
+
+    /// The latest L1 checkpoint head.
     pub latest_l1_checkpoint_head: B256,
+
+    /// The vkey of the range proof program
     pub multi_block_vkey: [u32; 8],
+
+    /// The address of the prover to commit to.
     pub prover_address: Address,
 }
 

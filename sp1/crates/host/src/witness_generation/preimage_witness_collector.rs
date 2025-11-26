@@ -1,3 +1,5 @@
+//! This module provides a [PreimageOracleClient] implementation.
+
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
@@ -7,9 +9,12 @@ use kona_preimage::{
 use kona_proof::FlushableCache;
 use kona_sp1_client_utils::witness::preimage_store::PreimageStore;
 
+/// A [PreimageOracleClient] that collects preimages into a witness store as they are requested.
 #[derive(Clone, Debug)]
 pub struct PreimageWitnessCollector<P: CommsClient + FlushableCache + Send + Sync + Clone> {
+    /// The underlying preimage oracle.
     pub preimage_oracle: Arc<P>,
+    /// The preimage witness store.
     pub preimage_witness_store: Arc<Mutex<PreimageStore>>,
 }
 
@@ -54,6 +59,7 @@ impl<P> PreimageWitnessCollector<P>
 where
     P: CommsClient + FlushableCache + Send + Sync + Clone,
 {
+    /// Saves a preimage to the witness store.
     pub fn save(&self, key: PreimageKey, value: &[u8]) {
         self.preimage_witness_store.lock().unwrap().save_preimage(key, value.to_vec());
     }

@@ -1,3 +1,5 @@
+//! Module for handling witness data, including preimages and blob data.
+
 pub mod executor;
 pub mod preimage_store;
 
@@ -11,6 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::BlobStore;
 
+/// Trait representing witness data containing preimages and blob data.
 #[async_trait]
 pub trait WitnessData: Sized {
     /// Creates a new WitnessData from the given preimage store and blob data.
@@ -41,10 +44,11 @@ pub trait WitnessData: Sized {
     }
 }
 
+/// Default implementation of [WitnessData].
 #[derive(Clone, Debug, Default, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub struct DefaultWitnessData {
-    pub preimage_store: PreimageStore,
-    pub blob_data: BlobData,
+    preimage_store: PreimageStore,
+    blob_data: BlobData,
 }
 
 #[async_trait]
@@ -58,11 +62,15 @@ impl WitnessData for DefaultWitnessData {
     }
 }
 
+/// Struct representing blob data including blobs, commitments, and proofs.
 #[derive(
     Clone, Debug, Default, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
 )]
 pub struct BlobData {
+    /// The blobs included in the blob data.
     pub blobs: Vec<Blob>,
+    /// The commitments corresponding to the blobs.
     pub commitments: Vec<Bytes48>,
+    /// The KZG proofs corresponding to the blobs.
     pub proofs: Vec<Bytes48>,
 }

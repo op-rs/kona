@@ -1,3 +1,5 @@
+//! Utilities for handling block ranges in the context of kona-sp1.
+
 use std::{
     cmp::{max, min},
     collections::HashSet,
@@ -53,10 +55,7 @@ pub async fn get_validated_block_range<H: OPSuccinctHost>(
     };
 
     // If start block not provided, use end block - default_range
-    let l2_start_block = match start {
-        Some(start) => start,
-        None => max(1, l2_end_block.saturating_sub(default_range)),
-    };
+    let l2_start_block = start.unwrap_or_else(|| max(1, l2_end_block.saturating_sub(default_range)));
 
     if l2_start_block >= l2_end_block {
         bail!("Start block ({l2_start_block}) must be less than end block ({l2_end_block})");
@@ -83,9 +82,12 @@ pub async fn get_rolling_block_range<H: OPSuccinctHost>(
     Ok((l2_end_block - range, l2_end_block))
 }
 
+/// A range of blocks to be processed as a batch.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpanBatchRange {
+    /// The start block
     pub start: u64,
+    /// The end block
     pub end: u64,
 }
 

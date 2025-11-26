@@ -20,3 +20,6 @@ kona-proof.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
 spin.workspace = true
+
+[lints]
+workspace = true

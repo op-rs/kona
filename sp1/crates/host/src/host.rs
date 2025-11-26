@@ -1,3 +1,5 @@
+//! Defines the [OPSuccinctHost] trait for the kona-sp1 host.
+
 use alloy_primitives::B256;
 use anyhow::Result;
 use async_trait::async_trait;
@@ -7,8 +9,10 @@ use tokio::task::JoinHandle;
 
 use crate::{fetcher::OPSuccinctDataFetcher, witness_generation::WitnessGenerator};
 
+/// Trait for starting a preimage server.
 #[async_trait]
 pub trait PreimageServerStarter {
+    /// Start the preimage server.
     async fn start_server<C>(
         &self,
         hint: C,
@@ -32,11 +36,15 @@ impl PreimageServerStarter for SingleChainHost {
     }
 }
 
+/// Trait representing an OP Succinct Host.
 #[async_trait]
 pub trait OPSuccinctHost: Send + Sync + 'static {
+    /// The type of arguments required to run the host.
     type Args: Send + Sync + 'static + Clone + PreimageServerStarter;
+    /// The type of witness generator used by the host.
     type WitnessGenerator: WitnessGenerator + Send + Sync;
 
+    /// Returns the witness generator.
     fn witness_generator(&self) -> &Self::WitnessGenerator;
 
     /// Fetch the host arguments.

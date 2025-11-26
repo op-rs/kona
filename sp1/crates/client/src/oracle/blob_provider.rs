@@ -8,6 +8,7 @@ use kona_derive::{BlobProvider, BlobProviderError};
 use kona_protocol::BlockInfo;
 use kzg_rs::get_kzg_settings;
 
+/// In-memory blob store containing verified blobs.
 #[derive(Clone, Debug, Default)]
 pub struct BlobStore {
     versioned_blobs: Vec<(B256, Blob)>,

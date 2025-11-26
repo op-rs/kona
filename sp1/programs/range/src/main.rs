@@ -14,6 +14,7 @@ use kona_sp1_ethereum_client_utils::executor::ETHDAWitnessExecutor;
 use rkyv::rancor::Error;
 use std::sync::Arc;
 
+/// Entrypoint to the range program.
 fn main() {
     #[cfg(feature = "tracing-subscriber")]
     setup_tracing();
@@ -52,6 +53,7 @@ pub fn setup_tracing() {
     tracing::subscriber::set_global_default(subscriber).map_err(|e| anyhow!(e)).unwrap();
 }
 
+/// Executes the range program with the given [WitnessExecutor], [PreimageStore], and [BlobStore].
 pub async fn run_range_program<E>(executor: E, oracle: Arc<PreimageStore>, beacon: BlobStore)
 where
     E: WitnessExecutor<

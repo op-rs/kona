@@ -1,3 +1,5 @@
+//! Executes Defines the WitnessExecutor trait for constructing and running the derivation pipeline.
+
 use std::{fmt::Debug, sync::Arc};
 
 use alloy_primitives::Sealed;
@@ -26,7 +28,7 @@ use crate::{
     precompiles::{CustomCrypto, ZkvmOpEvmFactory},
 };
 
-// Gets the inputs for constructing the derivation pipeline.
+/// Gets the inputs for constructing the derivation pipeline.
 pub async fn get_inputs_for_pipeline<O>(
     oracle: Arc<O>,
 ) -> Result<(
@@ -88,15 +90,25 @@ where
     Ok((boot_clone, Some((cursor, l1_provider, l2_provider))))
 }
 
+/// The [WitnessExecutor] trait defines an interface for constructing and running the derivation pipeline.
 #[async_trait]
 pub trait WitnessExecutor {
+    /// The [CommsClient] type used by the executor.
     type O: CommsClient + FlushableCache + Send + Sync + Debug;
+
+    /// The [BlobProvider] type used by the executor.
     type B: BlobProvider + Send + Sync + Debug + Clone;
+
+    /// The L1 [ChainProvider] type used by the executor.
     type L1: ChainProvider + Send + Sync + Debug + Clone;
+
+    /// The [L2ChainProvider] type used by the executor.
     type L2: L2ChainProvider + Send + Sync + Debug + Clone;
+
+    /// The [DataAvailabilityProvider] type used by the executor.
     type DA: DataAvailabilityProvider + Send + Sync + Debug + Clone;
 
-    // Constructs the derivation pipeline.
+    /// Constructs the derivation pipeline.
     #[allow(clippy::too_many_arguments)]
     async fn create_pipeline(
         &self,
@@ -109,8 +121,7 @@ pub trait WitnessExecutor {
         l2_provider: Self::L2,
     ) -> Result<OraclePipeline<Self::O, Self::L1, Self::L2, Self::DA>>;
 
-    // Sourced from https://github.com/op-rs/kona/tree/main/bin/client/src/single.rs
-    // Runs the OP Succinct witness executor using the given derivation pipeline,
+    /// Runs the witness executor using the given derivation pipeline,
     async fn run<O, DP, P>(
         &self,
         boot: BootInfo,
@@ -123,6 +134,9 @@ pub trait WitnessExecutor {
         DP: DriverPipeline<P> + Send + Sync + Debug,
         P: Pipeline + SignalReceiver + Send + Sync + Debug,
     {
+        // Sourced from https://github.com/op-rs/kona/tree/main/bin/client/src/single.rs
+        // TODO(inphi): Refactor to dedup logic in the kona-client
+
         // Install custom crypto provider for KZG point evaluation precompile
         revm::precompile::install_crypto(CustomCrypto::default());
 

@@ -1,3 +1,5 @@
+//! Traits for witness generation in the SP1 host environment.
+
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
@@ -17,11 +19,15 @@ use sp1_sdk::SP1Stdin;
 
 use crate::witness_generation::{OnlineBlobStore, PreimageWitnessCollector};
 
+/// Default type alias for the Oracle base used in witness generation.
 pub type DefaultOracleBase = CachingOracle<OracleReader<NativeChannel>, HintWriter<NativeChannel>>;
 
+/// Trait representing a witness generator that can run the witness generation process
 #[async_trait]
 pub trait WitnessGenerator {
+    /// A [WitnessData] produced by the [WitnessGenerator].
     type WitnessData: WitnessData;
+    /// A [WitnessExecutor] used for witness generation.
     type WitnessExecutor: WitnessExecutor<
             O = PreimageWitnessCollector<DefaultOracleBase>,
             B = OnlineBlobStore<OracleBlobProvider<DefaultOracleBase>>,
@@ -30,8 +36,10 @@ pub trait WitnessGenerator {
         > + Sync
         + Send;
 
+    /// Gets the executor used for witness generation.
     fn get_executor(&self) -> &Self::WitnessExecutor;
 
+    /// Runs derivation to generate [WitnessData] using the provided preimage and hint channels.
     async fn run(
         &self,
         preimage_chan: NativeChannel,
@@ -81,5 +89,6 @@ pub trait WitnessGenerator {
         Ok(witness)
     }
 
+    /// Converts the given witness data into SP1 stdin format.
     fn get_sp1_stdin(&self, witness: Self::WitnessData) -> Result<SP1Stdin>;
 }

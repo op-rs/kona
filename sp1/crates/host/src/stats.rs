@@ -1,3 +1,5 @@
+//! Execution statistics for a range execution.
+
 use std::fmt;
 
 use crate::fetcher::BlockInfo;
@@ -6,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use sp1_sdk::ExecutionReport;
 
 /// Statistics for the range execution.
+#[allow(missing_docs)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ExecutionStats {
     pub l1_head: u64,
@@ -132,11 +135,12 @@ impl ExecutionStats {
 }
 
 /// A [ExecutionStats] that can be displayed as Markdown.
+#[derive(Debug)]
 pub struct MarkdownExecutionStats(ExecutionStats);
 
 impl MarkdownExecutionStats {
     /// Creates a [MarkdownExecutionStats].
-    pub fn new(inner: ExecutionStats) -> Self {
+    pub const fn new(inner: ExecutionStats) -> Self {
         Self(inner)
     }
 }

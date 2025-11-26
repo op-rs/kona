@@ -69,3 +69,6 @@ opentelemetry.workspace = true
 opentelemetry_sdk.workspace = true
 opentelemetry-otlp.workspace = true
 opentelemetry-appender-tracing.workspace = true
+
+[lints]
+workspace = true

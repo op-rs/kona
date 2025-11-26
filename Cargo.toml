@@ -316,13 +316,9 @@ sp1-core-executor = { version = "=5.2.2" }
 kona-sp1-client-utils = { path = "sp1/crates/client" }
 kona-sp1-build-utils = { path = "sp1/crates/build" }
 kona-sp1-elfs = { path = "sp1/crates/elfs" }
-kona-sp1-validity = { path = "sp1/validity" }
-kona-sp1-fp = { path = "sp1/fault-proof" }
 kona-sp1-ethereum-client-utils = { path = "sp1/crates/ethereum/client" }
 kona-sp1-ethereum-host-utils = { path = "sp1/crates/ethereum/host" }
 kona-sp1-host-utils = { path = "sp1/crates/host" }
 kona-sp1-proof-utils = { path = "sp1/crates/proof" }
-kona-sp1-signer-utils = { path = "sp1/crates/signer" }
-kona-sp1-bindings = { path = "sp1/bindings" }
 kona-sp1-aggregation = { path = "sp1/programs/aggregation", version = "0.0.1", default-features = false }
 kona-sp1-range = { path = "sp1/programs/range", version = "0.0.1", default-features = false }

@@ -1,3 +1,6 @@
+//! Provides an implementation of a [BlobProvider] that fetches blobs online and stores them in a shared
+//! store.
+
 use alloy_consensus::Blob;
 use alloy_eips::eip4844::{IndexedBlobHash, env_settings::EnvKzgSettings};
 use anyhow::Result;
@@ -8,9 +11,12 @@ use kona_sp1_client_utils::witness::BlobData;
 use kzg_rs::{Blob as KzgRsBlob, Bytes48};
 use std::sync::{Arc, Mutex};
 
+/// A BlobProvider that fetches blobs online and stores their data in a shared BlobData store.
 #[derive(Clone, Debug)]
 pub struct OnlineBlobStore<T: BlobProvider> {
+    /// The underlying blob provider used to fetch blobs.
     pub provider: T,
+    /// Shared blob storage
     pub store: Arc<Mutex<BlobData>>,
 }
 

@@ -1,3 +1,6 @@
+//! The OPSuccinctDataFetcher is used to fetch L2 output data and L2 claim data from an
+//! Optimism node via RPC. It is used to generate the boot info for the native host program.
+
 use std::{
     cmp::{Ordering, min},
     env, fs,
@@ -29,40 +32,55 @@ use serde_json::{Value, json};
 
 use crate::L2Output;
 
+#[expect(missing_debug_implementations)]
 #[derive(Clone)]
 /// The OPSuccinctDataFetcher struct is used to fetch the L2 output data and L2 claim data for a
 /// given block number. It is used to generate the boot info for the native host program.
 /// FIXME: Add retries for all requests (3 retries).
 pub struct OPSuccinctDataFetcher {
+    /// The RPC configuration for the data fetcher.
     pub rpc_config: RPCConfig,
+    /// The L1 provider.
     pub l1_provider: Arc<RootProvider>,
+    /// The L2 provider.
     pub l2_provider: Arc<RootProvider<Optimism>>,
+    /// The rollup config for the chain.
     pub rollup_config: Option<RollupConfig>,
+    /// The path to the rollup config file.
     pub rollup_config_path: Option<PathBuf>,
+    /// The path to the L1 config file.
     pub l1_config_path: Option<PathBuf>,
 }
 
 impl Default for OPSuccinctDataFetcher {
     fn default() -> Self {
-        OPSuccinctDataFetcher::new()
+        Self::new()
     }
 }
 
+/// The RPC configuration for the data fetcher.
 #[derive(Debug, Clone)]
 pub struct RPCConfig {
+    /// The L1 RPC URL.
     pub l1_rpc: Url,
+    /// The L1 beacon RPC URL (optional).
     pub l1_beacon_rpc: Option<Url>,
+    /// The L2 RPC URL.
     pub l2_rpc: Url,
-    // TODO(fakedev9999): Make optional if possible.
+    /// The L2 node RPC URL.
     pub l2_node_rpc: Url,
 }
 
 /// The mode corresponding to the chain we are fetching data for.
 #[derive(Clone, Copy, Debug)]
 pub enum RPCMode {
+    /// Fetch from L1.
     L1,
+    /// Fetch from the beacon chain.
     L1Beacon,
+    /// Fetch from L2.
     L2,
+    /// Fetch from the rollup node.
     L2Node,
 }
 
@@ -97,19 +115,30 @@ pub fn get_rpcs_from_env() -> RPCConfig {
 /// The info to fetch for a block.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BlockInfo {
+    /// The block number.
     pub block_number: u64,
+    /// The transaction count.
     pub transaction_count: u64,
+    /// The gas used.
     pub gas_used: u64,
+    /// The total L1 fees for the block.
     pub total_l1_fees: u128,
+    /// The total transaction fees for the block.
     pub total_tx_fees: u128,
 }
 
 /// The fee data for a block.
+#[derive(Debug)]
 pub struct FeeData {
+    /// The block number.
     pub block_number: u64,
+    /// The transaction index.
     pub tx_index: u64,
+    /// The transaction hash.
     pub tx_hash: B256,
+    /// The L1 gas cost.
     pub l1_gas_cost: U256,
+    /// The L1 fee.
     pub tx_fee: u128,
 }
 
@@ -123,7 +152,7 @@ impl OPSuccinctDataFetcher {
         let l2_provider =
             Arc::new(ProviderBuilder::default().connect_http(rpc_config.l2_rpc.clone()));
 
-        OPSuccinctDataFetcher {
+        Self {
             rpc_config,
             l1_provider,
             l2_provider,
@@ -156,7 +185,7 @@ impl OPSuccinctDataFetcher {
         // Fetch and save L1 config based on the rollup config's L1 chain ID
         let l1_config_path = Self::fetch_and_save_l1_config(&rollup_config).await?;
 
-        Ok(OPSuccinctDataFetcher {
+        Ok(Self {
             rpc_config,
             l1_provider,
             l2_provider,
@@ -166,10 +195,12 @@ impl OPSuccinctDataFetcher {
         })
     }
 
+    /// Get the L2 chain ID.
     pub async fn get_l2_chain_id(&self) -> Result<u64> {
         Ok(self.l2_provider.get_chain_id().await?)
     }
 
+    /// Get the L2 head header.
     pub async fn get_l2_head(&self) -> Result<Header> {
         let block = self.l2_provider.get_block_by_number(BlockNumberOrTag::Latest).await?;
         if let Some(block) = block {
@@ -222,6 +253,7 @@ impl OPSuccinctDataFetcher {
         block_data.into_iter().collect()
     }
 
+    /// Get the L1 header for the given block number.
     pub async fn get_l1_header(&self, block_number: BlockId) -> Result<Header> {
         let block = self.l1_provider.get_block(block_number).await?;
 
@@ -232,6 +264,7 @@ impl OPSuccinctDataFetcher {
         }
     }
 
+    /// Get the L1 header for the given block number.
     pub async fn get_l2_header(&self, block_number: BlockId) -> Result<Header> {
         let block = self.l2_provider.get_block(block_number).await?;
 
@@ -483,6 +516,7 @@ impl OPSuccinctDataFetcher {
         Ok(headers)
     }
 
+    /// Get the L2 output data at a specific block number.
     pub async fn get_l2_output_at_block(&self, block_number: u64) -> Result<OutputResponse> {
         let block_number_hex = format!("0x{block_number:x}");
         let l2_output_data: OutputResponse = self
@@ -588,6 +622,7 @@ impl OPSuccinctDataFetcher {
         }
     }
 
+    /// Get the L2 block by number using debug_getRawBlock.
     // Source from: https://github.com/anton-rs/kona/blob/85b1c88b44e5f54edfc92c781a313717bad5dfc7/crates/derive-alloy/src/alloy_providers.rs#L225.
     pub async fn get_l2_block_by_number(&self, block_number: u64) -> Result<OpBlock> {
         let raw_block: Bytes = self
@@ -598,6 +633,7 @@ impl OPSuccinctDataFetcher {
         Ok(block)
     }
 
+    /// Get the L2 block info by number.
     pub async fn l2_block_info_by_number(&self, block_number: u64) -> Result<L2BlockInfo> {
         // If the rollup config is not already loaded, fetch and save it.
         if self.rollup_config.is_none() {

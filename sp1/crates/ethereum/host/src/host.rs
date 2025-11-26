@@ -1,3 +1,5 @@
+//! Defines the Host implementation for Ethereum DA using single chain host.
+
 use std::sync::Arc;
 
 use crate::witness_generator::ETHDAWitnessGenerator;
@@ -9,9 +11,11 @@ use kona_host::single::SingleChainHost;
 use kona_sp1_ethereum_client_utils::executor::ETHDAWitnessExecutor;
 use kona_sp1_host_utils::{fetcher::OPSuccinctDataFetcher, host::OPSuccinctHost};
 
+/// Host implementation for Ethereum DA using single chain host.
+#[expect(missing_debug_implementations)]
 #[derive(Clone)]
 pub struct SingleChainOPSuccinctHost {
-    pub fetcher: Arc<OPSuccinctDataFetcher>,
+    fetcher: Arc<OPSuccinctDataFetcher>,
     witness_generator: Arc<ETHDAWitnessGenerator>,
 }
 
@@ -79,6 +83,7 @@ impl OPSuccinctHost for SingleChainOPSuccinctHost {
 }
 
 impl SingleChainOPSuccinctHost {
+    /// Creates a new [SingleChainOPSuccinctHost] instance.
     pub fn new(fetcher: Arc<OPSuccinctDataFetcher>) -> Self {
         Self {
             fetcher,

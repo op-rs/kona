@@ -9,11 +9,12 @@ use alloy_primitives::B256;
 use alloy_sol_types::SolValue;
 use kona_sp1_client_utils::{
     boot::BootInfoStruct,
-    types::{AggregationInputs, AggregationOutputs, u32_to_u8},
+    types::{u32_to_u8, AggregationInputs, AggregationOutputs},
 };
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
+/// Entrypoint to the aggregation program.
 pub fn main() {
     // Read in the public values corresponding to each range proof.
     let agg_inputs = sp1_zkvm::io::read::<AggregationInputs>();

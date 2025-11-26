@@ -1,3 +1,5 @@
+//! Module for witness generation components.
+
 pub mod traits;
 pub use traits::{DefaultOracleBase, WitnessGenerator};
 
