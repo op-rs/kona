@@ -19,7 +19,7 @@ mod builder;
 pub use builder::{BlockBuildingOutcome, StatelessL2Builder, compute_receipts_root};
 
 mod errors;
-pub use errors::{ExecutorError, ExecutorResult, TrieDBError, TrieDBResult};
+pub use errors::{Eip1559ValidationError, ExecutorError, ExecutorResult, TrieDBError, TrieDBResult};
 
 pub(crate) mod util;
 
