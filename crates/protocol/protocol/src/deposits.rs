@@ -61,6 +61,9 @@ pub enum DepositError {
     /// Specified: [usize] (data length), Actual: [usize] (opaque data length).
     #[error("Specified opaque data length {1} exceeds the deposit log event data length {0}")]
     OpaqueDataOverflow(u64, usize),
+    /// Opaque data padding overflow.
+    #[error("Opaque data padding overflow")]
+    OpaqueDataPaddingOverflow,
     /// Opaque data with padding exceeds the specified data length.
     /// Specified: [usize] (data length), Actual: [usize] (opaque data length).
     #[error("Opaque data with padding exceeds the specified data length: {1} > {0}")]
@@ -151,18 +154,14 @@ pub fn decode_deposit(block_hash: B256, index: usize, log: &Log) -> Result<Bytes
     let opaque_content_len: u64 = opaque_content_len.try_into().map_err(|_| {
         DepositError::OpaqueContentOverflow(Bytes::copy_from_slice(&log.data.data[32..64]))
     })?;
-    if opaque_content_len > (log.data.data.len() - 64) as u64 {
-        return Err(DepositError::OpaqueDataOverflow(opaque_content_len, log.data.data.len() - 64));
-    }
-    let padded_len = opaque_content_len
-        .checked_add(32)
-        .ok_or(DepositError::OpaqueDataOverflow(opaque_content_len, log.data.data.len() - 64))?;
-    if padded_len <= (log.data.data.len() - 64) as u64 {
-        return Err(DepositError::PaddedOpaqueDataOverflow(
-            log.data.data.len() - 64,
-            opaque_content_len,
-        ));
-    }
+
+    let opaque_data_ceil_32: u64 = (opaque_content_len.saturating_add(31) / 32).saturating_mul(32);
+
+    // Ensure that the remaining data is only zeros.
+    // The padding ends at the next multiple of 32 after the opaque data.
+    let Some(padding_end): Option<u64> = 64_u64.checked_add(opaque_data_ceil_32) else {
+        return Err(DepositError::OpaqueDataPaddingOverflow);
+    };
 
     // The remaining data is the opaqueData which is tightly packed and then padded to 32 bytes by
     // the EVM.
@@ -173,17 +172,14 @@ pub fn decode_deposit(block_hash: B256, index: usize, log: &Log) -> Result<Bytes
         });
     };
 
-    // Ensure that the remaining data is only zeros.
-    // The padding ends at the next multiple of 32 after the opaque data.
-    let padding_end = 64 + (opaque_content_len / 32 + 1) * 32;
-    if !log
-        .data
-        .data
-        .get(64 + opaque_content_len as usize..padding_end as usize)
-        .is_some_and(|data| data.iter().all(|&b| b == 0))
+    if !(opaque_content_len % 32 == 0 ||
+        log.data
+            .data
+            .get((64 + opaque_content_len) as usize..padding_end as usize)
+            .is_some_and(|data| data.iter().all(|&b| b == 0)))
     {
         return Err(DepositError::InvalidOpaqueDataPadding(Bytes::copy_from_slice(
-            &log.data.data[64..],
+            &log.data.data[(64 + opaque_content_len) as usize..],
         )));
     }
 
@@ -262,7 +258,7 @@ pub(crate) fn unmarshal_deposit_version0(
 mod test {
     use super::*;
     use alloc::vec;
-    use alloy_primitives::{LogData, U64, address, b256, hex};
+    use alloy_primitives::{LogData, U64, U128, address, b256, hex};
 
     #[test]
     fn test_decode_deposit_invalid_first_topic() {
@@ -342,7 +338,7 @@ mod test {
             ),
         };
         let err = decode_deposit(B256::default(), 0, &log).unwrap_err();
-        assert_eq!(err, DepositError::InvalidOpaqueDataOffset(Bytes::from(vec![0u8; 8])));
+        assert_eq!(err, DepositError::InvalidOpaqueDataOffset(Bytes::from(vec![0u8; 32])));
     }
 
     #[test]
@@ -362,7 +358,7 @@ mod test {
             ),
         };
         let err = decode_deposit(B256::default(), 0, &log).unwrap_err();
-        assert_eq!(err, DepositError::OpaqueDataOverflow(128, 64));
+        assert_eq!(err, DepositError::InvalidOpaqueDataLength { expected: 128, actual: 64 });
     }
 
     #[test]
@@ -380,7 +376,7 @@ mod test {
             ),
         };
         let err = decode_deposit(B256::default(), 0, &log).unwrap_err();
-        assert_eq!(err, DepositError::PaddedOpaqueDataOverflow(192, 64));
+        assert_eq!(err, DepositError::UnexpectedOpaqueDataLen(64));
     }
 
     #[test]
@@ -424,6 +420,171 @@ mod test {
         );
         let expected = Bytes::from(raw_hex);
         assert_eq!(tx, expected);
+    }
+
+    #[test]
+    fn test_decode_deposit_invalid_offset() {
+        let mut data = vec![0u8; 128];
+        let offset: [u8; 16] = U128::MAX.to_be_bytes();
+        data[16..32].copy_from_slice(&offset);
+        let len: [u8; 8] = U64::from(128).to_be_bytes();
+        data[56..64].copy_from_slice(&len);
+        let log = Log {
+            address: Address::default(),
+            data: LogData::new_unchecked(
+                vec![DEPOSIT_EVENT_ABI_HASH, B256::default(), B256::default(), B256::default()],
+                Bytes::from(data.clone()),
+            ),
+        };
+        let err = decode_deposit(B256::default(), 0, &log).unwrap_err();
+        let bytes = Bytes::from(data.get(0..32).unwrap().to_vec());
+        assert_eq!(err, DepositError::InvalidOpaqueDataOffset(bytes));
+    }
+
+    #[test]
+    fn test_decode_deposit_invalid_length() {
+        let mut data = vec![0u8; 128];
+        let offset: [u8; 8] = U64::from(32).to_be_bytes();
+        data[24..32].copy_from_slice(&offset);
+        let len: [u8; 16] = U128::MAX.to_be_bytes();
+        data[48..64].copy_from_slice(&len);
+        let log = Log {
+            address: Address::default(),
+            data: LogData::new_unchecked(
+                vec![DEPOSIT_EVENT_ABI_HASH, B256::default(), B256::default(), B256::default()],
+                Bytes::from(data.clone()),
+            ),
+        };
+        let err = decode_deposit(B256::default(), 0, &log).unwrap_err();
+        assert_eq!(
+            err,
+            DepositError::OpaqueContentOverflow(Bytes::from(data.get(32..64).unwrap().to_vec()))
+        );
+    }
+
+    #[test]
+    fn test_invalid_opaque_data_length() {
+        let mut data = vec![0u8; 192];
+        let offset: [u8; 8] = U64::from(32).to_be_bytes();
+        data[24..32].copy_from_slice(&offset);
+        let len: [u8; 8] = U64::from(129).to_be_bytes();
+        data[56..64].copy_from_slice(&len);
+        // Copy the u128 mint value
+        let mint: [u8; 16] = 10_u128.to_be_bytes();
+        data[80..96].copy_from_slice(&mint);
+        // Copy the tx value
+        let value: [u8; 32] = U256::from(100).to_be_bytes();
+        data[96..128].copy_from_slice(&value);
+        // Copy the gas limit
+        let gas: [u8; 8] = 1000_u64.to_be_bytes();
+        data[128..136].copy_from_slice(&gas);
+        // Copy the isCreation flag
+        data[136] = 1;
+        let from = address!("1111111111111111111111111111111111111111");
+        let mut from_bytes = vec![0u8; 32];
+        from_bytes[12..32].copy_from_slice(from.as_slice());
+        let to = address!("2222222222222222222222222222222222222222");
+        let mut to_bytes = vec![0u8; 32];
+        to_bytes[12..32].copy_from_slice(to.as_slice());
+        let log = Log {
+            address: Address::default(),
+            data: LogData::new_unchecked(
+                vec![
+                    DEPOSIT_EVENT_ABI_HASH,
+                    B256::from_slice(&from_bytes),
+                    B256::from_slice(&to_bytes),
+                    B256::default(),
+                ],
+                Bytes::from(data),
+            ),
+        };
+        let err = decode_deposit(B256::default(), 0, &log).unwrap_err();
+        assert_eq!(err, DepositError::InvalidOpaqueDataLength { expected: 129, actual: 128 });
+    }
+
+    #[test]
+    fn test_opaque_data_padding_overflow() {
+        let mut data = vec![0u8; 192];
+        let offset: [u8; 8] = U64::from(32).to_be_bytes();
+        data[24..32].copy_from_slice(&offset);
+        let len: [u8; 8] = U64::MAX.to_be_bytes();
+        data[56..64].copy_from_slice(&len);
+        // Copy the u128 mint value
+        let mint: [u8; 16] = 10_u128.to_be_bytes();
+        data[80..96].copy_from_slice(&mint);
+        // Copy the tx value
+        let value: [u8; 32] = U256::from(100).to_be_bytes();
+        data[96..128].copy_from_slice(&value);
+        // Copy the gas limit
+        let gas: [u8; 8] = 1000_u64.to_be_bytes();
+        data[128..136].copy_from_slice(&gas);
+        // Copy the isCreation flag
+        data[136] = 1;
+        let from = address!("1111111111111111111111111111111111111111");
+        let mut from_bytes = vec![0u8; 32];
+        from_bytes[12..32].copy_from_slice(from.as_slice());
+        let to = address!("2222222222222222222222222222222222222222");
+        let mut to_bytes = vec![0u8; 32];
+        to_bytes[12..32].copy_from_slice(to.as_slice());
+        let log = Log {
+            address: Address::default(),
+            data: LogData::new_unchecked(
+                vec![
+                    DEPOSIT_EVENT_ABI_HASH,
+                    B256::from_slice(&from_bytes),
+                    B256::from_slice(&to_bytes),
+                    B256::default(),
+                ],
+                Bytes::from(data.clone()),
+            ),
+        };
+        let err = decode_deposit(B256::default(), 0, &log).unwrap_err();
+        assert_eq!(err, DepositError::OpaqueDataPaddingOverflow);
+    }
+
+    #[test]
+    fn test_invalid_opaque_data_padding() {
+        let mut data = vec![0u8; 192];
+        let offset: [u8; 8] = U64::from(32).to_be_bytes();
+        data[24..32].copy_from_slice(&offset);
+        let len: [u8; 8] = U64::from(127).to_be_bytes();
+        data[56..64].copy_from_slice(&len);
+        // Copy the u128 mint value
+        let mint: [u8; 16] = 10_u128.to_be_bytes();
+        data[80..96].copy_from_slice(&mint);
+        // Copy the tx value
+        let value: [u8; 32] = U256::from(100).to_be_bytes();
+        data[96..128].copy_from_slice(&value);
+        // Copy the gas limit
+        let gas: [u8; 8] = 1000_u64.to_be_bytes();
+        data[128..136].copy_from_slice(&gas);
+        // Copy the isCreation flag
+        data[136] = 1;
+        // Mess up the padding
+        data[191] = 1;
+        let from = address!("1111111111111111111111111111111111111111");
+        let mut from_bytes = vec![0u8; 32];
+        from_bytes[12..32].copy_from_slice(from.as_slice());
+        let to = address!("2222222222222222222222222222222222222222");
+        let mut to_bytes = vec![0u8; 32];
+        to_bytes[12..32].copy_from_slice(to.as_slice());
+        let log = Log {
+            address: Address::default(),
+            data: LogData::new_unchecked(
+                vec![
+                    DEPOSIT_EVENT_ABI_HASH,
+                    B256::from_slice(&from_bytes),
+                    B256::from_slice(&to_bytes),
+                    B256::default(),
+                ],
+                Bytes::from(data.clone()),
+            ),
+        };
+        let err = decode_deposit(B256::default(), 0, &log).unwrap_err();
+        assert_eq!(
+            err,
+            DepositError::InvalidOpaqueDataPadding(Bytes::from(data.get(191..).unwrap().to_vec()))
+        );
     }
 
     #[test]
