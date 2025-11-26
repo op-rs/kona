@@ -241,17 +241,31 @@ impl P2pRpcRequest {
             gossip.peerstore.keys().cloned().collect()
         };
 
+        // Get the set of actually connected peers from the swarm for accurate connectedness reporting.
+        let actually_connected: HashSet<PeerId> =
+            gossip.swarm.connected_peers().cloned().collect();
+
         // Get connection gate information.
         let banned_subnets = gossip.connection_gate.list_blocked_subnets();
         let banned_ips = gossip.connection_gate.list_blocked_addrs();
         let banned_peers = gossip.connection_gate.list_blocked_peers();
         let protected_peers = gossip.connection_gate.list_protected_peers();
 
-        // For each peer id, get the connectedness using the connection gate.
+        // For each peer id, determine connectedness based on actual swarm connection state.
+        // This fixes the issue where the connection gate's internal state could be stale,
+        // especially for inbound connections or after connections close.
         let connectedness = peer_ids
             .iter()
             .copied()
-            .map(|id| (id, gossip.connection_gate.connectedness(&id)))
+            .map(|id| {
+                if actually_connected.contains(&id) {
+                    (id, Connectedness::Connected)
+                } else if banned_peers.contains(&id) {
+                    (id, Connectedness::CannotConnect)
+                } else {
+                    (id, Connectedness::NotConnected)
+                }
+            })
             .collect::<HashMap<PeerId, Connectedness>>();
 
         // Clone the ping map
