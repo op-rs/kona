@@ -206,7 +206,7 @@ impl L2BlockInfo {
         Ok(Self { block_info, l1_origin, seq_num: sequence_number })
     }
 
-    /// Constructs an [`L2BlockInfo`] From a given [`OpExecutionPayload`] and [`ChainGenesis`].
+    /// Constructs an [`L2BlockInfo`] from a given [`OpExecutionPayload`] and [`ChainGenesis`].
     pub fn from_payload_and_genesis(
         payload: OpExecutionPayload,
         parent_beacon_block_root: Option<B256>,

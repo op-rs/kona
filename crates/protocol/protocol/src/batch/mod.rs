@@ -10,7 +10,7 @@
 //! Traditional batch format containing transactions for a single L2 block.
 //! Simple, straightforward format used before span batch optimization.
 //!
-//! ## Span Batches  
+//! ## Span Batches
 //! Advanced batch format that can contain transactions for multiple L2 blocks,
 //! providing significant compression and efficiency improvements. Introduced
 //! to reduce L1 data costs for high-throughput L2 chains.

@@ -20,7 +20,7 @@ pub struct SpanBatchEip7702TransactionData {
     pub data: Bytes,
     /// Access list, used to pre-warm storage slots through static declaration.
     pub access_list: AccessList,
-    /// Authorization list, used to allow a signer to delegate code to a contract
+    /// Authorization list, used to allow a signer to delegate code to a contract.
     pub authorization_list: Vec<SignedAuthorization>,
 }
 
@@ -34,12 +34,12 @@ impl SpanBatchEip7702TransactionData {
         chain_id: u64,
         signature: Signature,
     ) -> Result<Signed<TxEip7702>, SpanBatchError> {
-        // SAFETY: A U256 as be bytes is always 32 bytes long.
+        // SAFETY: A U256 as big-endian bytes is always 32 bytes long.
         let mut max_fee_per_gas = [0u8; 16];
         max_fee_per_gas.copy_from_slice(&self.max_fee_per_gas.to_be_bytes::<32>()[16..]);
         let max_fee_per_gas = u128::from_be_bytes(max_fee_per_gas);
 
-        // SAFETY: A U256 as be bytes is always 32 bytes long.
+        // SAFETY: A U256 as big-endian bytes is always 32 bytes long.
         let mut max_priority_fee_per_gas = [0u8; 16];
         max_priority_fee_per_gas
             .copy_from_slice(&self.max_priority_fee_per_gas.to_be_bytes::<32>()[16..]);
