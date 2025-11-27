@@ -1,15 +1,13 @@
 //! Bootnodes for consensus network discovery.
 
-use crate::{BootNode, NodeRecord};
+use crate::BootNode;
 use derive_more::Deref;
-use discv5::Enr;
 use lazy_static::lazy_static;
-use std::str::FromStr;
 
 use kona_registry::CHAINS;
 
 /// Bootnodes for OP Stack chains.
-#[derive(Debug, Clone, Deref, PartialEq, Eq)]
+#[derive(Debug, Clone, Deref, PartialEq, Eq, Default, derive_more::From)]
 pub struct BootNodes(pub Vec<BootNode>);
 
 impl BootNodes {
@@ -48,27 +46,15 @@ impl BootNodes {
     }
 }
 
-/// Helper method to parse a bootnode from a string.
-fn parse_bootnode(raw: &str) -> BootNode {
-    // If the string starts with "enr:" it is an ENR record.
-    if raw.starts_with("enr:") {
-        let enr = Enr::from_str(raw).unwrap();
-        return BootNode::from(enr);
-    }
-    // Otherwise, attempt to use the Node Record format.
-    let record = NodeRecord::from_str(raw).unwrap();
-    BootNode::from_unsigned(record).unwrap()
-}
-
 lazy_static! {
     /// Default op bootnodes to use.
     static ref OP_BOOTNODES: Vec<BootNode> = OP_RAW_BOOTNODES.iter()
-        .map(|raw| parse_bootnode(raw))
+        .map(|raw| BootNode::parse_bootnode(raw))
         .collect();
 
     /// Default op testnet bootnodes to use.
     static ref OP_TESTNET_BOOTNODES: Vec<BootNode> = OP_RAW_TESTNET_BOOTNODES.iter()
-        .map(|raw| parse_bootnode(raw))
+        .map(|raw| BootNode::parse_bootnode(raw))
         .collect();
 }
 
@@ -124,7 +110,8 @@ pub static OP_RAW_TESTNET_BOOTNODES: &[&str] = &[
 
 #[cfg(test)]
 mod tests {
-    use discv5::enr::EnrPublicKey;
+    use discv5::{Enr, enr::EnrPublicKey};
+    use std::str::FromStr;
 
     use kona_genesis::{BASE_MAINNET_CHAIN_ID, OP_MAINNET_CHAIN_ID, OP_SEPOLIA_CHAIN_ID};
 
@@ -139,11 +126,11 @@ mod tests {
     #[test]
     fn test_parse_raw_bootnodes() {
         for raw in OP_RAW_BOOTNODES.iter() {
-            parse_bootnode(raw);
+            BootNode::parse_bootnode(raw);
         }
 
         for raw in OP_RAW_TESTNET_BOOTNODES.iter() {
-            parse_bootnode(raw);
+            BootNode::parse_bootnode(raw);
         }
     }
 

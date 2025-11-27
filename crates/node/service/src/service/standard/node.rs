@@ -1,8 +1,8 @@
 //! Contains the [`RollupNode`] implementation.
 use crate::{
-    DerivationActor, DerivationBuilder, EngineActor, EngineBuilder, InteropMode, L1WatcherRpc,
-    L1WatcherRpcState, NetworkActor, NetworkBuilder, NetworkConfig, NodeMode, RollupNodeBuilder,
-    RollupNodeService, RpcActor, SequencerConfig,
+    DerivationActor, DerivationBuilder, EngineActor, EngineConfig, InteropMode, L1WatcherRpc,
+    L1WatcherRpcState, NetworkActor, NetworkBuilder, NetworkConfig, NodeMode, RollupNodeService,
+    RpcActor, SequencerConfig,
     actors::{SequencerActor, SequencerBuilder},
 };
 use alloy_provider::RootProvider;
@@ -37,8 +37,8 @@ pub struct RollupNode {
     pub(crate) l2_provider: RootProvider<Optimism>,
     /// Whether to trust the L2 RPC.
     pub(crate) l2_trust_rpc: bool,
-    /// The [`EngineBuilder`] for the node.
-    pub(crate) engine_builder: EngineBuilder,
+    /// The [`EngineConfig`] for the node.
+    pub(crate) engine_config: EngineConfig,
     /// The [`RpcBuilder`] for the node.
     pub(crate) rpc_builder: Option<RpcBuilder>,
     /// The P2P [`NetworkConfig`] for the node.
@@ -48,14 +48,6 @@ pub struct RollupNode {
 }
 
 impl RollupNode {
-    /// Creates a new [RollupNodeBuilder], instantiated with the given [RollupConfig].
-    pub fn builder(config: RollupConfig, l1_config: L1ChainConfig) -> RollupNodeBuilder {
-        RollupNodeBuilder::new(config, l1_config)
-    }
-}
-
-#[async_trait]
-impl RollupNodeService for RollupNode {
     type DataAvailabilityWatcher = L1WatcherRpc;
 
     type AttributesBuilder = StatefulAttributesBuilder<AlloyChainProvider, AlloyL2ChainProvider>;
@@ -69,15 +61,15 @@ impl RollupNodeService for RollupNode {
     type NetworkActor = NetworkActor;
 
     fn mode(&self) -> NodeMode {
-        self.engine_builder.mode
+        self.engine_config.mode
     }
 
     fn da_watcher_builder(&self) -> L1WatcherRpcState {
         L1WatcherRpcState { rollup: self.config.clone(), l1_provider: self.l1_provider.clone() }
     }
 
-    fn engine_builder(&self) -> EngineBuilder {
-        self.engine_builder.clone()
+    fn engine_builder(&self) -> EngineConfig {
+        self.engine_config.clone()
     }
 
     fn sequencer_builder(&self) -> SequencerBuilder {
