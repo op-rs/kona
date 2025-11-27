@@ -5385,7 +5385,6 @@ dependencies = [
  "getrandom 0.3.4",
  "ipnet",
  "jsonrpsee",
- "jsonrpsee-types",
  "kona-engine",
  "kona-genesis",
  "kona-gossip",
