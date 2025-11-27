@@ -241,9 +241,9 @@ impl P2pRpcRequest {
             gossip.peerstore.keys().cloned().collect()
         };
 
-        // Get the set of actually connected peers from the swarm for accurate connectedness reporting.
-        let actually_connected: HashSet<PeerId> =
-            gossip.swarm.connected_peers().cloned().collect();
+        // Get the set of actually connected peers from the swarm for accurate connectedness
+        // reporting.
+        let actually_connected: HashSet<PeerId> = gossip.swarm.connected_peers().cloned().collect();
 
         // Get connection gate information.
         let banned_subnets = gossip.connection_gate.list_blocked_subnets();

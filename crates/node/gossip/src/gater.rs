@@ -151,10 +151,10 @@ impl ConnectionGater {
         addr.iter().any(|component| {
             matches!(
                 component,
-                libp2p::multiaddr::Protocol::Dns(_)
-                    | libp2p::multiaddr::Protocol::Dns4(_)
-                    | libp2p::multiaddr::Protocol::Dns6(_)
-                    | libp2p::multiaddr::Protocol::Dnsaddr(_)
+                libp2p::multiaddr::Protocol::Dns(_) |
+                    libp2p::multiaddr::Protocol::Dns4(_) |
+                    libp2p::multiaddr::Protocol::Dns6(_) |
+                    libp2p::multiaddr::Protocol::Dnsaddr(_)
             )
         })
     }
