@@ -29,9 +29,10 @@ pub use l1_watcher_rpc::{
 
 mod network;
 pub use network::{
-    NetworkActor, NetworkActorError, NetworkBuilder, NetworkBuilderError, NetworkConfig,
-    NetworkContext, NetworkDriver, NetworkDriverError, NetworkHandler, NetworkInboundData,
-    QueuedUnsafePayloadGossipClient, UnsafePayloadGossipClient, UnsafePayloadGossipClientError,
+    NetworkActor, NetworkActorError, NetworkBuilder, NetworkBuilderError, NetworkBuilderExt,
+    NetworkConfig, NetworkContext, NetworkDriver, NetworkDriverError, NetworkHandler,
+    NetworkInboundData, QueuedUnsafePayloadGossipClient, UnsafePayloadGossipClient,
+    UnsafePayloadGossipClientError,
 };
 
 mod sequencer;

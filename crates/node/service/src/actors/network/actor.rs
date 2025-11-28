@@ -11,16 +11,16 @@ use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
 use crate::{
     CancellableContext, NodeActor,
-    actors::network::{
-        builder::NetworkBuilder, driver::NetworkDriverError, error::NetworkBuilderError,
-    },
+    actors::network::{driver::NetworkDriverError, error::NetworkBuilderError},
 };
+
+use super::NetworkBuilderExt;
 
 /// The network actor handles two core networking components of the rollup node:
 /// - *discovery*: Peer discovery over UDP using discv5.
 /// - *gossip*: Block gossip over TCP using libp2p.
 ///
-/// The network actor itself is a light wrapper around the [`NetworkBuilder`].
+/// The network actor itself is a light wrapper around the [`NetworkBuilderExt`].
 ///
 /// ## Example
 ///
@@ -44,9 +44,12 @@ use crate::{
 /// // let actor = NetworkActor::new(driver);
 /// ```
 #[derive(Debug)]
-pub struct NetworkActor {
+pub struct NetworkActor<NB>
+where
+    NB: NetworkBuilderExt,
+{
     /// Network driver
-    pub(super) builder: NetworkBuilder,
+    pub(super) builder: NB,
     /// A channel to receive the unsafe block signer address.
     pub(super) signer: mpsc::Receiver<Address>,
     /// Handler for p2p RPC Requests.
@@ -72,9 +75,12 @@ pub struct NetworkInboundData {
     pub gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
 }
 
-impl NetworkActor {
-    /// Constructs a new [`NetworkActor`] given the [`NetworkBuilder`]
-    pub fn new(driver: NetworkBuilder) -> (NetworkInboundData, Self) {
+impl<NB: NetworkBuilderExt> NetworkActor<NB> {
+    /// Constructs a new [`NetworkActor`] given the [`NetworkBuilderExt`]
+    pub fn new(driver: NB) -> (NetworkInboundData, Self)
+    where
+        NB: NetworkBuilderExt,
+    {
         let (signer_tx, signer_rx) = mpsc::channel(16);
         let (rpc_tx, rpc_rx) = mpsc::channel(1024);
         let (admin_rpc_tx, admin_rpc_rx) = mpsc::channel(1024);
@@ -138,7 +144,10 @@ pub enum NetworkActorError {
 }
 
 #[async_trait]
-impl NodeActor for NetworkActor {
+impl<NB> NodeActor for NetworkActor<NB>
+where
+    NB: NetworkBuilderExt + 'static,
+{
     type Error = NetworkActorError;
     type StartData = NetworkContext;
 

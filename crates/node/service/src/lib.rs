@@ -21,12 +21,12 @@ pub use actors::{
     InboundDerivationMessage, L1OriginSelector, L1OriginSelectorError, L1OriginSelectorProvider,
     L1WatcherRpc, L1WatcherRpcContext, L1WatcherRpcError, L1WatcherRpcInboundChannels,
     L1WatcherRpcState, L2Finalizer, NetworkActor, NetworkActorError, NetworkBuilder,
-    NetworkBuilderError, NetworkConfig, NetworkContext, NetworkDriver, NetworkDriverError,
-    NetworkHandler, NetworkInboundData, NodeActor, OriginSelector, PipelineBuilder,
-    QueuedBlockBuildingClient, QueuedSequencerAdminAPIClient, QueuedUnsafePayloadGossipClient,
-    ResetRequest, RpcActor, RpcActorError, RpcContext, SealRequest, SequencerActor,
-    SequencerActorBuilder, SequencerActorError, SequencerAdminQuery, SequencerConfig,
-    UnsafePayloadGossipClient, UnsafePayloadGossipClientError,
+    NetworkBuilderError, NetworkBuilderExt, NetworkConfig, NetworkContext, NetworkDriver,
+    NetworkDriverError, NetworkHandler, NetworkInboundData, NodeActor, OriginSelector,
+    PipelineBuilder, QueuedBlockBuildingClient, QueuedSequencerAdminAPIClient,
+    QueuedUnsafePayloadGossipClient, ResetRequest, RpcActor, RpcActorError, RpcContext,
+    SealRequest, SequencerActor, SequencerActorBuilder, SequencerActorError, SequencerAdminQuery,
+    SequencerConfig, UnsafePayloadGossipClient, UnsafePayloadGossipClientError,
 };
 
 mod metrics;
