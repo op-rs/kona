@@ -142,7 +142,7 @@ pub struct EngineInboundData {
 }
 
 /// Validates that the sequencer fields are set.
-fn validate_sequencer_fields(
+pub fn validate_sequencer_fields(
     build_request_tx: &Option<mpsc::Sender<BuildRequest>>,
     seal_request_tx: &Option<mpsc::Sender<SealRequest>>,
     unsafe_head_rx: &Option<watch::Receiver<L2BlockInfo>>,
@@ -272,7 +272,7 @@ struct SequencerChannels {
 
 impl EngineActor {
     /// Constructs a new [`EngineActor`] from the params.
-    pub fn new(config: EngineConfig) -> Result<(EngineInboundData, Self), String> {
+    pub fn new(config: EngineConfig) -> (EngineInboundData, Self) {
         let (finalized_l1_block_tx, finalized_l1_block_rx) = watch::channel(None);
         let (inbound_queries_tx, inbound_queries_rx) = mpsc::channel(1024);
         let (attributes_tx, attributes_rx) = mpsc::channel(1024);
@@ -320,15 +320,6 @@ impl EngineActor {
             rollup_boost_health_query_rx,
         };
 
-        // Validate sequencer fields if node is in sequencer mode.
-        if actor.builder.mode.is_sequencer() {
-            validate_sequencer_fields(
-                &sequencer_channels.build_request_tx,
-                &sequencer_channels.seal_request_tx,
-                &sequencer_channels.unsafe_head_rx,
-            )?;
-        }
-
         let outbound_data = EngineInboundData {
             attributes_tx,
             build_request_tx: sequencer_channels.build_request_tx,
@@ -342,7 +333,7 @@ impl EngineActor {
             unsafe_head_rx: sequencer_channels.unsafe_head_rx,
         };
 
-        Ok((outbound_data, actor))
+        (outbound_data, actor)
     }
 }
 

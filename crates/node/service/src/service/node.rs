@@ -9,6 +9,7 @@ use crate::{
         DerivationInboundChannels, EngineInboundData, L1WatcherRpcInboundChannels,
         NetworkInboundData, QueuedUnsafePayloadGossipClient, SequencerActorBuilder,
     },
+    validate_sequencer_fields,
 };
 use alloy_provider::RootProvider;
 use kona_derive::StatefulAttributesBuilder;
@@ -171,7 +172,7 @@ impl RollupNode {
                 unsafe_head_rx,
             },
             engine,
-        ) = EngineActor::new(self.engine_config())?;
+        ) = EngineActor::new(self.engine_config());
 
         // Create the p2p actor.
         let (
@@ -219,6 +220,11 @@ impl RollupNode {
 
                 let origin_selector = L1OriginSelector::new(self.config.clone(), l1_provider);
 
+                // Validate sequencer fields if node is in sequencer mode.
+                if self.mode().is_sequencer() {
+                    validate_sequencer_fields(&build_request_tx, &seal_request_tx, &unsafe_head_rx)
+                        .ok()?;
+                }
                 let block_building_client = QueuedBlockBuildingClient {
                     build_request_tx: build_request_tx.unwrap(),
                     reset_request_tx: reset_request_tx.clone(),

@@ -13,7 +13,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
-use super::SequencerActorError;
+use super::error::SequencerBuilderError;
 
 /// Builder for constructing a [`SequencerActor`].
 #[derive(Debug, Default)]
@@ -173,36 +173,36 @@ where
             OriginSelector_,
             UnsafePayloadGossipClient_,
         >,
-        SequencerActorError,
+        SequencerBuilderError,
     > {
         Ok(SequencerActor {
             admin_api_rx: self
                 .admin_api_rx
-                .ok_or(SequencerActorError::MissingField("admin_api_rx".to_string()))?,
+                .ok_or(SequencerBuilderError::MissingField("admin_api_rx".to_string()))?,
             attributes_builder: self
                 .attributes_builder
-                .ok_or(SequencerActorError::MissingField("attributes_builder".to_string()))?,
+                .ok_or(SequencerBuilderError::MissingField("attributes_builder".to_string()))?,
             block_building_client: self
                 .block_building_client
-                .ok_or(SequencerActorError::MissingField("block_building_client".to_string()))?,
+                .ok_or(SequencerBuilderError::MissingField("block_building_client".to_string()))?,
             cancellation_token: self
                 .cancellation_token
-                .ok_or(SequencerActorError::MissingField("cancellation_token".to_string()))?,
+                .ok_or(SequencerBuilderError::MissingField("cancellation_token".to_string()))?,
             conductor: self.conductor,
             is_active: self
                 .is_active
-                .ok_or(SequencerActorError::MissingField("is_active".to_string()))?,
+                .ok_or(SequencerBuilderError::MissingField("is_active".to_string()))?,
             in_recovery_mode: self
                 .in_recovery_mode
-                .ok_or(SequencerActorError::MissingField("in_recovery_mode".to_string()))?,
+                .ok_or(SequencerBuilderError::MissingField("in_recovery_mode".to_string()))?,
             origin_selector: self
                 .origin_selector
-                .ok_or(SequencerActorError::MissingField("origin_selector".to_string()))?,
+                .ok_or(SequencerBuilderError::MissingField("origin_selector".to_string()))?,
             rollup_config: self
                 .rollup_config
-                .ok_or(SequencerActorError::MissingField("rollup_config".to_string()))?,
+                .ok_or(SequencerBuilderError::MissingField("rollup_config".to_string()))?,
             unsafe_payload_gossip_client: self.unsafe_payload_gossip_client.ok_or(
-                SequencerActorError::MissingField("unsafe_payload_gossip_client".to_string()),
+                SequencerBuilderError::MissingField("unsafe_payload_gossip_client".to_string()),
             )?,
         })
     }

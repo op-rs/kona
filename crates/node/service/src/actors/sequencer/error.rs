@@ -25,7 +25,12 @@ pub enum SequencerActorError {
     /// An error occurred while attempting to schedule unsafe payload gossip.
     #[error("An error occurred while attempting to schedule unsafe payload gossip: {0}")]
     PayloadGossip(#[from] UnsafePayloadGossipClientError),
-    /// Payload was missing a required field.
+}
+
+/// An error produced by the [`crate::SequencerActorBuilder`].
+#[derive(Debug, thiserror::Error)]
+pub enum SequencerBuilderError {
+    /// Builder was missing a required field.
     #[error("Missing field: {0} required")]
     MissingField(String),
 }

@@ -22,7 +22,7 @@ pub use builder::SequencerActorBuilder;
 mod metrics;
 
 mod error;
-pub use error::SequencerActorError;
+pub use error::{SequencerActorError, SequencerBuilderError};
 
 mod conductor;
 
