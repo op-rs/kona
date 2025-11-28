@@ -104,7 +104,7 @@ impl RemoteSigner {
         &self,
         client: Arc<RwLock<RpcClient>>,
     ) -> Result<Option<RecommendedWatcher>, notify::Error> {
-        let Some(ref client_cert) = self.client_cert.clone() else {
+        let Some(client_cert) = self.client_cert.as_ref() else {
             return Ok(None);
         };
 
