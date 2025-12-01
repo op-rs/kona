@@ -22,3 +22,6 @@ pub use gossip::{
 };
 
 pub use config::NetworkConfig;
+
+#[cfg(test)]
+pub use gossip::MockUnsafePayloadGossipClient;

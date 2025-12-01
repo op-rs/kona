@@ -12,7 +12,7 @@ extern crate tracing;
 mod admin;
 pub use admin::{
     AdminRpc, NetworkAdminQuery, RollupBoostAdminQuery, SequencerAdminAPIClient,
-    SequencerAdminAPIError,
+    SequencerAdminAPIError, StopSequencerError,
 };
 
 mod config;
