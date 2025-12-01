@@ -120,9 +120,9 @@ where
         // 2. If the precompile is not accelerated, use the default version.
         // 3. If the precompile is not found, return None.
         let output =
-            if let Some(accelerated) = self.accelerated_precompiles.get(&inputs.target_address) {
+            if let Some(accelerated) = self.accelerated_precompiles.get(&inputs.bytecode_address) {
                 (accelerated)(&input, inputs.gas_limit, &self.hint_writer, &self.oracle_reader)
-            } else if let Some(precompile) = self.inner.precompiles.get(&inputs.target_address) {
+            } else if let Some(precompile) = self.inner.precompiles.get(&inputs.bytecode_address) {
                 precompile.execute(&input, inputs.gas_limit)
             } else {
                 return Ok(None);
