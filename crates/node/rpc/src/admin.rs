@@ -140,6 +140,18 @@ impl<S: SequencerAdminAPIClient + 'static> AdminApiServer for AdminRpc<S> {
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
+    async fn admin_recover_mode(&self) -> RpcResult<bool> {
+        // If the sequencer is not enabled (mode runs in validator mode), return an error.
+        let Some(ref sequencer_client) = self.sequencer_admin_client else {
+            return Err(ErrorObject::from(ErrorCode::MethodNotFound));
+        };
+
+        sequencer_client
+            .is_recovery_mode()
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+    }
+
     async fn admin_set_recover_mode(&self, mode: bool) -> RpcResult<()> {
         // If the sequencer is not enabled (mode runs in validator mode), return an error.
         let Some(ref sequencer_client) = self.sequencer_admin_client else {
@@ -220,6 +232,9 @@ pub trait SequencerAdminAPIClient: Send + Sync + Debug {
     /// Check if the conductor is enabled.
     async fn is_conductor_enabled(&self) -> Result<bool, SequencerAdminAPIError>;
 
+    /// Check if in recovery mode.
+    async fn is_recovery_mode(&self) -> Result<bool, SequencerAdminAPIError>;
+
     /// Start the sequencer.
     async fn start_sequencer(&self) -> Result<(), SequencerAdminAPIError>;
 
@@ -249,9 +264,17 @@ pub enum SequencerAdminAPIError {
 
     /// Error stopping sequencer.
     #[error("Error stopping sequencer: {0}.")]
-    StopError(String),
+    StopError(#[from] StopSequencerError),
 
     /// Error overriding leader.
     #[error("Error overriding leader: {0}.")]
     LeaderOverrideError(String),
+}
+
+/// Errors that can occur when using the sequencer admin API.
+#[derive(Debug, Error)]
+pub enum StopSequencerError {
+    /// Sequencer stopped successfully, followed by some error.
+    #[error("Sequencer stopped successfully, followed by error: {0}.")]
+    ErrorAfterSequencerWasStopped(String),
 }
