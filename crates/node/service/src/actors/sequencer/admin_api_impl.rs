@@ -131,19 +131,19 @@ where
     /// Overrides the leader, if the conductor is enabled.
     /// If not, an error will be returned.
     pub(super) async fn override_leader(&mut self) -> Result<(), SequencerAdminAPIError> {
-        if let Some(conductor) = self.conductor.as_mut() {
-            if let Err(e) = conductor.override_leader().await {
-                error!(target: "sequencer::rpc", "Failed to override leader: {}", e);
-                return Err(SequencerAdminAPIError::LeaderOverrideError(e.to_string()));
-            }
-            info!(target: "sequencer", "Overrode leader via the conductor service");
-
-            self.update_metrics();
-        } else {
+        let Some(conductor) = self.conductor.as_mut() else {
             return Err(SequencerAdminAPIError::LeaderOverrideError(
                 "No conductor configured".to_string(),
             ));
+        };
+
+        if let Err(e) = conductor.override_leader().await {
+            error!(target: "sequencer::rpc", "Failed to override leader: {}", e);
+            return Err(SequencerAdminAPIError::LeaderOverrideError(e.to_string()));
         }
+        info!(target: "sequencer", "Overrode leader via the conductor service");
+
+        self.update_metrics();
 
         Ok(())
     }
