@@ -64,7 +64,11 @@ build-client-prestate-asterisc-artifacts kona_client_variant kona_tag asterisc_t
     kona-asterisc-prestate
 
 # Build the `kona-client` prestate artifacts for the latest release (cannon).
-build-client-prestate-cannon-artifacts kona_client_variant kona_tag cannon_tag out='./prestate-artifacts-cannon':
+build-client-prestate-cannon-artifacts \
+    kona_client_variant \
+    kona_tag cannon_tag \
+    out='./prestate-artifacts-cannon' \
+    custom_config_dir='':
   #!/bin/bash
   OUTPUT_DIR={{out}}
 
@@ -77,6 +81,21 @@ build-client-prestate-cannon-artifacts kona_client_variant kona_tag cannon_tag o
   # Navigate to workspace root
   cd ../..
 
+  if [[ -n "{{custom_config_dir}}" ]]; then
+    export KONA_CUSTOM_CONFIGS="true"
+    export CUSTOM_CONFIGS_CONTEXT="{{custom_config_dir}}"
+    if [ ! -d "{{custom_config_dir}}" ]; then
+        echo "Invalid custom config directory: {{custom_config_dir}}"
+        exit 1
+    fi
+    echo "Using custom config directory: {{custom_config_dir}}"
+  else
+    # set to an empty directory to satisfy the docker build context requirement
+    TEMP_DIR=$(mktemp -d)
+    trap "rm -rf $TEMP_DIR" EXIT
+    export CUSTOM_CONFIGS_CONTEXT="$TEMP_DIR"
+  fi
+
   # Create the output directory
   mkdir -p $OUTPUT_DIR
 
@@ -84,4 +103,5 @@ build-client-prestate-cannon-artifacts kona_client_variant kona_tag cannon_tag o
   docker buildx bake \
     --set "*.output=$OUTPUT_DIR" \
     -f docker/docker-bake.hcl \
+    --allow fs=${CUSTOM_CONFIGS_CONTEXT} \
     kona-cannon-prestate
