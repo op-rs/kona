@@ -62,6 +62,11 @@ where
                     warn!(target: "sequencer", "Failed to send response for override_leader query");
                 }
             }
+            SequencerAdminQuery::ResetDerivationPipeline(tx) => {
+                if tx.send(self.reset_derivation_pipeline().await).is_err() {
+                    warn!(target: "sequencer", "Failed to send response for reset_derivation_pipeline query");
+                }
+            }
         }
     }
 
@@ -125,5 +130,13 @@ where
         }
 
         Ok(())
+    }
+
+    pub(super) async fn reset_derivation_pipeline(&mut self) -> Result<(), SequencerAdminAPIError> {
+        info!(target: "sequencer", "Resetting derivation pipeline");
+        self.block_building_client.reset_engine_forkchoice().await.map_err(|e| {
+            error!(target: "sequencer", err=?e, "Failed to reset engine forkchoice");
+            SequencerAdminAPIError::RequestError(format!("Failed to reset engine: {e}"))
+        })
     }
 }

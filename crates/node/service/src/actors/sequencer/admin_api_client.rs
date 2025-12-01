@@ -30,6 +30,8 @@ pub enum SequencerAdminQuery {
     SetRecoveryMode(bool, oneshot::Sender<Result<(), SequencerAdminAPIError>>),
     /// A query to override the leader.
     OverrideLeader(oneshot::Sender<Result<(), SequencerAdminAPIError>>),
+    /// A query to reset the derivation pipeline.
+    ResetDerivationPipeline(oneshot::Sender<Result<(), SequencerAdminAPIError>>),
 }
 
 #[async_trait]
@@ -95,6 +97,17 @@ impl SequencerAdminAPIClient for QueuedSequencerAdminAPIClient {
         self.request_tx.send(SequencerAdminQuery::OverrideLeader(tx)).await.map_err(|_| {
             SequencerAdminAPIError::RequestError("request channel closed".to_string())
         })?;
+        rx.await.map_err(|_| {
+            SequencerAdminAPIError::ResponseError("response channel closed".to_string())
+        })?
+    }
+
+    async fn reset_derivation_pipeline(&self) -> Result<(), SequencerAdminAPIError> {
+        let (tx, rx) = oneshot::channel();
+
+        self.request_tx.send(SequencerAdminQuery::ResetDerivationPipeline(tx)).await.map_err(
+            |_| SequencerAdminAPIError::RequestError("request channel closed".to_string()),
+        )?;
         rx.await.map_err(|_| {
             SequencerAdminAPIError::ResponseError("response channel closed".to_string())
         })?

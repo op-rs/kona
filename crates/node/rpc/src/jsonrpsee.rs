@@ -196,6 +196,10 @@ pub trait AdminApi {
     #[method(name = "overrideLeader")]
     async fn admin_override_leader(&self) -> RpcResult<()>;
 
+    /// Resets the derivation pipeline.
+    #[method(name = "resetDerivationPipeline")]
+    async fn admin_reset_derivation_pipeline(&self) -> RpcResult<()>;
+
     /// Sets the rollup boost execution mode.
     #[method(name = "setExecutionMode")]
     async fn set_execution_mode(
