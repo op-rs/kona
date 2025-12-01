@@ -26,7 +26,7 @@ pub enum SequencerAdminQuery {
     StopSequencer(oneshot::Sender<Result<B256, SequencerAdminAPIError>>),
     /// A query to check if the conductor is enabled.
     ConductorEnabled(oneshot::Sender<Result<bool, SequencerAdminAPIError>>),
-    /// A query to check if in recovery mode.
+    /// A query to check if the sequencer is in recovery mode.
     RecoveryMode(oneshot::Sender<Result<bool, SequencerAdminAPIError>>),
     /// A query to set the recovery mode.
     SetRecoveryMode(bool, oneshot::Sender<Result<(), SequencerAdminAPIError>>),
