@@ -184,7 +184,7 @@ jobs:
 
   cargo-hack:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - name: Checkout sources
         uses: actions/checkout@v5
