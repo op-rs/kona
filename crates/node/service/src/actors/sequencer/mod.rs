@@ -27,3 +27,12 @@ pub use error::SequencerActorError;
 mod conductor;
 
 pub use conductor::{Conductor, ConductorClient, ConductorError};
+
+#[cfg(test)]
+pub use conductor::MockConductor;
+
+#[cfg(test)]
+pub use origin_selector::MockOriginSelector;
+
+#[cfg(test)]
+mod admin_api_impl_test;

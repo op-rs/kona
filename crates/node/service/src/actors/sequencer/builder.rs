@@ -1,71 +1,89 @@
 //! Builder for [`SequencerActor`].
 
-use crate::actors::{
-    BlockBuildingClient,
-    sequencer::{Conductor, OriginSelector, SequencerActor, SequencerAdminQuery},
+use crate::{
+    UnsafePayloadGossipClient,
+    actors::{
+        BlockBuildingClient,
+        sequencer::{Conductor, OriginSelector, SequencerActor, SequencerAdminQuery},
+    },
 };
 use kona_derive::AttributesBuilder;
 use kona_genesis::RollupConfig;
-use kona_protocol::L2BlockInfo;
-use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::sync::Arc;
-use tokio::sync::{mpsc, watch};
+use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 /// Builder for constructing a [`SequencerActor`].
 #[derive(Debug, Default)]
-pub struct SequencerActorBuilder<AB, C, OS, BB>
-where
-    AB: AttributesBuilder,
-    C: Conductor,
-    OS: OriginSelector,
-    BB: BlockBuildingClient,
+pub struct SequencerActorBuilder<
+    AttributesBuilder_,
+    BlockBuildingClient_,
+    Conductor_,
+    OriginSelector_,
+    UnsafePayloadGossipClient_,
+> where
+    AttributesBuilder_: AttributesBuilder,
+    BlockBuildingClient_: BlockBuildingClient,
+    Conductor_: Conductor,
+    OriginSelector_: OriginSelector,
+    UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
 {
     /// Receiver for admin API requests.
     pub admin_api_rx: Option<mpsc::Receiver<SequencerAdminQuery>>,
     /// The attributes builder used for block building.
-    pub attributes_builder: Option<AB>,
+    pub attributes_builder: Option<AttributesBuilder_>,
     /// The struct used to build blocks.
-    pub block_engine: Option<BB>,
+    pub block_building_client: Option<BlockBuildingClient_>,
     /// The cancellation token, shared between all tasks.
     pub cancellation_token: Option<CancellationToken>,
     /// The optional conductor RPC client.
-    pub conductor: Option<C>,
-    /// A sender to asynchronously sign and gossip built payloads to the network actor.
-    pub gossip_payload_tx: Option<mpsc::Sender<OpExecutionPayloadEnvelope>>,
+    pub conductor: Option<Conductor_>,
     /// Whether the sequencer is active.
     pub is_active: Option<bool>,
     /// Whether the sequencer is in recovery mode.
     pub in_recovery_mode: Option<bool>,
     /// The struct used to determine the next L1 origin.
-    pub origin_selector: Option<OS>,
+    pub origin_selector: Option<OriginSelector_>,
     /// The rollup configuration.
     pub rollup_config: Option<Arc<RollupConfig>>,
-    /// Watch channel to observe the unsafe head of the engine.
-    pub unsafe_head_rx: Option<watch::Receiver<L2BlockInfo>>,
+    /// A client to asynchronously sign and gossip built payloads to the network actor.
+    pub unsafe_payload_gossip_client: Option<UnsafePayloadGossipClient_>,
 }
 
-impl<AB, C, OS, BB> SequencerActorBuilder<AB, C, OS, BB>
+impl<
+    AttributesBuilder_,
+    BlockBuildingClient_,
+    Conductor_,
+    OriginSelector_,
+    UnsafePayloadGossipClient_,
+>
+    SequencerActorBuilder<
+        AttributesBuilder_,
+        BlockBuildingClient_,
+        Conductor_,
+        OriginSelector_,
+        UnsafePayloadGossipClient_,
+    >
 where
-    AB: AttributesBuilder,
-    C: Conductor,
-    OS: OriginSelector,
-    BB: BlockBuildingClient,
+    AttributesBuilder_: AttributesBuilder,
+    BlockBuildingClient_: BlockBuildingClient,
+    Conductor_: Conductor,
+    OriginSelector_: OriginSelector,
+    UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
 {
     /// Creates a new empty [`SequencerActorBuilder`].
     pub const fn new() -> Self {
         Self {
             admin_api_rx: None,
             attributes_builder: None,
-            block_engine: None,
+            block_building_client: None,
             cancellation_token: None,
             conductor: None,
-            gossip_payload_tx: None,
+            unsafe_payload_gossip_client: None,
             is_active: None,
             in_recovery_mode: None,
             origin_selector: None,
             rollup_config: None,
-            unsafe_head_rx: None,
         }
     }
 
@@ -96,36 +114,30 @@ where
         self
     }
 
-    /// Sets the unsafe head receiver.
-    pub fn with_unsafe_head_watch_receiver(
-        mut self,
-        unsafe_head_rx: watch::Receiver<L2BlockInfo>,
-    ) -> Self {
-        self.unsafe_head_rx = Some(unsafe_head_rx);
-        self
-    }
-
     /// Sets the attributes builder.
-    pub fn with_attributes_builder(mut self, attributes_builder: AB) -> Self {
+    pub fn with_attributes_builder(mut self, attributes_builder: AttributesBuilder_) -> Self {
         self.attributes_builder = Some(attributes_builder);
         self
     }
 
     /// Sets the conductor.
-    pub fn with_conductor(mut self, conductor: C) -> Self {
+    pub fn with_conductor(mut self, conductor: Conductor_) -> Self {
         self.conductor = Some(conductor);
         self
     }
 
     /// Sets the origin selector.
-    pub fn with_origin_selector(mut self, origin_selector: OS) -> Self {
+    pub fn with_origin_selector(mut self, origin_selector: OriginSelector_) -> Self {
         self.origin_selector = Some(origin_selector);
         self
     }
 
     /// Sets the block engine.
-    pub fn with_block_engine(mut self, block_engine: BB) -> Self {
-        self.block_engine = Some(block_engine);
+    pub fn with_block_building_client(
+        mut self,
+        block_building_client: BlockBuildingClient_,
+    ) -> Self {
+        self.block_building_client = Some(block_building_client);
         self
     }
 
@@ -136,11 +148,11 @@ where
     }
 
     /// Sets the gossip payload sender.
-    pub fn with_gossip_payload_sender(
+    pub fn with_unsafe_payload_gossip_client(
         mut self,
-        gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
+        gossip_client: UnsafePayloadGossipClient_,
     ) -> Self {
-        self.gossip_payload_tx = Some(gossip_payload_tx);
+        self.unsafe_payload_gossip_client = Some(gossip_client);
         self
     }
 
@@ -149,19 +161,33 @@ where
     /// # Panics
     ///
     /// Panics if any required field is not set.
-    pub fn build(self) -> Result<SequencerActor<AB, C, OS, BB>, String> {
+    pub fn build(
+        self,
+    ) -> Result<
+        SequencerActor<
+            AttributesBuilder_,
+            BlockBuildingClient_,
+            Conductor_,
+            OriginSelector_,
+            UnsafePayloadGossipClient_,
+        >,
+        String,
+    > {
         Ok(SequencerActor {
             admin_api_rx: self.admin_api_rx.expect("admin_api_rx is required"),
             attributes_builder: self.attributes_builder.expect("attributes_builder is required"),
-            block_engine: self.block_engine.expect("block_engine is required"),
+            block_building_client: self
+                .block_building_client
+                .expect("block_building_client is required"),
             cancellation_token: self.cancellation_token.expect("cancellation is required"),
             conductor: self.conductor,
-            gossip_payload_tx: self.gossip_payload_tx.expect("gossip_payload_tx is required"),
             is_active: self.is_active.expect("initial active status not set"),
             in_recovery_mode: self.in_recovery_mode.expect("initial recovery mode status not set"),
             origin_selector: self.origin_selector.expect("origin_selector is required"),
             rollup_config: self.rollup_config.expect("rollup_config is required"),
-            unsafe_head_rx: self.unsafe_head_rx.expect("unsafe_head_rx is required"),
+            unsafe_payload_gossip_client: self
+                .unsafe_payload_gossip_client
+                .expect("unsafe_payload_gossip_client is required"),
         })
     }
 }

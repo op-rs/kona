@@ -47,8 +47,7 @@ pub struct RollupNode {
     pub(crate) sequencer_config: SequencerConfig,
 }
 
-#[async_trait]
-impl RollupNodeService for RollupNode {
+impl RollupNode {
     type DataAvailabilityWatcher = L1WatcherRpc;
 
     type AttributesBuilder = StatefulAttributesBuilder<AlloyChainProvider, AlloyL2ChainProvider>;

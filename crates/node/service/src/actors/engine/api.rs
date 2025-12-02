@@ -3,15 +3,16 @@ use alloy_rpc_types_engine::PayloadId;
 use async_trait::async_trait;
 use derive_more::Constructor;
 use kona_engine::{BuildTaskError, SealTaskError};
-use kona_protocol::OpAttributesWithParent;
+use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::fmt::Debug;
 use thiserror::Error;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, watch};
 
 /// Trait to be referenced by those interacting with EngineActor for block building
 /// operations. The EngineActor requires the use of channels for communication, but
 /// this interface allows that to be abstracted from callers and allows easy testing.
+#[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait BlockBuildingClient: Debug + Send + Sync {
     /// Resets the engine's forkchoice, awaiting confirmation that it succeeded or returning the
@@ -35,6 +36,9 @@ pub trait BlockBuildingClient: Debug + Send + Sync {
         payload_id: PayloadId,
         attributes: OpAttributesWithParent,
     ) -> BlockEngineResult<OpExecutionPayloadEnvelope>;
+
+    /// Returns the current unsafe head [`L2BlockInfo`].
+    async fn get_unsafe_head(&self) -> BlockEngineResult<L2BlockInfo>;
 }
 
 /// Queue-based implementation of the [`BlockBuildingClient`] trait. This handles all channel-based
@@ -53,10 +57,16 @@ pub struct QueuedBlockBuildingClient {
     /// If provided, the success/fail result of the reset operation will be sent via the provided
     /// sender.
     pub reset_request_tx: mpsc::Sender<ResetRequest>,
+    /// A channel to receive the latest unsafe head [`L2BlockInfo`].
+    pub unsafe_head_rx: watch::Receiver<L2BlockInfo>,
 }
 
 #[async_trait]
 impl BlockBuildingClient for QueuedBlockBuildingClient {
+    async fn get_unsafe_head(&self) -> BlockEngineResult<L2BlockInfo> {
+        Ok(*self.unsafe_head_rx.borrow())
+    }
+
     async fn reset_engine_forkchoice(&self) -> BlockEngineResult<()> {
         let (result_tx, mut result_rx) = mpsc::channel(1);
 

@@ -19,3 +19,6 @@ mod finalizer;
 pub use finalizer::L2Finalizer;
 
 mod rollup_boost;
+
+#[cfg(test)]
+pub use api::MockBlockBuildingClient;
