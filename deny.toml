@@ -89,6 +89,8 @@ allow-git = [
     "https://github.com/alloy-rs/evm",
     "https://github.com/paritytech/jsonrpsee",
     "https://github.com/flashbots/rollup-boost",
+    # TODO(inphi): Remove once sp1 does not depend on LGPLv2 licensed code
+    "https://github.com/inphi/sp1",
 ]
 
 [sources.allow-org]
