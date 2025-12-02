@@ -2,7 +2,7 @@
 
 use crate::{Metrics, RollupBoostServer, RollupBoostServerArgs, RollupBoostServerLike};
 use alloy_eips::eip1898::BlockNumberOrTag;
-use alloy_network::Network;
+use alloy_network::{Ethereum, Network};
 use alloy_primitives::{B256, BlockHash, Bytes};
 use alloy_provider::{Provider, RootProvider};
 use alloy_rpc_client::RpcClient;
@@ -19,6 +19,7 @@ use alloy_transport_http::{
         rt::TokioExecutor,
     },
 };
+use async_trait::async_trait;
 use derive_more::Deref;
 use http::uri::InvalidUri;
 use http_body_util::Full;
@@ -59,15 +60,47 @@ pub enum EngineClientError {
 /// A Hyper HTTP client with a JWT authentication layer.
 pub type HyperAuthClient<B = Full<Bytes>> = HyperClient<B, AuthService<Client<HttpConnector, B>>>;
 
+/// Engine API client used to communicate with L1/L2 ELs and optional rollup-boost.
+/// EngineClient trait that is very coupled to its only implementation.
+/// The main reason this exists is for mocking/unit testing.
+#[async_trait]
+pub trait EngineClient<L1Provider, L2Provider>:
+    OpEngineApi<Optimism, Http<HyperAuthClient>> + Send + Sync
+where
+    L1Provider: Provider<Ethereum>,
+    L2Provider: Provider<Optimism>,
+{
+    /// Returns a reference to the inner L2 [`RootProvider`].
+    fn l2_engine(&self) -> &L2Provider;
+
+    /// Returns a reference to the inner L1 [`RootProvider`].
+    fn l1_provider(&self) -> &L1Provider;
+
+    /// Returns a reference to the inner [`RollupConfig`].
+    fn cfg(&self) -> &RollupConfig;
+
+    /// Fetches the [`Block<Transaction>`] for the given [`BlockNumberOrTag`].
+    async fn l2_block_by_label(
+        &self,
+        numtag: BlockNumberOrTag,
+    ) -> Result<Option<Block<Transaction>>, EngineClientError>;
+
+    /// Fetches the [L2BlockInfo] by [BlockNumberOrTag].
+    async fn l2_block_info_by_label(
+        &self,
+        numtag: BlockNumberOrTag,
+    ) -> Result<Option<L2BlockInfo>, EngineClientError>;
+}
+
 /// An Engine API client that provides authenticated HTTP communication with an execution layer.
 ///
-/// The [`EngineClient`] handles JWT authentication and manages connections to both L1 and L2
+/// The [`OpEngineClient`] handles JWT authentication and manages connections to both L1 and L2
 /// execution layers. It automatically selects the appropriate Engine API version based on the
 /// rollup configuration and block timestamps.
 ///
 /// Engine API client used to communicate with L1/L2 ELs and optional rollup-boost.
 #[derive(Deref, Clone, Debug)]
-pub struct EngineClient {
+pub struct OpEngineClient {
     /// The L2 engine provider for Engine API calls.
     #[deref]
     engine: RootProvider<Optimism>,
@@ -79,7 +112,7 @@ pub struct EngineClient {
     pub rollup_boost: Arc<RollupBoostServer>,
 }
 
-impl EngineClient {
+impl OpEngineClient {
     /// Creates a new RPC client for the given address and JWT secret.
     pub fn rpc_client<N: Network>(addr: Url, jwt: JwtSecret) -> RootProvider<N> {
         let hyper_client = Client::builder(TokioExecutor::new()).build_http::<Full<Bytes>>();
@@ -92,7 +125,7 @@ impl EngineClient {
     }
 }
 
-/// The builder for the [`EngineClient`].
+/// The builder for the [`OpEngineClient`].
 #[derive(Debug, Clone)]
 pub struct EngineClientBuilder {
     /// The builder URL.
@@ -133,7 +166,7 @@ pub enum EngineClientBuilderError {
 }
 
 impl EngineClientBuilder {
-    /// Creates a new [`EngineClient`] with authenticated HTTP connections.
+    /// Creates a new [`OpEngineClient`] with authenticated HTTP connections.
     ///
     /// Sets up JWT-authenticated connections to the Engine API endpoint through the rollup-boost
     /// server along with an unauthenticated connection to the L1 chain.
@@ -142,7 +175,7 @@ impl EngineClientBuilder {
     /// This method can be simplified/improved in a few ways:
     /// - Unify kona's and rollup-boost's RPC client creation
     /// - Removed the `dyn RollupBoostServerLike` type erasure.
-    pub fn build(self) -> Result<EngineClient, EngineClientBuilderError> {
+    pub fn build(self) -> Result<OpEngineClient, EngineClientBuilderError> {
         let probes = Arc::new(Probes::default());
         let l2_client = rollup_boost::RpcClient::new(
             http::Uri::from_str(self.l2.to_string().as_str())?,
@@ -211,40 +244,36 @@ impl EngineClientBuilder {
 
         // TODO(@theochap): remove this client, upstream the remaining EngineApiExt methods to the
         // RollupBoostServer
-        let engine = EngineClient::rpc_client::<Optimism>(self.l2, self.l2_jwt);
+        let engine = OpEngineClient::rpc_client::<Optimism>(self.l2, self.l2_jwt);
 
         let l1_provider = RootProvider::new_http(self.l1_rpc);
 
-        Ok(EngineClient { engine, l1_provider, cfg: self.cfg, rollup_boost })
+        Ok(OpEngineClient { engine, l1_provider, cfg: self.cfg, rollup_boost })
     }
 }
 
-impl EngineClient {
-    /// Returns a reference to the inner L2 [`RootProvider`].
-    pub const fn l2_engine(&self) -> &RootProvider<Optimism> {
+#[async_trait]
+impl EngineClient<RootProvider, RootProvider<Optimism>> for OpEngineClient {
+    fn l2_engine(&self) -> &RootProvider<Optimism> {
         &self.engine
     }
 
-    /// Returns a reference to the inner L1 [`RootProvider`].
-    pub const fn l1_provider(&self) -> &RootProvider {
+    fn l1_provider(&self) -> &RootProvider {
         &self.l1_provider
     }
 
-    /// Returns a reference to the inner [`RollupConfig`].
-    pub fn cfg(&self) -> &RollupConfig {
+    fn cfg(&self) -> &RollupConfig {
         self.cfg.as_ref()
     }
 
-    /// Fetches the [`Block<T>`] for the given [`BlockNumberOrTag`].
-    pub async fn l2_block_by_label(
+    async fn l2_block_by_label(
         &self,
         numtag: BlockNumberOrTag,
     ) -> Result<Option<Block<Transaction>>, EngineClientError> {
         Ok(<RootProvider<Optimism>>::get_block_by_number(&self.engine, numtag).full().await?)
     }
 
-    /// Fetches the [L2BlockInfo] by [BlockNumberOrTag].
-    pub async fn l2_block_info_by_label(
+    async fn l2_block_info_by_label(
         &self,
         numtag: BlockNumberOrTag,
     ) -> Result<Option<L2BlockInfo>, EngineClientError> {
@@ -258,7 +287,7 @@ impl EngineClient {
 }
 
 #[async_trait::async_trait]
-impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
+impl OpEngineApi<Optimism, Http<HyperAuthClient>> for OpEngineClient {
     async fn new_payload_v2(
         &self,
         payload: ExecutionPayloadInputV2,

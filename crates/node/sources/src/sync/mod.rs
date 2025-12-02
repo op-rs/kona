@@ -1,6 +1,6 @@
 //! Sync start algorithm for the OP Stack rollup node.
 
-use alloy_provider::{Provider, RootProvider};
+use alloy_provider::{Provider, network::Ethereum};
 use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
 
@@ -24,11 +24,15 @@ use tracing::info;
 /// Plausible: meaning that the blockhash of the L2 block's L1 origin
 /// (as reported in the L1 Attributes deposit within the L2 block) is not canonical at another
 /// height in the L1 chain, and the same holds for all its ancestors.
-pub async fn find_starting_forkchoice(
+pub async fn find_starting_forkchoice<L1Provider, L2Provider>(
     cfg: &RollupConfig,
-    l1_provider: &RootProvider,
-    l2_provider: &RootProvider<Optimism>,
-) -> Result<L2ForkchoiceState, SyncStartError> {
+    l1_provider: &L1Provider,
+    l2_provider: &L2Provider,
+) -> Result<L2ForkchoiceState, SyncStartError>
+where
+    L1Provider: Provider<Ethereum>,
+    L2Provider: Provider<Optimism>,
+{
     let mut current_fc = L2ForkchoiceState::current(cfg, l2_provider).await?;
     info!(
         target: "sync_start",

@@ -26,7 +26,7 @@
 //! ## Module Organization
 //!
 //! - **Task Queue** - Core engine task queue and execution logic via [`Engine`]
-//! - **Client** - HTTP client for Engine API communication via [`EngineClient`]
+//! - **Client** - HTTP client for Engine API communication via [`OpEngineClient`]
 //! - **State** - Engine state management and synchronization via [`EngineState`]
 //! - **Versions** - Engine API version selection via [`EngineForkchoiceVersion`],
 //!   [`EngineNewPayloadVersion`], [`EngineGetPayloadVersion`]
@@ -51,7 +51,8 @@ pub use attributes::{AttributesMatch, AttributesMismatch};
 
 mod client;
 pub use client::{
-    EngineClient, EngineClientBuilder, EngineClientBuilderError, EngineClientError, HyperAuthClient,
+    EngineClient, EngineClientBuilder, EngineClientBuilderError, EngineClientError,
+    HyperAuthClient, OpEngineClient,
 };
 
 mod rollup_boost;

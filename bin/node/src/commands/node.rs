@@ -14,7 +14,7 @@ use anyhow::{Result, bail};
 use backon::{ExponentialBuilder, Retryable};
 use clap::Parser;
 use kona_cli::{LogConfig, MetricsArgs};
-use kona_engine::{EngineClient, HyperAuthClient};
+use kona_engine::{HyperAuthClient, OpEngineClient};
 use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_node_service::{EngineConfig, NodeMode, RollupNodeBuilder};
 use kona_registry::{L1Config, scr_rollup_config_by_alloy_ident};
@@ -227,7 +227,7 @@ impl NodeCommand {
     pub async fn validate_jwt(&self) -> anyhow::Result<JwtSecret> {
         let jwt_secret = self.l2_jwt_secret()?;
 
-        let engine = EngineClient::rpc_client::<Optimism>(
+        let engine = OpEngineClient::rpc_client::<Optimism>(
             self.l2_client_args.l2_engine_rpc.clone(),
             jwt_secret,
         );

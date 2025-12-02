@@ -2,7 +2,7 @@
 
 use crate::SyncStartError;
 use alloy_eips::{BlockId, BlockNumberOrTag};
-use alloy_provider::{Network, Provider, RootProvider};
+use alloy_provider::{Network, Provider};
 use alloy_transport::TransportResult;
 use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
@@ -43,10 +43,13 @@ impl L2ForkchoiceState {
     /// - The safe block may not always be available. If it is not, we fall back to the finalized
     ///   block.
     /// - The unsafe block is always assumed to be available.
-    pub async fn current(
+    pub async fn current<L2Provider>(
         cfg: &RollupConfig,
-        l2_provider: &RootProvider<Optimism>,
-    ) -> Result<Self, SyncStartError> {
+        l2_provider: &L2Provider,
+    ) -> Result<Self, SyncStartError>
+    where
+        L2Provider: Provider<Optimism>,
+    {
         let finalized = {
             let rpc_block = match get_block_compat(l2_provider, BlockNumberOrTag::Finalized.into())
                 .await

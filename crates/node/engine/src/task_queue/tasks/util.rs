@@ -2,8 +2,11 @@
 
 use super::{BuildTask, BuildTaskError, EngineTaskExt, SealTask, SealTaskError};
 use crate::{EngineClient, EngineState};
+use alloy_network::Ethereum;
+use alloy_provider::Provider;
 use kona_genesis::RollupConfig;
 use kona_protocol::OpAttributesWithParent;
+use op_alloy_network::Optimism;
 use std::sync::Arc;
 
 /// Error type for build and seal operations.
@@ -33,13 +36,18 @@ pub(in crate::task_queue) enum BuildAndSealError {
 /// * `cfg` - The rollup configuration
 /// * `attributes` - The payload attributes to build
 /// * `is_attributes_derived` - Whether the attributes were derived or created by the sequencer
-pub(in crate::task_queue) async fn build_and_seal(
+pub(in crate::task_queue) async fn build_and_seal<L1Provider, L2Provider, EngineClient_>(
     state: &mut EngineState,
-    engine: Arc<EngineClient>,
+    engine: Arc<EngineClient_>,
     cfg: Arc<RollupConfig>,
     attributes: OpAttributesWithParent,
     is_attributes_derived: bool,
-) -> Result<(), BuildAndSealError> {
+) -> Result<(), BuildAndSealError>
+where
+    L1Provider: Provider<Ethereum>,
+    L2Provider: Provider<Optimism>,
+    EngineClient_: EngineClient<L1Provider, L2Provider>,
+{
     // Execute the build task
     let payload_id = BuildTask::new(
         engine.clone(),

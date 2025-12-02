@@ -6,12 +6,14 @@ use crate::{
     EngineTaskErrorSeverity, Metrics, SynchronizeTask, SynchronizeTaskError,
     task_queue::EngineTaskErrors,
 };
+use alloy_network::Ethereum;
 use alloy_provider::Provider;
 use alloy_rpc_types_eth::Transaction;
 use kona_genesis::{RollupConfig, SystemConfig};
 use kona_protocol::{BlockInfo, L2BlockInfo, OpBlockConversionError, to_system_config};
 use kona_sources::{SyncStartError, find_starting_forkchoice};
 use op_alloy_consensus::OpTxEnvelope;
+use op_alloy_network::Optimism;
 use std::{collections::BinaryHeap, sync::Arc};
 use thiserror::Error;
 use tokio::sync::watch::Sender;
@@ -30,7 +32,12 @@ use tokio::sync::watch::Sender;
 /// they are not popped from the queue, the error is returned, and they are retried on the
 /// next call to [`Engine::drain`].
 #[derive(Debug)]
-pub struct Engine {
+pub struct Engine<L1Provider, L2Provider, EngineClient_>
+where
+    L1Provider: Provider<Ethereum>,
+    L2Provider: Provider<Optimism>,
+    EngineClient_: EngineClient<L1Provider, L2Provider>,
+{
     /// The state of the engine.
     state: EngineState,
     /// A sender that can be used to notify the engine actor of state changes.
@@ -38,10 +45,15 @@ pub struct Engine {
     /// A sender that can be used to notify the engine actor of task queue length changes.
     task_queue_length: Sender<usize>,
     /// The task queue.
-    tasks: BinaryHeap<EngineTask>,
+    tasks: BinaryHeap<EngineTask<L1Provider, L2Provider, EngineClient_>>,
 }
 
-impl Engine {
+impl<L1Provider, L2Provider, EngineClient_> Engine<L1Provider, L2Provider, EngineClient_>
+where
+    L1Provider: Provider<Ethereum>,
+    L2Provider: Provider<Optimism>,
+    EngineClient_: EngineClient<L1Provider, L2Provider>,
+{
     /// Creates a new [`Engine`] with an empty task queue and the passed initial [`EngineState`].
     pub fn new(
         initial_state: EngineState,
@@ -68,7 +80,7 @@ impl Engine {
 
     /// Enqueues a new [`EngineTask`] for execution.
     /// Updates the queue length and notifies listeners of the change.
-    pub fn enqueue(&mut self, task: EngineTask) {
+    pub fn enqueue(&mut self, task: EngineTask<L1Provider, L2Provider, EngineClient_>) {
         self.tasks.push(task);
         self.task_queue_length.send_replace(self.tasks.len());
     }
@@ -78,7 +90,7 @@ impl Engine {
     /// forkchoice update will be enqueued in order to reorg the execution layer.
     pub async fn reset(
         &mut self,
-        client: Arc<EngineClient>,
+        client: Arc<EngineClient_>,
         config: Arc<RollupConfig>,
     ) -> Result<(L2BlockInfo, BlockInfo, SystemConfig), EngineResetError> {
         // Clear any outstanding tasks to prepare for the reset.

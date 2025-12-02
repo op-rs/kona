@@ -4,33 +4,64 @@ use crate::{
     EngineClient, EngineState, EngineTaskExt, FinalizeTaskError, SynchronizeTask,
     state::EngineSyncStateUpdate,
 };
+use alloy_network::Ethereum;
 use alloy_provider::Provider;
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
-use std::{sync::Arc, time::Instant};
+use op_alloy_network::Optimism;
+use std::{marker::PhantomData, sync::Arc, time::Instant};
 
 /// The [`FinalizeTask`] fetches the [`L2BlockInfo`] at `block_number`, updates the [`EngineState`],
 /// and dispatches a forkchoice update to finalize the block.
 #[derive(Debug, Clone)]
-pub struct FinalizeTask {
+pub struct FinalizeTask<L1Provider, L2Provider, EngineClient_>
+where
+    L1Provider: Provider<Ethereum>,
+    L2Provider: Provider<Optimism>,
+    EngineClient_: EngineClient<L1Provider, L2Provider>,
+{
     /// The engine client.
-    pub client: Arc<EngineClient>,
+    pub client: Arc<EngineClient_>,
     /// The rollup config.
     pub cfg: Arc<RollupConfig>,
     /// The number of the L2 block to finalize.
     pub block_number: u64,
+
+    phantom_l1_provider: PhantomData<L1Provider>,
+    phantom_l2_provider: PhantomData<L2Provider>,
 }
 
-impl FinalizeTask {
+impl<L1Provider, L2Provider, EngineClient_> FinalizeTask<L1Provider, L2Provider, EngineClient_>
+where
+    L1Provider: Provider<Ethereum>,
+    L2Provider: Provider<Optimism>,
+    EngineClient_: EngineClient<L1Provider, L2Provider>,
+{
     /// Creates a new [`SynchronizeTask`].
-    pub const fn new(client: Arc<EngineClient>, cfg: Arc<RollupConfig>, block_number: u64) -> Self {
-        Self { client, cfg, block_number }
+    pub const fn new(
+        client: Arc<EngineClient_>,
+        cfg: Arc<RollupConfig>,
+        block_number: u64,
+    ) -> Self {
+        Self {
+            client,
+            cfg,
+            block_number,
+            phantom_l1_provider: PhantomData,
+            phantom_l2_provider: PhantomData,
+        }
     }
 }
 
 #[async_trait]
-impl EngineTaskExt for FinalizeTask {
+impl<L1Provider, L2Provider, EngineClient_> EngineTaskExt
+    for FinalizeTask<L1Provider, L2Provider, EngineClient_>
+where
+    L1Provider: Provider<Ethereum>,
+    L2Provider: Provider<Optimism>,
+    EngineClient_: EngineClient<L1Provider, L2Provider>,
+{
     type Output = ();
 
     type Error = FinalizeTaskError;
