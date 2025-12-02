@@ -2,6 +2,24 @@
 
 use std::{net::SocketAddr, path::PathBuf};
 
+/// A trait for the [`RpcBuilder`]
+pub trait RpcBuilderProvider {
+    /// Returns whether WebSocket RPC endpoint is enabled
+    fn ws_enabled(&self) -> bool;
+
+    /// Returns whether development RPC endpoints are enabled
+    fn dev_enabled(&self) -> bool;
+
+    /// Returns the socket address of the [`RpcBuilder`].
+    fn socket(&self) -> SocketAddr;
+
+    /// Returns the number of times the RPC server will attempt to restart if it stops.
+    fn restart_count(&self) -> u32;
+
+    /// Sets the given [`SocketAddr`] on the [`RpcBuilder`].
+    fn set_addr(&mut self, addr: SocketAddr);
+}
+
 /// The RPC configuration.
 #[derive(Debug, Clone)]
 pub struct RpcBuilder {
@@ -20,29 +38,24 @@ pub struct RpcBuilder {
     pub dev_enabled: bool,
 }
 
-impl RpcBuilder {
-    /// Returns whether WebSocket RPC endpoint is enabled
-    pub const fn ws_enabled(&self) -> bool {
+impl RpcBuilderProvider for RpcBuilder {
+    fn ws_enabled(&self) -> bool {
         self.ws_enabled
     }
 
-    /// Returns whether development RPC endpoints are enabled
-    pub const fn dev_enabled(&self) -> bool {
+    fn dev_enabled(&self) -> bool {
         self.dev_enabled
     }
 
-    /// Returns the socket address of the [`RpcBuilder`].
-    pub const fn socket(&self) -> SocketAddr {
+    fn socket(&self) -> SocketAddr {
         self.socket
     }
 
-    /// Returns the number of times the RPC server will attempt to restart if it stops.
-    pub const fn restart_count(&self) -> u32 {
+    fn restart_count(&self) -> u32 {
         if self.no_restart { 0 } else { 3 }
     }
 
-    /// Sets the given [`SocketAddr`] on the [`RpcBuilder`].
-    pub fn set_addr(self, addr: SocketAddr) -> Self {
-        Self { socket: addr, ..self }
+    fn set_addr(&mut self, addr: SocketAddr) {
+        self.socket = addr;
     }
 }

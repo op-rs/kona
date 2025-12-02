@@ -6,7 +6,7 @@ use kona_gossip::P2pRpcRequest;
 use kona_rpc::{
     AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzApiServer, HealthzRpc,
     NetworkAdminQuery, OpP2PApiServer, RollupBoostAdminQuery, RollupBoostHealthQuery,
-    RollupNodeApiServer, SequencerAdminAPIClient, WsRPC, WsServer,
+    RollupNodeApiServer, RpcBuilderProvider, SequencerAdminAPIClient, WsRPC, WsServer,
 };
 use std::time::Duration;
 
@@ -16,7 +16,7 @@ use jsonrpsee::{
     server::{Server, ServerHandle, middleware::http::ProxyGetRequestLayer},
 };
 use kona_engine::EngineQueries;
-use kona_rpc::{L1WatcherQueries, P2pRpc, RollupRpc, RpcBuilder};
+use kona_rpc::{L1WatcherQueries, P2pRpc, RollupRpc};
 use tokio::sync::mpsc;
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
@@ -39,16 +39,16 @@ pub enum RpcActorError {
 
 /// An actor that handles the RPC server for the rollup node.
 #[derive(Debug)]
-pub struct RpcActor<S: SequencerAdminAPIClient> {
+pub struct RpcActor<S: SequencerAdminAPIClient, RB: RpcBuilderProvider> {
     /// A launcher for the rpc.
-    config: RpcBuilder,
+    config: RB,
 
     phantom: std::marker::PhantomData<S>,
 }
 
-impl<S: SequencerAdminAPIClient> RpcActor<S> {
-    /// Constructs a new [`RpcActor`] given the [`RpcBuilder`].
-    pub const fn new(config: RpcBuilder) -> Self {
+impl<S: SequencerAdminAPIClient, RB: RpcBuilderProvider> RpcActor<S, RB> {
+    /// Constructs a new [`RpcActor`] given a [`RpcBuilderProvider`].
+    pub const fn new(config: RB) -> Self {
         Self { config, phantom: std::marker::PhantomData }
     }
 }
@@ -87,8 +87,8 @@ impl<S: SequencerAdminAPIClient> CancellableContext for RpcContext<S> {
 /// ## Errors
 ///
 /// - [`std::io::Error`] if the server fails to start.
-async fn launch(
-    config: &RpcBuilder,
+async fn launch<RB: RpcBuilderProvider + Send + Sync>(
+    config: &RB,
     module: RpcModule<()>,
 ) -> Result<ServerHandle, std::io::Error> {
     let middleware = tower::ServiceBuilder::new()
@@ -97,7 +97,7 @@ async fn launch(
                 .expect("Critical: Failed to build GET method proxy"),
         )
         .timeout(Duration::from_secs(2));
-    let server = Server::builder().set_http_middleware(middleware).build(config.socket).await?;
+    let server = Server::builder().set_http_middleware(middleware).build(config.socket()).await?;
 
     if let Ok(addr) = server.local_addr() {
         info!(target: "rpc", addr = ?addr, "RPC server bound to address");
@@ -109,7 +109,9 @@ async fn launch(
 }
 
 #[async_trait]
-impl<S: SequencerAdminAPIClient + 'static> NodeActor for RpcActor<S> {
+impl<S: SequencerAdminAPIClient + 'static, RB: RpcBuilderProvider + 'static + Send + Sync> NodeActor
+    for RpcActor<S, RB>
+{
     type Error = RpcActorError;
     type StartData = RpcContext<S>;
 
@@ -186,6 +188,8 @@ impl<S: SequencerAdminAPIClient + 'static> NodeActor for RpcActor<S> {
 #[cfg(test)]
 mod tests {
     use std::net::SocketAddr;
+
+    use kona_rpc::RpcBuilder;
 
     use super::*;
 
