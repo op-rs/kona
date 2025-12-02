@@ -54,6 +54,38 @@ jobs:
           sudo apt install kurtosis-cli
           kurtosis engine start
 
+      - name: Set up Docker Buildx
+        if: matrix.devnet-config == 'simple-kona-conductor'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build kona-node docker image
+        if: matrix.devnet-config == 'simple-kona-conductor'
+        uses: docker/bake-action@v6
+        env:
+          BIN_TARGET: kona-node
+          BUILD_PROFILE: debug
+          REPO_LOCATION: local
+          PLATFORMS: linux/${{ runner.arch == 'X64' && 'amd64' || runner.arch == 'ARM64' && 'arm64' || runner.arch }}
+        with:
+          files: |
+            ./docker/docker-bake.hcl
+          load: true
+          targets: |
+            generic
+          set: |
+            *.tags=kona-node:local
+            *.cache-from=type=local,src=${{ runner.temp }}/.buildx-cache
+            *.cache-to=type=local,dest=${{ runner.temp }}/.buildx-cache-new,mode=max
+
+      - name: Deploy devnet for conductor tests
+        if: matrix.devnet-config == 'simple-kona-conductor'
+        working-directory: tests
+        run: |
+          kurtosis run github.com/ethpandaops/optimism-package@998796c0f3bb478d63d729e65f0b76e24112e00d \
+            --args-file devnets/simple-kona-conductor.yaml \
+            --enclave interop-devnet
+          go run cmd/main.go
+
       - name: run common tests for node with sysgo orchestrator and report coverage
         run: |
           echo "Building op-reth..."
