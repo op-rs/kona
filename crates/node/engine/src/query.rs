@@ -7,10 +7,12 @@
 use std::sync::Arc;
 
 use alloy_eips::BlockNumberOrTag;
+use alloy_network::Ethereum;
 use alloy_provider::Provider;
 use alloy_transport::{RpcError, TransportErrorKind};
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OutputRoot, Predeploys};
+use op_alloy_network::Optimism;
 use tokio::sync::oneshot::Sender;
 
 use crate::{EngineClient, EngineClientError, EngineState};
@@ -68,13 +70,18 @@ pub enum EngineQueriesError {
 
 impl EngineQueries {
     /// Handles the engine query request.
-    pub async fn handle(
+    pub async fn handle<L1Provider, L2Provider, EngineClient_>(
         self,
         state_recv: &tokio::sync::watch::Receiver<EngineState>,
         queue_length_recv: &tokio::sync::watch::Receiver<usize>,
-        client: &Arc<EngineClient>,
+        client: &Arc<EngineClient_>,
         rollup_config: &Arc<RollupConfig>,
-    ) -> Result<(), EngineQueriesError> {
+    ) -> Result<(), EngineQueriesError>
+    where
+        L1Provider: Provider<Ethereum>,
+        L2Provider: Provider<Optimism>,
+        EngineClient_: EngineClient<L1Provider, L2Provider>,
+    {
         let state = *state_recv.borrow();
 
         match self {
@@ -109,6 +116,7 @@ impl EngineQueries {
                     } else {
                         // Fetch the storage root for the L2 head block.
                         let l2_to_l1_message_passer = client
+                            .l2_engine()
                             .get_proof(Predeploys::L2_TO_L1_MESSAGE_PASSER, Default::default())
                             .block_id(block.into())
                             .await?;

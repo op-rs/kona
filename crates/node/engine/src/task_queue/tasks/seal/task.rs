@@ -5,14 +5,15 @@ use crate::{
     InsertTaskError::{self},
     task_queue::build_and_seal,
 };
+use alloy_network::Ethereum;
+use alloy_provider::Provider;
 use alloy_rpc_types_engine::{ExecutionPayload, PayloadId};
 use async_trait::async_trait;
-use derive_more::Constructor;
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
-use op_alloy_provider::ext::engine::OpEngineApi;
+use op_alloy_network::Optimism;
 use op_alloy_rpc_types_engine::{OpExecutionPayload, OpExecutionPayloadEnvelope};
-use std::{sync::Arc, time::Instant};
+use std::{marker::PhantomData, sync::Arc, time::Instant};
 use tokio::sync::mpsc;
 
 /// Task for block sealing and canonicalization.
@@ -28,10 +29,15 @@ use tokio::sync::mpsc;
 ///
 /// [`InsertTask`]: crate::InsertTask
 /// [`InsertTaskError`]: crate::InsertTaskError
-#[derive(Debug, Clone, Constructor)]
-pub struct SealTask {
+#[derive(Debug, Clone)]
+pub struct SealTask<L1Provider, L2Provider, EngineClient_>
+where
+    L1Provider: Provider<Ethereum>,
+    L2Provider: Provider<Optimism>,
+    EngineClient_: EngineClient<L1Provider, L2Provider>,
+{
     /// The engine API client.
-    pub engine: Arc<EngineClient>,
+    pub engine: Arc<EngineClient_>,
     /// The [`RollupConfig`].
     pub cfg: Arc<RollupConfig>,
     /// The [`PayloadId`] being sealed.
@@ -44,9 +50,38 @@ pub struct SealTask {
     /// [`OpExecutionPayloadEnvelope`] after the block has been built, imported, and canonicalized
     /// or the [`SealTaskError`] that occurred during processing.
     pub result_tx: Option<mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>>,
+
+    phantom_l1_provider: PhantomData<L1Provider>,
+    phantom_l2_provider: PhantomData<L2Provider>,
 }
 
-impl SealTask {
+impl<L1Provider, L2Provider, EngineClient_> SealTask<L1Provider, L2Provider, EngineClient_>
+where
+    L1Provider: Provider<Ethereum>,
+    L2Provider: Provider<Optimism>,
+    EngineClient_: EngineClient<L1Provider, L2Provider>,
+{
+    /// Constructs a new [`SealTask`].
+    pub const fn new(
+        engine: Arc<EngineClient_>,
+        cfg: Arc<RollupConfig>,
+        payload_id: PayloadId,
+        attributes: OpAttributesWithParent,
+        is_attributes_derived: bool,
+        result_tx: Option<mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>>,
+    ) -> Self {
+        Self {
+            engine,
+            cfg,
+            payload_id,
+            attributes,
+            is_attributes_derived,
+            result_tx,
+            phantom_l1_provider: PhantomData,
+            phantom_l2_provider: PhantomData,
+        }
+    }
+
     /// Seals the execution payload in the EL, returning the execution envelope.
     ///
     /// ## Engine Method Selection
@@ -59,7 +94,7 @@ impl SealTask {
     async fn seal_payload(
         &self,
         cfg: &RollupConfig,
-        engine: &EngineClient,
+        engine: &EngineClient_,
         payload_id: PayloadId,
         payload_attrs: OpAttributesWithParent,
     ) -> Result<OpExecutionPayloadEnvelope, SealTaskError> {
@@ -248,7 +283,13 @@ impl SealTask {
 }
 
 #[async_trait]
-impl EngineTaskExt for SealTask {
+impl<L1Provider, L2Provider, EngineClient_> EngineTaskExt
+    for SealTask<L1Provider, L2Provider, EngineClient_>
+where
+    L1Provider: Provider<Ethereum>,
+    L2Provider: Provider<Optimism>,
+    EngineClient_: EngineClient<L1Provider, L2Provider>,
+{
     type Output = ();
 
     type Error = SealTaskError;

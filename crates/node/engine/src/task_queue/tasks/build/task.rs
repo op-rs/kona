@@ -4,13 +4,14 @@ use crate::{
     EngineClient, EngineForkchoiceVersion, EngineState, EngineTaskExt,
     state::EngineSyncStateUpdate, task_queue::tasks::build::error::EngineBuildError,
 };
+use alloy_network::Ethereum;
+use alloy_provider::Provider;
 use alloy_rpc_types_engine::{PayloadId, PayloadStatusEnum};
 use async_trait::async_trait;
-use derive_more::Constructor;
 use kona_genesis::RollupConfig;
 use kona_protocol::OpAttributesWithParent;
-use op_alloy_provider::ext::engine::OpEngineApi;
-use std::{sync::Arc, time::Instant};
+use op_alloy_network::Optimism;
+use std::{marker::PhantomData, sync::Arc, time::Instant};
 use tokio::sync::mpsc;
 
 /// Task for building new blocks with automatic forkchoice synchronization.
@@ -25,10 +26,15 @@ use tokio::sync::mpsc;
 /// phase.
 ///
 /// [`EngineBuildError`]: crate::EngineBuildError
-#[derive(Debug, Clone, Constructor)]
-pub struct BuildTask {
+#[derive(Debug, Clone)]
+pub struct BuildTask<L1Provider, L2Provider, EngineClient_>
+where
+    L1Provider: Provider<Ethereum>,
+    L2Provider: Provider<Optimism>,
+    EngineClient_: EngineClient<L1Provider, L2Provider>,
+{
     /// The engine API client.
-    pub engine: Arc<EngineClient>,
+    pub engine: Arc<EngineClient_>,
     /// The [`RollupConfig`].
     pub cfg: Arc<RollupConfig>,
     /// The [`OpAttributesWithParent`] to instruct the execution layer to build.
@@ -36,9 +42,34 @@ pub struct BuildTask {
     /// The optional sender through which [`PayloadId`] will be sent after the
     /// block build has been started.
     pub payload_id_tx: Option<mpsc::Sender<PayloadId>>,
+
+    phantom_l1_provider: PhantomData<L1Provider>,
+    phantom_l2_provider: PhantomData<L2Provider>,
 }
 
-impl BuildTask {
+impl<L1Provider, L2Provider, EngineClient_> BuildTask<L1Provider, L2Provider, EngineClient_>
+where
+    L1Provider: Provider<Ethereum>,
+    L2Provider: Provider<Optimism>,
+    EngineClient_: EngineClient<L1Provider, L2Provider>,
+{
+    /// Constructs a new [`BuildTask`].
+    pub const fn new(
+        engine: Arc<EngineClient_>,
+        cfg: Arc<RollupConfig>,
+        attributes: OpAttributesWithParent,
+        payload_id_tx: Option<mpsc::Sender<PayloadId>>,
+    ) -> Self {
+        Self {
+            engine,
+            cfg,
+            attributes,
+            payload_id_tx,
+            phantom_l1_provider: PhantomData,
+            phantom_l2_provider: PhantomData,
+        }
+    }
+
     /// Validates the provided [PayloadStatusEnum] according to the rules listed below.
     ///
     /// ## Observed [PayloadStatusEnum] Variants
@@ -84,7 +115,7 @@ impl BuildTask {
     async fn start_build(
         &self,
         state: &EngineState,
-        engine_client: &EngineClient,
+        engine_client: &EngineClient_,
         attributes_envelope: OpAttributesWithParent,
     ) -> Result<PayloadId, BuildTaskError> {
         // Sanity check if the head is behind the finalized head. If it is, this is a critical
@@ -148,7 +179,13 @@ impl BuildTask {
 }
 
 #[async_trait]
-impl EngineTaskExt for BuildTask {
+impl<L1Provider, L2Provider, EngineClient_> EngineTaskExt
+    for BuildTask<L1Provider, L2Provider, EngineClient_>
+where
+    L1Provider: Provider<Ethereum>,
+    L2Provider: Provider<Optimism>,
+    EngineClient_: EngineClient<L1Provider, L2Provider>,
+{
     type Output = PayloadId;
 
     type Error = BuildTaskError;

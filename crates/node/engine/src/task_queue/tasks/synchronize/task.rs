@@ -3,11 +3,13 @@
 use crate::{
     EngineClient, EngineState, EngineTaskExt, SynchronizeTaskError, state::EngineSyncStateUpdate,
 };
+use alloy_network::Ethereum;
+use alloy_provider::Provider;
 use alloy_rpc_types_engine::{INVALID_FORK_CHOICE_STATE_ERROR, PayloadStatusEnum};
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
-use op_alloy_provider::ext::engine::OpEngineApi;
-use std::sync::Arc;
+use op_alloy_network::Optimism;
+use std::{marker::PhantomData, sync::Arc};
 use tokio::time::Instant;
 
 /// Internal task for execution layer forkchoice synchronization.
@@ -35,23 +37,42 @@ use tokio::time::Instant;
 /// [`FinalizeTask`]: crate::FinalizeTask
 /// [`BuildTask`]: crate::BuildTask
 #[derive(Debug, Clone)]
-pub struct SynchronizeTask {
+pub struct SynchronizeTask<L1Provider, L2Provider, EngineClient_>
+where
+    L1Provider: Provider<Ethereum>,
+    L2Provider: Provider<Optimism>,
+    EngineClient_: EngineClient<L1Provider, L2Provider>,
+{
     /// The engine client.
-    pub client: Arc<EngineClient>,
+    pub client: Arc<EngineClient_>,
     /// The rollup config.
     pub rollup: Arc<RollupConfig>,
     /// The sync state update to apply to the engine state.
     pub state_update: EngineSyncStateUpdate,
+
+    phantom_l1_provider: PhantomData<L1Provider>,
+    phantom_l2_provider: PhantomData<L2Provider>,
 }
 
-impl SynchronizeTask {
+impl<L1Provider, L2Provider, EngineClient_> SynchronizeTask<L1Provider, L2Provider, EngineClient_>
+where
+    L1Provider: Provider<Ethereum>,
+    L2Provider: Provider<Optimism>,
+    EngineClient_: EngineClient<L1Provider, L2Provider>,
+{
     /// Creates a new [`SynchronizeTask`].
     pub const fn new(
-        client: Arc<EngineClient>,
+        client: Arc<EngineClient_>,
         rollup: Arc<RollupConfig>,
         state_update: EngineSyncStateUpdate,
     ) -> Self {
-        Self { client, rollup, state_update }
+        Self {
+            client,
+            rollup,
+            state_update,
+            phantom_l1_provider: PhantomData,
+            phantom_l2_provider: PhantomData,
+        }
     }
 
     /// Checks the response of the `engine_forkchoiceUpdated` call, and updates the sync status if
@@ -87,7 +108,13 @@ impl SynchronizeTask {
 }
 
 #[async_trait]
-impl EngineTaskExt for SynchronizeTask {
+impl<L1Provider, L2Provider, EngineClient_> EngineTaskExt
+    for SynchronizeTask<L1Provider, L2Provider, EngineClient_>
+where
+    L1Provider: Provider<Ethereum>,
+    L2Provider: Provider<Optimism>,
+    EngineClient_: EngineClient<L1Provider, L2Provider>,
+{
     type Output = ();
     type Error = SynchronizeTaskError;
 
