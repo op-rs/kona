@@ -16,7 +16,7 @@ use kona_proof::{
 use kona_sp1_client_utils::witness::executor::WitnessExecutor;
 use spin::RwLock;
 
-/// An implementation of [WitnessExecutor] that uses Ehtereum for data availability.
+/// An implementation of [WitnessExecutor] that uses Ethereum for data availability.
 #[allow(missing_debug_implementations)]
 pub struct ETHDAWitnessExecutor<O, B>
 where

@@ -1,4 +1,4 @@
-//! Executes Defines the WitnessExecutor trait for constructing and running the derivation pipeline.
+//! Defines the WitnessExecutor trait for constructing and running the derivation pipeline.
 
 use std::{fmt::Debug, sync::Arc};
 

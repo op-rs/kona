@@ -1,4 +1,4 @@
-//! A program to verify a Optimism L2 block STF with Ethereum DA in the zkVM.
+//! A program to verify an Optimism L2 block STF with Ethereum DA in the zkVM.
 //!
 //! This binary contains the client program for executing the Optimism rollup state transition
 //! across a range of blocks, which can be used to generate an on chain validity proof. Depending on
