@@ -14,12 +14,8 @@ ignore = [
     "RUSTSEC-2025-0012",
     # ansi_term unmaintained
     "RUSTSEC-2021-0139",
-    # backoff unmaintained
-    "RUSTSEC-2025-0012",
     # derivative unmaintained 
     "RUSTSEC-2024-0388",
-    # instant unmaintained
-    "RUSTSEC-2024-0384",
     # serde_cbor unmaintained
     "RUSTSEC-2021-0127",
     # number_prefix unmainatined
@@ -54,8 +50,6 @@ exceptions = [
     { allow = ["CC0-1.0"], name = "notify" },
     # aws-lc-sys includes OpenSSL in its composite license expression
     { allow = ["OpenSSL"], name = "aws-lc-sys" },
-    # for kona-sp1 crates 
-    { allow = ["LGPL-3.0-or-later"], name = "downloader" },
 ]
 
 [[licenses.clarify]]
