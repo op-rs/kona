@@ -6,6 +6,10 @@
 > being, it is intended to be used for development purposes. Please [file an issue][new-issue] if you have any problems
 > during development.
 
+
+> This is a recipe for running a **development branch** of `kona-node` and with `op-reth`.
+
+
 This directory contains a simple `docker-compose` setup for `kona-node` and `op-reth`, including example Grafana
 dashboards and a default Prometheus configuration.
 
