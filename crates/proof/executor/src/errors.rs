@@ -11,6 +11,27 @@ use op_alloy_consensus::EIP1559ParamError;
 use revm::context::DBErrorMarker;
 use thiserror::Error;
 
+/// Errors that can occur when validating EIP-1559 parameters from block header extra data.
+///
+/// This error type is used for validation errors during decoding of EIP-1559 parameters,
+/// providing more specific error variants than the upstream [`EIP1559ParamError`] which
+/// is primarily designed for encoding errors.
+#[derive(Error, Debug, PartialEq, Eq)]
+pub enum Eip1559ValidationError {
+    /// The EIP-1559 denominator cannot be zero as it would cause division by zero.
+    ///
+    /// This error occurs when the decoded denominator value from the block header's
+    /// extra data field is zero, which violates protocol specifications.
+    #[error("EIP-1559 denominator cannot be zero")]
+    ZeroDenominator,
+    /// Error from EIP-1559 parameter decoding.
+    ///
+    /// This variant wraps errors from the underlying EIP-1559 parameter decoding,
+    /// such as invalid version bytes, incorrect data lengths, or missing parameters.
+    #[error(transparent)]
+    Decode(#[from] EIP1559ParamError),
+}
+
 /// Error type for the [`StatelessL2Builder`] block execution engine.
 ///
 /// [`ExecutorError`] represents various failure modes that can occur during
@@ -97,8 +118,9 @@ pub enum ExecutorError {
     /// - Malformed extraData during header construction
     /// - Incorrect protocol version handling
     /// - Data corruption during header assembly
-    #[error("Invalid `extraData` field in the block header")]
-    InvalidExtraData(#[from] EIP1559ParamError),
+    /// - Zero denominator in EIP-1559 parameters
+    #[error("Invalid `extraData` field in the block header: {0}")]
+    InvalidExtraData(#[from] Eip1559ValidationError),
     /// Block gas limit exceeded during execution.
     ///
     /// This error occurs when the cumulative gas consumption of all transactions
@@ -284,3 +306,9 @@ pub enum TrieDBError {
 }
 
 impl DBErrorMarker for TrieDBError {}
+
+impl From<EIP1559ParamError> for ExecutorError {
+    fn from(err: EIP1559ParamError) -> Self {
+        Self::InvalidExtraData(Eip1559ValidationError::Decode(err))
+    }
+}
