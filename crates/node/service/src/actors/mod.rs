@@ -23,8 +23,7 @@ pub use derivation::{
 
 mod l1_watcher;
 pub use l1_watcher::{
-    BlockStream, L1WatcherActor, L1WatcherActorBuilder, L1WatcherActorBuilderError,
-    L1WatcherActorError,
+    BlockStream, L1WatcherActor, L1WatcherActorBuilderError, L1WatcherActorError,
 };
 
 mod network;

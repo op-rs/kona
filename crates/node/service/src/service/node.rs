@@ -2,12 +2,12 @@
 use crate::{
     ConductorClient, DelayedL1OriginSelectorProvider, DerivationActor, DerivationBuilder,
     DerivationContext, EngineActor, EngineConfig, EngineContext, InteropMode, L1OriginSelector,
-    NetworkActor, NetworkBuilder, NetworkConfig, NetworkContext, NodeActor, NodeMode,
-    QueuedBlockBuildingClient, QueuedSequencerAdminAPIClient, RpcActor, RpcContext,
+    L1WatcherActor, NetworkActor, NetworkBuilder, NetworkConfig, NetworkContext, NodeActor,
+    NodeMode, QueuedBlockBuildingClient, QueuedSequencerAdminAPIClient, RpcActor, RpcContext,
     SequencerConfig,
     actors::{
-        BlockStream, DerivationInboundChannels, EngineInboundData, L1WatcherActorBuilder,
-        NetworkInboundData, QueuedUnsafePayloadGossipClient, SequencerActorBuilder,
+        BlockStream, DerivationInboundChannels, EngineInboundData, NetworkInboundData,
+        QueuedUnsafePayloadGossipClient, SequencerActorBuilder,
     },
 };
 use alloy_eips::BlockNumberOrTag;
@@ -215,18 +215,17 @@ impl RollupNode {
         )?;
 
         // Create the [`L1WatcherActor`]. Previously known as the DA watcher actor.
-        let l1_watcher = L1WatcherActorBuilder::default()
-            .with_rollup_config(self.config.clone())
-            .with_l1_provider(self.l1_provider.clone())
-            .with_inbound_queries(l1_query_rx)
-            .with_latest_head(l1_head_updates_tx.clone())
-            .with_latest_finalized(finalized_l1_block_tx)
-            .with_block_signer_sender(signer)
-            .with_cancellation(cancellation.clone())
-            .with_head_stream(head_stream)
-            .with_finalized_stream(finalized_stream)
-            .build()
-            .map_err(|e| e.to_string())?;
+        let l1_watcher = L1WatcherActor::new(
+            self.config.clone(),
+            self.l1_provider.clone(),
+            l1_query_rx,
+            l1_head_updates_tx.clone(),
+            finalized_l1_block_tx.clone(),
+            signer,
+            cancellation.clone(),
+            head_stream,
+            finalized_stream,
+        );
 
         // 2. CONFIGURE DEPENDENCIES
 

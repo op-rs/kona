@@ -32,23 +32,54 @@ where
 {
     /// The [`RollupConfig`] to tell if ecotone is active.
     /// This is used to determine if the L1 watcher should check for unsafe block signer updates.
-    pub rollup_config: Arc<RollupConfig>,
+    rollup_config: Arc<RollupConfig>,
     /// The L1 provider.
-    pub l1_provider: L1P,
+    l1_provider: L1P,
     /// The inbound queries to the L1 watcher.
-    pub inbound_queries: mpsc::Receiver<L1WatcherQueries>,
+    inbound_queries: mpsc::Receiver<L1WatcherQueries>,
     /// The latest L1 head block.
-    pub latest_head: watch::Sender<Option<BlockInfo>>,
+    latest_head: watch::Sender<Option<BlockInfo>>,
     /// The latest L1 finalized block.
-    pub latest_finalized: watch::Sender<Option<BlockInfo>>,
+    latest_finalized: watch::Sender<Option<BlockInfo>>,
     /// The block signer sender.
-    pub block_signer_sender: mpsc::Sender<Address>,
+    block_signer_sender: mpsc::Sender<Address>,
     /// The cancellation token, shared between all tasks.
-    pub cancellation: CancellationToken,
+    cancellation: CancellationToken,
     /// A stream over the latest head.
-    pub head_stream: BS,
+    head_stream: BS,
     /// A stream over the finalized block accepted as canonical.
-    pub finalized_stream: BS,
+    finalized_stream: BS,
+}
+impl<BS, L1P> L1WatcherActor<BS, L1P>
+where
+    BS: Stream<Item = BlockInfo> + Unpin + Send,
+    L1P: Provider,
+{
+    /// Instantiate a new [`L1WatcherActor`].
+    #[allow(clippy::too_many_arguments)]
+    pub const fn new(
+        rollup_config: Arc<RollupConfig>,
+        l1_provider: L1P,
+        l1_query_rx: mpsc::Receiver<L1WatcherQueries>,
+        l1_head_updates_tx: watch::Sender<Option<BlockInfo>>,
+        finalized_l1_block_tx: watch::Sender<Option<BlockInfo>>,
+        signer: mpsc::Sender<Address>,
+        cancellation: CancellationToken,
+        head_stream: BS,
+        finalized_stream: BS,
+    ) -> Self {
+        Self {
+            rollup_config,
+            l1_provider,
+            inbound_queries: l1_query_rx,
+            latest_head: l1_head_updates_tx,
+            latest_finalized: finalized_l1_block_tx,
+            block_signer_sender: signer,
+            cancellation,
+            head_stream,
+            finalized_stream,
+        }
+    }
 }
 
 #[async_trait]
