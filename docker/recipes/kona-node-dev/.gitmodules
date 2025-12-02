@@ -1,0 +1,6 @@
+[submodule "kona-node/kona"]
+	path = kona-node/kona
+	url = https://github.com/op-rs/kona.git
+[submodule "op-reth/reth"]
+	path = op-reth/reth
+	url = https://github.com/paradigmxyz/reth
