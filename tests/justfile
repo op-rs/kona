@@ -157,6 +157,7 @@ test-e2e-sysgo-run BINARY="node" GO_PKG_NAME="node/common" DEVNET="simple-kona" 
         export OP_SEQUENCER_WITH_GETH=0
         export OP_VALIDATOR_WITH_GETH=0
     elif [ "{{DEVNET}}" = "simple-kona-conductor" ]; then
+        export DEVSTACK_ORCHESTRATOR=sysext
         export KONA_SEQUENCER_WITH_RETH=0
         export KONA_VALIDATOR_WITH_RETH=0
         export KONA_SEQUENCER_WITH_GETH=2
