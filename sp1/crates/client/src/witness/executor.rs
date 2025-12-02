@@ -90,7 +90,8 @@ where
     Ok((boot_clone, Some((cursor, l1_provider, l2_provider))))
 }
 
-/// The [WitnessExecutor] trait defines an interface for constructing and running the derivation pipeline.
+/// The [WitnessExecutor] trait defines an interface for constructing and running the derivation
+/// pipeline.
 #[async_trait]
 pub trait WitnessExecutor {
     /// The [CommsClient] type used by the executor.

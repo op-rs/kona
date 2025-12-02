@@ -6,8 +6,8 @@ use kona_proof::l1::OracleBlobProvider;
 use kona_sp1_client_utils::witness::DefaultWitnessData;
 use kona_sp1_ethereum_client_utils::executor::ETHDAWitnessExecutor;
 use kona_sp1_host_utils::witness_generation::{
-    online_blob_store::OnlineBlobStore, preimage_witness_collector::PreimageWitnessCollector,
-    DefaultOracleBase, WitnessGenerator,
+    DefaultOracleBase, WitnessGenerator, online_blob_store::OnlineBlobStore,
+    preimage_witness_collector::PreimageWitnessCollector,
 };
 use rkyv::to_bytes;
 use sp1_sdk::SP1Stdin;

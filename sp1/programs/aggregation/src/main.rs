@@ -9,7 +9,7 @@ use alloy_primitives::B256;
 use alloy_sol_types::SolValue;
 use kona_sp1_client_utils::{
     boot::BootInfoStruct,
-    types::{u32_to_u8, AggregationInputs, AggregationOutputs},
+    types::{AggregationInputs, AggregationOutputs, u32_to_u8},
 };
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;

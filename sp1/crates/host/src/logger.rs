@@ -3,12 +3,12 @@
 use std::{env, sync::OnceLock};
 
 use anyhow::{Context, Result};
-use opentelemetry::{global, KeyValue};
+use opentelemetry::{KeyValue, global};
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::{Protocol, WithExportConfig};
-use opentelemetry_sdk::{logs, propagation::TraceContextPropagator, runtime, Resource};
+use opentelemetry_sdk::{Resource, logs, propagation::TraceContextPropagator, runtime};
 use tracing_subscriber::{
-    layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer, Registry,
+    EnvFilter, Layer, Registry, layer::SubscriberExt, util::SubscriberInitExt,
 };
 
 static INIT: OnceLock<Result<()>> = OnceLock::new();
@@ -79,8 +79,8 @@ pub fn setup_logger() {
                 }
                 _ => {
                     // Default to pretty formatting with ANSI colors
-                    let ansi = cfg!(feature = "ansi")
-                        && env::var("NO_COLOR").map_or(true, |v| v.is_empty());
+                    let ansi = cfg!(feature = "ansi") &&
+                        env::var("NO_COLOR").map_or(true, |v| v.is_empty());
 
                     Some(Box::new(
                         tracing_subscriber::fmt::layer()

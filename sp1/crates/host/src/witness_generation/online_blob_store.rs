@@ -1,5 +1,5 @@
-//! Provides an implementation of a [BlobProvider] that fetches blobs online and stores them in a shared
-//! store.
+//! Provides an implementation of a [BlobProvider] that fetches blobs online and stores them in a
+//! shared store.
 
 use alloy_consensus::Blob;
 use alloy_eips::eip4844::{IndexedBlobHash, env_settings::EnvKzgSettings};

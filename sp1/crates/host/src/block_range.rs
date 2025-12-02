@@ -55,7 +55,8 @@ pub async fn get_validated_block_range<H: OPSuccinctHost>(
     };
 
     // If start block not provided, use end block - default_range
-    let l2_start_block = start.unwrap_or_else(|| max(1, l2_end_block.saturating_sub(default_range)));
+    let l2_start_block =
+        start.unwrap_or_else(|| max(1, l2_end_block.saturating_sub(default_range)));
 
     if l2_start_block >= l2_end_block {
         bail!("Start block ({l2_start_block}) must be less than end block ({l2_end_block})");

@@ -1,6 +1,6 @@
 //! Contains utilities for building ELFs for SP1 programs.
 
-use sp1_build::{build_program_with_args, BuildArgs};
+use sp1_build::{BuildArgs, build_program_with_args};
 
 /// Builds a specific program in the programs directory.
 #[allow(unused)]
