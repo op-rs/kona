@@ -12,6 +12,7 @@ use tokio::sync::{mpsc, watch};
 /// Trait to be referenced by those interacting with EngineActor for block building
 /// operations. The EngineActor requires the use of channels for communication, but
 /// this interface allows that to be abstracted from callers and allows easy testing.
+#[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait BlockBuildingClient: Debug + Send + Sync {
     /// Resets the engine's forkchoice, awaiting confirmation that it succeeded or returning the
