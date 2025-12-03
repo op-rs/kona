@@ -79,9 +79,7 @@ impl BatchReader {
             }
 
             let compression_type = data[0];
-            if (compression_type & 0x0F) == Self::ZLIB_DEFLATE_COMPRESSION_METHOD ||
-                (compression_type & 0x0F) == Self::ZLIB_RESERVED_COMPRESSION_METHOD
-            {
+            if (compression_type & 0x0F) == Self::ZLIB_DEFLATE_COMPRESSION_METHOD {
                 self.decompressed =
                     decompress_to_vec_zlib(&data).map_err(|_| DecompressionError::ZlibError)?;
 
