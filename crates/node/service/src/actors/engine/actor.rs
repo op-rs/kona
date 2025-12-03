@@ -322,7 +322,7 @@ impl EngineActorState {
                                 let result=rollup_boost.server.set_execution_mode(execution_mode).map_err( RollupBoostAdminError::FailedToSetExecutionMode);
 
                                 if let Err(err) = &result {
-                                    warn!("Failed to set execution mode: {err}");
+                                    warn!(target: "engine", err = ?err, "Failed to set execution mode.");
                                 }
 
                                 let _ = response_tx.send(result);
