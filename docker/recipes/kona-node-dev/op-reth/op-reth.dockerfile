@@ -12,7 +12,7 @@ ENTRYPOINT [ "op-reth" ]
 CMD [ "node", \
     "--datadir", "/db", \
     "--chain", "optimism-sepolia", \
-    "--metrics", "0.0.0.0:9430", \
+    "--metrics", "0.0.0.0:"${OP_RETH_METRICS_PORT}, \
     "--rollup.sequencer-http", "https://sepolia-sequencer.optimism.io/", \
     "--http", \
     "--http.port", "8200", \
@@ -21,6 +21,6 @@ CMD [ "node", \
     "--authrpc.jwtsecret", "jwt.hex", \
     "--authrpc.addr", "0.0.0.0", \
     "--authrpc.port", "8201", \
-    "--port", "30333", \
+    "--port", ${OP_RETH_DISCOVERY_PORT}, \
     "--rpc.eth-proof-window", "4096", \
     "-vvv" ]

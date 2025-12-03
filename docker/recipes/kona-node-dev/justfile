@@ -31,7 +31,7 @@ generate-jwt:
 # run node (show logs)
 # Spins up the docker environment
 up DETACH="": generate-jwt
-	docker compose up {{ DETACH }}
+	docker compose --env-file ./cfg.env up {{ DETACH }}
 
 # run node (no logs)
 # Spins up the docker environment
@@ -39,7 +39,7 @@ upd: (up "--detach")
 
 # Winds down the docker containers gracefully
 down: #rmi
-	docker compose down
+	docker compose --env-file ./cfg.env down
 
 # remove images to force rebuild
 rmi:

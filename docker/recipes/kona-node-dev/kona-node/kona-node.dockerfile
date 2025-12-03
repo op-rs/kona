@@ -1,6 +1,6 @@
 FROM ubuntu:latest
 
-#ENV KONA_NODE_L1 
+#ENV KONA_NODE_L1
 
 WORKDIR /
 
@@ -17,14 +17,14 @@ COPY jwttoken/jwt.hex /
 ENTRYPOINT kona-node \
     --l2-chain-id 11155420 \
     --metrics.enabled \
-    --metrics.port 9431 \
+    --metrics.port 9002 \
     node \
-    --l1 ${KONA_NODE_L1} \
-    --l1-beacon ${KONA_NODE_L1_BEACON} \
-    --l2 ${KONA_NODE_L2} \
+    --l1 ${L1_PROVIDER_RPC} \
+    --l1-beacon ${L1_BEACON_API} \
+    --l2 ${KONA_NODE_L2}:${OP_RETH_ENGINE_PORT} \
     --l2-engine-jwt-secret "/jwt.hex" \
-    --p2p.listen.tcp 9190 \
-    --p2p.listen.udp 9191 \
+    --p2p.listen.tcp 9223 \
+    --p2p.listen.udp 9223 \
     --p2p.scoring light \
     --p2p.ban.peers \
     --rpc.port 5060 \
