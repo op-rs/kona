@@ -66,6 +66,7 @@ jsonrpsee = { workspace = true, features = ["server"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tower.workspace = true
 http-body-util.workspace = true
+http.workspace = true
 
 # metrics
 metrics = { workspace = true, optional = true }

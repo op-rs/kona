@@ -2,23 +2,141 @@
 
 use crate::{NodeActor, actors::CancellableContext};
 use async_trait::async_trait;
-use kona_gossip::P2pRpcRequest;
-use kona_rpc::{
-    AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzApiServer, HealthzRpc,
-    NetworkAdminQuery, OpP2PApiServer, RollupBoostAdminQuery, RollupBoostHealthQuery,
-    RollupNodeApiServer, SequencerAdminAPIClient, WsRPC, WsServer,
-};
-use std::time::Duration;
-
 use jsonrpsee::{
     RpcModule,
     core::RegisterMethodError,
-    server::{Server, ServerHandle, middleware::http::ProxyGetRequestLayer},
+    server::{HttpBody, HttpRequest, HttpResponse, Server, ServerHandle, middleware::http::ProxyGetRequestLayer},
 };
 use kona_engine::EngineQueries;
-use kona_rpc::{L1WatcherQueries, P2pRpc, RollupRpc, RpcBuilder};
-use tokio::sync::mpsc;
+use kona_gossip::P2pRpcRequest;
+use kona_rpc::{
+    AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzApiServer, HealthzRpc,
+    L1WatcherQueries, NetworkAdminQuery, OpP2PApiServer, P2pRpc, RollupBoostAdminQuery,
+    RollupBoostHealth, RollupBoostHealthQuery, RollupNodeApiServer, RollupRpc, RpcBuilder,
+    SequencerAdminAPIClient, WsRPC, WsServer,
+};
+use std::{
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll},
+    time::Duration,
+};
+use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
+use tower::{Layer, Service};
+
+/// The path for the rollup boost healthz endpoint.
+const ROLLUP_BOOST_HEALTHZ_PATH: &str = "/kona-rollup-boost/healthz";
+
+/// A tower layer that intercepts requests to `/kona-rollup-boost/healthz`
+/// and returns the appropriate HTTP response based on health status.
+#[derive(Debug, Clone)]
+struct RollupBoostHealthLayer {
+    /// The rollup boost health query sender.
+    health_tx: mpsc::Sender<RollupBoostHealthQuery>,
+}
+
+impl RollupBoostHealthLayer {
+    /// Constructs a new [`RollupBoostHealthLayer`].
+    const fn new(health_tx: mpsc::Sender<RollupBoostHealthQuery>) -> Self {
+        Self { health_tx }
+    }
+}
+
+impl<S> Layer<S> for RollupBoostHealthLayer {
+    type Service = RollupBoostHealthMiddleware<S>;
+
+    fn layer(&self, inner: S) -> Self::Service {
+        RollupBoostHealthMiddleware { inner, health_tx: self.health_tx.clone() }
+    }
+}
+
+/// The middleware service that handles `/kona-rollup-boost/healthz` requests.
+///
+/// ## Health Status Determination
+///
+/// ```text
+/// +----------------+-------------------------------+--------------------------------------+-------------------------------+
+/// | Execution Mode | Healthy                       | PartialContent                       | Service Unavailable           |
+/// +----------------+-------------------------------+--------------------------------------+-------------------------------+
+/// | Enabled        | - Request-path: L2 succeeds   | - Request-path: builder fails/stale  | - Request-path: L2 fails      |
+/// |                |   (get/new payload) → 200     |   while L2 succeeds → 206            |   (error from L2) → 503       |
+/// |                | - Background: builder         | - Background: builder fetch fails or | - Background: never sets 503  |
+/// |                |   latest-unsafe is fresh →    |   latest-unsafe is stale → 206       |                               |
+/// |                |   200                         |                                      |                               |
+/// +----------------+-------------------------------+--------------------------------------+-------------------------------+
+/// | DryRun         | - Request-path: L2 succeeds   | - Never set in DryRun                | - Request-path: L2 fails      |
+/// |                |   (always returns L2) → 200   |   (degrade only in Enabled)          |   (error from L2) → 503       |
+/// |                | - Background: builder stale   |                                      | - Background: never sets 503  |
+/// |                |   ignored (remains 200)       |                                      |                               |
+/// +----------------+-------------------------------+--------------------------------------+-------------------------------+
+/// | Disabled       | - Request-path: L2 succeeds   | - Never set in Disabled              | - Request-path: L2 fails      |
+/// |                |   (builder skipped) → 200     |   (degrade only in Enabled)          |   (error from L2) → 503       |
+/// |                | - Background: N/A             |                                      | - Background: never sets 503  |
+/// +----------------+-------------------------------+--------------------------------------+-------------------------------+
+/// ```
+#[derive(Debug, Clone)]
+struct RollupBoostHealthMiddleware<S> {
+    /// The inner service.
+    inner: S,
+    /// The rollup boost health query sender.
+    health_tx: mpsc::Sender<RollupBoostHealthQuery>,
+}
+
+impl<S, ReqBody> Service<HttpRequest<ReqBody>> for RollupBoostHealthMiddleware<S>
+where
+    S: Service<HttpRequest<ReqBody>, Response = HttpResponse> + Clone + Send + 'static,
+    S::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
+    S::Future: Send,
+    ReqBody: Send + 'static,
+{
+    type Response = HttpResponse;
+    type Error = S::Error;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.inner.poll_ready(cx)
+    }
+
+    fn call(&mut self, req: HttpRequest<ReqBody>) -> Self::Future {
+        // Check if this is a GET request to the rollup boost healthz endpoint.
+        if req.method() == http::Method::GET && req.uri().path() == ROLLUP_BOOST_HEALTHZ_PATH {
+            let health_tx = self.health_tx.clone();
+
+            Box::pin(async move {
+                // Query the health status via the engine actor.
+                let (tx, rx) = oneshot::channel();
+                let health = match health_tx.send(RollupBoostHealthQuery { sender: tx }).await {
+                    Ok(()) => rx.await.ok(),
+                    Err(_) => None,
+                };
+
+                // Build the appropriate response.
+                let (status, body_str) = match health {
+                    Some(RollupBoostHealth::Healthy) => (http::StatusCode::OK, "OK"),
+                    Some(RollupBoostHealth::PartialContent) => {
+                        (http::StatusCode::PARTIAL_CONTENT, "Partial Content")
+                    }
+                    Some(RollupBoostHealth::ServiceUnavailable) | None => {
+                        (http::StatusCode::SERVICE_UNAVAILABLE, "Service Unavailable")
+                    }
+                };
+
+                let response = http::Response::builder()
+                    .status(status)
+                    .header(http::header::CONTENT_TYPE, "text/plain")
+                    .body(HttpBody::from(body_str))
+                    .expect("Failed to build rollup boost healthz response");
+
+                Ok(response)
+            })
+        } else {
+            // Pass through to the inner service.
+            let fut = self.inner.call(req);
+            Box::pin(async move { fut.await })
+        }
+    }
+}
 
 /// An error returned by the [`RpcActor`].
 #[derive(Debug, thiserror::Error)]
@@ -90,8 +208,10 @@ impl<S: SequencerAdminAPIClient> CancellableContext for RpcContext<S> {
 async fn launch(
     config: &RpcBuilder,
     module: RpcModule<()>,
+    health_tx: mpsc::Sender<RollupBoostHealthQuery>,
 ) -> Result<ServerHandle, std::io::Error> {
     let middleware = tower::ServiceBuilder::new()
+        .layer(RollupBoostHealthLayer::new(health_tx))
         .layer(
             ProxyGetRequestLayer::new([("/healthz", "healthz")])
                 .expect("Critical: Failed to build GET method proxy"),
@@ -128,7 +248,7 @@ impl<S: SequencerAdminAPIClient + 'static> NodeActor for RpcActor<S> {
     ) -> Result<(), Self::Error> {
         let mut modules = RpcModule::new(());
 
-        modules.merge(HealthzRpc::new(rollup_boost_health).into_rpc())?;
+        modules.merge(HealthzRpc::new().into_rpc())?;
 
         // Build the p2p rpc module.
         modules.merge(P2pRpc::new(p2p_network).into_rpc())?;
@@ -154,12 +274,12 @@ impl<S: SequencerAdminAPIClient + 'static> NodeActor for RpcActor<S> {
 
         let restarts = self.config.restart_count();
 
-        let mut handle = launch(&self.config, modules.clone()).await?;
+        let mut handle = launch(&self.config, modules.clone(), rollup_boost_health.clone()).await?;
 
         for _ in 0..=restarts {
             tokio::select! {
                 _ = handle.clone().stopped() => {
-                    match launch(&self.config, modules.clone()).await {
+                    match launch(&self.config, modules.clone(), rollup_boost_health.clone()).await {
                         Ok(h) => handle = h,
                         Err(err) => {
                             error!(target: "rpc", ?err, "Failed to launch rpc server");
@@ -189,6 +309,11 @@ mod tests {
 
     use super::*;
 
+    fn test_health_tx() -> mpsc::Sender<RollupBoostHealthQuery> {
+        let (tx, _rx) = mpsc::channel(1);
+        tx
+    }
+
     #[tokio::test]
     async fn test_launch_no_modules() {
         let launcher = RpcBuilder {
@@ -199,7 +324,7 @@ mod tests {
             ws_enabled: false,
             dev_enabled: false,
         };
-        let result = launch(&launcher, RpcModule::new(())).await;
+        let result = launch(&launcher, RpcModule::new(()), test_health_tx()).await;
         assert!(result.is_ok());
     }
 
@@ -219,7 +344,7 @@ mod tests {
         modules.merge(RpcModule::new(())).expect("module merge");
         modules.merge(RpcModule::new(())).expect("module merge");
 
-        let result = launch(&launcher, modules).await;
+        let result = launch(&launcher, modules, test_health_tx()).await;
         assert!(result.is_ok());
     }
 }
