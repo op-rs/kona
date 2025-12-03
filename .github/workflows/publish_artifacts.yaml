@@ -2,6 +2,7 @@ name: Publish Prestate Artifacts
 on:
   push:
     branches: [main]
+    tags: ['kona-client/v*']
 
 permissions:
   contents: read
@@ -48,33 +49,32 @@ jobs:
 
       - name: Upload prestates artifacts to GCS
         run: |
-             # Use the actual hash for tags (hash can be found by reading releases.json) 
-             gcloud auth login --brief --cred-file="${{ steps.auth.outputs.credentials_file_path }}"
-             echo "Authenticated to GCS"
+          # Use the actual hash for tags (hash can be found by reading releases.json) 
+          gcloud auth login --brief --cred-file="${{ steps.auth.outputs.credentials_file_path }}"
+          echo "Authenticated to GCS"
 
-             PRESTATE_HASH=$(jq -r .pre ./prestate-artifacts-${{ matrix.kind }}/prestate-proof.json)
-  
-             BRANCH_NAME=$(echo "${{ github.ref_name }}" | tr '/' '-') 
-             echo "Publishing ${PRESTATE_HASH} as ${BRANCH_NAME}" 
-             if [[ "" != "${{ github.ref_name }}" ]] 
-             then 
-               echo "Publishing commit hash data" 
-               INFO_FILE=$(mktemp) 
+          PRESTATE_HASH=$(jq -r .pre ./prestate-artifacts-${{ matrix.kind }}/prestate-proof.json)
 
-               # Upload the git commit info for each prestate since this won't be recorded in releases.json 
-               (echo "Commit=${{ github.sha }}" && echo "Prestate: ${PRESTATE_HASH}") > "${INFO_FILE}" 
+          BRANCH_NAME=$(echo "${{ github.ref_name }}" | tr '/' '-') 
+          echo "Publishing ${PRESTATE_HASH} as ${BRANCH_NAME}" 
+          if [[ "${{ github.ref_type }}" == 'branch' ]]
+          then 
+            echo "Publishing commit hash data" 
+            INFO_FILE=$(mktemp) 
 
-               gsutil cp "${INFO_FILE}" "gs://kona-proof-prestates/${{ matrix.kind }}/${BRANCH_NAME}-${{ matrix.version }}-prestate.bin.gz.txt" 
-               echo "Published commit hash data successfully" # So we know if any uploads worked 
+            # Upload the git commit info for each prestate since this won't be recorded in releases.json 
+            (echo "Commit=${{ github.sha }}" && echo "Prestate: ${PRESTATE_HASH}") > "${INFO_FILE}" 
 
-               rm "${INFO_FILE}" # keep things tidy 
-               echo "All commit info published" 
-  
-               # Use the branch name for branches to provide a consistent URL 
-               PRESTATE_HASH="${BRANCH_NAME}-${{ matrix.version }}" 
-             fi 
+            gsutil cp "${INFO_FILE}" "gs://kona-proof-prestates/${{ matrix.kind }}/${BRANCH_NAME}-${{ matrix.version }}-prestate.bin.gz.txt" 
+            echo "Published commit hash data successfully" # So we know if any uploads worked 
 
+            rm "${INFO_FILE}" # keep things tidy 
+            echo "All commit info published" 
 
-             gsutil cp ./prestate-artifacts-${{ matrix.kind }}/prestate.bin.gz "gs://kona-proof-prestates/${{ matrix.kind }}/${PRESTATE_HASH}-prestate.bin.gz" 
+            # Use the branch name for branches to provide a consistent URL 
+            PRESTATE_HASH="${BRANCH_NAME}-${{ matrix.version }}" 
+          fi 
 
-             echo "Successfully published prestates artifacts to GCS"
+          gsutil cp ./prestate-artifacts-${{ matrix.kind }}/prestate.bin.gz "gs://kona-proof-prestates/${{ matrix.kind }}/${PRESTATE_HASH}.bin.gz" 
+
+          echo "Successfully published prestates artifacts to GCS"
