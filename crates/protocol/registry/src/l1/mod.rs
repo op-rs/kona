@@ -293,6 +293,34 @@ mod tests {
     }
 
     #[test]
+    fn test_get_l1_bpo_mainnet() {
+        /// BPO1 hardfork activation timestamp
+        const MAINNET_BPO1_TIMESTAMP: u64 = 1_765_290_071;
+
+        /// BPO2 hardfork activation timestamp
+        const MAINNET_BPO2_TIMESTAMP: u64 = 1_767_747_671;
+
+        let mainnet = L1Config::mainnet();
+
+        assert_eq!(mainnet.blob_schedule.len(), 5);
+        assert_eq!(
+            mainnet.blob_schedule.get(&EthereumHardfork::Bpo1.name().to_lowercase()).unwrap(),
+            &BlobParams::bpo1()
+        );
+        assert_eq!(
+            mainnet.blob_schedule.get(&EthereumHardfork::Bpo2.name().to_lowercase()).unwrap(),
+            &BlobParams::bpo2()
+        );
+
+        let blob_schedule = mainnet.blob_schedule_blob_params();
+        assert_eq!(blob_schedule.scheduled.len(), 2);
+        assert_eq!(blob_schedule.scheduled[0].0, MAINNET_BPO1_TIMESTAMP);
+        assert_eq!(blob_schedule.scheduled[1].0, MAINNET_BPO2_TIMESTAMP);
+        assert_eq!(blob_schedule.scheduled[0].1, BlobParams::bpo1());
+        assert_eq!(blob_schedule.scheduled[1].1, BlobParams::bpo2());
+    }
+
+    #[test]
     fn test_get_l1_bpo_sepolia() {
         /// BPO1 hardfork activation timestamp
         const SEPOLIA_BPO1_TIMESTAMP: u64 = 1761017184;
