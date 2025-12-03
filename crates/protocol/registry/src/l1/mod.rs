@@ -62,26 +62,11 @@ impl L1Config {
 
     fn default_blob_schedule() -> BTreeMap<String, BlobParams> {
         BTreeMap::from([
-            (
-                alloy_hardforks::EthereumHardfork::Cancun.name().to_string().to_lowercase(),
-                BlobParams::cancun(),
-            ),
-            (
-                alloy_hardforks::EthereumHardfork::Prague.name().to_string().to_lowercase(),
-                BlobParams::prague(),
-            ),
-            (
-                alloy_hardforks::EthereumHardfork::Osaka.name().to_string().to_lowercase(),
-                BlobParams::osaka(),
-            ),
-            (
-                alloy_hardforks::EthereumHardfork::Bpo1.name().to_string().to_lowercase(),
-                BlobParams::bpo1(),
-            ),
-            (
-                alloy_hardforks::EthereumHardfork::Bpo2.name().to_string().to_lowercase(),
-                BlobParams::bpo2(),
-            ),
+            (alloy_hardforks::EthereumHardfork::Cancun.name().to_lowercase(), BlobParams::cancun()),
+            (alloy_hardforks::EthereumHardfork::Prague.name().to_lowercase(), BlobParams::prague()),
+            (alloy_hardforks::EthereumHardfork::Osaka.name().to_lowercase(), BlobParams::osaka()),
+            (alloy_hardforks::EthereumHardfork::Bpo1.name().to_lowercase(), BlobParams::bpo1()),
+            (alloy_hardforks::EthereumHardfork::Bpo2.name().to_lowercase(), BlobParams::bpo2()),
         ])
     }
 
