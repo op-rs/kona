@@ -100,6 +100,19 @@ variable "CLIENT_BIN" {
   description = "The kona-client binary to use in the proof prestate targets. Valid options: kona, kona-int"
 }
 
+variable "KONA_CUSTOM_CONFIGS" {
+  // Used to build a kona prestate using custom chain configurations
+  default = "false"
+  description = "Enables custom chain configurations to be built into kona artifacts"
+}
+
+variable "CUSTOM_CONFIGS_CONTEXT" {
+  // The build context for custom chain configurations to add to the prestate build
+  default = ""
+  description = "The build context for custom chain configurations to add to the prestate build"
+}
+
+
 target "asterisc-builder" {
   description = "Rust build environment for bare-metal RISC-V 64-bit IMA (Asterisc FPVM ISA)"
   inherits = ["docker-metadata-action"]
@@ -135,10 +148,14 @@ target "kona-cannon-prestate" {
   inherits = ["docker-metadata-action"]
   context = "."
   dockerfile = "docker/fpvm-prestates/cannon-repro.dockerfile"
+  contexts = {
+    custom_configs = "${CUSTOM_CONFIGS_CONTEXT}"
+  }
   args = {
     CLIENT_BIN = "${CLIENT_BIN}"
     CLIENT_TAG = "${GIT_REF_NAME}"
     CANNON_TAG = "${CANNON_TAG}"
+    KONA_CUSTOM_CONFIGS = "${KONA_CUSTOM_CONFIGS}"
   }
   # Only build on linux/amd64 for a single source of reproducibility.
   platforms = ["linux/amd64"]

@@ -23,10 +23,16 @@ pub use actors::{
     L1WatcherRpcState, L2Finalizer, NetworkActor, NetworkActorError, NetworkBuilder,
     NetworkBuilderError, NetworkConfig, NetworkContext, NetworkDriver, NetworkDriverError,
     NetworkHandler, NetworkInboundData, NodeActor, OriginSelector, PipelineBuilder,
-    QueuedBlockBuildingClient, QueuedSequencerAdminAPIClient, ResetRequest, RpcActor,
-    RpcActorError, RpcContext, SealRequest, SequencerActor, SequencerActorBuilder,
-    SequencerActorError, SequencerAdminQuery, SequencerConfig,
+    QueuedBlockBuildingClient, QueuedSequencerAdminAPIClient, QueuedUnsafePayloadGossipClient,
+    ResetRequest, RpcActor, RpcActorError, RpcContext, SealRequest, SequencerActor,
+    SequencerActorBuilder, SequencerActorError, SequencerAdminQuery, SequencerConfig,
+    UnsafePayloadGossipClient, UnsafePayloadGossipClientError,
 };
 
 mod metrics;
 pub use metrics::Metrics;
+
+#[cfg(test)]
+pub use actors::{
+    MockBlockBuildingClient, MockConductor, MockOriginSelector, MockUnsafePayloadGossipClient,
+};
