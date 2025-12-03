@@ -293,3 +293,181 @@ where
 
     base
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use kona_preimage::{HintWriterClient, PreimageOracleClient};
+    use op_revm::{DefaultOp as _, OpContext, OpSpecId};
+    use revm::{Context, database::EmptyDB, handler::PrecompileProvider, interpreter::CallInput};
+
+    type TestContext = OpContext<EmptyDB>;
+
+    fn create_call_inputs(address: Address, input: Bytes, gas_limit: u64) -> CallInputs {
+        CallInputs {
+            input: CallInput::Bytes(input),
+            gas_limit,
+            bytecode_address: address,
+            target_address: Address::ZERO,
+            caller: Address::ZERO,
+            value: revm::interpreter::CallValue::Transfer(alloy_primitives::U256::ZERO),
+            scheme: revm::interpreter::CallScheme::Call,
+            is_static: false,
+            return_memory_offset: 0..0,
+            known_bytecode: None,
+        }
+    }
+
+    fn create_test_context() -> TestContext {
+        Context::op().with_db(EmptyDB::new())
+    }
+
+    /// A mock accelerated precompile function that returns a fixed output.
+    fn mock_accelerated_precompile<H, O>(
+        _input: &[u8],
+        gas_limit: u64,
+        _hint_writer: &H,
+        _oracle_reader: &O,
+    ) -> PrecompileResult
+    where
+        H: HintWriterClient + Send + Sync,
+        O: PreimageOracleClient + Send + Sync,
+    {
+        Ok(revm::precompile::PrecompileOutput::new(gas_limit / 2, Bytes::from_static(b"mock")))
+    }
+
+    #[test]
+    fn test_run_accelerated_precompile() {
+        let (hint_chan, preimage_chan) = (
+            kona_preimage::BidirectionalChannel::new().unwrap(),
+            kona_preimage::BidirectionalChannel::new().unwrap(),
+        );
+        let hint_writer = kona_preimage::HintWriter::new(hint_chan.client);
+        let oracle_reader = kona_preimage::OracleReader::new(preimage_chan.client);
+
+        let mut ctx = create_test_context();
+
+        let mut precompiles =
+            OpFpvmPrecompiles::new_with_spec(OpSpecId::BEDROCK, hint_writer, oracle_reader);
+
+        // Override the ecrecover accelerated precompile with our mock
+        precompiles.accelerated_precompiles.insert(ECRECOVER_ADDR, mock_accelerated_precompile);
+
+        let call_inputs = create_call_inputs(ECRECOVER_ADDR, Bytes::from_static(b"test"), 1000);
+
+        let result = precompiles.run(&mut ctx, &call_inputs).unwrap();
+        assert!(result.is_some());
+
+        let interpreter_result = result.unwrap();
+        assert_eq!(interpreter_result.result, InstructionResult::Return);
+        assert_eq!(interpreter_result.output.as_ref(), b"mock");
+    }
+
+    #[test]
+    fn test_run_default_precompile_sha256() {
+        let (hint_chan, preimage_chan) = (
+            kona_preimage::BidirectionalChannel::new().unwrap(),
+            kona_preimage::BidirectionalChannel::new().unwrap(),
+        );
+        let hint_writer = kona_preimage::HintWriter::new(hint_chan.client);
+        let oracle_reader = kona_preimage::OracleReader::new(preimage_chan.client);
+
+        let mut ctx = create_test_context();
+
+        let mut precompiles =
+            OpFpvmPrecompiles::new_with_spec(OpSpecId::BEDROCK, hint_writer, oracle_reader);
+
+        // SHA256 precompile address (0x02) - not accelerated, uses default
+        let sha256_addr = revm::precompile::u64_to_address(2);
+        let input = b"hello world";
+        let call_inputs = create_call_inputs(sha256_addr, input.to_vec().into(), u64::MAX);
+
+        let result = precompiles.run(&mut ctx, &call_inputs).unwrap();
+        assert!(result.is_some());
+
+        let interpreter_result = result.unwrap();
+        assert_eq!(interpreter_result.result, InstructionResult::Return);
+        assert!(!interpreter_result.output.is_empty());
+    }
+
+    #[test]
+    fn test_run_nonexistent_precompile() {
+        let (hint_chan, preimage_chan) = (
+            kona_preimage::BidirectionalChannel::new().unwrap(),
+            kona_preimage::BidirectionalChannel::new().unwrap(),
+        );
+        let hint_writer = kona_preimage::HintWriter::new(hint_chan.client);
+        let oracle_reader = kona_preimage::OracleReader::new(preimage_chan.client);
+
+        let mut ctx = create_test_context();
+
+        let mut precompiles =
+            OpFpvmPrecompiles::new_with_spec(OpSpecId::BEDROCK, hint_writer, oracle_reader);
+
+        // Non-existent precompile address
+        let fake_addr = Address::from_slice(&[0xFFu8; 20]);
+        let call_inputs = create_call_inputs(fake_addr, Bytes::new(), u64::MAX);
+
+        let result = precompiles.run(&mut ctx, &call_inputs).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_run_out_of_gas() {
+        let (hint_chan, preimage_chan) = (
+            kona_preimage::BidirectionalChannel::new().unwrap(),
+            kona_preimage::BidirectionalChannel::new().unwrap(),
+        );
+        let hint_writer = kona_preimage::HintWriter::new(hint_chan.client);
+        let oracle_reader = kona_preimage::OracleReader::new(preimage_chan.client);
+
+        let mut ctx = create_test_context();
+
+        let mut precompiles =
+            OpFpvmPrecompiles::new_with_spec(OpSpecId::BEDROCK, hint_writer, oracle_reader);
+
+        // SHA256 with 0 gas to trigger OOG
+        let sha256_addr = revm::precompile::u64_to_address(2);
+        let input = b"hello world";
+        let call_inputs = create_call_inputs(sha256_addr, input.to_vec().into(), 0);
+
+        let result = precompiles.run(&mut ctx, &call_inputs).unwrap();
+        assert!(result.is_some());
+
+        let interpreter_result = result.unwrap();
+        assert_eq!(interpreter_result.result, InstructionResult::PrecompileOOG);
+    }
+
+    #[test]
+    fn test_run_with_shared_buffer_empty() {
+        let (hint_chan, preimage_chan) = (
+            kona_preimage::BidirectionalChannel::new().unwrap(),
+            kona_preimage::BidirectionalChannel::new().unwrap(),
+        );
+        let hint_writer = kona_preimage::HintWriter::new(hint_chan.client);
+        let oracle_reader = kona_preimage::OracleReader::new(preimage_chan.client);
+
+        let mut ctx = create_test_context();
+
+        let mut precompiles =
+            OpFpvmPrecompiles::new_with_spec(OpSpecId::BEDROCK, hint_writer, oracle_reader);
+
+        // Test SharedBuffer path with empty buffer
+        let sha256_addr = revm::precompile::u64_to_address(2);
+        let call_inputs = CallInputs {
+            input: CallInput::SharedBuffer(0..0),
+            gas_limit: u64::MAX,
+            bytecode_address: sha256_addr,
+            target_address: Address::ZERO,
+            caller: Address::ZERO,
+            value: revm::interpreter::CallValue::Transfer(alloy_primitives::U256::ZERO),
+            scheme: revm::interpreter::CallScheme::Call,
+            is_static: false,
+            return_memory_offset: 0..0,
+            known_bytecode: None,
+        };
+
+        let result = precompiles.run(&mut ctx, &call_inputs).unwrap();
+        assert!(result.is_some());
+    }
+}
