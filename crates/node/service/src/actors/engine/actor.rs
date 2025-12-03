@@ -335,7 +335,7 @@ impl EngineActorState {
                             return Err(EngineError::ChannelClosed);
                         };
 
-                        let health = rollup_boost.get_health();
+                        let health = rollup_boost.probes().health();
                         health_query.sender.send(health.into()).unwrap();
                     }
                 }
