@@ -20,94 +20,95 @@ services:
     networks:
       - stf-net
 
-# grafana:
-#   restart: unless-stopped
-#   image: grafana/grafana:latest
-#   depends_on:
-#     - prometheus
-#   ports:
-#     - "${GRAFANA_PORT:-3000}:3000"
-#   environment:
-#     PROMETHEUS_URL: ${PROMETHEUS_URL:-http://prometheus:9090}
-#   volumes:
-#     - "grafana_data:/var/lib/grafana"
-#     - "./grafana/datasources:/etc/grafana/provisioning/datasources"
-#     - "./grafana/dashboards:/etc/grafana/provisioning_temp/dashboards"
-#   entrypoint: >
-#     sh -c "cp -r /etc/grafana/provisioning_temp/dashboards/. /etc/grafana/provisioning/dashboards &&
-#       find /etc/grafana/provisioning/dashboards/ -name '*.json' -exec sed -i 's/$${DS_PROMETHEUS}/Prometheus/g' {} \+ &&
-#       /run.sh"
-#   networks:
-#     - stf-net
 
-# op-rs-op-sepolia-reth:
-#   container_name: reth
-#   depends_on:
-#     - prometheus
-#   restart: unless-stopped
-#   env_file:
-#     - path: cfg.env
-#     - path: default.env
-#     - path: publicnode.env
-#       #- path: override.env
-#       required: false
-#   build:
-#     context: .
-#     dockerfile: op-reth/op-reth.dockerfile
-#   ports:
-#     # - "9430:9430" # metrics
-#     # - "30333:30333/tcp" # eth/66 peering
-#     # - "30333:30333/udp" # eth/66 peering
-#     # - "8200:8200" # rpc
-#     # - "8201:8201" # engine
-#     - "${OP_RETH_METRICS_PORT:-9001}:9001" # metrics
-#     - "${OP_RETH_DISCOVERY_PORT:-30303}:30303/tcp" # discovery
-#     - "${OP_RETH_DISCOVERY_PORT:-30303}:30303/udp" # discovery
-#     - "${OP_RETH_RPC_PORT:-8545}:8545" # rpc
-#     - "${OP_RETH_ENGINE_PORT:-8551}:8551" # engine
-#   volumes:
-#     - "reth_data:/db"
-#     - "logs:/root/logs"
-#     - "./datadirs/reth:/db"
-#   networks:
-#     - stf-net
+  grafana:
+    restart: unless-stopped
+    image: grafana/grafana:latest
+    depends_on:
+      - prometheus
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      PROMETHEUS_URL: ${PROMETHEUS_URL:-http://prometheus:9090}
+    volumes:
+      - "grafana_data:/var/lib/grafana"
+      - "./grafana/datasources:/etc/grafana/provisioning/datasources"
+      - "./grafana/dashboards:/etc/grafana/provisioning_temp/dashboards"
+    entrypoint: >
+      sh -c "cp -r /etc/grafana/provisioning_temp/dashboards/. /etc/grafana/provisioning/dashboards &&
+        find /etc/grafana/provisioning/dashboards/ -name '*.json' -exec sed -i 's/$${DS_PROMETHEUS}/Prometheus/g' {} \+ &&
+        /run.sh"
+    networks:
+      - stf-net
 
-# op-rs-op-sepolia-kona-node:
-#   container_name: kona
-#   depends_on:
-#     - prometheus
-#     - op-rs-op-sepolia-reth
-#   restart: unless-stopped
-#   env_file:
-#     - path: cfg.env
-#     - path: default.env
-#     - path: publicnode.env
-#       #- path: override.env
-#       required: false
-#   # environment:
-#   #   L1_PROVIDER_RPC: ${L1_PROVIDER_RPC:?}
-#   #   L1_BEACON_API: ${L1_BEACON_API:?}
-#   #   RUST_LOG: ${RUST_LOG:-}
-#   build:
-#     context: .
-#     dockerfile: kona-node/kona-node.dockerfile
-#   ports:
-#     # - "9223:9223/tcp" # p2p
-#     # - "9223:9223/udp" # p2p
-#     # - "9431:9431" # metrics
-#     # - "5060:5060" # rpc
-#     - "${KONA_NODE_DISCOVERY_PORT:-9223}:9223/tcp" # discovery
-#     - "${KONA_NODE_DISCOVERY_PORT:-9223}:9223/udp" # discovery
-#     - "${KONA_NODE_METRICS_PORT:-9002}:9002" # metrics
-#     - "${KONA_NODE_RPC_PORT:-5060}:5060" # rpc
-#   volumes:
-#     - "./datadirs/kona-node:/db"
-#     - "./jwttoken:/root/jwt:ro"
-#   networks:
-#     - stf-net
+  op-rs-op-sepolia-reth:
+    container_name: reth
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    env_file:
+      - path: cfg.env
+      - path: default.env
+      - path: publicnode.env
+        #- path: override.env
+        required: false
+    build:
+      context: .
+      dockerfile: op-reth/op-reth.dockerfile
+    ports:
+      # was
+      # - "9430:9430" # metrics
+      # - "30333:30333/tcp" # eth/66 peering
+      # - "30333:30333/udp" # eth/66 peering
+      # - "8200:8200" # rpc
+      # - "8201:8201" # engine
+      - "${OP_RETH_METRICS_PORT:-9001}:9001" # metrics
+      - "${OP_RETH_DISCOVERY_PORT:-30303}:30303/tcp" # discovery
+      - "${OP_RETH_DISCOVERY_PORT:-30303}:30303/udp" # discovery
+      - "${OP_RETH_RPC_PORT:-8545}:8545" # rpc
+      - "${OP_RETH_ENGINE_PORT:-8551}:8551" # engine
+    volumes:
+      - "reth_data:/db"
+      - "logs:/root/logs"
+      - "./datadirs/reth:/db"
+    networks:
+      - stf-net
 
+  op-rs-op-sepolia-kona-node:
+    container_name: kona
+    #depends_on:
+    #- prometheus
+    #- op-rs-op-sepolia-reth
+    restart: unless-stopped
+    #env_file:
+    #- path: cfg.env
+    #- path: default.env
+    #- path: publicnode.env
+    #- path: override.env
+    #required: false
+    #environment:
+    #  L1_PROVIDER_RPC: ${L1_PROVIDER_RPC:?}
+    #   L1_BEACON_API: ${L1_BEACON_API:?}
+    #   RUST_LOG: ${RUST_LOG:-}
+    build:
+      context: .
+      dockerfile: kona-node/kona-node.dockerfile
+    ports:
+      # was
+      # - "9223:9223/tcp" # p2p
+      # - "9223:9223/udp" # p2p
+      # - "9431:9431" # metrics
+      # - "5060:5060" # rpc
+      - "${KONA_NODE_DISCOVERY_PORT:-9223}:9223/tcp" # discovery
+      - "${KONA_NODE_DISCOVERY_PORT:-9223}:9223/udp" # discovery
+      - "${KONA_NODE_METRICS_PORT:-9002}:9002" # metrics
+      - "${KONA_NODE_RPC_PORT:-5060}:5060" # rpc
+    volumes:
+      - "./datadirs/kona-node:/db"
+      - "./jwttoken:/root/jwt:ro"
+    networks:
+      - stf-net
 
-## DEBUG
 
 # op-reth:
 #   restart: unless-stopped
@@ -166,9 +167,6 @@ services:
 #     --p2p.listen.udp 9223
 #     --p2p.bootstore /db
 
-
-# op-rs-grafana:
-#   container_name: grafana
 
 
 volumes:

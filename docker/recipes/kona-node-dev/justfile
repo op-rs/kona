@@ -31,7 +31,8 @@ generate-jwt:
 # run node (show logs)
 # Spins up the docker environment
 up DETACH="": generate-jwt
-	docker compose --env-file ./cfg.env up {{ DETACH }}
+	#docker compose --env-file ./cfg.env up {{ DETACH }}
+	docker compose --env-file ./publicnode.env up {{ DETACH }}
 
 # run node (no logs)
 # Spins up the docker environment
@@ -39,11 +40,13 @@ upd: (up "--detach")
 
 # Winds down the docker containers gracefully
 down: #rmi
-	docker compose --env-file ./cfg.env down
+	#docker compose --env-file ./cfg.env down
+	docker compose --env-file ./publicnode.env down
+	#docker compose down
 
 # remove images to force rebuild
 rmi:
-	docker image ls "*-op-rs-op-sepolia-*" --format="{{ "{{" }}.Repository{{ "}}" }}" | xargs -r docker rmi
+	docker image ls "*-op-rs-op-sepolia-*" --format="{{ "{{" }}.Repository{{ "}}" }}" | xargs -r docker rmi -f
 
 # Restarts the environment
 restart: down up
