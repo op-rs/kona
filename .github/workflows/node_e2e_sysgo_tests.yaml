@@ -63,7 +63,7 @@ jobs:
         uses: docker/bake-action@v6
         env:
           BIN_TARGET: kona-node
-          BUILD_PROFILE: debug
+          BUILD_PROFILE: dev
           REPO_LOCATION: local
           PLATFORMS: linux/${{ runner.arch == 'X64' && 'amd64' || runner.arch == 'ARM64' && 'arm64' || runner.arch }}
         with:
