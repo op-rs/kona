@@ -4,7 +4,7 @@ use super::{SingleChainHintHandler, SingleChainLocalInputs};
 use crate::{
     DiskKeyValueStore, MemoryKeyValueStore, OfflineHostBackend, OnlineHostBackend,
     OnlineHostBackendCfg, PreimageServer, SharedKeyValueStore, SplitKeyValueStore,
-    eth::http_provider, server::PreimageServerError,
+    eth::rpc_provider, server::PreimageServerError,
 };
 use alloy_primitives::B256;
 use alloy_provider::RootProvider;
@@ -271,22 +271,24 @@ impl SingleChainHost {
 
     /// Creates the providers required for the host backend.
     pub async fn create_providers(&self) -> Result<SingleChainProviders, SingleChainHostError> {
-        let l1_provider = http_provider(
+        let l1_provider = rpc_provider(
             self.l1_node_address
                 .as_ref()
                 .ok_or(SingleChainHostError::Other("Provider must be set"))?,
-        );
+        )
+        .await;
         let blob_provider = OnlineBlobProvider::init(OnlineBeaconClient::new_http(
             self.l1_beacon_address
                 .clone()
                 .ok_or(SingleChainHostError::Other("Beacon API URL must be set"))?,
         ))
         .await;
-        let l2_provider = http_provider::<Optimism>(
+        let l2_provider = rpc_provider::<Optimism>(
             self.l2_node_address
                 .as_ref()
                 .ok_or(SingleChainHostError::Other("L2 node address must be set"))?,
-        );
+        )
+        .await;
 
         Ok(SingleChainProviders { l1: l1_provider, blobs: blob_provider, l2: l2_provider })
     }

@@ -1,23 +1,29 @@
 //! Node Subcommand.
 
 use crate::{
-    flags::{GlobalArgs, P2PArgs, RpcArgs, SequencerArgs},
+    flags::{
+        BuilderClientArgs, GlobalArgs, L1ClientArgs, L2ClientArgs, P2PArgs, RollupBoostFlags,
+        RpcArgs, SequencerArgs,
+    },
     metrics::{CliMetrics, init_rollup_config_metrics},
 };
+use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::JwtSecret;
+use alloy_transport_http::Http;
 use anyhow::{Result, bail};
 use backon::{ExponentialBuilder, Retryable};
 use clap::Parser;
 use kona_cli::{LogConfig, MetricsArgs};
+use kona_engine::{EngineClient, HyperAuthClient};
 use kona_genesis::{L1ChainConfig, RollupConfig};
-use kona_node_service::{NodeMode, RollupNode, RollupNodeService};
+use kona_node_service::{EngineConfig, NodeMode, RollupNodeBuilder};
 use kona_registry::{L1Config, scr_rollup_config_by_alloy_ident};
+use op_alloy_network::Optimism;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use serde_json::from_reader;
-use std::{fs::File, path::PathBuf, sync::Arc};
+use std::{fs::File, io::Write, path::PathBuf, sync::Arc, time::Duration};
 use strum::IntoEnumIterator;
 use tracing::{debug, error, info};
-use url::Url;
 
 /// A JWT token validation error.
 #[derive(Debug, thiserror::Error)]
@@ -62,7 +68,7 @@ pub(super) enum JwtValidationError {
 ///           --l2-engine-rpc http://localhost:8551 \
 ///           --l2-engine-jwt-secret /path/to/jwt.hex
 /// ```
-#[derive(Parser, PartialEq, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 #[command(about = "Runs the consensus node")]
 pub struct NodeCommand {
     /// The mode to run the node in.
@@ -79,37 +85,19 @@ pub struct NodeCommand {
         )
     )]
     pub node_mode: NodeMode,
-    /// URL of the L1 execution client RPC API.
-    #[arg(long, visible_alias = "l1", env = "KONA_NODE_L1_ETH_RPC")]
-    pub l1_eth_rpc: Url,
-    /// Whether to trust the L1 RPC.
-    /// If false, block hash verification is performed for all retrieved blocks.
-    #[arg(
-        long,
-        visible_alias = "l1.trust-rpc",
-        env = "KONA_NODE_L1_TRUST_RPC",
-        default_value = "true"
-    )]
-    pub l1_trust_rpc: bool,
-    /// URL of the L1 beacon API.
-    #[arg(long, visible_alias = "l1.beacon", env = "KONA_NODE_L1_BEACON")]
-    pub l1_beacon: Url,
-    /// URL of the engine API endpoint of an L2 execution client.
-    #[arg(long, visible_alias = "l2", env = "KONA_NODE_L2_ENGINE_RPC")]
-    pub l2_engine_rpc: Url,
-    /// Whether to trust the L2 RPC.
-    /// If false, block hash verification is performed for all retrieved blocks.
-    #[arg(
-        long,
-        visible_alias = "l2.trust-rpc",
-        env = "KONA_NODE_L2_TRUST_RPC",
-        default_value = "true"
-    )]
-    pub l2_trust_rpc: bool,
-    /// JWT secret for the auth-rpc endpoint of the execution client.
-    /// This MUST be a valid path to a file containing the hex-encoded JWT secret.
-    #[arg(long, visible_alias = "l2.jwt-secret", env = "KONA_NODE_L2_ENGINE_AUTH")]
-    pub l2_engine_jwt_secret: Option<PathBuf>,
+
+    /// L1 RPC CLI arguments.
+    #[clap(flatten)]
+    pub l1_rpc_args: L1ClientArgs,
+
+    /// L2 engine CLI arguments.
+    #[clap(flatten)]
+    pub l2_client_args: L2ClientArgs,
+
+    /// Optional block builder client.
+    #[clap(flatten)]
+    pub builder_client_args: BuilderClientArgs,
+
     /// Path to a custom L2 rollup configuration file
     /// (overrides the default rollup configuration from the registry)
     #[arg(long, visible_alias = "rollup-cfg", env = "KONA_NODE_ROLLUP_CONFIG")]
@@ -127,23 +115,25 @@ pub struct NodeCommand {
     /// SEQUENCER CLI arguments.
     #[command(flatten)]
     pub sequencer_flags: SequencerArgs,
+
+    /// Rollup boost CLI arguments - contains the builder and l2 engine arguments.
+    #[command(flatten)]
+    pub rollup_boost_flags: RollupBoostFlags,
 }
 
 impl Default for NodeCommand {
     fn default() -> Self {
         Self {
-            l1_eth_rpc: Url::parse("http://localhost:8545").unwrap(),
-            l1_trust_rpc: true,
-            l1_beacon: Url::parse("http://localhost:5052").unwrap(),
-            l2_engine_rpc: Url::parse("http://localhost:8551").unwrap(),
-            l2_trust_rpc: true,
-            l2_engine_jwt_secret: None,
+            l1_rpc_args: L1ClientArgs::default(),
+            l2_client_args: L2ClientArgs::default(),
+            builder_client_args: BuilderClientArgs::default(),
             l2_config_file: None,
             l1_config_file: None,
             node_mode: NodeMode::Validator,
             p2p_flags: P2PArgs::default(),
             rpc_flags: RpcArgs::default(),
             sequencer_flags: SequencerArgs::default(),
+            rollup_boost_flags: RollupBoostFlags::default(),
         }
     }
 }
@@ -234,17 +224,21 @@ impl NodeCommand {
     /// Validate the jwt secret if specified by exchanging capabilities with the engine.
     /// Since the engine client will fail if the jwt token is invalid, this allows to ensure
     /// that the jwt token passed as a cli arg is correct.
-    pub async fn validate_jwt(&self, config: &RollupConfig) -> anyhow::Result<JwtSecret> {
-        let jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
-        let engine_client = kona_engine::EngineClient::new_http(
-            self.l2_engine_rpc.clone(),
-            self.l1_eth_rpc.clone(),
-            Arc::new(config.clone()),
+    pub async fn validate_jwt(&self) -> anyhow::Result<JwtSecret> {
+        let jwt_secret = self.l2_jwt_secret()?;
+
+        let engine = EngineClient::rpc_client::<Optimism>(
+            self.l2_client_args.l2_engine_rpc.clone(),
             jwt_secret,
         );
 
         let exchange = || async {
-            match engine_client.exchange_capabilities(vec![]).await {
+            match <RootProvider<Optimism> as OpEngineApi<
+                Optimism,
+                Http<HyperAuthClient>,
+            >>::exchange_capabilities(&engine, vec![])
+            .await
+            {
                 Ok(_) => {
                     debug!("Successfully exchanged capabilities with engine");
                     Ok(jwt_secret)
@@ -276,16 +270,6 @@ impl NodeCommand {
     /// Run the Node subcommand.
     pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
         let cfg = self.get_l2_config(args)?;
-        let l1_cfg = self.get_l1_config(cfg.l1_chain_id)?;
-
-        // If metrics are enabled, initialize the global cli metrics.
-        args.metrics.enabled.then(|| init_rollup_config_metrics(&cfg));
-
-        let jwt_secret = self.validate_jwt(&cfg).await?;
-
-        self.p2p_flags.check_ports()?;
-        let p2p_config = self.p2p_flags.config(&cfg, args, Some(self.l1_eth_rpc.clone())).await?;
-        let rpc_config = self.rpc_flags.into();
 
         info!(
             target: "rollup_node",
@@ -296,24 +280,52 @@ impl NodeCommand {
             info!(target: "rollup_node", "{hf}");
         }
 
-        RollupNode::builder(cfg, l1_cfg)
-            .with_mode(self.node_mode)
-            .with_jwt_secret(jwt_secret)
-            .with_l1_provider_rpc_url(self.l1_eth_rpc)
-            .with_l1_trust_rpc(self.l1_trust_rpc)
-            .with_l1_beacon_api_url(self.l1_beacon)
-            .with_l2_engine_rpc_url(self.l2_engine_rpc)
-            .with_l2_trust_rpc(self.l2_trust_rpc)
-            .with_p2p_config(p2p_config)
-            .with_rpc_config(rpc_config)
-            .with_sequencer_config(self.sequencer_flags.config())
-            .build()
-            .start()
-            .await
-            .map_err(|e| {
-                error!(target: "rollup_node", "Failed to start rollup node service: {e}");
-                anyhow::anyhow!("{e}")
-            })?;
+        let l1_cfg = self.get_l1_config(cfg.l1_chain_id)?;
+
+        // If metrics are enabled, initialize the global cli metrics.
+        args.metrics.enabled.then(|| init_rollup_config_metrics(&cfg));
+
+        let jwt_secret = self.validate_jwt().await?;
+
+        self.p2p_flags.check_ports()?;
+        let p2p_config = self
+            .p2p_flags
+            .clone()
+            .config(&cfg, args, Some(self.l1_rpc_args.l1_eth_rpc.clone()))
+            .await?;
+        let rpc_config = self.rpc_flags.clone().into();
+
+        let engine_config = EngineConfig {
+            config: Arc::new(cfg.clone()),
+            builder_url: self.builder_client_args.l2_builder_rpc.clone(),
+            builder_jwt_secret: self.builder_jwt_secret()?,
+            builder_timeout: Duration::from_millis(self.builder_client_args.builder_timeout),
+            l2_url: self.l2_client_args.l2_engine_rpc.clone(),
+            l2_jwt_secret: jwt_secret,
+            l2_timeout: Duration::from_millis(self.l2_client_args.l2_engine_timeout),
+            l1_url: self.l1_rpc_args.l1_eth_rpc.clone(),
+            l1_beacon: self.l1_rpc_args.l1_beacon.clone(),
+            mode: self.node_mode,
+            rollup_boost: self.rollup_boost_flags.as_rollup_boost_args(),
+        };
+
+        RollupNodeBuilder::new(
+            cfg,
+            l1_cfg,
+            self.l1_rpc_args.l1_trust_rpc,
+            self.l2_client_args.l2_trust_rpc,
+            engine_config,
+            p2p_config,
+            rpc_config,
+        )
+        .with_sequencer_config(self.sequencer_flags.config())
+        .build()
+        .start()
+        .await
+        .map_err(|e| {
+            error!(target: "rollup_node", "Failed to start rollup node service: {e}");
+            anyhow::anyhow!("{e}")
+        })?;
 
         Ok(())
     }
@@ -356,37 +368,62 @@ impl NodeCommand {
         }
     }
 
-    /// Returns the JWT secret for the engine API
+    /// Returns the L2 JWT secret for the engine API
     /// using the provided [PathBuf]. If the file is not found,
     /// it will return the default JWT secret.
-    pub fn jwt_secret(&self) -> Option<JwtSecret> {
-        if let Some(path) = &self.l2_engine_jwt_secret {
-            if let Ok(secret) = std::fs::read_to_string(path) {
-                return JwtSecret::from_hex(secret).ok();
-            }
+    pub fn l2_jwt_secret(&self) -> anyhow::Result<JwtSecret> {
+        if let Some(path) = &self.l2_client_args.l2_engine_jwt_secret &&
+            let Ok(secret) = std::fs::read_to_string(path)
+        {
+            return JwtSecret::from_hex(secret)
+                .map_err(|e| anyhow::anyhow!("Failed to parse JWT secret: {e}"));
         }
-        Self::default_jwt_secret()
+
+        if let Some(secret) = &self.l2_client_args.l2_engine_jwt_encoded {
+            return Ok(*secret);
+        }
+
+        Self::default_jwt_secret("l2_jwt.hex")
+    }
+
+    /// Returns the builder JWT secret for the engine API
+    /// using the provided [PathBuf]. If the file is not found,
+    /// it will return the default JWT secret.
+    pub fn builder_jwt_secret(&self) -> anyhow::Result<JwtSecret> {
+        if let Some(path) = &self.builder_client_args.builder_jwt_path &&
+            let Ok(secret) = std::fs::read_to_string(path)
+        {
+            return JwtSecret::from_hex(secret)
+                .map_err(|e| anyhow::anyhow!("Failed to parse JWT secret: {e}"));
+        }
+
+        if let Some(secret) = &self.builder_client_args.builder_jwt_secret {
+            return Ok(*secret);
+        }
+
+        Self::default_jwt_secret("builder_jwt.hex")
     }
 
     /// Uses the current directory to attempt to read
-    /// the JWT secret from a file named `jwt.hex`.
-    /// If the file is not found, it will return `None`.
-    pub fn default_jwt_secret() -> Option<JwtSecret> {
-        let cur_dir = std::env::current_dir().ok()?;
-        std::fs::read_to_string(cur_dir.join("jwt.hex")).map_or_else(
+    /// the JWT secret from a file named `file_name`.
+    /// If the file is not found, it will create a new random JWT secret and write it to the file.
+    pub fn default_jwt_secret(file_name: &str) -> anyhow::Result<JwtSecret> {
+        let cur_dir = std::env::current_dir()
+            .map_err(|e| anyhow::anyhow!("Failed to get current directory: {e}"))?;
+        std::fs::read_to_string(cur_dir.join(file_name)).map_or_else(
             |_| {
-                use std::io::Write;
                 let secret = JwtSecret::random();
-                if let Ok(mut file) = File::create("jwt.hex") {
-                    if let Err(e) =
-                        file.write_all(alloy_primitives::hex::encode(secret.as_bytes()).as_bytes())
-                    {
-                        tracing::error!("Failed to write JWT secret to file: {:?}", e);
-                    }
+
+                if let Ok(mut file) = File::create(file_name) &&
+                    let Err(e) = file
+                        .write_all(alloy_primitives::hex::encode(secret.as_bytes()).as_bytes())
+                {
+                    return Err(anyhow::anyhow!("Failed to write JWT secret to file: {e}"));
                 }
-                Some(secret)
+
+                Ok(secret)
             },
-            |content| JwtSecret::from_hex(content).ok(),
+            |content| Ok(JwtSecret::from_hex(content)?),
         )
     }
 }

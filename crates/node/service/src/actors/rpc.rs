@@ -4,8 +4,9 @@ use crate::{NodeActor, actors::CancellableContext};
 use async_trait::async_trait;
 use kona_gossip::P2pRpcRequest;
 use kona_rpc::{
-    AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzResponse, NetworkAdminQuery,
-    OpP2PApiServer, RollupNodeApiServer, SequencerAdminQuery, WsRPC, WsServer,
+    AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzApiServer, HealthzRpc,
+    NetworkAdminQuery, OpP2PApiServer, RollupBoostAdminQuery, RollupBoostHealthQuery,
+    RollupNodeApiServer, SequencerAdminAPIClient, WsRPC, WsServer,
 };
 use std::time::Duration;
 
@@ -38,36 +39,42 @@ pub enum RpcActorError {
 
 /// An actor that handles the RPC server for the rollup node.
 #[derive(Debug)]
-pub struct RpcActor {
+pub struct RpcActor<S: SequencerAdminAPIClient> {
     /// A launcher for the rpc.
     config: RpcBuilder,
+
+    phantom: std::marker::PhantomData<S>,
 }
 
-impl RpcActor {
+impl<S: SequencerAdminAPIClient> RpcActor<S> {
     /// Constructs a new [`RpcActor`] given the [`RpcBuilder`].
     pub const fn new(config: RpcBuilder) -> Self {
-        Self { config }
+        Self { config, phantom: std::marker::PhantomData }
     }
 }
 
 /// The communication context used by the RPC actor.
 #[derive(Debug)]
-pub struct RpcContext {
+pub struct RpcContext<SequencerAdminApiClient> {
     /// The network p2p rpc sender.
     pub p2p_network: mpsc::Sender<P2pRpcRequest>,
     /// The network admin rpc sender.
     pub network_admin: mpsc::Sender<NetworkAdminQuery>,
     /// The sequencer admin rpc sender.
-    pub sequencer_admin: Option<mpsc::Sender<SequencerAdminQuery>>,
+    pub sequencer_admin: Option<SequencerAdminApiClient>,
     /// The l1 watcher queries sender.
     pub l1_watcher_queries: mpsc::Sender<L1WatcherQueries>,
     /// The engine query sender.
     pub engine_query: mpsc::Sender<EngineQueries>,
     /// The cancellation token, shared between all tasks.
     pub cancellation: CancellationToken,
+    /// The rollup boost admin rpc sender.
+    pub rollup_boost_admin: mpsc::Sender<RollupBoostAdminQuery>,
+    /// The rollup boost health rpc sender.
+    pub rollup_boost_health: mpsc::Sender<RollupBoostHealthQuery>,
 }
 
-impl CancellableContext for RpcContext {
+impl<S: SequencerAdminAPIClient> CancellableContext for RpcContext<S> {
     fn cancelled(&self) -> WaitForCancellationFuture<'_> {
         self.cancellation.cancelled()
     }
@@ -102,15 +109,9 @@ async fn launch(
 }
 
 #[async_trait]
-impl NodeActor for RpcActor {
+impl<S: SequencerAdminAPIClient + 'static> NodeActor for RpcActor<S> {
     type Error = RpcActorError;
-    type OutboundData = RpcContext;
-    type InboundData = ();
-    type Builder = RpcBuilder;
-
-    fn build(config: Self::Builder) -> (Self::InboundData, Self) {
-        ((), Self::new(config))
-    }
+    type StartData = RpcContext<S>;
 
     async fn start(
         mut self,
@@ -121,22 +122,20 @@ impl NodeActor for RpcActor {
             engine_query,
             network_admin,
             sequencer_admin,
-        }: Self::OutboundData,
+            rollup_boost_admin,
+            rollup_boost_health,
+        }: Self::StartData,
     ) -> Result<(), Self::Error> {
         let mut modules = RpcModule::new(());
 
-        modules.register_method("healthz", |_, _, _| {
-            let response = HealthzResponse { version: std::env!("CARGO_PKG_VERSION").to_string() };
-            jsonrpsee::core::RpcResult::Ok(response)
-        })?;
+        modules.merge(HealthzRpc::new(rollup_boost_health).into_rpc())?;
 
         // Build the p2p rpc module.
         modules.merge(P2pRpc::new(p2p_network).into_rpc())?;
 
         // Build the admin rpc module.
         modules.merge(
-            AdminRpc { sequencer_sender: sequencer_admin, network_sender: network_admin }
-                .into_rpc(),
+            AdminRpc::new(sequencer_admin, network_admin, Some(rollup_boost_admin)).into_rpc(),
         )?;
 
         // Create context for communication between actors.

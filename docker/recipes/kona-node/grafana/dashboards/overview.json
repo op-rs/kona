@@ -6073,16 +6073,16 @@
               },
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "kona_node_sequencer_block_building_duration{instance=~\"$instance\"}",
+              "expr": "kona_node_sequencer_block_building_seal_task_duration{instance=~\"$instance\"}",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
-              "legendFormat": "Block Building Duration",
+              "legendFormat": "Block Building Seal Task Duration",
               "range": true,
               "refId": "A",
               "useBackend": false
             }
           ],
-          "title": "Block Building Duration",
+          "title": "Block Building Seal Task Duration",
           "transparent": true,
           "type": "timeseries"
         },

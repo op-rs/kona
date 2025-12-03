@@ -46,6 +46,9 @@ jobs:
         with:
           # Semantic version range syntax or exact version of Go
           go-version: '1.23.8'
+          cache-dependency-path: |
+            tests/go.sum
+            tests/optimism/go.sum
 
       - name: Download Go dependencies
         run: go mod download
