@@ -61,7 +61,6 @@ services:
       - op-rs-op-sepolia-reth
     env_file:
       - path: default.env
-      - path: op-rs-box1.env
       - path: override.env
         required: false
     build:
