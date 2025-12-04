@@ -4,23 +4,17 @@ default:
 
 # initialize project
 init: && build-kona-node (create-docker-network "stf-net") up
-	git submodule update --init --recursive --remote
+	git init
+	-git submodule add https://github.com/op-rs/kona.git kona-node/kona
+	-git submodule add https://github.com/paradigmxyz/reth op-reth/reth
 	./generate-jwt.sh
 
-checkout branch:
-	#!/bin/bash
-	(cd kona-node/kona && git fetch origin && git checkout "{{branch}}")
+# update submodules
+update:
+	git submodule update --init --recursive --remote
 
-reset-git:
-	#!/bin/bash
-	(cd kona-node/kona && (git pull origin "$(git branch --show-current)" || true) && git reset --hard "origin/$(git branch --show-current)")
-
-# build kona
-build-kona-node:
-	#!/bin/bash
-	(cd kona-node/kona && cargo build --bin kona-node --release)
-
-reset-and-build: reset-git build-kona-node
+checkout BRANCH="main":
+	git config -f .gitmodules submodule.DbConnector.branch {{BRANCH}}
 
 # run node (show logs)
 up DETACH="":
@@ -51,3 +45,20 @@ setup-ubuntu:
 start: stop up
 
 stop: down rmi
+
+
+#checkout branch:
+#	#!/bin/bash
+#	(cd kona-node/kona && git fetch origin && git checkout "{{branch}}")
+
+reset-git:
+	#!/bin/bash
+	(cd kona-node/kona && (git pull origin "$(git branch --show-current)" || true) && git reset --hard "origin/$(git branch --show-current)")
+
+# build kona
+build-kona-node:
+	#!/bin/bash
+	(cd kona-node/kona && cargo build --bin kona-node --release)
+
+reset-and-build: reset-git build-kona-node
+
