@@ -77,4 +77,5 @@ mod metrics;
 pub use metrics::Metrics;
 
 #[cfg(any(test, feature = "test-utils"))]
+/// Utilities that are useful when creating unit tests for structs within this library.
 pub mod test_utils;

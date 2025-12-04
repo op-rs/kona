@@ -112,7 +112,10 @@ where
     /// ### Syncing (`SYNCING`)
     /// If the EL is syncing, the payload attributes are buffered and the function returns early.
     /// This is a temporary state, and the function should be called again later.
-    async fn start_build(
+    ///
+    /// Note: This is `pub(super)` to allow testing via the `tests` submodule.
+    #[allow(dead_code)]
+    pub(super) async fn start_build(
         &self,
         state: &EngineState,
         engine_client: &EngineClient_,

@@ -25,55 +25,59 @@ use op_alloy_rpc_types_engine::{
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
-use super::EngineClientError;
+use crate::{
+    EngineClientError,
+    test_utils::{MockL1Provider, MockL2Provider},
+};
 
-/// Mock L1 Provider that implements the Provider trait for testing.
-///
-/// This is a minimal no-op provider that satisfies the trait bounds required
-/// by [`MockEngineClient`]. All provider methods return empty/default values.
-#[derive(Debug, Clone)]
-pub struct MockL1Provider;
-
-#[async_trait]
-impl Provider<Ethereum> for MockL1Provider {
-    fn root(&self) -> &alloy_provider::RootProvider<Ethereum> {
-        unimplemented!("MockL1Provider does not support root()")
-    }
-}
-
-/// Mock L2 Provider that implements the Provider trait for Optimism network.
-///
-/// This is a minimal no-op provider that satisfies the trait bounds required
-/// by [`MockEngineClient`]. All provider methods return empty/default values.
-#[derive(Debug, Clone)]
-pub struct MockL2Provider;
-
-#[async_trait]
-impl Provider<Optimism> for MockL2Provider {
-    fn root(&self) -> &alloy_provider::RootProvider<Optimism> {
-        unimplemented!("MockL2Provider does not support root()")
-    }
+/// Builder for creating test MockEngineClient instances with sensible defaults
+pub fn test_engine_client_builder() -> MockEngineClientBuilder<MockL1Provider, MockL2Provider> {
+    MockEngineClientBuilder::new()
+        .with_l1_provider(MockL1Provider)
+        .with_l2_provider(MockL2Provider)
+        .with_config(Arc::new(RollupConfig::default()))
 }
 
 /// Mock storage for engine client responses.
+///
+/// Each API method has version-specific storage to allow tests to verify
+/// which specific version was called and return different responses per version.
 #[derive(Debug, Clone, Default)]
 pub struct MockEngineStorage {
     /// Storage for block responses by tag.
     pub blocks_by_tag: HashMap<BlockNumberOrTag, Block<Transaction>>,
     /// Storage for block info responses by tag.
     pub block_info_by_tag: HashMap<BlockNumberOrTag, L2BlockInfo>,
-    /// Storage for payload status responses.
-    pub payload_status: Option<PayloadStatus>,
-    /// Storage for forkchoice updated responses.
-    pub forkchoice_updated: Option<ForkchoiceUpdated>,
+
+    // Version-specific new_payload responses
+    /// Storage for new_payload_v2 responses.
+    pub new_payload_v2_response: Option<PayloadStatus>,
+    /// Storage for new_payload_v3 responses.
+    pub new_payload_v3_response: Option<PayloadStatus>,
+    /// Storage for new_payload_v4 responses.
+    pub new_payload_v4_response: Option<PayloadStatus>,
+
+    // Version-specific fork_choice_updated responses
+    /// Storage for fork_choice_updated_v2 responses.
+    pub fork_choice_updated_v2_response: Option<ForkchoiceUpdated>,
+    /// Storage for fork_choice_updated_v3 responses.
+    pub fork_choice_updated_v3_response: Option<ForkchoiceUpdated>,
+
+    // Version-specific get_payload responses
     /// Storage for execution payload envelope v2 responses.
     pub execution_payload_v2: Option<ExecutionPayloadEnvelopeV2>,
     /// Storage for OP execution payload envelope v3 responses.
     pub execution_payload_v3: Option<OpExecutionPayloadEnvelopeV3>,
     /// Storage for OP execution payload envelope v4 responses.
     pub execution_payload_v4: Option<OpExecutionPayloadEnvelopeV4>,
-    /// Storage for payload bodies responses.
-    pub payload_bodies: Option<ExecutionPayloadBodiesV1>,
+
+    // Version-specific get_payload_bodies responses
+    /// Storage for get_payload_bodies_by_hash_v1 responses.
+    pub get_payload_bodies_by_hash_v1_response: Option<ExecutionPayloadBodiesV1>,
+    /// Storage for get_payload_bodies_by_range_v1 responses.
+    pub get_payload_bodies_by_range_v1_response: Option<ExecutionPayloadBodiesV1>,
+
+    // Non-versioned responses
     /// Storage for client version responses.
     pub client_versions: Option<Vec<ClientVersionV1>>,
     /// Storage for protocol version responses.
@@ -161,15 +165,33 @@ where
         self
     }
 
-    /// Sets the payload status response.
-    pub fn with_payload_status(mut self, status: PayloadStatus) -> Self {
-        self.storage.payload_status = Some(status);
+    /// Sets the new_payload_v2 response.
+    pub fn with_new_payload_v2_response(mut self, status: PayloadStatus) -> Self {
+        self.storage.new_payload_v2_response = Some(status);
         self
     }
 
-    /// Sets the forkchoice updated response.
-    pub fn with_forkchoice_updated(mut self, response: ForkchoiceUpdated) -> Self {
-        self.storage.forkchoice_updated = Some(response);
+    /// Sets the new_payload_v3 response.
+    pub fn with_new_payload_v3_response(mut self, status: PayloadStatus) -> Self {
+        self.storage.new_payload_v3_response = Some(status);
+        self
+    }
+
+    /// Sets the new_payload_v4 response.
+    pub fn with_new_payload_v4_response(mut self, status: PayloadStatus) -> Self {
+        self.storage.new_payload_v4_response = Some(status);
+        self
+    }
+
+    /// Sets the fork_choice_updated_v2 response.
+    pub fn with_fork_choice_updated_v2_response(mut self, response: ForkchoiceUpdated) -> Self {
+        self.storage.fork_choice_updated_v2_response = Some(response);
+        self
+    }
+
+    /// Sets the fork_choice_updated_v3 response.
+    pub fn with_fork_choice_updated_v3_response(mut self, response: ForkchoiceUpdated) -> Self {
+        self.storage.fork_choice_updated_v3_response = Some(response);
         self
     }
 
@@ -191,9 +213,21 @@ where
         self
     }
 
-    /// Sets the payload bodies response.
-    pub fn with_payload_bodies(mut self, bodies: ExecutionPayloadBodiesV1) -> Self {
-        self.storage.payload_bodies = Some(bodies);
+    /// Sets the get_payload_bodies_by_hash_v1 response.
+    pub fn with_payload_bodies_by_hash_response(
+        mut self,
+        bodies: ExecutionPayloadBodiesV1,
+    ) -> Self {
+        self.storage.get_payload_bodies_by_hash_v1_response = Some(bodies);
+        self
+    }
+
+    /// Sets the get_payload_bodies_by_range_v1 response.
+    pub fn with_payload_bodies_by_range_response(
+        mut self,
+        bodies: ExecutionPayloadBodiesV1,
+    ) -> Self {
+        self.storage.get_payload_bodies_by_range_v1_response = Some(bodies);
         self
     }
 
@@ -300,14 +334,29 @@ where
         self.storage.write().await.block_info_by_tag.insert(tag, info);
     }
 
-    /// Sets the payload status response.
-    pub async fn set_payload_status(&self, status: PayloadStatus) {
-        self.storage.write().await.payload_status = Some(status);
+    /// Sets the new_payload_v2 response.
+    pub async fn set_new_payload_v2_response(&self, status: PayloadStatus) {
+        self.storage.write().await.new_payload_v2_response = Some(status);
     }
 
-    /// Sets the forkchoice updated response.
-    pub async fn set_forkchoice_updated(&self, response: ForkchoiceUpdated) {
-        self.storage.write().await.forkchoice_updated = Some(response);
+    /// Sets the new_payload_v3 response.
+    pub async fn set_new_payload_v3_response(&self, status: PayloadStatus) {
+        self.storage.write().await.new_payload_v3_response = Some(status);
+    }
+
+    /// Sets the new_payload_v4 response.
+    pub async fn set_new_payload_v4_response(&self, status: PayloadStatus) {
+        self.storage.write().await.new_payload_v4_response = Some(status);
+    }
+
+    /// Sets the fork_choice_updated_v2 response.
+    pub async fn set_fork_choice_updated_v2_response(&self, response: ForkchoiceUpdated) {
+        self.storage.write().await.fork_choice_updated_v2_response = Some(response);
+    }
+
+    /// Sets the fork_choice_updated_v3 response.
+    pub async fn set_fork_choice_updated_v3_response(&self, response: ForkchoiceUpdated) {
+        self.storage.write().await.fork_choice_updated_v3_response = Some(response);
     }
 
     /// Sets the execution payload v2 response.
@@ -325,9 +374,14 @@ where
         self.storage.write().await.execution_payload_v4 = Some(payload);
     }
 
-    /// Sets the payload bodies response.
-    pub async fn set_payload_bodies(&self, bodies: ExecutionPayloadBodiesV1) {
-        self.storage.write().await.payload_bodies = Some(bodies);
+    /// Sets the get_payload_bodies_by_hash_v1 response.
+    pub async fn set_payload_bodies_by_hash_response(&self, bodies: ExecutionPayloadBodiesV1) {
+        self.storage.write().await.get_payload_bodies_by_hash_v1_response = Some(bodies);
+    }
+
+    /// Sets the get_payload_bodies_by_range_v1 response.
+    pub async fn set_payload_bodies_by_range_response(&self, bodies: ExecutionPayloadBodiesV1) {
+        self.storage.write().await.get_payload_bodies_by_range_v1_response = Some(bodies);
     }
 
     /// Sets the client versions response.
@@ -394,8 +448,11 @@ where
         _payload: ExecutionPayloadInputV2,
     ) -> TransportResult<PayloadStatus> {
         let storage = self.storage.read().await;
-        storage.payload_status.clone().ok_or_else(|| {
-            TransportError::from(TransportErrorKind::custom_str("No payload status set in mock"))
+        storage.new_payload_v2_response.clone().ok_or_else(|| {
+            TransportError::from(TransportErrorKind::custom_str(
+                "new_payload_v2 was called but no v2 response configured. \
+                 Use with_new_payload_v2_response() or set_new_payload_v2_response() to set a response."
+            ))
         })
     }
 
@@ -405,8 +462,11 @@ where
         _parent_beacon_block_root: B256,
     ) -> TransportResult<PayloadStatus> {
         let storage = self.storage.read().await;
-        storage.payload_status.clone().ok_or_else(|| {
-            TransportError::from(TransportErrorKind::custom_str("No payload status set in mock"))
+        storage.new_payload_v3_response.clone().ok_or_else(|| {
+            TransportError::from(TransportErrorKind::custom_str(
+                "new_payload_v3 was called but no v3 response configured. \
+                 Use with_new_payload_v3_response() or set_new_payload_v3_response() to set a response."
+            ))
         })
     }
 
@@ -416,8 +476,11 @@ where
         _parent_beacon_block_root: B256,
     ) -> TransportResult<PayloadStatus> {
         let storage = self.storage.read().await;
-        storage.payload_status.clone().ok_or_else(|| {
-            TransportError::from(TransportErrorKind::custom_str("No payload status set in mock"))
+        storage.new_payload_v4_response.clone().ok_or_else(|| {
+            TransportError::from(TransportErrorKind::custom_str(
+                "new_payload_v4 was called but no v4 response configured. \
+                 Use with_new_payload_v4_response() or set_new_payload_v4_response() to set a response."
+            ))
         })
     }
 
@@ -427,9 +490,10 @@ where
         _payload_attributes: Option<OpPayloadAttributes>,
     ) -> TransportResult<ForkchoiceUpdated> {
         let storage = self.storage.read().await;
-        storage.forkchoice_updated.clone().ok_or_else(|| {
+        storage.fork_choice_updated_v2_response.clone().ok_or_else(|| {
             TransportError::from(TransportErrorKind::custom_str(
-                "No forkchoice updated set in mock",
+                "fork_choice_updated_v2 was called but no v2 response configured. \
+                 Use with_fork_choice_updated_v2_response() or set_fork_choice_updated_v2_response() to set a response."
             ))
         })
     }
@@ -440,9 +504,10 @@ where
         _payload_attributes: Option<OpPayloadAttributes>,
     ) -> TransportResult<ForkchoiceUpdated> {
         let storage = self.storage.read().await;
-        storage.forkchoice_updated.clone().ok_or_else(|| {
+        storage.fork_choice_updated_v3_response.clone().ok_or_else(|| {
             TransportError::from(TransportErrorKind::custom_str(
-                "No forkchoice updated set in mock",
+                "fork_choice_updated_v3 was called but no v3 response configured. \
+                 Use with_fork_choice_updated_v3_response() or set_fork_choice_updated_v3_response() to set a response."
             ))
         })
     }
@@ -488,8 +553,11 @@ where
         _block_hashes: Vec<BlockHash>,
     ) -> TransportResult<ExecutionPayloadBodiesV1> {
         let storage = self.storage.read().await;
-        storage.payload_bodies.clone().ok_or_else(|| {
-            TransportError::from(TransportErrorKind::custom_str("No payload bodies set in mock"))
+        storage.get_payload_bodies_by_hash_v1_response.clone().ok_or_else(|| {
+            TransportError::from(TransportErrorKind::custom_str(
+                "get_payload_bodies_by_hash_v1 was called but no response configured. \
+                 Use with_payload_bodies_by_hash_response() or set_payload_bodies_by_hash_response() to set a response."
+            ))
         })
     }
 
@@ -499,8 +567,11 @@ where
         _count: u64,
     ) -> TransportResult<ExecutionPayloadBodiesV1> {
         let storage = self.storage.read().await;
-        storage.payload_bodies.clone().ok_or_else(|| {
-            TransportError::from(TransportErrorKind::custom_str("No payload bodies set in mock"))
+        storage.get_payload_bodies_by_range_v1_response.clone().ok_or_else(|| {
+            TransportError::from(TransportErrorKind::custom_str(
+                "get_payload_bodies_by_range_v1 was called but no response configured. \
+                 Use with_payload_bodies_by_range_response() or set_payload_bodies_by_range_response() to set a response."
+            ))
         })
     }
 
@@ -539,6 +610,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::provider::{MockL1Provider, MockL2Provider};
     use alloy_rpc_types_engine::PayloadStatusEnum;
 
     #[tokio::test]
@@ -564,7 +636,7 @@ mod tests {
         let status =
             PayloadStatus { status: PayloadStatusEnum::Valid, latest_valid_hash: Some(B256::ZERO) };
 
-        mock.set_payload_status(status.clone()).await;
+        mock.set_new_payload_v2_response(status.clone()).await;
 
         // Create a minimal ExecutionPayloadInputV2 for testing
         use alloy_primitives::{Bytes, U256};
@@ -610,7 +682,7 @@ mod tests {
             payload_id: None,
         };
 
-        mock.set_forkchoice_updated(fcu.clone()).await;
+        mock.set_fork_choice_updated_v2_response(fcu.clone()).await;
 
         let result = mock.fork_choice_updated_v2(ForkchoiceState::default(), None).await.unwrap();
 
@@ -634,7 +706,7 @@ mod tests {
             .with_l1_provider(MockL1Provider)
             .with_l2_provider(MockL2Provider)
             .with_config(cfg.clone())
-            .with_payload_status(status.clone())
+            .with_new_payload_v2_response(status.clone())
             .build();
 
         // Verify the config was set
