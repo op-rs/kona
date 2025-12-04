@@ -114,7 +114,6 @@ where
     /// This is a temporary state, and the function should be called again later.
     ///
     /// Note: This is `pub(super)` to allow testing via the `tests` submodule.
-    #[allow(dead_code)]
     pub(super) async fn start_build(
         &self,
         state: &EngineState,

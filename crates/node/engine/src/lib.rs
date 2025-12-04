@@ -26,7 +26,7 @@
 //! ## Module Organization
 //!
 //! - **Task Queue** - Core engine task queue and execution logic via [`Engine`]
-//! - **Client** - HTTP client for Engine API communication via [`OpEngineClient`]
+//! - **Client** - HTTP client for Engine API communication via [`EngineClient`]
 //! - **State** - Engine state management and synchronization via [`EngineState`]
 //! - **Versions** - Engine API version selection via [`EngineForkchoiceVersion`],
 //!   [`EngineNewPayloadVersion`], [`EngineGetPayloadVersion`]
@@ -77,5 +77,5 @@ mod metrics;
 pub use metrics::Metrics;
 
 #[cfg(any(test, feature = "test-utils"))]
-/// Utilities that are useful when creating unit tests for structs within this library.
+/// Utilities that are useful when creating unit tests using structs within this library.
 pub mod test_utils;
