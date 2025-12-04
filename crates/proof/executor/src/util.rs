@@ -1,6 +1,6 @@
 //! Contains utilities for the L2 executor.
 
-use crate::{ExecutorError, ExecutorResult};
+use crate::{Eip1559ValidationError, ExecutorError, ExecutorResult};
 use alloy_consensus::{BlockHeader, Header};
 use alloy_eips::eip1559::BaseFeeParams;
 use alloy_primitives::Bytes;
@@ -28,7 +28,7 @@ pub(crate) fn decode_holocene_eip_1559_params_block_header(
     // In the block header, the denominator is always non-zero.
     // <https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/holocene/exec-engine.md#eip-1559-parameters-in-block-header>
     if denominator == 0 {
-        return Err(ExecutorError::InvalidExtraData(EIP1559ParamError::ElasticityOverflow));
+        return Err(ExecutorError::InvalidExtraData(Eip1559ValidationError::ZeroDenominator));
     }
 
     Ok(BaseFeeParams {
@@ -46,7 +46,7 @@ pub(crate) fn decode_jovian_eip_1559_params_block_header(
     // In the block header, the denominator is always non-zero.
     // <https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/holocene/exec-engine.md#eip-1559-parameters-in-block-header>
     if denominator == 0 {
-        return Err(ExecutorError::InvalidExtraData(EIP1559ParamError::ElasticityOverflow));
+        return Err(ExecutorError::InvalidExtraData(Eip1559ValidationError::ZeroDenominator));
     }
 
     Ok((
@@ -93,9 +93,9 @@ pub(crate) fn encode_jovian_eip_1559_params(
     Ok(encode_jovian_extra_data(
         attributes.eip_1559_params.ok_or(ExecutorError::MissingEIP1559Params)?,
         config.chain_op_config.as_base_fee_params(),
-        attributes
-            .min_base_fee
-            .ok_or(ExecutorError::InvalidExtraData(EIP1559ParamError::MinBaseFeeNotSet))?,
+        attributes.min_base_fee.ok_or(ExecutorError::InvalidExtraData(
+            Eip1559ValidationError::Decode(EIP1559ParamError::MinBaseFeeNotSet),
+        ))?,
     )?)
 }
 
