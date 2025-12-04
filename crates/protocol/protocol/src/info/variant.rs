@@ -55,8 +55,8 @@ impl L1BlockInfoTx {
         // In the first block of Ecotone, the L1Block contract has not been upgraded yet due to the
         // upgrade transactions being placed after the L1 info transaction. Because of this,
         // for the first block of Ecotone, we send a Bedrock style L1 block info transaction
-        if !rollup_config.is_ecotone_active(l2_block_time) ||
-            rollup_config.is_first_ecotone_block(l2_block_time)
+        if !rollup_config.is_ecotone_active(l2_block_time)
+            || rollup_config.is_first_ecotone_block(l2_block_time)
         {
             return Ok(Self::Bedrock(L1BlockInfoBedrock::new(
                 l1_header.number,
@@ -118,8 +118,8 @@ impl L1BlockInfoTx {
         let block_hash = l1_header.hash_slow();
         let base_fee = l1_header.base_fee_per_gas.unwrap_or(0);
 
-        if rollup_config.is_jovian_active(l2_block_time) &&
-            !rollup_config.is_first_jovian_block(l2_block_time)
+        if rollup_config.is_jovian_active(l2_block_time)
+            && !rollup_config.is_first_jovian_block(l2_block_time)
         {
             let operator_fee_scalar = system_config.operator_fee_scalar.unwrap_or_default();
             let operator_fee_constant = system_config.operator_fee_constant.unwrap_or_default();
@@ -147,8 +147,8 @@ impl L1BlockInfoTx {
             )));
         }
 
-        if rollup_config.is_isthmus_active(l2_block_time) &&
-            !rollup_config.is_first_isthmus_block(l2_block_time)
+        if rollup_config.is_isthmus_active(l2_block_time)
+            && !rollup_config.is_first_isthmus_block(l2_block_time)
         {
             let operator_fee_scalar = system_config.operator_fee_scalar.unwrap_or_default();
             let operator_fee_constant = system_config.operator_fee_constant.unwrap_or_default();
@@ -391,7 +391,10 @@ impl L1BlockInfoTx {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::test_utils::{RAW_BEDROCK_INFO_TX, RAW_ECOTONE_INFO_TX, RAW_ISTHMUS_INFO_TX};
+    use crate::{
+        DEPOSIT_EVENT_ABI_HASH,
+        test_utils::{RAW_BEDROCK_INFO_TX, RAW_ECOTONE_INFO_TX, RAW_ISTHMUS_INFO_TX},
+    };
     use alloc::{string::ToString, vec::Vec};
     use alloy_primitives::{address, b256};
     use kona_genesis::HardForkConfig;
@@ -618,6 +621,7 @@ mod test {
 
         let ecotone =
             L1BlockInfoTx::Ecotone(L1BlockInfoEcotone::new_from_blob_base_fee_scalar(456));
+        //dbg!("{}", ecotone);
         assert_eq!(ecotone.blob_base_fee_scalar(), U256::from(456));
 
         let isthmus =

@@ -40,36 +40,9 @@ pub fn to_system_config(
     let l1_info = L1BlockInfoTx::decode_calldata(tx.input().as_ref())?;
     let l1_fee_scalar = match l1_info {
         L1BlockInfoTx::Bedrock(block_info) => block_info.l1_fee_scalar(),
-        L1BlockInfoTx::Ecotone(block_info) => {
-            // Translate Ecotone values back into encoded scalar if needed.
-            // We do not know if it was derived from a v0 or v1 scalar,
-            // but v1 is fine, a 0 blob base fee has the same effect.
-            let mut buf = B256::ZERO;
-            buf[0] = 0x01;
-            buf[24..28].copy_from_slice(block_info.blob_base_fee_scalar().to_be_bytes().as_ref());
-            buf[28..32].copy_from_slice(block_info.base_fee_scalar().to_be_bytes().as_ref());
-            buf.into()
-        }
-        L1BlockInfoTx::Isthmus(block_info) => {
-            // Translate Ecotone values back into encoded scalar if needed.
-            // We do not know if it was derived from a v0 or v1 scalar,
-            // but v1 is fine, a 0 blob base fee has the same effect.
-            let mut buf = B256::ZERO;
-            buf[0] = 0x01;
-            buf[24..28].copy_from_slice(block_info.blob_base_fee_scalar().to_be_bytes().as_ref());
-            buf[28..32].copy_from_slice(block_info.base_fee_scalar().to_be_bytes().as_ref());
-            buf.into()
-        }
-        L1BlockInfoTx::Jovian(block_info) => {
-            // Translate Ecotone values back into encoded scalar if needed.
-            // We do not know if it was derived from a v0 or v1 scalar,
-            // but v1 is fine, a 0 blob base fee has the same effect.
-            let mut buf = B256::ZERO;
-            buf[0] = 0x01;
-            buf[24..28].copy_from_slice(block_info.blob_base_fee_scalar().to_be_bytes().as_ref());
-            buf[28..32].copy_from_slice(block_info.base_fee_scalar().to_be_bytes().as_ref());
-            buf.into()
-        }
+        L1BlockInfoTx::Ecotone(block_info) => todo!(),
+        L1BlockInfoTx::Isthmus(block_info) => todo!(),
+        L1BlockInfoTx::Jovian(block_info) => todo!(),
     };
 
     let mut cfg = SystemConfig {
