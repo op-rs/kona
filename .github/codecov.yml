@@ -58,7 +58,6 @@ ignore:
   # Ignore noop files
   - "**/noop.rs"
 
-
 flag_management:
   individual_flags:
     - name: unit

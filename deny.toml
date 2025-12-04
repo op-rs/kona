@@ -12,6 +12,14 @@ ignore = [
     "RUSTSEC-2024-0436",
     "RUSTSEC-2024-0384",
     "RUSTSEC-2025-0012",
+    # ansi_term unmaintained
+    "RUSTSEC-2021-0139",
+    # derivative unmaintained 
+    "RUSTSEC-2024-0388",
+    # serde_cbor unmaintained
+    "RUSTSEC-2021-0127",
+    # number_prefix unmaintained 
+    "RUSTSEC-2025-0119",
 ]
 
 [licenses]
@@ -28,6 +36,7 @@ allow = [
     "Zlib",
     "0BSD",
     "CDLA-Permissive-2.0",
+    "LicenseRef-BOSL",
 ]
 confidence-threshold = 0.8
 exceptions = [
@@ -47,6 +56,12 @@ exceptions = [
 name = "ring"
 expression = "LicenseRef-ring"
 license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
+
+[[licenses.clarify]]
+name = "halo2"
+expression = "LicenseRef-BOSL"
+version = "0.1.0-beta.2"
+license-files = [{ path = "COPYING", hash = 0x106164e0 }]
 
 [licenses.private]
 ignore = false
@@ -74,6 +89,8 @@ allow-git = [
     "https://github.com/alloy-rs/evm",
     "https://github.com/paritytech/jsonrpsee",
     "https://github.com/flashbots/rollup-boost",
+    # TODO(inphi): Remove once sp1 does not depend on LGPLv2 licensed code
+    "https://github.com/inphi/sp1",
 ]
 
 [sources.allow-org]
