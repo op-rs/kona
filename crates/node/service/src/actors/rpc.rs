@@ -6,7 +6,7 @@ use kona_gossip::P2pRpcRequest;
 use kona_rpc::{
     AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzApiServer, HealthzRpc,
     NetworkAdminQuery, OpP2PApiServer, RollupBoostAdminQuery, RollupBoostHealthQuery,
-    RollupNodeApiServer, SequencerAdminAPIClient, WsRPC, WsServer,
+    RollupBoostHealthzApiServer, RollupNodeApiServer, SequencerAdminAPIClient, WsRPC, WsServer,
 };
 use std::time::Duration;
 
@@ -93,8 +93,11 @@ async fn launch(
 ) -> Result<ServerHandle, std::io::Error> {
     let middleware = tower::ServiceBuilder::new()
         .layer(
-            ProxyGetRequestLayer::new([("/healthz", "healthz")])
-                .expect("Critical: Failed to build GET method proxy"),
+            ProxyGetRequestLayer::new([
+                ("/healthz", "healthz"),
+                ("/kona-rollup-boost/healthz", "kona-rollup-boost_healthz"),
+            ])
+            .expect("Critical: Failed to build GET method proxy"),
         )
         .timeout(Duration::from_secs(2));
     let server = Server::builder().set_http_middleware(middleware).build(config.socket).await?;
@@ -128,7 +131,9 @@ impl<S: SequencerAdminAPIClient + 'static> NodeActor for RpcActor<S> {
     ) -> Result<(), Self::Error> {
         let mut modules = RpcModule::new(());
 
-        modules.merge(HealthzRpc::new(rollup_boost_health).into_rpc())?;
+        let healthz_rpc = HealthzRpc::new(rollup_boost_health);
+        modules.merge(HealthzApiServer::into_rpc(healthz_rpc.clone()))?;
+        modules.merge(RollupBoostHealthzApiServer::into_rpc(healthz_rpc))?;
 
         // Build the p2p rpc module.
         modules.merge(P2pRpc::new(p2p_network).into_rpc())?;
