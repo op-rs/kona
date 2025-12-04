@@ -88,25 +88,16 @@ impl<EngineClient_: EngineClient> BuildTask<EngineClient_> {
         engine_client: &EngineClient_,
         attributes_envelope: OpAttributesWithParent,
     ) -> Result<PayloadId, BuildTaskError> {
-        // Sanity check if the head is behind the finalized head. If it is, this is a critical
-        // error.
-        if state.sync_state.unsafe_head().block_info.number <
-            state.sync_state.finalized_head().block_info.number
-        {
-            return Err(BuildTaskError::EngineBuildError(EngineBuildError::FinalizedAheadOfUnsafe(
-                state.sync_state.unsafe_head().block_info.number,
-                state.sync_state.finalized_head().block_info.number,
-            )));
-        }
-
         // When inserting a payload, we advertise the parent's unsafe head as the current unsafe
         // head to build on top of.
+        // Validation is performed inside apply_update to prevent invalid states.
         let new_forkchoice = state
             .sync_state
             .apply_update(EngineSyncStateUpdate {
                 unsafe_head: Some(attributes_envelope.parent),
                 ..Default::default()
             })
+            .map_err(|e| BuildTaskError::EngineBuildError(EngineBuildError::InvalidSyncState(e)))?
             .create_forkchoice_state();
 
         let forkchoice_version = EngineForkchoiceVersion::from_cfg(

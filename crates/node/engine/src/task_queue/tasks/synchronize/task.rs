@@ -84,7 +84,8 @@ impl<EngineClient_: EngineClient> EngineTaskExt for SynchronizeTask<EngineClient
 
     async fn execute(&self, state: &mut EngineState) -> Result<Self::Output, SynchronizeTaskError> {
         // Apply the sync state update to the engine state.
-        let new_sync_state = state.sync_state.apply_update(self.state_update);
+        // Validation is performed inside apply_update to prevent invalid states.
+        let new_sync_state = state.sync_state.apply_update(self.state_update)?;
 
         // Check if a forkchoice update is not needed, return early.
         // A forkchoice update is not needed if...
@@ -99,16 +100,6 @@ impl<EngineClient_: EngineClient> EngineTaskExt for SynchronizeTask<EngineClient
         if state.sync_state != Default::default() && state.sync_state == new_sync_state {
             debug!(target: "engine", ?new_sync_state, "No forkchoice update needed");
             return Ok(());
-        }
-
-        // Check if the head is behind the finalized head.
-        if new_sync_state.unsafe_head().block_info.number <
-            new_sync_state.finalized_head().block_info.number
-        {
-            return Err(SynchronizeTaskError::FinalizedAheadOfUnsafe(
-                new_sync_state.unsafe_head().block_info.number,
-                new_sync_state.finalized_head().block_info.number,
-            ));
         }
 
         let fcu_time_start = Instant::now();
