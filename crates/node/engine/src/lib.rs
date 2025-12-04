@@ -75,3 +75,6 @@ pub use query::{EngineQueries, EngineQueriesError, EngineQuerySender};
 
 mod metrics;
 pub use metrics::Metrics;
+
+#[cfg(any(test, feature = "test-utils"))]
+pub mod test_utils;
