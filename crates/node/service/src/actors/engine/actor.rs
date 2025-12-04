@@ -163,8 +163,6 @@ pub struct EngineConfig {
 
     /// The L1 rpc url.
     pub l1_url: Url,
-    /// The L1 beacon url.
-    pub l1_beacon: Url,
 
     /// The mode of operation for the node.
     /// When the node is in sequencer mode, the engine actor will receive requests to build blocks
