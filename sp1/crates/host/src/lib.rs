@@ -1,6 +1,5 @@
 //! Host library component of the kona-sp1 proof.
 
-pub mod block_range;
 mod constants;
 mod contract;
 pub mod fetcher;
