@@ -100,19 +100,27 @@ where
 ///
 /// Engine API client used to communicate with L1/L2 ELs and optional rollup-boost.
 #[derive(Deref, Clone, Debug)]
-pub struct OpEngineClient {
+pub struct OpEngineClient<L1Provider, L2Provider>
+where
+    L1Provider: Provider,
+    L2Provider: Provider<Optimism>,
+{
     /// The L2 engine provider for Engine API calls.
     #[deref]
-    engine: RootProvider<Optimism>,
+    engine: L2Provider,
     /// The L1 chain provider for reading L1 data.
-    l1_provider: RootProvider,
+    l1_provider: L1Provider,
     /// The [`RollupConfig`] for determining Engine API versions based on hardfork activations.
     cfg: Arc<RollupConfig>,
     /// The rollup boost server
     pub rollup_boost: Arc<RollupBoostServer>,
 }
 
-impl OpEngineClient {
+impl<L1Provider, L2Provider> OpEngineClient<L1Provider, L2Provider>
+where
+    L1Provider: Provider,
+    L2Provider: Provider<Optimism>,
+{
     /// Creates a new RPC client for the given address and JWT secret.
     pub fn rpc_client<N: Network>(addr: Url, jwt: JwtSecret) -> RootProvider<N> {
         let hyper_client = Client::builder(TokioExecutor::new()).build_http::<Full<Bytes>>();
@@ -175,7 +183,10 @@ impl EngineClientBuilder {
     /// This method can be simplified/improved in a few ways:
     /// - Unify kona's and rollup-boost's RPC client creation
     /// - Removed the `dyn RollupBoostServerLike` type erasure.
-    pub fn build(self) -> Result<OpEngineClient, EngineClientBuilderError> {
+    pub fn build(
+        self,
+    ) -> Result<OpEngineClient<RootProvider, RootProvider<Optimism>>, EngineClientBuilderError>
+    {
         let probes = Arc::new(Probes::default());
         let l2_client = rollup_boost::RpcClient::new(
             http::Uri::from_str(self.l2.to_string().as_str())?,
@@ -244,7 +255,10 @@ impl EngineClientBuilder {
 
         // TODO(@theochap): remove this client, upstream the remaining EngineApiExt methods to the
         // RollupBoostServer
-        let engine = OpEngineClient::rpc_client::<Optimism>(self.l2, self.l2_jwt);
+        let engine = OpEngineClient::<RootProvider, RootProvider<Optimism>>::rpc_client::<Optimism>(
+            self.l2,
+            self.l2_jwt,
+        );
 
         let l1_provider = RootProvider::new_http(self.l1_rpc);
 
@@ -253,12 +267,17 @@ impl EngineClientBuilder {
 }
 
 #[async_trait]
-impl EngineClient<RootProvider, RootProvider<Optimism>> for OpEngineClient {
-    fn l2_engine(&self) -> &RootProvider<Optimism> {
+impl<L1Provider, L2Provider> EngineClient<L1Provider, L2Provider>
+    for OpEngineClient<L1Provider, L2Provider>
+where
+    L1Provider: Provider,
+    L2Provider: Provider<Optimism>,
+{
+    fn l2_engine(&self) -> &L2Provider {
         &self.engine
     }
 
-    fn l1_provider(&self) -> &RootProvider {
+    fn l1_provider(&self) -> &L1Provider {
         &self.l1_provider
     }
 
@@ -270,15 +289,14 @@ impl EngineClient<RootProvider, RootProvider<Optimism>> for OpEngineClient {
         &self,
         numtag: BlockNumberOrTag,
     ) -> Result<Option<Block<Transaction>>, EngineClientError> {
-        Ok(<RootProvider<Optimism>>::get_block_by_number(&self.engine, numtag).full().await?)
+        Ok(self.engine.get_block_by_number(numtag).full().await?)
     }
 
     async fn l2_block_info_by_label(
         &self,
         numtag: BlockNumberOrTag,
     ) -> Result<Option<L2BlockInfo>, EngineClientError> {
-        let block =
-            <RootProvider<Optimism>>::get_block_by_number(&self.engine, numtag).full().await?;
+        let block = self.engine.get_block_by_number(numtag).full().await?;
         let Some(block) = block else {
             return Ok(None);
         };
@@ -287,15 +305,20 @@ impl EngineClient<RootProvider, RootProvider<Optimism>> for OpEngineClient {
 }
 
 #[async_trait::async_trait]
-impl OpEngineApi<Optimism, Http<HyperAuthClient>> for OpEngineClient {
+impl<L1Provider, L2Provider> OpEngineApi<Optimism, Http<HyperAuthClient>>
+    for OpEngineClient<L1Provider, L2Provider>
+where
+    L1Provider: Provider,
+    L2Provider: Provider<Optimism>,
+{
     async fn new_payload_v2(
         &self,
         payload: ExecutionPayloadInputV2,
     ) -> TransportResult<PayloadStatus> {
-        let call = <RootProvider<Optimism> as OpEngineApi<
-            Optimism,
-            Http<HyperAuthClient>,
-        >>::new_payload_v2(&self.engine, payload);
+        let call = <L2Provider as OpEngineApi<Optimism, Http<HyperAuthClient>>>::new_payload_v2(
+            &self.engine,
+            payload,
+        );
 
         record_call_time(call, Metrics::NEW_PAYLOAD_METHOD).await
     }
@@ -331,10 +354,12 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for OpEngineClient {
         fork_choice_state: ForkchoiceState,
         payload_attributes: Option<OpPayloadAttributes>,
     ) -> TransportResult<ForkchoiceUpdated> {
-        let call = <RootProvider<Optimism> as OpEngineApi<
-            Optimism,
-            Http<HyperAuthClient>,
-        >>::fork_choice_updated_v2(&self.engine, fork_choice_state, payload_attributes);
+        let call =
+            <L2Provider as OpEngineApi<Optimism, Http<HyperAuthClient>>>::fork_choice_updated_v2(
+                &self.engine,
+                fork_choice_state,
+                payload_attributes,
+            );
 
         record_call_time(call, Metrics::FORKCHOICE_UPDATE_METHOD).await
     }
@@ -354,10 +379,10 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for OpEngineClient {
         &self,
         payload_id: PayloadId,
     ) -> TransportResult<ExecutionPayloadEnvelopeV2> {
-        let call = <RootProvider<Optimism> as OpEngineApi<
-            Optimism,
-            Http<HyperAuthClient>,
-        >>::get_payload_v2(&self.engine, payload_id);
+        let call = <L2Provider as OpEngineApi<Optimism, Http<HyperAuthClient>>>::get_payload_v2(
+            &self.engine,
+            payload_id,
+        );
 
         record_call_time(call, Metrics::GET_PAYLOAD_METHOD).await
     }
@@ -384,10 +409,11 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for OpEngineClient {
         &self,
         block_hashes: Vec<BlockHash>,
     ) -> TransportResult<ExecutionPayloadBodiesV1> {
-        <RootProvider<Optimism> as OpEngineApi<
-            Optimism,
-            Http<HyperAuthClient>,
-        >>::get_payload_bodies_by_hash_v1(&self.engine, block_hashes).await
+        <L2Provider as OpEngineApi<Optimism, Http<HyperAuthClient>>>::get_payload_bodies_by_hash_v1(
+            &self.engine,
+            block_hashes,
+        )
+        .await
     }
 
     async fn get_payload_bodies_by_range_v1(
@@ -395,7 +421,7 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for OpEngineClient {
         start: u64,
         count: u64,
     ) -> TransportResult<ExecutionPayloadBodiesV1> {
-        <RootProvider<Optimism> as OpEngineApi<
+        <L2Provider as OpEngineApi<
             Optimism,
             Http<HyperAuthClient>,
         >>::get_payload_bodies_by_range_v1(&self.engine, start, count).await
@@ -405,10 +431,11 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for OpEngineClient {
         &self,
         client_version: ClientVersionV1,
     ) -> TransportResult<Vec<ClientVersionV1>> {
-        <RootProvider<Optimism> as OpEngineApi<
-            Optimism,
-            Http<HyperAuthClient>,
-        >>::get_client_version_v1(&self.engine, client_version).await
+        <L2Provider as OpEngineApi<Optimism, Http<HyperAuthClient>>>::get_client_version_v1(
+            &self.engine,
+            client_version,
+        )
+        .await
     }
 
     async fn signal_superchain_v1(
@@ -416,20 +443,23 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for OpEngineClient {
         recommended: ProtocolVersion,
         required: ProtocolVersion,
     ) -> TransportResult<ProtocolVersion> {
-        <RootProvider<Optimism> as OpEngineApi<
-            Optimism,
-            Http<HyperAuthClient>,
-        >>::signal_superchain_v1(&self.engine, recommended, required).await
+        <L2Provider as OpEngineApi<Optimism, Http<HyperAuthClient>>>::signal_superchain_v1(
+            &self.engine,
+            recommended,
+            required,
+        )
+        .await
     }
 
     async fn exchange_capabilities(
         &self,
         capabilities: Vec<String>,
     ) -> TransportResult<Vec<String>> {
-        <RootProvider<Optimism> as OpEngineApi<
-            Optimism,
-            Http<HyperAuthClient>,
-        >>::exchange_capabilities(&self.engine, capabilities).await
+        <L2Provider as OpEngineApi<Optimism, Http<HyperAuthClient>>>::exchange_capabilities(
+            &self.engine,
+            capabilities,
+        )
+        .await
     }
 }
 

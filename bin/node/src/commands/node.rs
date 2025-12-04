@@ -227,7 +227,7 @@ impl NodeCommand {
     pub async fn validate_jwt(&self) -> anyhow::Result<JwtSecret> {
         let jwt_secret = self.l2_jwt_secret()?;
 
-        let engine = OpEngineClient::rpc_client::<Optimism>(
+        let engine = OpEngineClient::<RootProvider, RootProvider<Optimism>>::rpc_client::<Optimism>(
             self.l2_client_args.l2_engine_rpc.clone(),
             jwt_secret,
         );

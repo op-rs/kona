@@ -180,10 +180,15 @@ pub struct EngineConfig {
 impl EngineConfig {
     /// Launches the [`Engine`]. Returns the [`Engine`] and a channel to receive engine state
     /// updates.
+    #[allow(clippy::type_complexity)]
     fn build_state(
         self,
     ) -> Result<
-        EngineActorState<RootProvider, RootProvider<Optimism>, OpEngineClient>,
+        EngineActorState<
+            RootProvider,
+            RootProvider<Optimism>,
+            OpEngineClient<RootProvider, RootProvider<Optimism>>,
+        >,
         EngineClientBuilderError,
     > {
         let client = EngineClientBuilder {
