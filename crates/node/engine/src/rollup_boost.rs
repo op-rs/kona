@@ -5,7 +5,7 @@ use alloy_json_rpc::{ErrorPayload, RpcError};
 use alloy_rpc_types_engine::{ForkchoiceState, ForkchoiceUpdated, PayloadId, PayloadStatus};
 use alloy_rpc_types_eth::Block;
 use alloy_transport::TransportErrorKind;
-use futures::FutureExt;
+use async_trait::async_trait;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use rollup_boost::{
     EngineApiExt, ExecutionMode, NewPayload, OpExecutionPayloadEnvelope, PayloadVersion,
@@ -86,6 +86,7 @@ impl From<RollupBoostServerError> for RpcError<TransportErrorKind> {
     }
 }
 
+/// Rollup-boost backend.
 #[derive(Debug)]
 pub enum RollupBoostBackend {
     Flashblocks(Arc<rollup_boost::FlashblocksService>),
@@ -94,100 +95,48 @@ pub enum RollupBoostBackend {
 
 pub(crate) type ClientResult<T> = Result<T, RpcClientError>;
 
+#[async_trait]
 impl EngineApiExt for RollupBoostBackend {
-    #[allow(elided_named_lifetimes, clippy::type_complexity, clippy::type_repetition_in_bounds)]
-    fn new_payload<'life0, 'async_trait>(
-        &'life0 self,
-        new_payload: NewPayload,
-    ) -> ::core::pin::Pin<
-        Box<
-            dyn ::core::future::Future<Output = ClientResult<PayloadStatus>>
-                + ::core::marker::Send
-                + 'async_trait,
-        >,
-    >
-    where
-        'life0: 'async_trait,
-        Self: 'async_trait,
-    {
+    async fn new_payload(&self, new_payload: NewPayload) -> ClientResult<PayloadStatus> {
         match self {
-            RollupBoostBackend::Flashblocks(flashblocks) => {
-                flashblocks.new_payload(new_payload).boxed()
-            }
-            RollupBoostBackend::Rpc(rpc) => rpc.new_payload(new_payload).boxed(),
+            RollupBoostBackend::Flashblocks(fb) => fb.new_payload(new_payload).await,
+            RollupBoostBackend::Rpc(rpc) => rpc.new_payload(new_payload).await,
         }
     }
 
-    #[allow(elided_named_lifetimes, clippy::type_complexity, clippy::type_repetition_in_bounds)]
-    fn get_payload<'life0, 'async_trait>(
-        &'life0 self,
+    async fn get_payload(
+        &self,
         payload_id: PayloadId,
         version: PayloadVersion,
-    ) -> ::core::pin::Pin<
-        Box<
-            dyn ::core::future::Future<Output = ClientResult<OpExecutionPayloadEnvelope>>
-                + ::core::marker::Send
-                + 'async_trait,
-        >,
-    >
-    where
-        'life0: 'async_trait,
-        Self: 'async_trait,
-    {
+    ) -> ClientResult<OpExecutionPayloadEnvelope> {
         match self {
-            RollupBoostBackend::Flashblocks(flashblocks) => {
-                flashblocks.get_payload(payload_id, version).boxed()
-            }
-            RollupBoostBackend::Rpc(rpc) => rpc.get_payload(payload_id, version).boxed(),
+            RollupBoostBackend::Flashblocks(fb) => fb.get_payload(payload_id, version).await,
+            RollupBoostBackend::Rpc(rpc) => rpc.get_payload(payload_id, version).await,
         }
     }
 
-    #[allow(elided_named_lifetimes, clippy::type_complexity, clippy::type_repetition_in_bounds)]
-    fn get_block_by_number<'life0, 'async_trait>(
-        &'life0 self,
+    async fn get_block_by_number(
+        &self,
         number: BlockNumberOrTag,
         full: bool,
-    ) -> ::core::pin::Pin<
-        Box<
-            dyn ::core::future::Future<Output = ClientResult<Block>>
-                + ::core::marker::Send
-                + 'async_trait,
-        >,
-    >
-    where
-        'life0: 'async_trait,
-        Self: 'async_trait,
-    {
+    ) -> ClientResult<Block> {
         match self {
-            RollupBoostBackend::Flashblocks(flashblocks) => {
-                flashblocks.get_block_by_number(number, full).boxed()
-            }
-            RollupBoostBackend::Rpc(rpc) => rpc.get_block_by_number(number, full).boxed(),
+            RollupBoostBackend::Flashblocks(fb) => fb.get_block_by_number(number, full).await,
+            RollupBoostBackend::Rpc(rpc) => rpc.get_block_by_number(number, full).await,
         }
     }
 
-    #[allow(elided_named_lifetimes, clippy::type_complexity, clippy::type_repetition_in_bounds)]
-    fn fork_choice_updated_v3<'life0, 'async_trait>(
-        &'life0 self,
+    async fn fork_choice_updated_v3(
+        &self,
         fork_choice_state: ForkchoiceState,
         payload_attributes: Option<OpPayloadAttributes>,
-    ) -> ::core::pin::Pin<
-        Box<
-            dyn ::core::future::Future<Output = ClientResult<ForkchoiceUpdated>>
-                + ::core::marker::Send
-                + 'async_trait,
-        >,
-    >
-    where
-        'life0: 'async_trait,
-        Self: 'async_trait,
-    {
+    ) -> ClientResult<ForkchoiceUpdated> {
         match self {
-            RollupBoostBackend::Flashblocks(flashblocks) => {
-                flashblocks.fork_choice_updated_v3(fork_choice_state, payload_attributes).boxed()
+            RollupBoostBackend::Flashblocks(fb) => {
+                fb.fork_choice_updated_v3(fork_choice_state, payload_attributes).await
             }
             RollupBoostBackend::Rpc(rpc) => {
-                rpc.fork_choice_updated_v3(fork_choice_state, payload_attributes).boxed()
+                rpc.fork_choice_updated_v3(fork_choice_state, payload_attributes).await
             }
         }
     }
