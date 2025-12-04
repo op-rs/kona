@@ -1,8 +1,9 @@
 //! Isthmus L1 Block Info transaction types.
 
+use crate::info::ecotone_base::ambassador_impl_L1BlockInfoEcotoneBaseFields;
 use alloc::vec::Vec;
 use alloy_primitives::{Address, B256, Bytes};
-use ambassador::delegatable_trait;
+use ambassador::{Delegate, delegatable_trait};
 
 use crate::{
     DecodeError,
@@ -32,7 +33,8 @@ use crate::{
 /// | 4       | OperatorFeeScalar        |
 /// | 8       | OperatorFeeConstant      |
 /// +---------+--------------------------+
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Default, Copy)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Default, Copy, Delegate)]
+#[delegate(L1BlockInfoEcotoneBaseFields, target = "base")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct L1BlockInfoIsthmus {
     #[cfg_attr(feature = "serde", serde(flatten))]
@@ -75,20 +77,20 @@ impl L1BlockInfoBedrockBaseFields for L1BlockInfoIsthmus {
     }
 }
 
-impl L1BlockInfoEcotoneBaseFields for L1BlockInfoIsthmus {
-    /// The current blob base fee on L1
-    fn blob_base_fee(&self) -> u128 {
-        self.base().blob_base_fee()
-    }
-    /// The fee scalar for L1 blobspace data
-    fn blob_base_fee_scalar(&self) -> u32 {
-        self.base().blob_base_fee_scalar()
-    }
-    /// The fee scalar for L1 data
-    fn base_fee_scalar(&self) -> u32 {
-        self.base().base_fee_scalar()
-    }
-}
+// impl L1BlockInfoEcotoneBaseFields for L1BlockInfoIsthmus {
+//     /// The current blob base fee on L1
+//     fn blob_base_fee(&self) -> u128 {
+//         self.base().blob_base_fee()
+//     }
+//     /// The fee scalar for L1 blobspace data
+//     fn blob_base_fee_scalar(&self) -> u32 {
+//         self.base().blob_base_fee_scalar()
+//     }
+//     /// The fee scalar for L1 data
+//     fn base_fee_scalar(&self) -> u32 {
+//         self.base().base_fee_scalar()
+//     }
+// }
 
 /// Accessors for fields in Isthmus and later.
 #[delegatable_trait]

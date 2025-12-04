@@ -1,5 +1,8 @@
 //! Contains bedrock-specific L1 block info types.
 
+use ambassador::Delegate;
+
+use crate::info::bedrock_base::ambassador_impl_L1BlockInfoBedrockBaseFields;
 use alloc::vec::Vec;
 use alloy_primitives::{Address, B256, Bytes, U256};
 
@@ -23,7 +26,8 @@ use crate::{
 // | 32      | L1FeeOverhead            |
 // | 32      | L1FeeScalar              |
 // +---------+--------------------------+
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Default, Copy)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Default, Copy, Delegate)]
+#[delegate(L1BlockInfoBedrockBaseFields, target = "base")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct L1BlockInfoBedrock {
     #[cfg_attr(feature = "serde", serde(flatten))]
@@ -40,31 +44,31 @@ impl HasBaseField<L1BlockInfoBedrockBase> for L1BlockInfoBedrock {
     }
 }
 
-impl L1BlockInfoBedrockBaseFields for L1BlockInfoBedrock {
-    fn number(&self) -> u64 {
-        self.base().number()
-    }
+// impl L1BlockInfoBedrockBaseFields for L1BlockInfoBedrock {
+//     fn number(&self) -> u64 {
+//         self.base().number()
+//     }
 
-    fn time(&self) -> u64 {
-        self.base().time()
-    }
+//     fn time(&self) -> u64 {
+//         self.base().time()
+//     }
 
-    fn base_fee(&self) -> u64 {
-        self.base().base_fee()
-    }
+//     fn base_fee(&self) -> u64 {
+//         self.base().base_fee()
+//     }
 
-    fn block_hash(&self) -> B256 {
-        self.base().block_hash()
-    }
+//     fn block_hash(&self) -> B256 {
+//         self.base().block_hash()
+//     }
 
-    fn sequence_number(&self) -> u64 {
-        self.base().sequence_number()
-    }
+//     fn sequence_number(&self) -> u64 {
+//         self.base().sequence_number()
+//     }
 
-    fn batcher_address(&self) -> Address {
-        self.base().batcher_address()
-    }
-}
+//     fn batcher_address(&self) -> Address {
+//         self.base().batcher_address()
+//     }
+// }
 
 /// Accessors for fields deprecated after Bedrock.
 pub trait L1BlockInfoBedrockOnlyFields {

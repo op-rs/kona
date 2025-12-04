@@ -1,4 +1,5 @@
 use alloy_primitives::{Address, B256};
+use ambassador::delegatable_trait;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Default, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -18,6 +19,7 @@ pub(crate) struct L1BlockInfoBedrockBase {
 }
 
 /// Accessors for Bedrock fields that still are available in latest hardfork.
+#[delegatable_trait]
 pub trait L1BlockInfoBedrockBaseFields {
     /// The current L1 origin block number
     fn number(&self) -> u64;

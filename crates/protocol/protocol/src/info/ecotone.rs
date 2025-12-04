@@ -1,5 +1,6 @@
 //! Contains ecotone-specific L1 block info types.
 
+use crate::info::ecotone_base::ambassador_impl_L1BlockInfoEcotoneBaseFields;
 use crate::{
     DecodeError,
     info::{
@@ -9,6 +10,7 @@ use crate::{
 };
 use alloc::vec::Vec;
 use alloy_primitives::{Address, B256, Bytes, U256};
+use ambassador::Delegate;
 
 /// Represents the fields within an Ecotone L1 block info transaction.
 ///
@@ -27,7 +29,8 @@ use alloy_primitives::{Address, B256, Bytes, U256};
 /// | 32      | BlockHash                |
 /// | 32      | BatcherHash              |
 /// +---------+--------------------------+
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Default, Copy)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Default, Copy, Delegate)]
+#[delegate(L1BlockInfoEcotoneBaseFields, target = "base")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct L1BlockInfoEcotone {
     #[cfg_attr(feature = "serde", serde(flatten))]
@@ -75,19 +78,19 @@ impl L1BlockInfoBedrockBaseFields for L1BlockInfoEcotone {
     }
 }
 
-impl L1BlockInfoEcotoneBaseFields for L1BlockInfoEcotone {
-    fn blob_base_fee(&self) -> u128 {
-        self.base().blob_base_fee()
-    }
+// impl L1BlockInfoEcotoneBaseFields for L1BlockInfoEcotone {
+//     fn blob_base_fee(&self) -> u128 {
+//         self.base().blob_base_fee()
+//     }
 
-    fn blob_base_fee_scalar(&self) -> u32 {
-        self.base().blob_base_fee_scalar()
-    }
+//     fn blob_base_fee_scalar(&self) -> u32 {
+//         self.base().blob_base_fee_scalar()
+//     }
 
-    fn base_fee_scalar(&self) -> u32 {
-        self.base().base_fee_scalar()
-    }
-}
+//     fn base_fee_scalar(&self) -> u32 {
+//         self.base().base_fee_scalar()
+//     }
+// }
 
 /// Accessors to fields deprecated in later Isthmus.
 pub trait L1BlockInfoEcotoneOnlyFields {

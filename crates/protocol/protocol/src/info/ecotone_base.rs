@@ -1,10 +1,13 @@
 use alloy_primitives::{Address, B256};
+use ambassador::{Delegate, delegatable_trait};
 
+use crate::info::bedrock_base::ambassador_impl_L1BlockInfoBedrockBaseFields;
 use crate::info::{
     HasBaseField, L1BlockInfoBedrockBaseFields, bedrock_base::L1BlockInfoBedrockBase,
 };
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Default, Copy)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Default, Copy, Delegate)]
+#[delegate(L1BlockInfoBedrockBaseFields, target = "base")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct L1BlockInfoEcotoneBase {
     base: L1BlockInfoBedrockBase,
@@ -96,6 +99,7 @@ impl L1BlockInfoEcotoneBase {
     }
 }
 
+/*
 impl L1BlockInfoBedrockBaseFields for L1BlockInfoEcotoneBase {
     fn number(&self) -> u64 {
         self.base().number()
@@ -121,8 +125,10 @@ impl L1BlockInfoBedrockBaseFields for L1BlockInfoEcotoneBase {
         self.base().batcher_address()
     }
 }
+    */
 
 /// Accessors to fields in Ecotone and later.
+#[delegatable_trait]
 pub trait L1BlockInfoEcotoneBaseFields: L1BlockInfoBedrockBaseFields {
     /// The current blob base fee on L1
     fn blob_base_fee(&self) -> u128;

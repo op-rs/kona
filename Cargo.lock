@@ -5072,7 +5072,6 @@ dependencies = [
  "anyhow",
  "backon",
  "clap",
- "delegate",
  "derive_more",
  "dirs",
  "discv5",
