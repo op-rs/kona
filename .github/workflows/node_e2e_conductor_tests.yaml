@@ -1,0 +1,75 @@
+name: Conductor E2E Tests
+on:
+  push:
+    branches: [main]
+  merge_group:
+  pull_request:
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  # Conductor tests require Kurtosis (sysext) orchestrator because sysgo
+  # does not yet support conductors. See: https://github.com/ethereum-optimism/optimism/issues/16418
+  # Once sysgo supports conductors, these tests can be moved to the sysgo workflow.
+  conductor-e2e-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    name: conductor-kurtosis-tests
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          large-packages: false
+
+      - uses: taiki-e/install-action@just
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.88
+
+      - name: Setup Go 1.23.8
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.8'
+          cache-dependency-path: |
+            tests/go.sum
+            tests/optimism/go.sum
+
+      - name: Download Go dependencies
+        run: go mod download
+        working-directory: tests
+
+      - uses: jdx/mise-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build kona-node docker image
+        uses: docker/bake-action@v6
+        env:
+          BIN_TARGET: kona-node
+          BUILD_PROFILE: release
+          REPO_LOCATION: local
+          PLATFORMS: linux/${{ runner.arch == 'X64' && 'amd64' || runner.arch == 'ARM64' && 'arm64' || runner.arch }}
+        with:
+          files: |
+            ./docker/docker-bake.hcl
+          load: true
+          targets: |
+            generic
+          set: |
+            *.tags=kona-node:local
+            *.cache-from=type=gha
+            *.cache-to=type=gha,mode=max
+
+      - name: Deploy simple-kona-conductor devnet
+        run: just devnet "simple-kona-conductor"
+        working-directory: tests
+
+      - name: Run conductor tests
+        run: just test-e2e-kurtosis "simple-kona-conductor" "node/common" "TestConductorLeadershipTransfer"
+        working-directory: tests
