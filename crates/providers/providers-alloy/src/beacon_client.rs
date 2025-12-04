@@ -113,47 +113,47 @@ impl OnlineBeaconClient {
         blob_hashes: &[IndexedBlobHash],
     ) -> Result<Vec<BoxedBlobWithIndex>, reqwest::Error> {
         let blob_indexes = blob_hashes.iter().map(|blob| blob.index).collect::<Vec<_>>();
+        let versioned_hashes: Vec<String> =
+            blob_hashes.iter().map(|b| b.hash.to_string()).collect();
 
-        Ok(
-            match self
-                .inner
-                .get(format!("{}/{}/{}", self.base, BLOBS_METHOD_PREFIX, slot))
-                .send()
-                .await
-            {
-                Ok(response) if response.status().is_success() => {
-                    let bundle = response.json::<GetBlobsResponse>().await?;
+        let mut request = self.inner.get(format!("{}/{}/{}", self.base, BLOBS_METHOD_PREFIX, slot));
+        if !blob_indexes.is_empty() {
+            request = request.query(&[("versioned_hashes", versioned_hashes.clone())])
+        }
 
-                    bundle
-                        .data
-                        .into_iter()
-                        .enumerate()
-                        .filter_map(|(index, blob)| {
-                            let index = index as u64;
-                            blob_indexes
-                                .contains(&index)
-                                .then_some(BoxedBlobWithIndex { index, blob: Box::new(blob) })
-                        })
-                        .collect::<Vec<_>>()
-                }
-                // If the blobs endpoint fails, try the deprecated sidecars endpoint. CL Clients
-                // only support the blobs endpoint from Fusaka (Fulu) onwards.
-                _ => self
+        Ok(match request.send().await {
+            Ok(response) if response.status().is_success() => {
+                let bundle = response.json::<GetBlobsResponse>().await?;
+
+                bundle
+                    .data
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, blob)| BoxedBlobWithIndex {
+                        index: index as u64,
+                        blob: Box::new(blob),
+                    })
+                    .collect()
+            }
+            // If the blobs endpoint fails, try the deprecated sidecars endpoint. CL Clients
+            // only support the blobs endpoint from Fusaka (Fulu) onwards.
+            _ => {
+                let mut request = self
                     .inner
-                    .get(format!("{}/{}/{}", self.base, SIDECARS_METHOD_PREFIX_DEPRECATED, slot))
+                    .get(format!("{}/{}/{}", self.base, SIDECARS_METHOD_PREFIX_DEPRECATED, slot));
+                if !blob_indexes.is_empty() {
+                    request = request.query(&[("versioned_hashes", versioned_hashes)])
+                }
+                request
                     .send()
                     .await?
                     .json::<BeaconBlobBundle>()
                     .await?
                     .into_iter()
-                    .filter_map(|blob| {
-                        blob_indexes
-                            .contains(&blob.index)
-                            .then_some(BoxedBlobWithIndex { index: blob.index, blob: blob.blob })
-                    })
-                    .collect::<Vec<_>>(),
-            },
-        )
+                    .map(|blob| BoxedBlobWithIndex { index: blob.index, blob: blob.blob })
+                    .collect::<Vec<_>>()
+            }
+        })
     }
 }
 
