@@ -2,11 +2,15 @@
 
 use alloc::vec::Vec;
 use alloy_consensus::{Transaction, TxType, Typed2718};
+use alloy_primitives::{B256, U256};
 use alloy_rlp::{Buf, Header};
 use kona_genesis::{RollupConfig, SystemConfig};
 use op_alloy_consensus::{OpBlock, decode_holocene_extra_data, decode_jovian_extra_data};
 
-use crate::{L1BlockInfoTx, OpBlockConversionError, SpanBatchError, SpanDecodingError};
+use crate::{
+    L1BlockInfoBedrockOnlyFields as _, L1BlockInfoEcotoneBaseFields as _, L1BlockInfoTx,
+    OpBlockConversionError, SpanBatchError, SpanDecodingError,
+};
 
 /// Converts the [`OpBlock`] to a partial [`SystemConfig`].
 pub fn to_system_config(
@@ -34,7 +38,18 @@ pub fn to_system_config(
     };
 
     let l1_info = L1BlockInfoTx::decode_calldata(tx.input().as_ref())?;
-    let l1_fee_scalar = l1_info.l1_fee_scalar();
+    let l1_fee_scalar = match l1_info {
+        L1BlockInfoTx::Bedrock(block_info) => block_info.l1_fee_scalar(),
+        L1BlockInfoTx::Ecotone(block_info) => {
+            encode_scalar(block_info.blob_base_fee_scalar(), block_info.base_fee_scalar())
+        }
+        L1BlockInfoTx::Isthmus(block_info) => {
+            encode_scalar(block_info.blob_base_fee_scalar(), block_info.base_fee_scalar())
+        }
+        L1BlockInfoTx::Jovian(block_info) => {
+            encode_scalar(block_info.blob_base_fee_scalar(), block_info.base_fee_scalar())
+        }
+    };
 
     let mut cfg = SystemConfig {
         batcher_address: l1_info.batcher_address(),
@@ -67,6 +82,17 @@ pub fn to_system_config(
     }
 
     Ok(cfg)
+}
+
+fn encode_scalar(blob_base_fee_scalar: u32, base_fee_scalar: u32) -> U256 {
+    // Translate Ecotone values back into encoded scalar if needed.
+    // We do not know if it was derived from a v0 or v1 scalar,
+    // but v1 is fine, a 0 blob base fee has the same effect.
+    let mut buf = B256::ZERO;
+    buf[0] = 0x01;
+    buf[24..28].copy_from_slice(blob_base_fee_scalar.to_be_bytes().as_ref());
+    buf[28..32].copy_from_slice(base_fee_scalar.to_be_bytes().as_ref());
+    buf.into()
 }
 
 /// Reads transaction data from a reader.

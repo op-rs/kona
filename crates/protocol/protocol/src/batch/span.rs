@@ -506,8 +506,8 @@ impl SpanBatch {
                 }
 
                 // If isthmus is not active yet and the transaction is a 7702, drop the batch.
-                if !cfg.is_isthmus_active(batch.timestamp)
-                    && tx.as_ref().first() == Some(&(OpTxType::Eip7702 as u8))
+                if !cfg.is_isthmus_active(batch.timestamp) &&
+                    tx.as_ref().first() == Some(&(OpTxType::Eip7702 as u8))
                 {
                     warn!(target: "batch_span", "EIP-7702 transactions are not supported pre-isthmus. tx_index: {}", i);
                     return BatchValidity::Drop;
@@ -671,9 +671,9 @@ impl SpanBatch {
                 warn!(target: "batch_span", "batch has misaligned timestamp, not overlapped exactly");
                 return (BatchValidity::Drop, None);
             }
-            parent_num = l2_safe_head.block_info.number
-                - (l2_safe_head.block_info.timestamp - self.starting_timestamp()) / cfg.block_time
-                - 1;
+            parent_num = l2_safe_head.block_info.number -
+                (l2_safe_head.block_info.timestamp - self.starting_timestamp()) / cfg.block_time -
+                1;
             parent_block = match fetcher.l2_block_info_by_number(parent_num).await {
                 Ok(block) => block,
                 Err(e) => {
