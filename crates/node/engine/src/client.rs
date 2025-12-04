@@ -1,16 +1,17 @@
 //! An Engine API Client.
 
 use crate::{Metrics, RollupBoostServer, RollupBoostServerArgs, RollupBoostServerLike};
-use alloy_eips::eip1898::BlockNumberOrTag;
+use alloy_eips::{BlockId, eip1898::BlockNumberOrTag};
 use alloy_network::{Ethereum, Network};
-use alloy_primitives::{B256, BlockHash, Bytes};
-use alloy_provider::{Provider, RootProvider};
+use alloy_primitives::{Address, B256, BlockHash, Bytes, StorageKey};
+use alloy_provider::{EthGetBlock, Provider, RootProvider, RpcWithBlock, ext::EngineApi};
 use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_engine::{
     ClientVersionV1, ExecutionPayloadBodiesV1, ExecutionPayloadEnvelopeV2, ExecutionPayloadInputV2,
-    ExecutionPayloadV3, ForkchoiceState, ForkchoiceUpdated, JwtSecret, PayloadId, PayloadStatus,
+    ExecutionPayloadV1, ExecutionPayloadV3, ForkchoiceState, ForkchoiceUpdated, JwtSecret,
+    PayloadId, PayloadStatus,
 };
-use alloy_rpc_types_eth::Block;
+use alloy_rpc_types_eth::{Block, EIP1186AccountProofResponse};
 use alloy_transport::{RpcError, TransportErrorKind, TransportResult};
 use alloy_transport_http::{
     AuthLayer, AuthService, Http, HyperClient,
@@ -63,20 +64,26 @@ pub type HyperAuthClient<B = Full<Bytes>> = HyperClient<B, AuthService<Client<Ht
 /// EngineClient trait that is very coupled to its only implementation.
 /// The main reason this exists is for mocking/unit testing.
 #[async_trait]
-pub trait EngineClient<L1Provider, L2Provider>:
-    OpEngineApi<Optimism, Http<HyperAuthClient>> + Send + Sync
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-{
-    /// Returns a reference to the inner L2 [`Provider<Optimism>`].
-    fn l2_engine(&self) -> &L2Provider;
-
-    /// Returns a reference to the inner L1 [`Provider<Ethereum>`].
-    fn l1_provider(&self) -> &L1Provider;
-
+pub trait EngineClient: OpEngineApi<Optimism, Http<HyperAuthClient>> + Send + Sync {
     /// Returns a reference to the inner [`RollupConfig`].
     fn cfg(&self) -> &RollupConfig;
+
+    /// Fetches the L1 block with the provided `BlockId`.
+    fn get_l1_block(&self, block: BlockId) -> EthGetBlock<<Ethereum as Network>::BlockResponse>;
+
+    /// Fetches the L2 block with the provided `BlockId`.
+    fn get_l2_block(&self, block: BlockId) -> EthGetBlock<<Optimism as Network>::BlockResponse>;
+
+    /// Get the account and storage values of the specified account including the merkle proofs.
+    /// This call can be used to verify that the data has not been tampered with.
+    fn get_proof(
+        &self,
+        address: Address,
+        keys: Vec<StorageKey>,
+    ) -> RpcWithBlock<(Address, Vec<StorageKey>), EIP1186AccountProofResponse>;
+
+    /// Sends the given payload to the execution layer client, as specified for the Paris fork.
+    async fn new_payload_v1(&self, payload: ExecutionPayloadV1) -> TransportResult<PayloadStatus>;
 
     /// Fetches the [`Block<Transaction>`] for the given [`BlockNumberOrTag`].
     async fn l2_block_by_label(
@@ -265,22 +272,33 @@ impl EngineClientBuilder {
 }
 
 #[async_trait]
-impl<L1Provider, L2Provider> EngineClient<L1Provider, L2Provider>
-    for OpEngineClient<L1Provider, L2Provider>
+impl<L1Provider, L2Provider> EngineClient for OpEngineClient<L1Provider, L2Provider>
 where
     L1Provider: Provider,
     L2Provider: Provider<Optimism>,
 {
-    fn l2_engine(&self) -> &L2Provider {
-        &self.engine
-    }
-
-    fn l1_provider(&self) -> &L1Provider {
-        &self.l1_provider
-    }
-
     fn cfg(&self) -> &RollupConfig {
         self.cfg.as_ref()
+    }
+
+    fn get_l1_block(&self, block: BlockId) -> EthGetBlock<<Ethereum as Network>::BlockResponse> {
+        self.l1_provider.get_block(block)
+    }
+
+    fn get_l2_block(&self, block: BlockId) -> EthGetBlock<<Optimism as Network>::BlockResponse> {
+        self.engine.get_block(block)
+    }
+
+    fn get_proof(
+        &self,
+        address: Address,
+        keys: Vec<StorageKey>,
+    ) -> RpcWithBlock<(Address, Vec<StorageKey>), EIP1186AccountProofResponse> {
+        self.engine.get_proof(address, keys)
+    }
+
+    async fn new_payload_v1(&self, payload: ExecutionPayloadV1) -> TransportResult<PayloadStatus> {
+        self.engine.new_payload_v1(payload).await
     }
 
     async fn l2_block_by_label(

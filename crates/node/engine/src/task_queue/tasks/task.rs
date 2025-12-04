@@ -8,11 +8,8 @@ use crate::{
     InsertTaskError,
     task_queue::{SealTask, SealTaskError},
 };
-use alloy_network::Ethereum;
-use alloy_provider::Provider;
 use async_trait::async_trait;
 use derive_more::Display;
-use op_alloy_network::Optimism;
 use std::cmp::Ordering;
 use thiserror::Error;
 use tokio::task::yield_now;
@@ -94,32 +91,22 @@ impl EngineTaskError for EngineTaskErrors {
 ///
 /// [`Engine`]: crate::Engine
 #[derive(Debug, Clone)]
-pub enum EngineTask<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
+pub enum EngineTask<EngineClient_: EngineClient> {
     /// Inserts a payload into the execution engine.
-    Insert(Box<InsertTask<L1Provider, L2Provider, EngineClient_>>),
+    Insert(Box<InsertTask<EngineClient_>>),
     /// Begins building a new block with the given attributes, producing a new payload ID.
-    Build(Box<BuildTask<L1Provider, L2Provider, EngineClient_>>),
+    Build(Box<BuildTask<EngineClient_>>),
     /// Seals the block with the given payload ID and attributes, inserting it into the execution
     /// engine.
-    Seal(Box<SealTask<L1Provider, L2Provider, EngineClient_>>),
+    Seal(Box<SealTask<EngineClient_>>),
     /// Performs consolidation on the engine state, reverting to payload attribute processing
     /// via the [`BuildTask`] if consolidation fails.
-    Consolidate(Box<ConsolidateTask<L1Provider, L2Provider, EngineClient_>>),
+    Consolidate(Box<ConsolidateTask<EngineClient_>>),
     /// Finalizes an L2 block
-    Finalize(Box<FinalizeTask<L1Provider, L2Provider, EngineClient_>>),
+    Finalize(Box<FinalizeTask<EngineClient_>>),
 }
 
-impl<L1Provider, L2Provider, EngineClient_> EngineTask<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
+impl<EngineClient_: EngineClient> EngineTask<EngineClient_> {
     /// Executes the task without consuming it.
     async fn execute_inner(&self, state: &mut EngineState) -> Result<(), EngineTaskErrors> {
         match self {
@@ -146,13 +133,7 @@ where
     }
 }
 
-impl<L1Provider, L2Provider, EngineClient_> PartialEq
-    for EngineTask<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
+impl<EngineClient_: EngineClient> PartialEq for EngineTask<EngineClient_> {
     fn eq(&self, other: &Self) -> bool {
         matches!(
             (self, other),
@@ -165,33 +146,15 @@ where
     }
 }
 
-impl<L1Provider, L2Provider, EngineClient_> Eq for EngineTask<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
-}
+impl<EngineClient_: EngineClient> Eq for EngineTask<EngineClient_> {}
 
-impl<L1Provider, L2Provider, EngineClient_> PartialOrd
-    for EngineTask<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
+impl<EngineClient_: EngineClient> PartialOrd for EngineTask<EngineClient_> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<L1Provider, L2Provider, EngineClient_> Ord
-    for EngineTask<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
+impl<EngineClient_: EngineClient> Ord for EngineTask<EngineClient_> {
     fn cmp(&self, other: &Self) -> Ordering {
         // Order (descending): BuildBlock -> InsertUnsafe -> Consolidate -> Finalize
         //
@@ -232,13 +195,7 @@ where
 }
 
 #[async_trait]
-impl<L1Provider, L2Provider, EngineClient_> EngineTaskExt
-    for EngineTask<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
+impl<EngineClient_: EngineClient> EngineTaskExt for EngineTask<EngineClient_> {
     type Output = ();
 
     type Error = EngineTaskErrors;

@@ -1,15 +1,16 @@
 //! Mock implementations for testing engine client functionality.
 
 use crate::{EngineClient, HyperAuthClient};
-use alloy_eips::eip1898::BlockNumberOrTag;
-use alloy_network::Ethereum;
-use alloy_primitives::{B256, BlockHash};
-use alloy_provider::Provider;
+use alloy_eips::{BlockId, eip1898::BlockNumberOrTag};
+use alloy_network::{Ethereum, Network};
+use alloy_primitives::{Address, B256, BlockHash, StorageKey};
+use alloy_provider::{EthGetBlock, RpcWithBlock};
 use alloy_rpc_types_engine::{
     ClientVersionV1, ExecutionPayloadBodiesV1, ExecutionPayloadEnvelopeV2, ExecutionPayloadInputV2,
-    ExecutionPayloadV3, ForkchoiceState, ForkchoiceUpdated, PayloadId, PayloadStatus,
+    ExecutionPayloadV1, ExecutionPayloadV3, ForkchoiceState, ForkchoiceUpdated, PayloadId,
+    PayloadStatus,
 };
-use alloy_rpc_types_eth::Block;
+use alloy_rpc_types_eth::{Block, EIP1186AccountProofResponse};
 use alloy_transport::{TransportError, TransportErrorKind, TransportResult};
 use alloy_transport_http::Http;
 use async_trait::async_trait;
@@ -25,17 +26,11 @@ use op_alloy_rpc_types_engine::{
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
-use crate::{
-    EngineClientError,
-    test_utils::{MockL1Provider, MockL2Provider},
-};
+use crate::EngineClientError;
 
 /// Builder for creating test MockEngineClient instances with sensible defaults
-pub fn test_engine_client_builder() -> MockEngineClientBuilder<MockL1Provider, MockL2Provider> {
-    MockEngineClientBuilder::new()
-        .with_l1_provider(MockL1Provider)
-        .with_l2_provider(MockL2Provider)
-        .with_config(Arc::new(RollupConfig::default()))
+pub fn test_engine_client_builder() -> MockEngineClientBuilder {
+    MockEngineClientBuilder::new().with_config(Arc::new(RollupConfig::default()))
 }
 
 /// Mock storage for engine client responses.
@@ -50,6 +45,8 @@ pub struct MockEngineStorage {
     pub block_info_by_tag: HashMap<BlockNumberOrTag, L2BlockInfo>,
 
     // Version-specific new_payload responses
+    /// Storage for new_payload_v1 responses.
+    pub new_payload_v1_response: Option<PayloadStatus>,
     /// Storage for new_payload_v2 responses.
     pub new_payload_v2_response: Option<PayloadStatus>,
     /// Storage for new_payload_v3 responses.
@@ -94,13 +91,11 @@ pub struct MockEngineStorage {
 /// # Example
 ///
 /// ```rust,ignore
-/// use kona_engine::test_utils::{MockEngineClient, MockL1Provider, MockL2Provider};
+/// use kona_engine::test_utils::{MockEngineClient};
 /// use alloy_rpc_types_engine::{PayloadStatus, PayloadStatusEnum};
 /// use std::sync::Arc;
 ///
 /// let mock = MockEngineClient::builder()
-///     .with_l1_provider(MockL1Provider)
-///     .with_l2_provider(MockL2Provider)
 ///     .with_config(Arc::new(RollupConfig::default()))
 ///     .with_payload_status(PayloadStatus {
 ///         status: PayloadStatusEnum::Valid,
@@ -109,42 +104,15 @@ pub struct MockEngineStorage {
 ///     .build();
 /// ```
 #[derive(Debug)]
-pub struct MockEngineClientBuilder<L1Provider, L2Provider>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-{
-    l1_provider: Option<L1Provider>,
-    l2_provider: Option<L2Provider>,
+pub struct MockEngineClientBuilder {
     cfg: Option<Arc<RollupConfig>>,
     storage: MockEngineStorage,
 }
 
-impl<L1Provider, L2Provider> MockEngineClientBuilder<L1Provider, L2Provider>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-{
+impl MockEngineClientBuilder {
     /// Creates a new builder with default values.
     pub fn new() -> Self {
-        Self {
-            l1_provider: None,
-            l2_provider: None,
-            cfg: None,
-            storage: MockEngineStorage::default(),
-        }
-    }
-
-    /// Sets the L1 provider.
-    pub fn with_l1_provider(mut self, provider: L1Provider) -> Self {
-        self.l1_provider = Some(provider);
-        self
-    }
-
-    /// Sets the L2 provider.
-    pub fn with_l2_provider(mut self, provider: L2Provider) -> Self {
-        self.l2_provider = Some(provider);
-        self
+        Self { cfg: None, storage: MockEngineStorage::default() }
     }
 
     /// Sets the rollup configuration.
@@ -162,6 +130,12 @@ where
     /// Sets a block info response for a specific tag.
     pub fn with_block_info_by_tag(mut self, tag: BlockNumberOrTag, info: L2BlockInfo) -> Self {
         self.storage.block_info_by_tag.insert(tag, info);
+        self
+    }
+
+    /// Sets the new_payload_v1 response.
+    pub fn with_new_payload_v1_response(mut self, status: PayloadStatus) -> Self {
+        self.storage.new_payload_v1_response = Some(status);
         self
     }
 
@@ -253,26 +227,15 @@ where
     ///
     /// # Panics
     ///
-    /// Panics if any required fields (l1_provider, l2_provider, cfg) are not set.
-    pub fn build(self) -> MockEngineClient<L1Provider, L2Provider> {
-        let l1_provider = self.l1_provider.expect("l1_provider must be set");
-        let l2_provider = self.l2_provider.expect("l2_provider must be set");
+    /// Panics if any required fields (cfg) are not set.
+    pub fn build(self) -> MockEngineClient {
         let cfg = self.cfg.expect("cfg must be set");
 
-        MockEngineClient {
-            l1_provider,
-            l2_provider,
-            cfg,
-            storage: Arc::new(RwLock::new(self.storage)),
-        }
+        MockEngineClient { cfg, storage: Arc::new(RwLock::new(self.storage)) }
     }
 }
 
-impl<L1Provider, L2Provider> Default for MockEngineClientBuilder<L1Provider, L2Provider>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-{
+impl Default for MockEngineClientBuilder {
     fn default() -> Self {
         Self::new()
     }
@@ -284,38 +247,21 @@ where
 /// and OpEngineApi methods. All responses are stored in a shared [`MockEngineStorage`]
 /// protected by an RwLock for thread-safe access.
 #[derive(Debug, Clone)]
-pub struct MockEngineClient<L1Provider, L2Provider>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-{
-    /// The L1 provider (unused in mock but required for trait).
-    l1_provider: L1Provider,
-    /// The L2 provider (unused in mock but required for trait).
-    l2_provider: L2Provider,
+pub struct MockEngineClient {
     /// The rollup configuration.
     cfg: Arc<RollupConfig>,
     /// Shared storage for mock responses.
     storage: Arc<RwLock<MockEngineStorage>>,
 }
 
-impl<L1Provider, L2Provider> MockEngineClient<L1Provider, L2Provider>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-{
-    /// Creates a new mock engine client with the given providers and config.
-    pub fn new(l1_provider: L1Provider, l2_provider: L2Provider, cfg: Arc<RollupConfig>) -> Self {
-        Self {
-            l1_provider,
-            l2_provider,
-            cfg,
-            storage: Arc::new(RwLock::new(MockEngineStorage::default())),
-        }
+impl MockEngineClient {
+    /// Creates a new mock engine client with the given config.
+    pub fn new(cfg: Arc<RollupConfig>) -> Self {
+        Self { cfg, storage: Arc::new(RwLock::new(MockEngineStorage::default())) }
     }
 
     /// Creates a builder for constructing a mock engine client.
-    pub fn builder() -> MockEngineClientBuilder<L1Provider, L2Provider> {
+    pub fn builder() -> MockEngineClientBuilder {
         MockEngineClientBuilder::new()
     }
 
@@ -332,6 +278,11 @@ where
     /// Sets a block info response for a specific tag.
     pub async fn set_block_info_by_tag(&self, tag: BlockNumberOrTag, info: L2BlockInfo) {
         self.storage.write().await.block_info_by_tag.insert(tag, info);
+    }
+
+    /// Sets the new_payload_v1 response.
+    pub async fn set_new_payload_v1_response(&self, status: PayloadStatus) {
+        self.storage.write().await.new_payload_v1_response = Some(status);
     }
 
     /// Sets the new_payload_v2 response.
@@ -401,22 +352,39 @@ where
 }
 
 #[async_trait]
-impl<L1Provider, L2Provider> EngineClient<L1Provider, L2Provider>
-    for MockEngineClient<L1Provider, L2Provider>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-{
-    fn l2_engine(&self) -> &L2Provider {
-        &self.l2_provider
-    }
-
-    fn l1_provider(&self) -> &L1Provider {
-        &self.l1_provider
-    }
-
+impl EngineClient for MockEngineClient {
     fn cfg(&self) -> &RollupConfig {
         self.cfg.as_ref()
+    }
+
+    fn get_l1_block(&self, _block: BlockId) -> EthGetBlock<<Ethereum as Network>::BlockResponse> {
+        unimplemented!(
+            "MockEngineClient does not support get_l1_block. Use l2_block_by_label instead."
+        )
+    }
+
+    fn get_l2_block(&self, _block: BlockId) -> EthGetBlock<<Optimism as Network>::BlockResponse> {
+        unimplemented!(
+            "MockEngineClient does not support get_l2_block. Use l2_block_by_label instead."
+        )
+    }
+
+    fn get_proof(
+        &self,
+        _address: Address,
+        _keys: Vec<StorageKey>,
+    ) -> RpcWithBlock<(Address, Vec<StorageKey>), EIP1186AccountProofResponse> {
+        unimplemented!("MockEngineClient does not support get_proof")
+    }
+
+    async fn new_payload_v1(&self, _payload: ExecutionPayloadV1) -> TransportResult<PayloadStatus> {
+        let storage = self.storage.read().await;
+        storage.new_payload_v1_response.clone().ok_or_else(|| {
+            TransportError::from(TransportErrorKind::custom_str(
+                "new_payload_v1 was called but no v1 response configured. \
+                 Use with_new_payload_v1_response() or set_new_payload_v1_response() to set a response."
+            ))
+        })
     }
 
     async fn l2_block_by_label(
@@ -437,12 +405,7 @@ where
 }
 
 #[async_trait]
-impl<L1Provider, L2Provider> OpEngineApi<Optimism, Http<HyperAuthClient>>
-    for MockEngineClient<L1Provider, L2Provider>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-{
+impl OpEngineApi<Optimism, Http<HyperAuthClient>> for MockEngineClient {
     async fn new_payload_v2(
         &self,
         _payload: ExecutionPayloadInputV2,
@@ -610,16 +573,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::provider::{MockL1Provider, MockL2Provider};
     use alloy_rpc_types_engine::PayloadStatusEnum;
 
     #[tokio::test]
     async fn test_mock_engine_client_creation() {
-        let l1_provider = MockL1Provider;
-        let l2_provider = MockL2Provider;
         let cfg = Arc::new(RollupConfig::default());
 
-        let mock = MockEngineClient::new(l1_provider, l2_provider, cfg.clone());
+        let mock = MockEngineClient::new(cfg.clone());
 
         // Verify the config was set correctly
         assert_eq!(mock.cfg().block_time, cfg.block_time);
@@ -627,11 +587,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_mock_payload_status() {
-        let l1_provider = MockL1Provider;
-        let l2_provider = MockL2Provider;
         let cfg = Arc::new(RollupConfig::default());
 
-        let mock = MockEngineClient::new(l1_provider, l2_provider, cfg);
+        let mock = MockEngineClient::new(cfg);
 
         let status =
             PayloadStatus { status: PayloadStatusEnum::Valid, latest_valid_hash: Some(B256::ZERO) };
@@ -668,11 +626,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_mock_forkchoice_updated() {
-        let l1_provider = MockL1Provider;
-        let l2_provider = MockL2Provider;
         let cfg = Arc::new(RollupConfig::default());
 
-        let mock = MockEngineClient::new(l1_provider, l2_provider, cfg);
+        let mock = MockEngineClient::new(cfg);
 
         let fcu = ForkchoiceUpdated {
             payload_status: PayloadStatus {
@@ -690,21 +646,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_mock_providers() {
-        // Create a mock engine client with them
-        let cfg = Arc::new(RollupConfig::default());
-        let _mock = MockEngineClient::new(MockL1Provider, MockL2Provider, cfg);
-    }
-
-    #[tokio::test]
     async fn test_builder_pattern() {
         let cfg = Arc::new(RollupConfig::default());
         let status =
             PayloadStatus { status: PayloadStatusEnum::Valid, latest_valid_hash: Some(B256::ZERO) };
 
         let mock = MockEngineClient::builder()
-            .with_l1_provider(MockL1Provider)
-            .with_l2_provider(MockL2Provider)
             .with_config(cfg.clone())
             .with_new_payload_v2_response(status.clone())
             .build();

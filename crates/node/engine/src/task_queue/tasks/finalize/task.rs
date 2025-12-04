@@ -4,64 +4,26 @@ use crate::{
     EngineClient, EngineState, EngineTaskExt, FinalizeTaskError, SynchronizeTask,
     state::EngineSyncStateUpdate,
 };
-use alloy_network::Ethereum;
-use alloy_provider::Provider;
 use async_trait::async_trait;
+use derive_more::Constructor;
 use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
-use op_alloy_network::Optimism;
-use std::{marker::PhantomData, sync::Arc, time::Instant};
+use std::{sync::Arc, time::Instant};
 
 /// The [`FinalizeTask`] fetches the [`L2BlockInfo`] at `block_number`, updates the [`EngineState`],
 /// and dispatches a forkchoice update to finalize the block.
-#[derive(Debug, Clone)]
-pub struct FinalizeTask<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
+#[derive(Debug, Clone, Constructor)]
+pub struct FinalizeTask<EngineClient_: EngineClient> {
     /// The engine client.
     pub client: Arc<EngineClient_>,
     /// The rollup config.
     pub cfg: Arc<RollupConfig>,
     /// The number of the L2 block to finalize.
     pub block_number: u64,
-
-    phantom_l1_provider: PhantomData<L1Provider>,
-    phantom_l2_provider: PhantomData<L2Provider>,
-}
-
-impl<L1Provider, L2Provider, EngineClient_> FinalizeTask<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
-    /// Creates a new [`SynchronizeTask`].
-    pub const fn new(
-        client: Arc<EngineClient_>,
-        cfg: Arc<RollupConfig>,
-        block_number: u64,
-    ) -> Self {
-        Self {
-            client,
-            cfg,
-            block_number,
-            phantom_l1_provider: PhantomData,
-            phantom_l2_provider: PhantomData,
-        }
-    }
 }
 
 #[async_trait]
-impl<L1Provider, L2Provider, EngineClient_> EngineTaskExt
-    for FinalizeTask<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
+impl<EngineClient_: EngineClient> EngineTaskExt for FinalizeTask<EngineClient_> {
     type Output = ();
 
     type Error = FinalizeTaskError;
@@ -75,8 +37,7 @@ where
         let block_fetch_start = Instant::now();
         let block = self
             .client
-            .l2_engine()
-            .get_block(self.block_number.into())
+            .get_l2_block(self.block_number.into())
             .full()
             .await
             .map_err(FinalizeTaskError::TransportError)?

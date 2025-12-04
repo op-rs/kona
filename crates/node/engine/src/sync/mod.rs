@@ -1,6 +1,5 @@
 //! Sync start algorithm for the OP Stack rollup node.
 
-use alloy_provider::{Provider, network::Ethereum};
 use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
 
@@ -10,8 +9,9 @@ pub use forkchoice::L2ForkchoiceState;
 mod error;
 pub use error::SyncStartError;
 
-use op_alloy_network::Optimism;
 use tracing::info;
+
+use crate::EngineClient;
 
 /// Searches for the latest [`L2ForkchoiceState`] that we can use to start the sync process with.
 ///
@@ -25,16 +25,11 @@ use tracing::info;
 /// Plausible: meaning that the blockhash of the L2 block's L1 origin
 /// (as reported in the L1 Attributes deposit within the L2 block) is not canonical at another
 /// height in the L1 chain, and the same holds for all its ancestors.
-pub async fn find_starting_forkchoice<L1Provider, L2Provider>(
+pub async fn find_starting_forkchoice<EngineClient_: EngineClient>(
     cfg: &RollupConfig,
-    l1_provider: &L1Provider,
-    l2_provider: &L2Provider,
-) -> Result<L2ForkchoiceState, SyncStartError>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-{
-    let mut current_fc = L2ForkchoiceState::current(cfg, l2_provider).await?;
+    engine_client: &EngineClient_,
+) -> Result<L2ForkchoiceState, SyncStartError> {
+    let mut current_fc = L2ForkchoiceState::current(cfg, engine_client).await?;
     info!(
         target: "sync_start",
         unsafe = %current_fc.un_safe.block_info.number,
@@ -45,7 +40,8 @@ where
 
     // Search for the highest `unsafe` block, relative to the initial `unsafe` block's L1 origin,
     loop {
-        let l1_origin = l1_provider.get_block(current_fc.un_safe.l1_origin.hash.into()).await?;
+        let l1_origin =
+            engine_client.get_l1_block(current_fc.un_safe.l1_origin.hash.into()).await?;
         info!(
             target: "sync_start",
             l1_origin = %current_fc.un_safe.l1_origin.number,
@@ -65,8 +61,8 @@ where
             }
             None => {
                 let l2_parent_hash = current_fc.un_safe.block_info.parent_hash.into();
-                let l2_parent = l2_provider
-                    .get_block(l2_parent_hash)
+                let l2_parent = engine_client
+                    .get_l2_block(l2_parent_hash)
                     .full()
                     .await?
                     .ok_or(SyncStartError::BlockNotFound(l2_parent_hash))?;
@@ -105,8 +101,8 @@ where
             current_fc.safe = safe_cursor;
             break;
         } else {
-            let block = l2_provider
-                .get_block(safe_cursor.block_info.parent_hash.into())
+            let block = engine_client
+                .get_l2_block(safe_cursor.block_info.parent_hash.into())
                 .full()
                 .await?
                 .ok_or(SyncStartError::BlockNotFound(safe_cursor.block_info.parent_hash.into()))?;

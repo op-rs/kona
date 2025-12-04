@@ -5,8 +5,6 @@ use crate::{
     state::EngineSyncStateUpdate,
 };
 use alloy_eips::eip7685::EMPTY_REQUESTS_HASH;
-use alloy_network::Ethereum;
-use alloy_provider::{Provider, ext::EngineApi};
 use alloy_rpc_types_engine::{
     CancunPayloadFields, ExecutionPayloadInputV2, PayloadStatusEnum, PraguePayloadFields,
 };
@@ -14,20 +12,14 @@ use async_trait::async_trait;
 use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
 use op_alloy_consensus::OpBlock;
-use op_alloy_network::Optimism;
 use op_alloy_rpc_types_engine::{
     OpExecutionPayload, OpExecutionPayloadEnvelope, OpExecutionPayloadSidecar,
 };
-use std::{marker::PhantomData, sync::Arc, time::Instant};
+use std::{sync::Arc, time::Instant};
 
 /// The task to insert a payload into the execution engine.
 #[derive(Debug, Clone)]
-pub struct InsertTask<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
+pub struct InsertTask<EngineClient_: EngineClient> {
     /// The engine client.
     client: Arc<EngineClient_>,
     /// The rollup config.
@@ -37,17 +29,9 @@ where
     /// If the payload is safe this is true.
     /// A payload is safe if it is derived from a safe block.
     is_payload_safe: bool,
-
-    phantom_l1_provider: PhantomData<L1Provider>,
-    phantom_l2_provider: PhantomData<L2Provider>,
 }
 
-impl<L1Provider, L2Provider, EngineClient_> InsertTask<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
+impl<EngineClient_: EngineClient> InsertTask<EngineClient_> {
     /// Creates a new insert task.
     pub const fn new(
         client: Arc<EngineClient_>,
@@ -55,14 +39,7 @@ where
         envelope: OpExecutionPayloadEnvelope,
         is_attributes_derived: bool,
     ) -> Self {
-        Self {
-            client,
-            rollup_config,
-            envelope,
-            is_payload_safe: is_attributes_derived,
-            phantom_l1_provider: PhantomData,
-            phantom_l2_provider: PhantomData,
-        }
+        Self { client, rollup_config, envelope, is_payload_safe: is_attributes_derived }
     }
 
     /// Checks the response of the `engine_newPayload` call.
@@ -72,13 +49,7 @@ where
 }
 
 #[async_trait]
-impl<L1Provider, L2Provider, EngineClient_> EngineTaskExt
-    for InsertTask<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
+impl<EngineClient_: EngineClient> EngineTaskExt for InsertTask<EngineClient_> {
     type Output = ();
 
     type Error = InsertTaskError;
@@ -92,7 +63,7 @@ where
         let insert_time_start = Instant::now();
         let (response, block): (_, OpBlock) = match self.envelope.execution_payload.clone() {
             OpExecutionPayload::V1(payload) => (
-                self.client.l2_engine().new_payload_v1(payload).await,
+                self.client.new_payload_v1(payload).await,
                 self.envelope
                     .execution_payload
                     .clone()

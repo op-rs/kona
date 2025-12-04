@@ -6,13 +6,10 @@ use crate::{
     EngineTaskErrorSeverity, Metrics, SyncStartError, SynchronizeTask, SynchronizeTaskError,
     find_starting_forkchoice, task_queue::EngineTaskErrors,
 };
-use alloy_network::Ethereum;
-use alloy_provider::Provider;
 use alloy_rpc_types_eth::Transaction;
 use kona_genesis::{RollupConfig, SystemConfig};
 use kona_protocol::{BlockInfo, L2BlockInfo, OpBlockConversionError, to_system_config};
 use op_alloy_consensus::OpTxEnvelope;
-use op_alloy_network::Optimism;
 use std::{collections::BinaryHeap, sync::Arc};
 use thiserror::Error;
 use tokio::sync::watch::Sender;
@@ -31,12 +28,7 @@ use tokio::sync::watch::Sender;
 /// they are not popped from the queue, the error is returned, and they are retried on the
 /// next call to [`Engine::drain`].
 #[derive(Debug)]
-pub struct Engine<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
+pub struct Engine<EngineClient_: EngineClient> {
     /// The state of the engine.
     state: EngineState,
     /// A sender that can be used to notify the engine actor of state changes.
@@ -44,15 +36,10 @@ where
     /// A sender that can be used to notify the engine actor of task queue length changes.
     task_queue_length: Sender<usize>,
     /// The task queue.
-    tasks: BinaryHeap<EngineTask<L1Provider, L2Provider, EngineClient_>>,
+    tasks: BinaryHeap<EngineTask<EngineClient_>>,
 }
 
-impl<L1Provider, L2Provider, EngineClient_> Engine<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
+impl<EngineClient_: EngineClient> Engine<EngineClient_> {
     /// Creates a new [`Engine`] with an empty task queue and the passed initial [`EngineState`].
     pub fn new(
         initial_state: EngineState,
@@ -79,7 +66,7 @@ where
 
     /// Enqueues a new [`EngineTask`] for execution.
     /// Updates the queue length and notifies listeners of the change.
-    pub fn enqueue(&mut self, task: EngineTask<L1Provider, L2Provider, EngineClient_>) {
+    pub fn enqueue(&mut self, task: EngineTask<EngineClient_>) {
         self.tasks.push(task);
         self.task_queue_length.send_replace(self.tasks.len());
     }
@@ -95,8 +82,7 @@ where
         // Clear any outstanding tasks to prepare for the reset.
         self.clear();
 
-        let mut start =
-            find_starting_forkchoice(&config, client.l1_provider(), client.l2_engine()).await?;
+        let mut start = find_starting_forkchoice(&config, client.as_ref()).await?;
 
         // Retry to synchronize the engine until we succeeds or a critical error occurs.
         while let Err(err) = SynchronizeTask::new(
@@ -118,9 +104,7 @@ where
                 EngineTaskErrorSeverity::Flush |
                 EngineTaskErrorSeverity::Reset => {
                     warn!(target: "engine", ?err, "Forkchoice update failed during reset. Trying again...");
-                    start =
-                        find_starting_forkchoice(&config, client.l1_provider(), client.l2_engine())
-                            .await?;
+                    start = find_starting_forkchoice(&config, client.as_ref()).await?;
                 }
                 EngineTaskErrorSeverity::Critical => {
                     return Err(EngineResetError::Forkchoice(err));
@@ -135,16 +119,14 @@ where
             .number
             .saturating_sub(config.channel_timeout(start.safe.block_info.timestamp));
         let l1_origin_info: BlockInfo = client
-            .l1_provider()
-            .get_block(origin_block.into())
+            .get_l1_block(origin_block.into())
             .await
             .map_err(SyncStartError::RpcError)?
             .ok_or(SyncStartError::BlockNotFound(origin_block.into()))?
             .into_consensus()
             .into();
         let l2_safe_block = client
-            .l2_engine()
-            .get_block(start.safe.block_info.hash.into())
+            .get_l2_block(start.safe.block_info.hash.into())
             .full()
             .await
             .map_err(SyncStartError::RpcError)?
