@@ -4,7 +4,7 @@ default:
 
 # initialize project
 init: && build-kona-node (create-docker-network "stf-net") up
-	git submodule update --init --recursive
+	git submodule update --init --recursive --remote
 	./generate-jwt.sh
 
 checkout branch:
