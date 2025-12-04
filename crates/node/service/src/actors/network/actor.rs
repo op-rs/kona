@@ -140,17 +140,11 @@ pub enum NetworkActorError {
 #[async_trait]
 impl NodeActor for NetworkActor {
     type Error = NetworkActorError;
-    type InboundData = NetworkInboundData;
-    type OutboundData = NetworkContext;
-    type Builder = NetworkBuilder;
-
-    fn build(state: Self::Builder) -> (Self::InboundData, Self) {
-        Self::new(state)
-    }
+    type StartData = NetworkContext;
 
     async fn start(
         mut self,
-        NetworkContext { blocks, cancellation }: Self::OutboundData,
+        NetworkContext { blocks, cancellation }: Self::StartData,
     ) -> Result<(), Self::Error> {
         let mut handler = self.builder.build()?.start().await?;
 

@@ -393,7 +393,7 @@ mod tests {
         let attributes = aq.next_attributes(L2BlockInfo::default()).await.unwrap();
         pa.no_tx_pool = Some(true);
         let populated_attributes = OpAttributesWithParent {
-            inner: pa,
+            attributes: pa,
             parent: L2BlockInfo::default(),
             derived_from: Some(BlockInfo::default()),
             is_last_in_span: true,

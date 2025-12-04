@@ -21,6 +21,7 @@ kona-sources.workspace = true
 # alloy
 alloy-eips.workspace = true
 alloy-consensus.workspace = true
+alloy-json-rpc.workspace = true
 alloy-network.workspace = true
 alloy-network-primitives.workspace = true
 alloy-transport.workspace = true
@@ -48,11 +49,18 @@ thiserror.workspace = true
 url.workspace = true
 tower.workspace = true
 http-body-util.workspace = true
-derive_more = { workspace = true, features = ["display", "deref", "from_str"] }
+derive_more = { workspace = true, features = ["display", "deref", "from_str", "constructor"] }
 serde_json.workspace = true
+jsonrpsee = { workspace = true, features = ["jsonrpsee-core"] }
+jsonrpsee-types.workspace = true
 
 # metrics
 metrics = { workspace = true, optional = true }
+
+# rollup boost
+rollup-boost.workspace = true
+http.workspace = true
+parking_lot.workspace = true
 
 [dev-dependencies]
 kona-registry.workspace = true

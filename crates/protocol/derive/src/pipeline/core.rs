@@ -188,7 +188,7 @@ where
                 kona_macros::set!(
                     gauge,
                     crate::metrics::Metrics::PIPELINE_LATEST_PAYLOAD_TX_COUNT,
-                    a.inner.transactions.as_ref().map_or(0.0, |txs| txs.len() as f64)
+                    a.attributes.transactions.as_ref().map_or(0.0, |txs| txs.len() as f64)
                 );
                 if !a.is_last_in_span {
                     kona_macros::inc!(gauge, crate::metrics::Metrics::PIPELINE_DERIVED_SPAN_SIZE);
@@ -236,7 +236,7 @@ mod tests {
 
     fn default_test_payload_attributes() -> OpAttributesWithParent {
         OpAttributesWithParent {
-            inner: OpPayloadAttributes {
+            attributes: OpPayloadAttributes {
                 payload_attributes: PayloadAttributes {
                     timestamp: 0,
                     prev_randao: Default::default(),

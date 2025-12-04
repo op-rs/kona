@@ -84,7 +84,7 @@ impl Engine {
         // Clear any outstanding tasks to prepare for the reset.
         self.clear();
 
-        let start =
+        let mut start =
             find_starting_forkchoice(&config, client.l1_provider(), client.l2_engine()).await?;
 
         // Retry to synchronize the engine until we succeeds or a critical error occurs.
@@ -106,7 +106,10 @@ impl Engine {
                 EngineTaskErrorSeverity::Temporary |
                 EngineTaskErrorSeverity::Flush |
                 EngineTaskErrorSeverity::Reset => {
-                    debug!(target: "engine", ?err, "Forkchoice update failed during reset. Trying again...");
+                    warn!(target: "engine", ?err, "Forkchoice update failed during reset. Trying again...");
+                    start =
+                        find_starting_forkchoice(&config, client.l1_provider(), client.l2_engine())
+                            .await?;
                 }
                 EngineTaskErrorSeverity::Critical => {
                     return Err(EngineResetError::Forkchoice(err));

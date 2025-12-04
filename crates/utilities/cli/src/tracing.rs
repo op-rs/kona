@@ -2,11 +2,17 @@
 
 use tracing_subscriber::{
     Layer,
+    fmt::{
+        format::{FormatEvent, FormatFields, Writer},
+        time::{FormatTime, SystemTime},
+    },
     prelude::__tracing_subscriber_SubscriberExt,
+    registry::LookupSpan,
     util::{SubscriberInitExt, TryInitError},
 };
 
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use tracing_subscriber::EnvFilter;
 
 use crate::{LogConfig, LogRotation};
@@ -27,6 +33,43 @@ pub enum LogFormat {
     Pretty,
     /// Compact format.
     Compact,
+    /// Logfmt format.
+    Logfmt,
+}
+
+/// Custom logfmt formatter for tracing events.
+struct LogfmtFormatter;
+
+impl<S, N> FormatEvent<S, N> for LogfmtFormatter
+where
+    S: tracing::Subscriber + for<'a> LookupSpan<'a>,
+    N: for<'a> FormatFields<'a> + 'static,
+{
+    fn format_event(
+        &self,
+        ctx: &tracing_subscriber::fmt::FmtContext<'_, S, N>,
+        mut writer: Writer<'_>,
+        event: &tracing::Event<'_>,
+    ) -> fmt::Result {
+        let meta = event.metadata();
+
+        // Write timestamp
+        let time_format = SystemTime;
+        write!(writer, "time=\"")?;
+        time_format.format_time(&mut writer)?;
+        write!(writer, "\" ")?;
+
+        // Write level
+        write!(writer, "level={} ", meta.level())?;
+
+        // Write target
+        write!(writer, "target={} ", meta.target())?;
+
+        // Write the message and fields
+        ctx.field_format().format_fields(writer.by_ref(), event)?;
+
+        writeln!(writer)
+    }
 }
 
 impl LogConfig {
@@ -67,6 +110,10 @@ impl LogConfig {
                 LogFormat::Compact => {
                     tracing_subscriber::fmt::layer().compact().with_writer(appender).boxed()
                 }
+                LogFormat::Logfmt => tracing_subscriber::fmt::layer()
+                    .event_format(LogfmtFormatter)
+                    .with_writer(appender)
+                    .boxed(),
             }
         });
 
@@ -75,6 +122,9 @@ impl LogConfig {
             LogFormat::Json => tracing_subscriber::fmt::layer().json().boxed(),
             LogFormat::Pretty => tracing_subscriber::fmt::layer().pretty().boxed(),
             LogFormat::Compact => tracing_subscriber::fmt::layer().compact().boxed(),
+            LogFormat::Logfmt => {
+                tracing_subscriber::fmt::layer().event_format(LogfmtFormatter).boxed()
+            }
         });
 
         let env_filter = env_filter

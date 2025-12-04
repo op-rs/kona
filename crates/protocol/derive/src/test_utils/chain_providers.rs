@@ -164,7 +164,7 @@ pub struct TestL2ChainProvider {
 }
 
 impl TestL2ChainProvider {
-    /// Creates a new [`MockBlockFetcher`] with the given origin and batches.
+    /// Creates a new [`TestL2ChainProvider`] with the given origin and batches.
     pub const fn new(
         blocks: Vec<L2BlockInfo>,
         op_blocks: Vec<OpBlock>,

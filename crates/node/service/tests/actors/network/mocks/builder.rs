@@ -8,6 +8,7 @@ use alloy_primitives::Address;
 use kona_disc::LocalNode;
 use kona_genesis::RollupConfig;
 use kona_node_service::{NetworkActor, NetworkBuilder, NetworkContext, NodeActor};
+use kona_peers::BootNode;
 use kona_sources::BlockSigner;
 use libp2p::{Multiaddr, identity::Keypair, multiaddr::Protocol};
 use rand::RngCore;
@@ -90,7 +91,7 @@ impl TestNetworkBuilder {
             discovery_config,
             Some(BlockSigner::Local(local_node_key.into())),
         )
-        .with_bootnodes(bootnodes);
+        .with_bootnodes(bootnodes.into_iter().map(Into::into).collect::<Vec<BootNode>>().into());
 
         let (inbound_data, actor) = NetworkActor::new(builder);
 

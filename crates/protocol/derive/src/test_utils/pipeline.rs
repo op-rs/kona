@@ -1,4 +1,4 @@
-//! Test Utilities for the [crate::pipeline::DerivationPipeline]
+//! Test Utilities for the [`DerivationPipeline`]
 //! as well as its stages and providers.
 
 use crate::{
@@ -65,7 +65,7 @@ pub type TestL1Retrieval = L1Retrieval<TestDAP, TestPollingTraversal>;
 /// A [`FrameQueue`] using test providers and sources.
 pub type TestFrameQueue = FrameQueue<TestL1Retrieval>;
 
-/// A [`ChannelBank`] using test providers and sources.
+/// A [`ChannelProvider`] using test providers and sources.
 pub type TestChannelProvider = ChannelProvider<TestFrameQueue>;
 
 /// A [`ChannelReader`] using test providers and sources.
@@ -74,7 +74,7 @@ pub type TestChannelReader = ChannelReader<TestChannelProvider>;
 /// A [`BatchStream`] using test providers and sources.
 pub type TestBatchStream = BatchStream<TestChannelReader, TestL2ChainProvider>;
 
-/// A [`BatchQueue`] using test providers and sources.
+/// A [`BatchProvider`] using test providers and sources.
 pub type TestBatchProvider = BatchProvider<TestBatchStream, TestL2ChainProvider>;
 
 /// An [`AttributesQueue`] using test providers and sources.

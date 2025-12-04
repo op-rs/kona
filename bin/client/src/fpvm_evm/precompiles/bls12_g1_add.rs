@@ -34,9 +34,12 @@ where
 
     let input_len = input.len();
     if input_len != G1_ADD_INPUT_LENGTH {
-        return Err(PrecompileError::Other(alloc::format!(
-            "G1 addition input length should be {G1_ADD_INPUT_LENGTH} bytes, was {input_len}"
-        )));
+        return Err(PrecompileError::Other(
+            alloc::format!(
+                "G1 addition input length should be {G1_ADD_INPUT_LENGTH} bytes, was {input_len}"
+            )
+            .into(),
+        ));
     }
 
     let precompile = bls12_381::g1_add::PRECOMPILE;
@@ -46,7 +49,7 @@ where
         oracle_reader,
         &[precompile.address().as_slice(), &G1_ADD_BASE_GAS_FEE.to_be_bytes(), input]
     })
-    .map_err(|e| PrecompileError::Other(e.to_string()))?;
+    .map_err(|e| PrecompileError::Other(e.to_string().into()))?;
 
     Ok(PrecompileOutput::new(G1_ADD_BASE_GAS_FEE, result_data.into()))
 }

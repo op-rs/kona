@@ -7,16 +7,22 @@ _docker_arch:
   fi
 
 # Builds an application image from the local repository.
-build-local bin_name image_tag='kona:local':
+build-local bin_name image_tag='kona:local' load_flag='':
   #!/bin/bash
   export BIN_TARGET="{{bin_name}}"
   export DEFAULT_TAG="{{image_tag}}"
   export PLATFORMS="$(just _docker_arch)"
   export REPO_LOCATION="local"
 
+  LOAD_FLAG=""
+  if [[ "{{load_flag}}" == "load" ]]; then
+    LOAD_FLAG="--load"
+  fi
+
   (cd "$(git rev-parse --show-toplevel)" && docker buildx bake \
     --progress plain \
     -f docker/docker-bake.hcl \
+    $LOAD_FLAG \
     generic)
 
 # Builds an application image from a remote revision.

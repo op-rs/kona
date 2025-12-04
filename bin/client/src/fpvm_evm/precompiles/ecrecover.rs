@@ -33,7 +33,7 @@ where
         oracle_reader,
         &[ECRECOVER_ADDR.as_slice(), &ECRECOVER_BASE.to_be_bytes(), truncated_input]
     })
-    .map_err(|e| PrecompileError::Other(e.to_string()))
+    .map_err(|e| PrecompileError::Other(e.to_string().into()))
     .unwrap_or_default();
 
     Ok(PrecompileOutput::new(ECRECOVER_BASE, result_data.into()))

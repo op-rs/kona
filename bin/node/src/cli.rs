@@ -8,9 +8,10 @@ use crate::{
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use kona_cli::cli_styles;
+use strum::Display;
 
 /// Subcommands for the CLI.
-#[derive(Debug, PartialEq, Clone, Subcommand)]
+#[derive(Debug, Clone, Subcommand, Display)]
 #[allow(clippy::large_enum_variant)]
 pub enum Commands {
     /// Runs the consensus node.
@@ -125,7 +126,7 @@ mod tests {
     fn test_parse_cli(#[case] subcommand: Commands, #[case] subcommand_alias: &str) {
         let args = vec!["kona-node", subcommand_alias, "--help"];
         let cli = Cli::parse_from(args);
-        assert_eq!(cli.subcommand, subcommand);
+        assert_eq!(cli.subcommand.to_string(), subcommand.to_string());
     }
 
     #[rstest]

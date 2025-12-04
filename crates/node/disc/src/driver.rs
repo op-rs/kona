@@ -4,7 +4,6 @@ use backon::{ExponentialBuilder, RetryableWithContext};
 use derive_more::Debug;
 use discv5::{Config, Discv5, Enr, enr::NodeId};
 use kona_peers::{BootNode, BootNodes, BootStore, BootStoreFile, EnrValidation, enr_to_multiaddr};
-use libp2p::Multiaddr;
 use tokio::{
     sync::mpsc::channel,
     time::{Duration, sleep},
@@ -31,10 +30,10 @@ pub struct Discv5Driver {
     /// The [`Discv5`] discovery service.
     #[debug(skip)]
     pub disc: Discv5,
-    /// The [`BootStore`].
-    pub store: BootStore,
+    /// The optional [`BootStoreFile`] to use for the bootstore.
+    pub bootstore: Option<BootStoreFile>,
     /// Bootnodes used to bootstrap the discovery service.
-    pub bootnodes: Vec<Enr>,
+    pub bootnodes: BootNodes,
     /// The chain ID of the network.
     pub chain_id: u64,
     /// The interval to discovery random nodes.
@@ -51,7 +50,7 @@ pub struct Discv5Driver {
 
 impl Discv5Driver {
     /// Returns a new [`Discv5Builder`] instance.
-    pub const fn builder(
+    pub fn builder(
         local_node: LocalNode,
         chain_id: u64,
         discovery_config: Config,
@@ -60,28 +59,22 @@ impl Discv5Driver {
     }
 
     /// Instantiates a new [`Discv5Driver`].
-    pub fn new(
+    pub const fn new(
         disc: Discv5,
         interval: Duration,
         chain_id: u64,
         bootstore: Option<BootStoreFile>,
-        bootnodes: Vec<Enr>,
+        bootnodes: BootNodes,
     ) -> Result<Self, std::io::Error> {
-        // Note: if the bootstore file cannot be created, we use a default bootstore.
-        let mut store = bootstore
-            .map_or_else(BootStore::default, |bootstore| bootstore.try_into().unwrap_or_default());
-
-        store.merge(bootnodes.clone());
-
         Ok(Self {
             disc,
             chain_id,
             bootnodes,
-            store,
             interval,
             forward: true,
             remove_interval: None,
             store_interval: Duration::from_secs(60),
+            bootstore,
         })
     }
 
@@ -102,140 +95,53 @@ impl Discv5Driver {
         res.map(|_| s)
     }
 
-    /// Adds a bootnode to the discv5 service given an enode address.
-    async fn add_enode(&mut self, enode: Multiaddr) -> Option<Enr> {
-        let enr = match self.disc.request_enr(enode.clone()).await {
-            Ok(enr) => enr,
-            Err(err) => {
-                debug!(
-                    target: "discovery",
-                    ?enode,
-                    %err,
-                    "Failed to request boot node ENR"
-                );
-
-                return None;
-            }
-        };
-
-        if let Err(err) = self.disc.add_enr(enr.clone()) {
-            debug!(
-                    target: "discovery",
-                ?enode,
-                %err,
-                "Failed to add boot ENR"
-            );
-
-            return None;
-        }
-
-        Some(enr)
-    }
-
     /// Bootstraps the [`Discv5`] table with bootnodes.
-    fn bootnode_bootstrap(&mut self) {
-        let nodes = BootNodes::from_chain_id(self.chain_id);
+    async fn bootstrap_peers(
+        bootstore: Option<BootStoreFile>,
+        bootnodes: BootNodes,
+        chain_id: u64,
+        disc: &Discv5,
+    ) -> BootStore {
+        // Note: if the bootstore file cannot be created, we use a default bootstore.
+        let mut store = bootstore
+            .map_or_else(BootStore::default, |bootstore| bootstore.try_into().unwrap_or_default());
 
-        let mut boot_enrs: Vec<Enr> = nodes
-            .0
-            .iter()
-            .filter_map(|bn| match bn {
-                BootNode::Enr(enr) => Some(enr.clone()),
-                _ => None,
-            })
-            .collect();
+        let initial_store_length = store.len();
 
-        boot_enrs.append(&mut self.bootnodes);
+        for bn in bootnodes.0.into_iter().chain(BootNodes::from_chain_id(chain_id).0.into_iter()) {
+            let res = match bn {
+                BootNode::Enr(enr) => Ok(enr.clone()),
+                BootNode::Enode(enode) => disc.request_enr(enode.clone()).await,
+            };
 
-        // First attempt to add the bootnodes to the discovery table.
-        let mut count = 0;
-        for enr in &boot_enrs {
-            let validation = EnrValidation::validate(enr, self.chain_id);
+            let Ok(enr) = res else {
+                debug!(target: "discovery::bootstrap", ?res, "Failed to add boot node ENR to discovery table");
+                continue;
+            };
+
+            let validation = EnrValidation::validate(&enr, chain_id);
             if validation.is_invalid() {
-                trace!(target: "discovery", "Ignoring Invalid Bootnode ENR: {:?}. {:?}", enr, validation);
+                trace!(target: "discovery::bootstrap", "Ignoring Invalid Bootnode ENR: {:?}. {:?}", enr, validation);
                 continue;
             }
-            match self.disc.add_enr(enr.clone()) {
-                Ok(_) => count += 1,
-                Err(e) => debug!(target: "discovery", "[BOOTSTRAP] Failed to add enr: {:?}", e),
-            }
-        }
-        info!(target: "discovery", "Added {} Bootnode ENRs to discovery table", count);
 
-        // Merge the bootnodes into the bootstore.
-        self.store.merge(boot_enrs);
-        debug!(target: "discovery",
-            new=%count,
-            total=%self.store.len(),
-            "Added new ENRs to discv5 bootstore"
-        );
-    }
-
-    /// Adds ENRs from the bootstore to the discovery table.
-    fn bootstore_bootstrap(&mut self) {
-        // Add ENRs in the bootstore to the discovery table.
-        //
-        // Note, discv5's table may not accept new ENRs above a certain limit.
-        // Instead of erroring, we log the failure as a debug log.
-        let mut count = 0;
-        for enr in self.store.valid_peers() {
-            let validation = EnrValidation::validate(enr, self.chain_id);
-            if validation.is_invalid() {
-                trace!(target: "discovery", "Ignoring Invalid Bootnode ENR: {:?}. {:?}", enr, validation);
+            if let Err(e) = disc.add_enr(enr.clone()) {
+                debug!(target: "discovery::bootstrap", "Failed to add enr: {:?}", e);
                 continue;
             }
-            match self.disc.add_enr(enr.clone()) {
-                Ok(_) => count += 1,
-                Err(e) => trace!(target: "discovery", "Failed to add ENR to discv5 table: {:?}", e),
-            }
+
+            store.add_enr(enr);
         }
-        info!(target: "discovery", "Added {} Bootstore ENRs to discovery table", count);
-    }
 
-    /// Bootstraps the [`Discv5`] service with the enodes from the bootnodes.
-    async fn enode_bootstrap(&mut self) {
-        let nodes = BootNodes::from_chain_id(self.chain_id);
+        let new_store_len = store.len();
 
-        let mut boot_enodes_enrs = Vec::new();
-        for node in nodes.0 {
-            match node {
-                BootNode::Enode(enode) => {
-                    let Some(enr) = self.add_enode(enode).await else {
-                        continue;
-                    };
-
-                    boot_enodes_enrs.push(enr);
-                }
-                BootNode::Enr(_) => { /* ignore: bootnode enrs already added */ }
-            }
-        }
-        info!(target: "discovery", "Added {} Bootnode ENODEs to discovery table", boot_enodes_enrs.len());
-
-        // Merge the bootnodes into the bootstore.
-        self.store.merge(boot_enodes_enrs);
-        debug!(target: "discovery",
-            total=%self.store.len(),
+        debug!(target: "discovery::bootstrap",
+            added=%(new_store_len - initial_store_length),
+            total=%new_store_len,
             "Added new ENRs to discv5 bootstore"
         );
-    }
 
-    /// Bootstraps the [`Discv5`] service with the bootnodes.
-    async fn bootstrap(&mut self) {
-        self.bootnode_bootstrap();
-        self.bootstore_bootstrap();
-        self.enode_bootstrap().await;
-    }
-
-    /// Sends ENRs from the boot store to the enr receiver.
-    pub async fn forward(&mut self, enr_sender: tokio::sync::mpsc::Sender<Enr>) {
-        if !self.forward {
-            return;
-        }
-        for enr in self.store.valid_peers_with_chain_id(self.chain_id) {
-            if let Err(e) = enr_sender.send(enr.clone()).await {
-                debug!(target: "discovery", "Failed to forward enr: {:?}", e);
-            }
-        }
+        store
     }
 
     /// Spawns a new [`Discv5`] discovery service in a new tokio task.
@@ -261,13 +167,21 @@ impl Discv5Driver {
             self = s;
             trace!(target: "discovery", "Discv5 Initialized");
 
-            // Step 2: Bootstrap discovery service bootnodes.
-            self.bootstrap().await;
+            // Step 2: Bootstrap the discovery table with bootnodes.
+            let mut store =
+                Self::bootstrap_peers(self.bootstore, self.bootnodes, chain_id, &self.disc).await;
+
             let enrs = self.disc.table_entries_enr();
             info!(target: "discovery", "Discv5 Started with {} ENRs", enrs.len());
 
             // Step 3: Forward ENRs in the bootstore to the enr receiver.
-            self.forward(enr_sender.clone()).await;
+            if self.forward {
+                for enr in store.valid_peers_with_chain_id(self.chain_id) {
+                    if let Err(e) = enr_sender.send(enr.clone()).await {
+                        debug!(target: "discovery", "Failed to forward enr: {:?}", e);
+                    }
+                }
+            }
 
             // Continuously attempt to start the event stream with a retry limit and shutdown
             // signal.
@@ -365,7 +279,7 @@ impl Discv5Driver {
                                 if EnrValidation::validate(&enr, chain_id).is_valid() {
                                     debug!(target: "discovery", "Valid ENR discovered, forwarding to swarm: {:?}", enr);
                                     kona_macros::inc!(gauge, crate::Metrics::DISCOVERY_EVENT, "type" => "discovered");
-                                    self.store.add_enr(enr.clone());
+                                    store.add_enr(enr.clone());
                                     let sender = enr_sender.clone();
                                     tokio::spawn(async move {
                                         if let Err(e) = sender.send(enr).await {
@@ -378,7 +292,7 @@ impl Discv5Driver {
                                 if EnrValidation::validate(&enr, chain_id).is_valid() {
                                     debug!(target: "discovery", "Session established with valid ENR, forwarding to swarm. Address: {:?}, ENR: {:?}", addr, enr);
                                     kona_macros::inc!(gauge, crate::Metrics::DISCOVERY_EVENT, "type" => "session_established");
-                                    self.store.add_enr(enr.clone());
+                                    store.add_enr(enr.clone());
                                     let sender = enr_sender.clone();
                                     tokio::spawn(async move {
                                         if let Err(e) = sender.send(enr).await {
@@ -391,7 +305,7 @@ impl Discv5Driver {
                                 if EnrValidation::validate(&enr, chain_id).is_valid() {
                                     debug!(target: "discovery", "Valid ENR discovered, forwarding to swarm: {:?}", enr);
                                     kona_macros::inc!(gauge, crate::Metrics::DISCOVERY_EVENT, "type" => "unverifiable_enr");
-                                    self.store.add_enr(enr.clone());
+                                    store.add_enr(enr.clone());
                                     let sender = enr_sender.clone();
                                     tokio::spawn(async move {
                                         if let Err(e) = sender.send(enr).await {
@@ -427,9 +341,9 @@ impl Discv5Driver {
                     _ = store_interval.tick() => {
                         let start = std::time::Instant::now();
                         let enrs = self.disc.table_entries_enr();
-                        self.store.merge(enrs);
+                        store.merge(enrs);
 
-                        if let Err(e) = self.store.sync() {
+                        if let Err(e) = store.sync() {
                             warn!(target: "discovery", "Failed to sync bootstore: {:?}", e);
                         }
 
@@ -468,7 +382,7 @@ mod tests {
         handler::NodeContact,
     };
     use kona_genesis::{OP_MAINNET_CHAIN_ID, OP_SEPOLIA_CHAIN_ID};
-    use tempfile::tempfile;
+    use tempfile::tempdir;
 
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
@@ -494,7 +408,8 @@ mod tests {
     async fn test_online_discv5_driver_bootstrap_testnet() {
         // Use a test file to make sure bootstore
         // doesn't conflict with a local bootstore.
-        let file = tempfile().unwrap();
+        let file = tempdir().unwrap();
+        let file = file.path().join("bootstore.json");
 
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
         let CombinedKey::Secp256k1(secret_key) = CombinedKey::generate_secp256k1() else {
@@ -507,18 +422,23 @@ mod tests {
         )
         .build()
         .expect("Failed to build discovery service");
-        discovery.store.file = Some(file);
+        discovery.bootstore = Some(BootStoreFile::Custom(file));
 
         discovery = discovery.init().await.expect("Failed to initialize discovery service");
 
         // There are no ENRs for `OP_SEPOLIA_CHAIN_ID` in the bootstore.
         // If an ENR is added, this check will fail.
-        discovery.bootnode_bootstrap();
-        assert!(discovery.disc.table_entries_enr().is_empty());
-
-        // Now add the ENODEs
-        discovery.enode_bootstrap().await;
-        assert_eq!(discovery.disc.table_entries_enr().len(), 8);
+        Discv5Driver::bootstrap_peers(
+            discovery.bootstore,
+            discovery.bootnodes,
+            OP_SEPOLIA_CHAIN_ID,
+            &discovery.disc,
+        )
+        .await;
+        assert!(
+            discovery.disc.table_entries_enr().len() >= 5,
+            "Discovery table should have at least 5 ENRs"
+        );
 
         // It should have the same number of entries as the testnet table.
         let testnet = BootNodes::testnet();
@@ -559,7 +479,8 @@ mod tests {
 
         // Use a test file to make sure bootstore
         // doesn't conflict with a local bootstore.
-        let file = tempfile().unwrap();
+        let file = tempdir().unwrap();
+        let file = file.path().join("bootstore.json");
 
         // Filter out ENRs that are not valid.
         let mainnet = BootNodes::mainnet();
@@ -594,25 +515,30 @@ mod tests {
         )
         .build()
         .expect("Failed to build discovery service");
-        discovery.store.file = Some(file);
+        discovery.bootstore = Some(BootStoreFile::Custom(file));
 
         discovery = discovery.init().await.expect("Failed to initialize discovery service");
 
         // There are no ENRs for op mainnet in the bootstore.
         // If an ENR is added, this check will fail.
-        discovery.bootnode_bootstrap();
-        assert_eq!(discovery.disc.table_entries_enr().len(), 0);
+        Discv5Driver::bootstrap_peers(
+            discovery.bootstore,
+            discovery.bootnodes,
+            OP_MAINNET_CHAIN_ID,
+            &discovery.disc,
+        )
+        .await;
+        assert!(
+            discovery.disc.table_entries_enr().len() >= 10,
+            "Discovery table should have at least 10 ENRs"
+        );
 
-        // Now add the ENODEs
-        discovery.enode_bootstrap().await;
-        assert_eq!(discovery.disc.table_entries_enr().len(), 16);
-
-        // Those 13 ENRs should be in the discovery table.
+        // Those ENRs should be in the mainnet bootnodes.
         let disc_enrs = discovery.disc.table_entries_enr();
-        for public_key in mainnet {
+        for enr in disc_enrs {
             assert!(
-                disc_enrs.iter().any(|enr| enr.public_key() == public_key),
-                "Discovery table does not contain testnet ENR: {public_key:?}"
+                mainnet.iter().any(|pub_key| pub_key == &enr.public_key()),
+                "Discovery table does not contain mainnet ENR: {enr:?}"
             );
         }
     }

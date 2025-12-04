@@ -32,6 +32,34 @@ There are three core statics exposed by the [`kona-registry`][sc].
 [`kona-registry`][sc] exports the _complete_ list of chains within the superchain, as well as each
 chain's `RollupConfig`s and `ChainConfig`s.
 
+### Custom chain configurations
+
+`kona-registry` embeds a frozen snapshot of the upstream superchain registry, but downstream
+users can extend that snapshot at build time. This is useful when you need bespoke test chains or
+partner networks that are not yet part of the public registry but still want to rely on the crate's
+lazy statics.
+
+1. Produce JSON files that follow the same schema as the generated artifacts in `etc/`:
+   - `chainList.json` containing additional [`Chain`][chains] entries.
+   - `configs.json` containing [`Superchain`][superchains] structures with matching `ChainConfig`s and
+     `RollupConfig`s for the new chain ids.
+2. Point the build to those files by setting the following environment variables during `cargo build`
+   (or `cargo test`):
+   ```sh
+   export KONA_CUSTOM_CONFIGS=true
+   export KONA_CUSTOM_CONFIGS_DIR=/absolute/path/to/custom-configs
+   cargo build -p kona-registry
+   ```
+3. The build script merges the custom files into the generated `etc/chainList.json` and
+   `etc/configs.json` before compiling the crate. Attempting to override existing chain ids will
+   result in build failures.
+
+Both JSON files must stay in lockstep: every chain listed in `configs.json` must also appear in
+`chainList.json`, and chain identifiers must map to a single chain id. The build script validates
+those invariants and will fail fast if it detects duplicates or mismatches. When publishing another
+crate that depends on `kona-registry`, you can check the custom artifacts into your workspace and set
+`KONA_CUSTOM_CONFIGS_DIR` via a build script or `just` recipe so that consumers automatically embed
+the additional definitions.
 
 ### Usage
 
@@ -97,3 +125,4 @@ println!("OP Mainnet Chain Config: {:?}", op_chain_config);
 [chains]: https://docs.rs/kona-registry/latest/kona_registry/struct.CHAINS.html
 [opchains]: https://docs.rs/kona-registry/latest/kona_registry/struct.OPCHAINS.html
 [rollups]: https://docs.rs/kona-registry/latest/kona_registry/struct.ROLLUP_CONFIGS.html
+[superchains]: https://docs.rs/kona-genesis/latest/kona_genesis/struct.Superchain.html

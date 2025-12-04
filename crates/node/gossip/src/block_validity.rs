@@ -253,7 +253,7 @@ impl BlockHandler {
 
         // The block is signed by the expected signer (the unsafe block signer).
         if msg_signer != block_signer {
-            return Err(BlockInvalidError::Signer { expected: msg_signer, received: block_signer });
+            return Err(BlockInvalidError::Signer { expected: block_signer, received: msg_signer });
         }
 
         self.seen_hashes

@@ -14,3 +14,6 @@ pub use config::SuperchainConfig;
 
 mod info;
 pub use info::SuperchainL1Info;
+
+mod chain_list;
+pub use chain_list::{Chain, ChainList, FaultProofs, SuperchainParent};

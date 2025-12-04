@@ -34,15 +34,19 @@ where
     let input_len = input.len();
 
     if input_len > BLS12_MAX_PAIRING_SIZE_ISTHMUS {
-        return Err(PrecompileError::Other(alloc::format!(
-            "Pairing input length must be at most {BLS12_MAX_PAIRING_SIZE_ISTHMUS}"
-        )));
+        return Err(PrecompileError::Other(
+            alloc::format!("Pairing input length must be at most {BLS12_MAX_PAIRING_SIZE_ISTHMUS}")
+                .into(),
+        ));
     }
 
     if !input_len.is_multiple_of(PAIRING_INPUT_LENGTH) {
-        return Err(PrecompileError::Other(alloc::format!(
-            "Pairing input length should be multiple of {PAIRING_INPUT_LENGTH}, was {input_len}"
-        )));
+        return Err(PrecompileError::Other(
+            alloc::format!(
+                "Pairing input length should be multiple of {PAIRING_INPUT_LENGTH}, was {input_len}"
+            )
+            .into(),
+        ));
     }
 
     let k = input_len / PAIRING_INPUT_LENGTH;
@@ -58,7 +62,7 @@ where
         oracle_reader,
         &[precompile.address().as_slice(), &required_gas.to_be_bytes(), input]
     })
-    .map_err(|e| PrecompileError::Other(e.to_string()))?;
+    .map_err(|e| PrecompileError::Other(e.to_string().into()))?;
 
     Ok(PrecompileOutput::new(required_gas, result_data.into()))
 }
@@ -75,9 +79,10 @@ where
     O: PreimageOracleClient + Send + Sync,
 {
     if input.len() > BLS12_MAX_PAIRING_SIZE_JOVIAN {
-        return Err(PrecompileError::Other(alloc::format!(
-            "Pairing input length must be at most {BLS12_MAX_PAIRING_SIZE_JOVIAN}"
-        )));
+        return Err(PrecompileError::Other(
+            alloc::format!("Pairing input length must be at most {BLS12_MAX_PAIRING_SIZE_JOVIAN}")
+                .into(),
+        ));
     }
 
     fpvm_bls12_pairing(input, gas_limit, hint_writer, oracle_reader)

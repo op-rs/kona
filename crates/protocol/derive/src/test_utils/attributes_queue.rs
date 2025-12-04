@@ -27,7 +27,7 @@ pub struct TestAttributesBuilder {
 
 #[async_trait]
 impl AttributesBuilder for TestAttributesBuilder {
-    /// Prepares the [`OptimismPayloadAttributes`] for the next payload.
+    /// Prepares the [`OpPayloadAttributes`] for the next payload.
     async fn prepare_payload_attributes(
         &mut self,
         _l2_parent: L2BlockInfo,
@@ -43,7 +43,7 @@ impl AttributesBuilder for TestAttributesBuilder {
     }
 }
 
-/// A mock implementation of the [`BatchQueue`] stage for testing.
+/// A mock implementation of the [`AttributesProvider`] stage for testing.
 #[derive(Debug, Default)]
 pub struct TestAttributesProvider {
     /// The origin of the L1 block.

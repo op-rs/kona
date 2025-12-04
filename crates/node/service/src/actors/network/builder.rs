@@ -1,11 +1,11 @@
 //! Network Builder Module.
 
 use alloy_primitives::Address;
-use discv5::{Config as Discv5Config, Enr};
+use discv5::Config as Discv5Config;
 use kona_disc::{Discv5Builder, LocalNode};
 use kona_genesis::RollupConfig;
 use kona_gossip::{GaterConfig, GossipDriverBuilder};
-use kona_peers::{BootStoreFile, PeerMonitoring, PeerScoreLevel};
+use kona_peers::{BootNodes, BootStoreFile, PeerMonitoring, PeerScoreLevel};
 use kona_sources::BlockSigner;
 use libp2p::{Multiaddr, identity::Keypair};
 use std::time::Duration;
@@ -57,7 +57,7 @@ impl From<NetworkConfig> for NetworkBuilder {
 
 impl NetworkBuilder {
     /// Creates a new [`NetworkBuilder`].
-    pub const fn new(
+    pub fn new(
         rollup_config: RollupConfig,
         unsafe_block_signer: Address,
         gossip_addr: Multiaddr,
@@ -109,7 +109,7 @@ impl NetworkBuilder {
     }
 
     /// Sets the initial bootnodes to add to the bootstore.
-    pub fn with_bootnodes(self, bootnodes: Vec<Enr>) -> Self {
+    pub fn with_bootnodes(self, bootnodes: BootNodes) -> Self {
         Self { discovery: self.discovery.with_bootnodes(bootnodes), ..self }
     }
 

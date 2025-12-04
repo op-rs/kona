@@ -59,13 +59,15 @@ where
     ) -> PipelineResult<Self> {
         let attributes = StatefulAttributesBuilder::new(
             cfg.clone(),
-            l1_cfg.clone(),
+            l1_cfg,
             l2_chain_provider.clone(),
             chain_provider.clone(),
         );
 
+        let cfg_for_reset = cfg.clone();
+
         let mut pipeline = PipelineBuilder::new()
-            .rollup_config(cfg.clone())
+            .rollup_config(cfg)
             .dap_source(da_provider)
             .l2_chain_provider(l2_chain_provider.clone())
             .chain_provider(chain_provider)
@@ -81,7 +83,7 @@ where
                     l2_safe_head,
                     l1_origin: sync_start.read().origin(),
                     system_config: l2_chain_provider
-                        .system_config_by_number(l2_safe_head.block_info.number, cfg.clone())
+                        .system_config_by_number(l2_safe_head.block_info.number, cfg_for_reset)
                         .await
                         .ok(),
                 }

@@ -25,7 +25,7 @@ use reth_db_api::{
     cursor::{DbCursorRO, DbDupCursorRO, DbDupCursorRW},
     transaction::{DbTx, DbTxMut},
 };
-use std::fmt::Debug;
+
 use tracing::{debug, error, info, trace, warn};
 
 const DEFAULT_LOG_INTERVAL: u64 = 100;

@@ -1,7 +1,7 @@
 //! Contains a builder for the discovery service.
 
 use discv5::{Config, Discv5, Enr, enr::k256};
-use kona_peers::{BootStoreFile, OpStackEnr};
+use kona_peers::{BootNodes, BootStoreFile, OpStackEnr};
 use std::net::IpAddr;
 use tokio::time::Duration;
 
@@ -84,7 +84,7 @@ pub struct Discv5Builder {
     /// An optional path to the bootstore.
     bootstore: Option<BootStoreFile>,
     /// Additional bootnodes to manually add to the initial bootstore
-    bootnodes: Vec<Enr>,
+    bootnodes: BootNodes,
     /// The interval to store the bootnodes to disk.
     store_interval: Option<Duration>,
     /// Whether or not to forward the initial set of valid ENRs to the gossip layer.
@@ -93,7 +93,7 @@ pub struct Discv5Builder {
 
 impl Discv5Builder {
     /// Creates a new [`Discv5Builder`] instance.
-    pub const fn new(local_node: LocalNode, chain_id: u64, discovery_config: Config) -> Self {
+    pub fn new(local_node: LocalNode, chain_id: u64, discovery_config: Config) -> Self {
         Self {
             local_node,
             chain_id,
@@ -101,7 +101,7 @@ impl Discv5Builder {
             interval: None,
             randomize: None,
             bootstore: None,
-            bootnodes: Vec::new(),
+            bootnodes: BootNodes::default(),
             store_interval: None,
             forward: true,
         }
@@ -114,7 +114,7 @@ impl Discv5Builder {
     }
 
     /// Sets the initial bootnodes to add to the bootstore.
-    pub fn with_bootnodes(mut self, bootnodes: Vec<Enr>) -> Self {
+    pub fn with_bootnodes(mut self, bootnodes: BootNodes) -> Self {
         self.bootnodes = bootnodes;
         self
     }

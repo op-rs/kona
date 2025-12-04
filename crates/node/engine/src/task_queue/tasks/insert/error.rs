@@ -24,9 +24,6 @@ pub enum InsertTaskError {
     /// Unexpected payload status
     #[error("Unexpected payload status: {0}")]
     UnexpectedPayloadStatus(PayloadStatusEnum),
-    /// Inconsistent forkchoice state.
-    #[error("Inconsistent forkchoice state; Pipeline reset required")]
-    InconsistentForkchoiceState,
     /// Error converting the payload + chain genesis into an L2 block info.
     #[error(transparent)]
     L2BlockInfoConstruction(#[from] FromBlockError),
@@ -42,7 +39,6 @@ impl EngineTaskError for InsertTaskError {
             Self::InsertFailed(_) => EngineTaskErrorSeverity::Temporary,
             Self::UnexpectedPayloadStatus(_) => EngineTaskErrorSeverity::Temporary,
             Self::L2BlockInfoConstruction(_) => EngineTaskErrorSeverity::Critical,
-            Self::InconsistentForkchoiceState => EngineTaskErrorSeverity::Reset,
             Self::ForkchoiceUpdateFailed(inner) => inner.severity(),
         }
     }

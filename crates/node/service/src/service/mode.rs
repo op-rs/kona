@@ -1,8 +1,8 @@
 //! Contains enums that configure the mode for the node to operate in.
 
-/// The [`NodeMode`] enum represents the modes of operation for the [`RollupNodeService`].
+/// The [`NodeMode`] enum represents the modes of operation for the [`RollupNode`].
 ///
-/// [`RollupNodeService`]: crate::RollupNodeService
+/// [`RollupNode`]: crate::RollupNode
 #[derive(
     Debug,
     Default,

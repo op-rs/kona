@@ -1,4 +1,4 @@
-//! Implements a mock [L2SystemConfigFetcher] for testing.
+//! Implements a mock [`L2ChainProvider`] and [`BatchValidationProvider`] for testing.
 
 use crate::{
     errors::{PipelineError, PipelineErrorKind},
@@ -12,7 +12,7 @@ use kona_protocol::{BatchValidationProvider, L2BlockInfo};
 use op_alloy_consensus::OpBlock;
 use thiserror::Error;
 
-/// A mock implementation of the `SystemConfigL2Fetcher` for testing.
+/// A mock implementation of the [`L2ChainProvider`] and [`BatchValidationProvider`] for testing.
 #[derive(Debug, Default)]
 pub struct TestSystemConfigL2Fetcher {
     /// A map from [u64] block number to a [`SystemConfig`].

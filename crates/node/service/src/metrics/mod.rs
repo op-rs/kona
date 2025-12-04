@@ -21,9 +21,13 @@ impl Metrics {
     pub const SEQUENCER_ATTRIBUTES_BUILDER_DURATION: &str =
         "kona_node_sequencer_attributes_build_duration";
 
-    /// Gauge for the sequencer's block building job duration.
-    pub const SEQUENCER_BLOCK_BUILDING_JOB_DURATION: &str =
-        "kona_node_sequencer_block_building_duration";
+    /// Gauge for the sequencer's block building start task duration.
+    pub const SEQUENCER_BLOCK_BUILDING_START_TASK_DURATION: &str =
+        "kona_node_sequencer_block_building_start_task_duration";
+
+    /// Gauge for the sequencer's block building seal task duration.
+    pub const SEQUENCER_BLOCK_BUILDING_SEAL_TASK_DURATION: &str =
+        "kona_node_sequencer_block_building_seal_task_duration";
 
     /// Gauge for the sequencer's conductor commitment duration.
     pub const SEQUENCER_CONDUCTOR_COMMITMENT_DURATION: &str =
@@ -66,8 +70,14 @@ impl Metrics {
 
         // Sequencer block building job duration
         metrics::describe_gauge!(
-            Self::SEQUENCER_BLOCK_BUILDING_JOB_DURATION,
-            "Duration of the sequencer block building job"
+            Self::SEQUENCER_BLOCK_BUILDING_START_TASK_DURATION,
+            "Duration of the sequencer block building start task"
+        );
+
+        // Sequencer block building job duration
+        metrics::describe_gauge!(
+            Self::SEQUENCER_BLOCK_BUILDING_SEAL_TASK_DURATION,
+            "Duration of the sequencer block building seal task"
         );
 
         // Sequencer conductor commitment duration

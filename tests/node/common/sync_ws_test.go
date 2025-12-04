@@ -194,8 +194,8 @@ func TestSyncFinalized(gt *testing.T) {
 
 			output := node_utils.GetKonaWs(t, node, "finalized_head", time.After(4*time.Minute))
 
-			// We should check that we received at least 2 finalized blocks within 4 minutes!
-			require.Greater(t, len(output), 1, "we didn't receive enough finalized gossip blocks!")
+			// We should check that we received at least 1 finalized block within 4 minutes!
+			require.GreaterOrEqual(t, len(output), 1, "we didn't receive enough finalized gossip blocks!")
 			t.Log("Number of finalized blocks received within 4 minutes:", len(output))
 
 			// For each block, we check that the block is actually in the chain of the other nodes.

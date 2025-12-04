@@ -32,17 +32,37 @@ tests: test test-docs
 # Test for the native target with all features. By default, excludes online tests.
 test *args="-E '!test(test_online)'":
   cargo nextest run --workspace --all-features {{args}}
+  just test-custom-embeds
 
 # Run all online tests
 test-online:
   just test "-E 'test(test_online)'"
 
+# Test custom embedded chain configuration functionality
+test-custom-embeds:
+  cargo test --package kona-registry custom_chain_is_loaded_when_enabled \
+      --config 'env.KONA_CUSTOM_CONFIGS="true"' \
+      --config "env.KONA_CUSTOM_CONFIGS_DIR=\"{{justfile_directory()}}/crates/protocol/registry/tests/fixtures/custom\"" \
+      --config 'env.KONA_CUSTOM_CONFIGS_TEST="true"'
+
 # Runs the tests with llvm-cov
 llvm-cov-tests:
-  cargo llvm-cov nextest --locked --workspace --lcov \
-    --output-path lcov.info --all-features \
+  # collect coverage of `just test` and `just test-custom-embeds`
+  cargo llvm-cov nextest --no-report --locked --workspace \
+    --all-features \
     --exclude kona-node --exclude kona-p2p --exclude kona-sources \
     --ignore-run-fail --profile ci -E '!test(test_online)'
+
+  cargo llvm-cov nextest --no-report --locked \
+    --all-features \
+    --ignore-run-fail --profile ci \
+    --package kona-registry \
+    -E 'test(custom_chain_is_loaded_when_enabled)' \
+    --config 'env.KONA_CUSTOM_CONFIGS="true"' \
+    --config "env.KONA_CUSTOM_CONFIGS_DIR=\"{{justfile_directory()}}/crates/protocol/registry/tests/fixtures/custom\"" \
+    --config 'env.KONA_CUSTOM_CONFIGS_TEST="true"'
+
+  cargo llvm-cov report --lcov --output-path lcov.info
 
 # Runs benchmarks
 benches:

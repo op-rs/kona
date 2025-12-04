@@ -57,6 +57,8 @@ impl Metrics {
     pub const FORKCHOICE_TASK_LABEL: &str = "forkchoice-update";
     /// Build task label.
     pub const BUILD_TASK_LABEL: &str = "build";
+    /// Seal task label.
+    pub const SEAL_TASK_LABEL: &str = "seal";
     /// Finalize task label.
     pub const FINALIZE_TASK_LABEL: &str = "finalize";
 
