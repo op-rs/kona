@@ -1,5 +1,7 @@
 //! Jovian L1 Block Info transaction types.
 
+use crate::info::bedrock_base::ambassador_impl_L1BlockInfoBedrockBaseFields;
+use crate::info::ecotone_base::ambassador_impl_L1BlockInfoEcotoneBaseFields;
 use crate::info::isthmus::ambassador_impl_L1BlockInfoIsthmusBaseFields;
 use crate::{
     DecodeError, L1BlockInfoIsthmus,
@@ -32,8 +34,10 @@ use ambassador::{self, Delegate};
 /// | 8       | OperatorFeeConstant      |
 /// | 2       | DAFootprintGasScalar     |
 /// +---------+--------------------------+
-#[derive(Delegate, Debug, Clone, Hash, Eq, PartialEq, Default, Copy)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Default, Copy, Delegate)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[delegate(L1BlockInfoBedrockBaseFields, target = "base")]
+#[delegate(L1BlockInfoEcotoneBaseFields, target = "base")]
 #[delegate(L1BlockInfoIsthmusBaseFields, target = "base")]
 pub struct L1BlockInfoJovian {
     /// Fields inherited from Isthmus.
@@ -49,6 +53,7 @@ impl HasBaseField<L1BlockInfoIsthmus> for L1BlockInfoJovian {
     }
 }
 
+/*
 impl L1BlockInfoBedrockBaseFields for L1BlockInfoJovian {
     fn number(&self) -> u64 {
         self.base().number()
@@ -74,7 +79,9 @@ impl L1BlockInfoBedrockBaseFields for L1BlockInfoJovian {
         self.base().batcher_address()
     }
 }
+    */
 
+/*
 impl L1BlockInfoEcotoneBaseFields for L1BlockInfoJovian {
     fn blob_base_fee(&self) -> u128 {
         self.base().blob_base_fee()
@@ -88,6 +95,7 @@ impl L1BlockInfoEcotoneBaseFields for L1BlockInfoJovian {
         self.base().base_fee_scalar()
     }
 }
+*/
 
 /*
 impl L1BlockInfoIsthmusBaseFields for L1BlockInfoJovian {

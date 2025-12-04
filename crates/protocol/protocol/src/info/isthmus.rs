@@ -1,5 +1,6 @@
 //! Isthmus L1 Block Info transaction types.
 
+use crate::info::bedrock_base::ambassador_impl_L1BlockInfoBedrockBaseFields;
 use crate::info::ecotone_base::ambassador_impl_L1BlockInfoEcotoneBaseFields;
 use alloc::vec::Vec;
 use alloy_primitives::{Address, B256, Bytes};
@@ -34,6 +35,7 @@ use crate::{
 /// | 8       | OperatorFeeConstant      |
 /// +---------+--------------------------+
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Default, Copy, Delegate)]
+#[delegate(L1BlockInfoBedrockBaseFields, target = "base")]
 #[delegate(L1BlockInfoEcotoneBaseFields, target = "base")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct L1BlockInfoIsthmus {
@@ -51,6 +53,7 @@ impl HasBaseField<L1BlockInfoEcotoneBase> for L1BlockInfoIsthmus {
     }
 }
 
+/*
 impl L1BlockInfoBedrockBaseFields for L1BlockInfoIsthmus {
     fn number(&self) -> u64 {
         self.base().number()
@@ -76,6 +79,7 @@ impl L1BlockInfoBedrockBaseFields for L1BlockInfoIsthmus {
         self.base().batcher_address()
     }
 }
+    */
 
 // impl L1BlockInfoEcotoneBaseFields for L1BlockInfoIsthmus {
 //     /// The current blob base fee on L1

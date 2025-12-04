@@ -1,5 +1,6 @@
 //! Contains ecotone-specific L1 block info types.
 
+use crate::info::bedrock_base::ambassador_impl_L1BlockInfoBedrockBaseFields;
 use crate::info::ecotone_base::ambassador_impl_L1BlockInfoEcotoneBaseFields;
 use crate::{
     DecodeError,
@@ -30,6 +31,7 @@ use ambassador::Delegate;
 /// | 32      | BatcherHash              |
 /// +---------+--------------------------+
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Default, Copy, Delegate)]
+#[delegate(L1BlockInfoBedrockBaseFields, target = "base")]
 #[delegate(L1BlockInfoEcotoneBaseFields, target = "base")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct L1BlockInfoEcotone {
@@ -52,6 +54,7 @@ impl HasBaseField<L1BlockInfoEcotoneBase> for L1BlockInfoEcotone {
     }
 }
 
+/*
 impl L1BlockInfoBedrockBaseFields for L1BlockInfoEcotone {
     fn number(&self) -> u64 {
         self.base().number()
@@ -77,6 +80,7 @@ impl L1BlockInfoBedrockBaseFields for L1BlockInfoEcotone {
         self.base().base().batcher_address()
     }
 }
+    */
 
 // impl L1BlockInfoEcotoneBaseFields for L1BlockInfoEcotone {
 //     fn blob_base_fee(&self) -> u128 {
