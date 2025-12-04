@@ -1,5 +1,4 @@
 //! L1 genesis configurations.
-use crate::alloc::string::ToString;
 use alloc::{collections::BTreeMap, string::String};
 use alloy_eips::eip7840::BlobParams;
 use alloy_genesis::EthashConfig;
