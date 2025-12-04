@@ -182,6 +182,8 @@ impl EngineClientBuilder {
                                     .flashblock_builder_ws_ping_interval_ms,
                                 flashblock_builder_ws_pong_timeout_ms: ws_config
                                     .flashblock_builder_ws_pong_timeout_ms,
+                                flashblock_builder_ws_connect_timeout_ms: ws_config
+                                    .flashblock_builder_ws_connect_timeout_ms,
                             },
                         )
                         .map_err(|e| EngineClientBuilderError::FlashblocksError(e.to_string()))?,
