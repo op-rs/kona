@@ -1,7 +1,8 @@
 //! Contains error types for the [`crate::ConsolidateTask`].
 
 use crate::{
-    BuildTaskError, EngineTaskError, SealTaskError, SynchronizeTaskError,
+    BuildTaskError, EngineTaskError, InvalidEngineSyncStateError, SealTaskError,
+    SynchronizeTaskError,
     task_queue::tasks::{BuildAndSealError, task::EngineTaskErrorSeverity},
 };
 use thiserror::Error;
@@ -15,6 +16,9 @@ pub enum ConsolidateTaskError {
     /// Failed to fetch the unsafe L2 block.
     #[error("Failed to fetch the unsafe L2 block")]
     FailedToFetchUnsafeL2Block,
+    /// Invalid sync state configuration.
+    #[error(transparent)]
+    InvalidSyncState(#[from] Box<InvalidEngineSyncStateError>),
     /// The build task failed.
     #[error(transparent)]
     BuildTaskFailed(#[from] BuildTaskError),
@@ -40,6 +44,7 @@ impl EngineTaskError for ConsolidateTaskError {
         match self {
             Self::MissingUnsafeL2Block(_) => EngineTaskErrorSeverity::Reset,
             Self::FailedToFetchUnsafeL2Block => EngineTaskErrorSeverity::Temporary,
+            Self::InvalidSyncState(_) => EngineTaskErrorSeverity::Critical,
             Self::BuildTaskFailed(inner) => inner.severity(),
             Self::SealTaskFailed(inner) => inner.severity(),
             Self::ForkchoiceUpdateFailed(inner) => inner.severity(),

@@ -84,11 +84,12 @@ impl<EngineClient_: EngineClient> ConsolidateTask<EngineClient_> {
                     let total_duration = global_start.elapsed();
 
                     // Apply a transient update to the safe head.
+                    // Validation is performed inside apply_update to prevent invalid states.
                     state.sync_state = state.sync_state.apply_update(EngineSyncStateUpdate {
                         safe_head: Some(block_info),
                         local_safe_head: Some(block_info),
                         ..Default::default()
-                    });
+                    })?;
 
                     info!(
                         target: "engine",

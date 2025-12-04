@@ -499,7 +499,7 @@ fn is_seal_task_err_fatal(err: &SealTaskError) -> bool {
     match err {
         SealTaskError::PayloadInsertionFailed(insert_err) => match &**insert_err {
             InsertTaskError::ForkchoiceUpdateFailed(synchronize_error) => match synchronize_error {
-                SynchronizeTaskError::FinalizedAheadOfUnsafe(_, _) => true,
+                SynchronizeTaskError::InvalidSyncState(_) => true,
                 SynchronizeTaskError::ForkchoiceUpdateFailed(_) => false,
                 SynchronizeTaskError::InvalidForkchoiceState => false,
                 SynchronizeTaskError::UnexpectedPayloadStatus(_) => false,

@@ -1,6 +1,9 @@
 //! Contains error types for the [crate::SynchronizeTask].
 
-use crate::{EngineTaskError, task_queue::tasks::task::EngineTaskErrorSeverity};
+use crate::{
+    EngineTaskError, InvalidEngineSyncStateError,
+    task_queue::tasks::task::EngineTaskErrorSeverity,
+};
 use alloy_rpc_types_engine::{PayloadId, PayloadStatusEnum};
 use alloy_transport::{RpcError, TransportErrorKind};
 use thiserror::Error;
@@ -22,12 +25,12 @@ use tokio::sync::mpsc;
 /// [`BuildTask`]: crate::BuildTask
 #[derive(Debug, Error)]
 pub enum EngineBuildError {
-    /// The finalized head is ahead of the unsafe head.
-    #[error("Finalized head is ahead of unsafe head")]
-    FinalizedAheadOfUnsafe(u64, u64),
+    /// Invalid sync state configuration.
+    #[error(transparent)]
+    InvalidSyncState(#[from] Box<InvalidEngineSyncStateError>),
     /// The forkchoice update call to the engine api failed.
     #[error("Failed to build payload attributes in the engine. Forkchoice RPC error: {0}")]
-    AttributesInsertionFailed(#[from] RpcError<TransportErrorKind>),
+    AttributesInsertionFailed(RpcError<TransportErrorKind>),
     /// The inserted payload is invalid.
     #[error("The inserted payload is invalid: {0}")]
     InvalidPayload(String),
@@ -56,7 +59,7 @@ pub enum BuildTaskError {
 impl EngineTaskError for BuildTaskError {
     fn severity(&self) -> EngineTaskErrorSeverity {
         match self {
-            Self::EngineBuildError(EngineBuildError::FinalizedAheadOfUnsafe(_, _)) => {
+            Self::EngineBuildError(EngineBuildError::InvalidSyncState(_)) => {
                 EngineTaskErrorSeverity::Critical
             }
             Self::EngineBuildError(EngineBuildError::AttributesInsertionFailed(_)) => {

@@ -4,6 +4,38 @@ use crate::Metrics;
 use alloy_rpc_types_engine::ForkchoiceState;
 use kona_protocol::L2BlockInfo;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+/// An error that occurs when constructing or updating an [`EngineSyncState`].
+///
+/// This error type represents invalid state configurations that violate the safety level
+/// invariants. The safety levels must maintain the ordering:
+/// `finalized <= safe <= local_safe <= cross_unsafe <= unsafe`
+///
+/// The error contains full debugging information including the previous state,
+/// the update that was attempted, and the resulting block numbers showing where
+/// the invariant violation occurred.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[error(
+    "Invalid sync state: expected finalized ({finalized}) <= safe ({safe}) <= \
+    local_safe ({local_safe}) <= cross_unsafe ({cross_unsafe}) <= unsafe ({unsafe_head})"
+)]
+pub struct InvalidEngineSyncStateError {
+    /// The previous sync state before the update was attempted, if any.
+    pub previous_state: Option<EngineSyncState>,
+    /// The update that was attempted.
+    pub update: EngineSyncStateUpdate,
+    /// The resulting finalized head block number.
+    pub finalized: u64,
+    /// The resulting safe head block number.
+    pub safe: u64,
+    /// The resulting local safe head block number.
+    pub local_safe: u64,
+    /// The resulting cross unsafe head block number.
+    pub cross_unsafe: u64,
+    /// The resulting unsafe head block number.
+    pub unsafe_head: u64,
+}
 
 /// The synchronization state of the execution layer across different safety levels.
 ///
@@ -79,7 +111,51 @@ impl EngineSyncState {
 
     /// Applies the update to the provided sync state, using the current state values if the update
     /// is not specified. Returns the new sync state.
-    pub fn apply_update(self, sync_state_update: EngineSyncStateUpdate) -> Self {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the resulting state would violate safety level invariants.
+    /// The invariant requires: `finalized <= safe <= local_safe <= cross_unsafe <= unsafe`
+    pub fn apply_update(
+        self,
+        sync_state_update: EngineSyncStateUpdate,
+    ) -> Result<Self, Box<InvalidEngineSyncStateError>> {
+        let new_state = Self {
+            unsafe_head: sync_state_update.unsafe_head.unwrap_or(self.unsafe_head),
+            cross_unsafe_head: sync_state_update
+                .cross_unsafe_head
+                .unwrap_or(self.cross_unsafe_head),
+            local_safe_head: sync_state_update.local_safe_head.unwrap_or(self.local_safe_head),
+            safe_head: sync_state_update.safe_head.unwrap_or(self.safe_head),
+            finalized_head: sync_state_update.finalized_head.unwrap_or(self.finalized_head),
+        };
+
+        // Extract block numbers for validation
+        let finalized = new_state.finalized_head.block_info.number;
+        let safe = new_state.safe_head.block_info.number;
+        let local_safe = new_state.local_safe_head.block_info.number;
+        let cross_unsafe = new_state.cross_unsafe_head.block_info.number;
+        let unsafe_head = new_state.unsafe_head.block_info.number;
+
+        // Validate the full ordering: finalized <= safe <= local_safe <= cross_unsafe <= unsafe
+        let is_valid = finalized <= safe &&
+            safe <= local_safe &&
+            local_safe <= cross_unsafe &&
+            cross_unsafe <= unsafe_head;
+
+        if !is_valid {
+            return Err(Box::new(InvalidEngineSyncStateError {
+                previous_state: Some(self),
+                update: sync_state_update,
+                finalized,
+                safe,
+                local_safe,
+                cross_unsafe,
+                unsafe_head,
+            }));
+        }
+
+        // Update metrics after validation succeeds
         if let Some(unsafe_head) = sync_state_update.unsafe_head {
             Self::update_block_label_metric(
                 Metrics::UNSAFE_BLOCK_LABEL,
@@ -108,15 +184,7 @@ impl EngineSyncState {
             );
         }
 
-        Self {
-            unsafe_head: sync_state_update.unsafe_head.unwrap_or(self.unsafe_head),
-            cross_unsafe_head: sync_state_update
-                .cross_unsafe_head
-                .unwrap_or(self.cross_unsafe_head),
-            local_safe_head: sync_state_update.local_safe_head.unwrap_or(self.local_safe_head),
-            safe_head: sync_state_update.safe_head.unwrap_or(self.safe_head),
-            finalized_head: sync_state_update.finalized_head.unwrap_or(self.finalized_head),
-        }
+        Ok(new_state)
     }
 
     /// Updates a block label metric, keyed by the label.
@@ -184,42 +252,57 @@ mod test {
     impl EngineState {
         /// Set the unsafe head.
         pub fn set_unsafe_head(&mut self, unsafe_head: L2BlockInfo) {
-            self.sync_state.apply_update(EngineSyncStateUpdate {
-                unsafe_head: Some(unsafe_head),
-                ..Default::default()
-            });
+            self.sync_state = self
+                .sync_state
+                .apply_update(EngineSyncStateUpdate {
+                    unsafe_head: Some(unsafe_head),
+                    ..Default::default()
+                })
+                .expect("valid sync state update");
         }
 
         /// Set the cross-verified unsafe head.
         pub fn set_cross_unsafe_head(&mut self, cross_unsafe_head: L2BlockInfo) {
-            self.sync_state.apply_update(EngineSyncStateUpdate {
-                cross_unsafe_head: Some(cross_unsafe_head),
-                ..Default::default()
-            });
+            self.sync_state = self
+                .sync_state
+                .apply_update(EngineSyncStateUpdate {
+                    cross_unsafe_head: Some(cross_unsafe_head),
+                    ..Default::default()
+                })
+                .expect("valid sync state update");
         }
 
         /// Set the local safe head.
         pub fn set_local_safe_head(&mut self, local_safe_head: L2BlockInfo) {
-            self.sync_state.apply_update(EngineSyncStateUpdate {
-                local_safe_head: Some(local_safe_head),
-                ..Default::default()
-            });
+            self.sync_state = self
+                .sync_state
+                .apply_update(EngineSyncStateUpdate {
+                    local_safe_head: Some(local_safe_head),
+                    ..Default::default()
+                })
+                .expect("valid sync state update");
         }
 
         /// Set the safe head.
         pub fn set_safe_head(&mut self, safe_head: L2BlockInfo) {
-            self.sync_state.apply_update(EngineSyncStateUpdate {
-                safe_head: Some(safe_head),
-                ..Default::default()
-            });
+            self.sync_state = self
+                .sync_state
+                .apply_update(EngineSyncStateUpdate {
+                    safe_head: Some(safe_head),
+                    ..Default::default()
+                })
+                .expect("valid sync state update");
         }
 
         /// Set the finalized head.
         pub fn set_finalized_head(&mut self, finalized_head: L2BlockInfo) {
-            self.sync_state.apply_update(EngineSyncStateUpdate {
-                finalized_head: Some(finalized_head),
-                ..Default::default()
-            });
+            self.sync_state = self
+                .sync_state
+                .apply_update(EngineSyncStateUpdate {
+                    finalized_head: Some(finalized_head),
+                    ..Default::default()
+                })
+                .expect("valid sync state update");
         }
     }
 
@@ -254,5 +337,131 @@ mod test {
         assert!(handle.render().contains(
             format!("kona_node_block_labels{{label=\"{label_name}\"}} {number}").as_str()
         ));
+    }
+
+    fn block_info(number: u64) -> L2BlockInfo {
+        L2BlockInfo { block_info: BlockInfo { number, ..Default::default() }, ..Default::default() }
+    }
+
+    #[test]
+    fn test_apply_update_valid() {
+        let state = EngineSyncState::default();
+        // Valid ordering: finalized(1) <= safe(2) <= local_safe(3) <= cross_unsafe(4) <= unsafe(5)
+        let update = EngineSyncStateUpdate {
+            unsafe_head: Some(block_info(5)),
+            cross_unsafe_head: Some(block_info(4)),
+            local_safe_head: Some(block_info(3)),
+            safe_head: Some(block_info(2)),
+            finalized_head: Some(block_info(1)),
+        };
+        let result = state.apply_update(update);
+        assert!(result.is_ok());
+        let new_state = result.unwrap();
+        assert_eq!(new_state.unsafe_head().block_info.number, 5);
+        assert_eq!(new_state.cross_unsafe_head().block_info.number, 4);
+        assert_eq!(new_state.local_safe_head().block_info.number, 3);
+        assert_eq!(new_state.safe_head().block_info.number, 2);
+        assert_eq!(new_state.finalized_head().block_info.number, 1);
+    }
+
+    #[test]
+    fn test_apply_update_finalized_ahead_of_unsafe() {
+        let state = EngineSyncState::default();
+        // Invalid: finalized(10) > unsafe(5)
+        let update = EngineSyncStateUpdate {
+            unsafe_head: Some(block_info(5)),
+            cross_unsafe_head: Some(block_info(5)),
+            local_safe_head: Some(block_info(5)),
+            safe_head: Some(block_info(5)),
+            finalized_head: Some(block_info(10)),
+        };
+        let result = state.apply_update(update);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.finalized, 10);
+        assert_eq!(err.unsafe_head, 5);
+    }
+
+    #[test]
+    fn test_apply_update_safe_ahead_of_local_safe() {
+        let state = EngineSyncState::default();
+        // Invalid: safe(5) > local_safe(3)
+        let update = EngineSyncStateUpdate {
+            unsafe_head: Some(block_info(10)),
+            cross_unsafe_head: Some(block_info(8)),
+            local_safe_head: Some(block_info(3)),
+            safe_head: Some(block_info(5)),
+            finalized_head: Some(block_info(1)),
+        };
+        let result = state.apply_update(update);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.safe, 5);
+        assert_eq!(err.local_safe, 3);
+    }
+
+    #[test]
+    fn test_apply_update_cross_unsafe_ahead_of_unsafe() {
+        let state = EngineSyncState::default();
+        // Invalid: cross_unsafe(15) > unsafe(10)
+        let update = EngineSyncStateUpdate {
+            unsafe_head: Some(block_info(10)),
+            cross_unsafe_head: Some(block_info(15)),
+            local_safe_head: Some(block_info(5)),
+            safe_head: Some(block_info(3)),
+            finalized_head: Some(block_info(1)),
+        };
+        let result = state.apply_update(update);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.cross_unsafe, 15);
+        assert_eq!(err.unsafe_head, 10);
+    }
+
+    #[test]
+    fn test_apply_update_equal_heads_valid() {
+        let state = EngineSyncState::default();
+        // All equal is valid (edge case)
+        let update = EngineSyncStateUpdate {
+            unsafe_head: Some(block_info(10)),
+            cross_unsafe_head: Some(block_info(10)),
+            local_safe_head: Some(block_info(10)),
+            safe_head: Some(block_info(10)),
+            finalized_head: Some(block_info(10)),
+        };
+        let result = state.apply_update(update);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_apply_update_error_contains_previous_state() {
+        // Start with a valid state
+        let initial_update = EngineSyncStateUpdate {
+            unsafe_head: Some(block_info(10)),
+            cross_unsafe_head: Some(block_info(8)),
+            local_safe_head: Some(block_info(6)),
+            safe_head: Some(block_info(4)),
+            finalized_head: Some(block_info(2)),
+        };
+        let state = EngineSyncState::default().apply_update(initial_update).unwrap();
+
+        // Try an invalid update
+        let invalid_update = EngineSyncStateUpdate {
+            finalized_head: Some(block_info(100)), // Invalid: way ahead of unsafe
+            ..Default::default()
+        };
+        let result = state.apply_update(invalid_update);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+
+        // Verify error contains previous state
+        assert!(err.previous_state.is_some());
+        let prev = err.previous_state.unwrap();
+        assert_eq!(prev.unsafe_head().block_info.number, 10);
+        assert_eq!(prev.finalized_head().block_info.number, 2);
+
+        // Verify error contains the attempted update
+        assert!(err.update.finalized_head.is_some());
+        assert_eq!(err.update.finalized_head.unwrap().block_info.number, 100);
     }
 }
