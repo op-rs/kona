@@ -4,25 +4,18 @@ use crate::{
     ConsolidateTaskError, EngineClient, EngineState, EngineTaskExt, SynchronizeTask,
     state::EngineSyncStateUpdate, task_queue::build_and_seal,
 };
-use alloy_network::Ethereum;
-use alloy_provider::Provider;
 use async_trait::async_trait;
+use derive_more::Constructor;
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
-use op_alloy_network::Optimism;
-use std::{marker::PhantomData, sync::Arc, time::Instant};
+use std::{sync::Arc, time::Instant};
 
 /// The [`ConsolidateTask`] attempts to consolidate the engine state
 /// using the specified payload attributes and the oldest unsafe head.
 ///
 /// If consolidation fails, payload attributes processing is attempted using `build_and_seal`.
-#[derive(Debug, Clone)]
-pub struct ConsolidateTask<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
+#[derive(Debug, Clone, Constructor)]
+pub struct ConsolidateTask<EngineClient_: EngineClient> {
     /// The engine client.
     pub client: Arc<EngineClient_>,
     /// The [`RollupConfig`].
@@ -31,34 +24,9 @@ where
     pub attributes: OpAttributesWithParent,
     /// Whether or not the payload was derived, or created by the sequencer.
     pub is_attributes_derived: bool,
-
-    phantom_l1_provider: PhantomData<L1Provider>,
-    phantom_l2_provider: PhantomData<L2Provider>,
 }
 
-impl<L1Provider, L2Provider, EngineClient_> ConsolidateTask<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
-    /// Creates a new [`ConsolidateTask`].
-    pub const fn new(
-        client: Arc<EngineClient_>,
-        config: Arc<RollupConfig>,
-        attributes: OpAttributesWithParent,
-        is_attributes_derived: bool,
-    ) -> Self {
-        Self {
-            client,
-            cfg: config,
-            attributes,
-            is_attributes_derived,
-            phantom_l1_provider: PhantomData,
-            phantom_l2_provider: PhantomData,
-        }
-    }
-
+impl<EngineClient_: EngineClient> ConsolidateTask<EngineClient_> {
     /// This is used when the [`ConsolidateTask`] fails to consolidate the engine state.
     async fn execute_build_and_seal_tasks(
         &self,
@@ -187,13 +155,7 @@ where
 }
 
 #[async_trait]
-impl<L1Provider, L2Provider, EngineClient_> EngineTaskExt
-    for ConsolidateTask<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
+impl<EngineClient_: EngineClient> EngineTaskExt for ConsolidateTask<EngineClient_> {
     type Output = ();
 
     type Error = ConsolidateTaskError;

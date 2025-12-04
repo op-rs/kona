@@ -2,7 +2,7 @@
 
 use super::{BlockEngineResult, EngineError, L2Finalizer};
 use crate::{BlockEngineError, NodeActor, NodeMode, actors::CancellableContext};
-use alloy_provider::{Provider, RootProvider, network::Ethereum};
+use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::{JwtSecret, PayloadId};
 use async_trait::async_trait;
 use futures::{FutureExt, future::OptionFuture};
@@ -180,15 +180,10 @@ pub struct EngineConfig {
 impl EngineConfig {
     /// Launches the [`Engine`]. Returns the [`Engine`] and a channel to receive engine state
     /// updates.
-    #[allow(clippy::type_complexity)]
     fn build_state(
         self,
     ) -> Result<
-        EngineActorState<
-            RootProvider,
-            RootProvider<Optimism>,
-            OpEngineClient<RootProvider, RootProvider<Optimism>>,
-        >,
+        EngineActorState<OpEngineClient<RootProvider, RootProvider<Optimism>>>,
         EngineClientBuilderError,
     > {
         let client = EngineClientBuilder {
@@ -219,18 +214,13 @@ impl EngineConfig {
 
 /// The configuration for the [`EngineActor`].
 #[derive(Debug)]
-pub(super) struct EngineActorState<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider>,
-{
+pub(super) struct EngineActorState<EngineClient_: EngineClient> {
     /// The [`RollupConfig`] used to build tasks.
     pub(super) rollup: Arc<RollupConfig>,
     /// An [`OpEngineClient`] used for creating engine tasks.
     pub(super) client: Arc<EngineClient_>,
     /// The [`Engine`] task queue.
-    pub(super) engine: Engine<L1Provider, L2Provider, EngineClient_>,
+    pub(super) engine: Engine<EngineClient_>,
 }
 
 /// The communication context used by the engine actor.
@@ -331,12 +321,7 @@ impl EngineActor {
     }
 }
 
-impl<L1Provider, L2Provider, EngineClient_> EngineActorState<L1Provider, L2Provider, EngineClient_>
-where
-    L1Provider: Provider<Ethereum>,
-    L2Provider: Provider<Optimism>,
-    EngineClient_: EngineClient<L1Provider, L2Provider> + 'static,
-{
+impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
     /// Starts a task to handle engine queries.
     fn start_query_task(
         &self,
