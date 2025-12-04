@@ -9,7 +9,7 @@ use crate::{
     },
 };
 use alloc::vec::Vec;
-use alloy_primitives::{Address, B256, Bytes};
+use alloy_primitives::{Address, B256, Bytes, U256};
 use ambassador::{self, Delegate};
 
 /// Represents the fields within an Jovian L1 block info transaction.
@@ -139,7 +139,18 @@ impl L1BlockInfoJovian {
     /// Encodes the [`L1BlockInfoJovian`] object into Ethereum transaction calldata.
     pub fn encode_calldata(&self) -> Bytes {
         let mut buf = Vec::with_capacity(Self::L1_INFO_TX_LEN);
-        buf.extend_from_slice(&self.base.encode_calldata());
+        buf.extend_from_slice(Self::L1_INFO_TX_SELECTOR.as_ref());
+        buf.extend_from_slice(self.base_fee_scalar().to_be_bytes().as_ref());
+        buf.extend_from_slice(self.blob_base_fee_scalar().to_be_bytes().as_ref());
+        buf.extend_from_slice(self.sequence_number().to_be_bytes().as_ref());
+        buf.extend_from_slice(self.time().to_be_bytes().as_ref());
+        buf.extend_from_slice(self.number().to_be_bytes().as_ref());
+        buf.extend_from_slice(U256::from(self.base_fee()).to_be_bytes::<32>().as_ref());
+        buf.extend_from_slice(U256::from(self.blob_base_fee()).to_be_bytes::<32>().as_ref());
+        buf.extend_from_slice(self.block_hash().as_ref());
+        buf.extend_from_slice(self.batcher_address().into_word().as_ref());
+        buf.extend_from_slice(self.operator_fee_scalar().to_be_bytes().as_ref());
+        buf.extend_from_slice(self.operator_fee_constant().to_be_bytes().as_ref());
         buf.extend_from_slice(self.da_footprint_gas_scalar.to_be_bytes().as_ref());
         buf.into()
     }
