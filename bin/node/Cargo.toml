@@ -73,6 +73,7 @@ tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
 
 # rollup boost
 rollup-boost.workspace = true
+delegate = "0.13.5"
 
 [dev-dependencies]
 rstest.workspace = true

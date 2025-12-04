@@ -889,6 +889,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ambassador"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e68de4cdc6006162265d0957edb4a860fe4e711b1dc17a5746fd95f952f08285"
+dependencies = [
+ "itertools 0.10.5",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2633,6 +2645,17 @@ dependencies = [
  "futures",
  "tokio",
  "tokio-util",
+]
+
+[[package]]
+name = "delegate"
+version = "0.13.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "780eb241654bf097afb00fc5f054a09b687dad862e485fdcf8399bb056565370"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.110",
 ]
 
 [[package]]
@@ -5049,6 +5072,7 @@ dependencies = [
  "anyhow",
  "backon",
  "clap",
+ "delegate",
  "derive_more",
  "dirs",
  "discv5",
@@ -5279,9 +5303,11 @@ dependencies = [
  "alloy-rpc-types-eth",
  "alloy-serde",
  "alloy-sol-types",
+ "ambassador",
  "arbitrary",
  "async-trait",
  "brotli",
+ "delegate",
  "derive_more",
  "kona-genesis",
  "kona-registry",

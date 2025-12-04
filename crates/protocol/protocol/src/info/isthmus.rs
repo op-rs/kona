@@ -2,6 +2,7 @@
 
 use alloc::vec::Vec;
 use alloy_primitives::{Address, B256, Bytes};
+use ambassador::delegatable_trait;
 
 use crate::{
     DecodeError,
@@ -90,6 +91,7 @@ impl L1BlockInfoEcotoneBaseFields for L1BlockInfoIsthmus {
 }
 
 /// Accessors for fields in Isthmus and later.
+#[delegatable_trait]
 pub trait L1BlockInfoIsthmusBaseFields: L1BlockInfoEcotoneBaseFields {
     /// The operator fee scalar
     fn operator_fee_scalar(&self) -> u32;

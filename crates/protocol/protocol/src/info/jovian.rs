@@ -1,5 +1,6 @@
 //! Jovian L1 Block Info transaction types.
 
+use crate::info::isthmus::ambassador_impl_L1BlockInfoIsthmusBaseFields;
 use crate::{
     DecodeError, L1BlockInfoIsthmus,
     info::{
@@ -9,6 +10,7 @@ use crate::{
 };
 use alloc::vec::Vec;
 use alloy_primitives::{Address, B256, Bytes};
+use ambassador::{self, Delegate};
 
 /// Represents the fields within an Jovian L1 block info transaction.
 ///
@@ -30,8 +32,9 @@ use alloy_primitives::{Address, B256, Bytes};
 /// | 8       | OperatorFeeConstant      |
 /// | 2       | DAFootprintGasScalar     |
 /// +---------+--------------------------+
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Default, Copy)]
+#[derive(Delegate, Debug, Clone, Hash, Eq, PartialEq, Default, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[delegate(L1BlockInfoIsthmusBaseFields, target = "base")]
 pub struct L1BlockInfoJovian {
     /// Fields inherited from Isthmus.
     #[cfg_attr(feature = "serde", serde(flatten))]
@@ -86,6 +89,7 @@ impl L1BlockInfoEcotoneBaseFields for L1BlockInfoJovian {
     }
 }
 
+/*
 impl L1BlockInfoIsthmusBaseFields for L1BlockInfoJovian {
     fn operator_fee_scalar(&self) -> u32 {
         self.base().operator_fee_scalar()
@@ -95,6 +99,7 @@ impl L1BlockInfoIsthmusBaseFields for L1BlockInfoJovian {
         self.base().operator_fee_constant()
     }
 }
+*/
 
 /// Accessors to fields available in Jovian and later.
 pub trait L1BlockInfoJovianBaseFields: L1BlockInfoIsthmusBaseFields {
