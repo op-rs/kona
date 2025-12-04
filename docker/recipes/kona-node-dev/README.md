@@ -8,7 +8,7 @@ Assuming you are on Ubuntu and your user is member of the group `docker`:
 
 First time run
 
-    git clone 'git clone git@github.com:op-rs/kona.git'
+    git clone 'https://github.com/op-rs/kona.git'
     git -C kona-node/kona checkout einar/kona-node-dev-recipe ### TODO(einar-oplabs) only for testing
     mv kona/docker/recipes/kona-node-dev/ .
     cd kona-node-dev
