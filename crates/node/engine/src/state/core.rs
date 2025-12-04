@@ -306,16 +306,36 @@ mod test {
         }
     }
 
+    /// Creates an EngineState with a valid base state where all heads are at the given block
+    /// number. This ensures the invariant `finalized <= safe <= local_safe <= cross_unsafe <=
+    /// unsafe` holds.
+    fn engine_state_with_all_heads_at(number: u64) -> EngineState {
+        let block = L2BlockInfo {
+            block_info: BlockInfo { number, ..Default::default() },
+            ..Default::default()
+        };
+        let sync_state = EngineSyncState::default()
+            .apply_update(EngineSyncStateUpdate {
+                unsafe_head: Some(block),
+                cross_unsafe_head: Some(block),
+                local_safe_head: Some(block),
+                safe_head: Some(block),
+                finalized_head: Some(block),
+            })
+            .expect("valid initial state");
+        EngineState { sync_state, ..Default::default() }
+    }
+
     #[rstest]
-    #[case::set_unsafe(EngineState::set_unsafe_head, Metrics::UNSAFE_BLOCK_LABEL, 1)]
+    #[case::set_unsafe(EngineState::set_unsafe_head, Metrics::UNSAFE_BLOCK_LABEL, 10)]
     #[case::set_cross_unsafe(
         EngineState::set_cross_unsafe_head,
         Metrics::CROSS_UNSAFE_BLOCK_LABEL,
-        2
+        10
     )]
-    #[case::set_local_safe(EngineState::set_local_safe_head, Metrics::LOCAL_SAFE_BLOCK_LABEL, 3)]
-    #[case::set_safe_head(EngineState::set_safe_head, Metrics::SAFE_BLOCK_LABEL, 4)]
-    #[case::set_finalized_head(EngineState::set_finalized_head, Metrics::FINALIZED_BLOCK_LABEL, 5)]
+    #[case::set_local_safe(EngineState::set_local_safe_head, Metrics::LOCAL_SAFE_BLOCK_LABEL, 10)]
+    #[case::set_safe_head(EngineState::set_safe_head, Metrics::SAFE_BLOCK_LABEL, 10)]
+    #[case::set_finalized_head(EngineState::set_finalized_head, Metrics::FINALIZED_BLOCK_LABEL, 10)]
     #[cfg(feature = "metrics")]
     fn test_chain_label_metrics(
         #[case] set_fn: impl Fn(&mut EngineState, L2BlockInfo),
@@ -325,7 +345,10 @@ mod test {
         let handle = PrometheusBuilder::new().install_recorder().unwrap();
         crate::Metrics::init();
 
-        let mut state = EngineState::default();
+        // Start with a valid state where all heads are at the same block number.
+        // This ensures any individual head can be updated to this number without violating
+        // the invariant: finalized <= safe <= local_safe <= cross_unsafe <= unsafe
+        let mut state = engine_state_with_all_heads_at(number);
         set_fn(
             &mut state,
             L2BlockInfo {
