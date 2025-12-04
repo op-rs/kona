@@ -3,15 +3,14 @@
 use super::EngineTaskExt;
 use crate::{
     EngineClient, EngineState, EngineSyncStateUpdate, EngineTask, EngineTaskError,
-    EngineTaskErrorSeverity, Metrics, SynchronizeTask, SynchronizeTaskError,
-    task_queue::EngineTaskErrors,
+    EngineTaskErrorSeverity, Metrics, SyncStartError, SynchronizeTask, SynchronizeTaskError,
+    find_starting_forkchoice, task_queue::EngineTaskErrors,
 };
 use alloy_network::Ethereum;
 use alloy_provider::Provider;
 use alloy_rpc_types_eth::Transaction;
 use kona_genesis::{RollupConfig, SystemConfig};
 use kona_protocol::{BlockInfo, L2BlockInfo, OpBlockConversionError, to_system_config};
-use kona_sources::{SyncStartError, find_starting_forkchoice};
 use op_alloy_consensus::OpTxEnvelope;
 use op_alloy_network::Optimism;
 use std::{collections::BinaryHeap, sync::Arc};
