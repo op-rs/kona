@@ -20,7 +20,6 @@ use alloy_transport_http::{
     },
 };
 use async_trait::async_trait;
-use derive_more::Deref;
 use http::uri::InvalidUri;
 use http_body_util::Full;
 use kona_genesis::RollupConfig;
@@ -70,10 +69,10 @@ where
     L1Provider: Provider<Ethereum>,
     L2Provider: Provider<Optimism>,
 {
-    /// Returns a reference to the inner L2 [`RootProvider`].
+    /// Returns a reference to the inner L2 [`Provider<Optimism>`].
     fn l2_engine(&self) -> &L2Provider;
 
-    /// Returns a reference to the inner L1 [`RootProvider`].
+    /// Returns a reference to the inner L1 [`Provider<Ethereum>`].
     fn l1_provider(&self) -> &L1Provider;
 
     /// Returns a reference to the inner [`RollupConfig`].
@@ -99,14 +98,13 @@ where
 /// rollup configuration and block timestamps.
 ///
 /// Engine API client used to communicate with L1/L2 ELs and optional rollup-boost.
-#[derive(Deref, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct OpEngineClient<L1Provider, L2Provider>
 where
     L1Provider: Provider,
     L2Provider: Provider<Optimism>,
 {
     /// The L2 engine provider for Engine API calls.
-    #[deref]
     engine: L2Provider,
     /// The L1 chain provider for reading L1 data.
     l1_provider: L1Provider,
