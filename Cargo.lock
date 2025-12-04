@@ -2648,17 +2648,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "delegate"
-version = "0.13.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "780eb241654bf097afb00fc5f054a09b687dad862e485fdcf8399bb056565370"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.110",
-]
-
-[[package]]
 name = "der"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5306,7 +5295,6 @@ dependencies = [
  "arbitrary",
  "async-trait",
  "brotli",
- "delegate",
  "derive_more",
  "kona-genesis",
  "kona-registry",
