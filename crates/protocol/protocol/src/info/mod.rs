@@ -26,6 +26,3 @@ pub use errors::{BlockInfoError, DecodeError};
 
 mod common;
 pub(crate) use common::CommonL1BlockFields;
-
-mod basefield;
-pub(crate) use basefield::HasBaseField;

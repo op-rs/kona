@@ -5,7 +5,7 @@ use crate::info::ecotone_base::ambassador_impl_L1BlockInfoEcotoneBaseFields;
 use crate::{
     DecodeError,
     info::{
-        CommonL1BlockFields, HasBaseField, L1BlockInfoEcotoneBaseFields,
+        CommonL1BlockFields, L1BlockInfoEcotoneBaseFields,
         bedrock_base::L1BlockInfoBedrockBaseFields, ecotone_base::L1BlockInfoEcotoneBase,
     },
 };
@@ -47,54 +47,6 @@ pub struct L1BlockInfoEcotone {
     /// This field is deprecated in the Ecotone Hardfork.
     pub l1_fee_overhead: U256,
 }
-
-impl HasBaseField<L1BlockInfoEcotoneBase> for L1BlockInfoEcotone {
-    fn base(&self) -> L1BlockInfoEcotoneBase {
-        self.base
-    }
-}
-
-/*
-impl L1BlockInfoBedrockBaseFields for L1BlockInfoEcotone {
-    fn number(&self) -> u64 {
-        self.base().number()
-    }
-
-    fn time(&self) -> u64 {
-        self.base().base().time()
-    }
-
-    fn base_fee(&self) -> u64 {
-        self.base().base().base_fee()
-    }
-
-    fn block_hash(&self) -> B256 {
-        self.base().base().block_hash()
-    }
-
-    fn sequence_number(&self) -> u64 {
-        self.base().base().sequence_number()
-    }
-
-    fn batcher_address(&self) -> Address {
-        self.base().base().batcher_address()
-    }
-}
-    */
-
-// impl L1BlockInfoEcotoneBaseFields for L1BlockInfoEcotone {
-//     fn blob_base_fee(&self) -> u128 {
-//         self.base().blob_base_fee()
-//     }
-
-//     fn blob_base_fee_scalar(&self) -> u32 {
-//         self.base().blob_base_fee_scalar()
-//     }
-
-//     fn base_fee_scalar(&self) -> u32 {
-//         self.base().base_fee_scalar()
-//     }
-// }
 
 /// Accessors to fields deprecated in later Isthmus.
 pub trait L1BlockInfoEcotoneOnlyFields {

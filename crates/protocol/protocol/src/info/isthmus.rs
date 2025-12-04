@@ -9,7 +9,7 @@ use ambassador::{Delegate, delegatable_trait};
 use crate::{
     DecodeError,
     info::{
-        CommonL1BlockFields, HasBaseField,
+        CommonL1BlockFields,
         bedrock_base::L1BlockInfoBedrockBaseFields,
         ecotone_base::{L1BlockInfoEcotoneBase, L1BlockInfoEcotoneBaseFields},
     },
@@ -46,55 +46,6 @@ pub struct L1BlockInfoIsthmus {
     /// The operator fee constant
     pub operator_fee_constant: u64,
 }
-
-impl HasBaseField<L1BlockInfoEcotoneBase> for L1BlockInfoIsthmus {
-    fn base(&self) -> L1BlockInfoEcotoneBase {
-        self.base
-    }
-}
-
-/*
-impl L1BlockInfoBedrockBaseFields for L1BlockInfoIsthmus {
-    fn number(&self) -> u64 {
-        self.base().number()
-    }
-
-    fn time(&self) -> u64 {
-        self.base().time()
-    }
-
-    fn base_fee(&self) -> u64 {
-        self.base().base_fee()
-    }
-
-    fn block_hash(&self) -> B256 {
-        self.base().block_hash()
-    }
-
-    fn sequence_number(&self) -> u64 {
-        self.base().sequence_number()
-    }
-
-    fn batcher_address(&self) -> Address {
-        self.base().batcher_address()
-    }
-}
-    */
-
-// impl L1BlockInfoEcotoneBaseFields for L1BlockInfoIsthmus {
-//     /// The current blob base fee on L1
-//     fn blob_base_fee(&self) -> u128 {
-//         self.base().blob_base_fee()
-//     }
-//     /// The fee scalar for L1 blobspace data
-//     fn blob_base_fee_scalar(&self) -> u32 {
-//         self.base().blob_base_fee_scalar()
-//     }
-//     /// The fee scalar for L1 data
-//     fn base_fee_scalar(&self) -> u32 {
-//         self.base().base_fee_scalar()
-//     }
-// }
 
 /// Accessors for fields in Isthmus and later.
 #[delegatable_trait]

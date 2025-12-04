@@ -2,9 +2,7 @@ use alloy_primitives::{Address, B256};
 use ambassador::{Delegate, delegatable_trait};
 
 use crate::info::bedrock_base::ambassador_impl_L1BlockInfoBedrockBaseFields;
-use crate::info::{
-    HasBaseField, L1BlockInfoBedrockBaseFields, bedrock_base::L1BlockInfoBedrockBase,
-};
+use crate::info::{L1BlockInfoBedrockBaseFields, bedrock_base::L1BlockInfoBedrockBase};
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Default, Copy, Delegate)]
 #[delegate(L1BlockInfoBedrockBaseFields, target = "base")]
@@ -17,12 +15,6 @@ pub(crate) struct L1BlockInfoEcotoneBase {
     pub blob_base_fee_scalar: u32,
     /// The fee scalar for L1 data
     pub base_fee_scalar: u32,
-}
-
-impl HasBaseField<L1BlockInfoBedrockBase> for L1BlockInfoEcotoneBase {
-    fn base(&self) -> L1BlockInfoBedrockBase {
-        self.base
-    }
 }
 
 impl L1BlockInfoEcotoneBase {
@@ -98,35 +90,6 @@ impl L1BlockInfoEcotoneBase {
         Self { base, ..Default::default() }
     }
 }
-
-/*
-impl L1BlockInfoBedrockBaseFields for L1BlockInfoEcotoneBase {
-    fn number(&self) -> u64 {
-        self.base().number()
-    }
-
-    fn time(&self) -> u64 {
-        self.base().time()
-    }
-
-    fn base_fee(&self) -> u64 {
-        self.base().base_fee()
-    }
-
-    fn block_hash(&self) -> B256 {
-        self.base().block_hash()
-    }
-
-    fn sequence_number(&self) -> u64 {
-        self.base().sequence_number()
-    }
-
-    fn batcher_address(&self) -> Address {
-        self.base().batcher_address()
-    }
-}
-    */
-
 /// Accessors to fields in Ecotone and later.
 #[delegatable_trait]
 pub trait L1BlockInfoEcotoneBaseFields: L1BlockInfoBedrockBaseFields {

@@ -8,7 +8,7 @@ use alloy_primitives::{Address, B256, Bytes, U256};
 
 use crate::{
     DecodeError,
-    info::{HasBaseField, L1BlockInfoBedrockBaseFields, bedrock_base::L1BlockInfoBedrockBase},
+    info::{L1BlockInfoBedrockBaseFields, bedrock_base::L1BlockInfoBedrockBase},
 };
 /// Represents the fields within a Bedrock L1 block info transaction.
 ///
@@ -37,38 +37,6 @@ pub struct L1BlockInfoBedrock {
     /// The fee scalar for L1 data. Deprecated in Ecotone.
     pub l1_fee_scalar: U256,
 }
-
-impl HasBaseField<L1BlockInfoBedrockBase> for L1BlockInfoBedrock {
-    fn base(&self) -> L1BlockInfoBedrockBase {
-        self.base
-    }
-}
-
-// impl L1BlockInfoBedrockBaseFields for L1BlockInfoBedrock {
-//     fn number(&self) -> u64 {
-//         self.base().number()
-//     }
-
-//     fn time(&self) -> u64 {
-//         self.base().time()
-//     }
-
-//     fn base_fee(&self) -> u64 {
-//         self.base().base_fee()
-//     }
-
-//     fn block_hash(&self) -> B256 {
-//         self.base().block_hash()
-//     }
-
-//     fn sequence_number(&self) -> u64 {
-//         self.base().sequence_number()
-//     }
-
-//     fn batcher_address(&self) -> Address {
-//         self.base().batcher_address()
-//     }
-// }
 
 /// Accessors for fields deprecated after Bedrock.
 pub trait L1BlockInfoBedrockOnlyFields {

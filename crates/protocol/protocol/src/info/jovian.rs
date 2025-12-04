@@ -6,7 +6,7 @@ use crate::info::isthmus::ambassador_impl_L1BlockInfoIsthmusBaseFields;
 use crate::{
     DecodeError, L1BlockInfoIsthmus,
     info::{
-        HasBaseField, L1BlockInfoBedrockBaseFields, L1BlockInfoEcotoneBaseFields,
+        L1BlockInfoBedrockBaseFields, L1BlockInfoEcotoneBaseFields,
         isthmus::L1BlockInfoIsthmusBaseFields,
     },
 };
@@ -46,69 +46,6 @@ pub struct L1BlockInfoJovian {
     /// The DA footprint gas scalar
     pub da_footprint_gas_scalar: u16,
 }
-
-impl HasBaseField<L1BlockInfoIsthmus> for L1BlockInfoJovian {
-    fn base(&self) -> L1BlockInfoIsthmus {
-        self.base
-    }
-}
-
-/*
-impl L1BlockInfoBedrockBaseFields for L1BlockInfoJovian {
-    fn number(&self) -> u64 {
-        self.base().number()
-    }
-
-    fn time(&self) -> u64 {
-        self.base().time()
-    }
-
-    fn base_fee(&self) -> u64 {
-        self.base().base_fee()
-    }
-
-    fn block_hash(&self) -> B256 {
-        self.base().block_hash()
-    }
-
-    fn sequence_number(&self) -> u64 {
-        self.base().sequence_number()
-    }
-
-    fn batcher_address(&self) -> Address {
-        self.base().batcher_address()
-    }
-}
-    */
-
-/*
-impl L1BlockInfoEcotoneBaseFields for L1BlockInfoJovian {
-    fn blob_base_fee(&self) -> u128 {
-        self.base().blob_base_fee()
-    }
-
-    fn blob_base_fee_scalar(&self) -> u32 {
-        self.base().blob_base_fee_scalar()
-    }
-
-    fn base_fee_scalar(&self) -> u32 {
-        self.base().base_fee_scalar()
-    }
-}
-*/
-
-/*
-impl L1BlockInfoIsthmusBaseFields for L1BlockInfoJovian {
-    fn operator_fee_scalar(&self) -> u32 {
-        self.base().operator_fee_scalar()
-    }
-
-    fn operator_fee_constant(&self) -> u64 {
-        self.base().operator_fee_constant()
-    }
-}
-*/
-
 /// Accessors to fields available in Jovian and later.
 pub trait L1BlockInfoJovianBaseFields: L1BlockInfoIsthmusBaseFields {
     /// The DA footprint gas scalar
