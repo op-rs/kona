@@ -63,7 +63,7 @@ impl SealTask {
         payload_id: PayloadId,
         payload_attrs: OpAttributesWithParent,
     ) -> Result<OpExecutionPayloadEnvelope, SealTaskError> {
-        let payload_timestamp = payload_attrs.inner().payload_attributes.timestamp;
+        let payload_timestamp = payload_attrs.attributes().payload_attributes.timestamp;
 
         debug!(
             target: "engine",
@@ -146,9 +146,9 @@ impl SealTask {
                 return Err(SealTaskError::DepositOnlyPayloadFailed);
             }
             Err(InsertTaskError::UnexpectedPayloadStatus(e))
-                if self
-                    .cfg
-                    .is_holocene_active(self.attributes.inner().payload_attributes.timestamp) =>
+                if self.cfg.is_holocene_active(
+                    self.attributes.attributes().payload_attributes.timestamp,
+                ) =>
             {
                 warn!(target: "engine", error = ?e, "Re-attempting payload import with deposits only.");
 
@@ -202,7 +202,7 @@ impl SealTask {
 
         let new_block_ref = L2BlockInfo::from_payload_and_genesis(
             new_payload.execution_payload.clone(),
-            self.attributes.inner().payload_attributes.parent_beacon_block_root,
+            self.attributes.attributes().payload_attributes.parent_beacon_block_root,
             &self.cfg.genesis,
         )
         .map_err(SealTaskError::FromBlock)?;
@@ -256,7 +256,7 @@ impl EngineTaskExt for SealTask {
     async fn execute(&self, state: &mut EngineState) -> Result<(), SealTaskError> {
         debug!(
             target: "engine",
-            txs = self.attributes.inner().transactions.as_ref().map_or(0, |txs| txs.len()),
+            txs = self.attributes.attributes().transactions.as_ref().map_or(0, |txs| txs.len()),
             is_deposits = self.attributes.is_deposits_only(),
             "Starting new seal job"
         );

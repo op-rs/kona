@@ -198,10 +198,20 @@ fn merge_superchain_configs(custom_path: &Path, target_path: &Path) {
     for custom in custom_superchains.superchains {
         match superchains.entry(custom.name.clone()) {
             Entry::Occupied(mut entry) => {
+                println!(
+                    "cargo:warning=debug: merging custom chains {}: [{}]",
+                    custom.name,
+                    custom.chains.iter().map(|c| c.name.as_str()).collect::<Vec<_>>().join(",")
+                );
                 let existing = entry.get_mut();
                 *existing = merge_superchain_entry(std::mem::take(existing), custom);
             }
             Entry::Vacant(entry) => {
+                println!(
+                    "cargo:warning=debug: inserting new custom chain {}: [{}]",
+                    custom.name,
+                    custom.chains.iter().map(|c| c.name.as_str()).collect::<Vec<_>>().join(",")
+                );
                 entry.insert(custom);
             }
         }
