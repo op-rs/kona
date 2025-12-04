@@ -9,6 +9,7 @@ pub use forkchoice::L2ForkchoiceState;
 
 mod error;
 pub use error::SyncStartError;
+
 use op_alloy_network::Optimism;
 use tracing::info;
 
@@ -121,7 +122,7 @@ where
 #[cfg(test)]
 mod test {
     use alloy_provider::Network;
-    use alloy_rpc_types::Block;
+    use alloy_rpc_types_eth::Block;
     use kona_protocol::L2BlockInfo;
     use kona_registry::ROLLUP_CONFIGS;
     use op_alloy_network::Optimism;

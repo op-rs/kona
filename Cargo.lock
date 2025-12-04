@@ -5420,21 +5420,14 @@ dependencies = [
 name = "kona-sources"
 version = "0.1.2"
 dependencies = [
- "alloy-eips",
  "alloy-primitives",
- "alloy-provider",
  "alloy-rpc-client",
- "alloy-rpc-types",
  "alloy-signer",
  "alloy-signer-local",
  "alloy-transport",
  "alloy-transport-http",
  "derive_more",
- "kona-genesis",
- "kona-protocol",
- "kona-registry",
  "notify",
- "op-alloy-network",
  "op-alloy-rpc-types-engine",
  "reqwest",
  "rustls",
