@@ -76,11 +76,7 @@ impl L1BlockInfoEcotoneBase {
     }
     /// Construct from default values and `blob_base_fee_scalar`.
     pub(crate) fn new_from_blob_base_fee_scalar(blob_base_fee_scalar: u32) -> Self {
-        Self {
-            base: Default::default(),
-            base_fee_scalar: blob_base_fee_scalar,
-            ..Default::default()
-        }
+        Self { base: Default::default(), blob_base_fee_scalar, ..Default::default() }
     }
     /// Construct from default values and `base_fee_scalar`.
     pub(crate) fn new_from_base_fee_scalar(base_fee_scalar: u32) -> Self {

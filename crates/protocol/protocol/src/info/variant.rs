@@ -391,10 +391,7 @@ impl L1BlockInfoTx {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{
-        DEPOSIT_EVENT_ABI_HASH,
-        test_utils::{RAW_BEDROCK_INFO_TX, RAW_ECOTONE_INFO_TX, RAW_ISTHMUS_INFO_TX},
-    };
+    use crate::test_utils::{RAW_BEDROCK_INFO_TX, RAW_ECOTONE_INFO_TX, RAW_ISTHMUS_INFO_TX};
     use alloc::{string::ToString, vec::Vec};
     use alloy_primitives::{address, b256};
     use kona_genesis::HardForkConfig;
