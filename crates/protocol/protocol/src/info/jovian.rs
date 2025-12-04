@@ -1,13 +1,12 @@
 //! Jovian L1 Block Info transaction types.
 
-use crate::info::bedrock_base::ambassador_impl_L1BlockInfoBedrockBaseFields;
-use crate::info::ecotone_base::ambassador_impl_L1BlockInfoEcotoneBaseFields;
-use crate::info::isthmus::ambassador_impl_L1BlockInfoIsthmusBaseFields;
 use crate::{
     DecodeError, L1BlockInfoIsthmus,
     info::{
         L1BlockInfoBedrockBaseFields, L1BlockInfoEcotoneBaseFields,
-        isthmus::L1BlockInfoIsthmusBaseFields,
+        bedrock_base::ambassador_impl_L1BlockInfoBedrockBaseFields,
+        ecotone_base::ambassador_impl_L1BlockInfoEcotoneBaseFields,
+        isthmus::{L1BlockInfoIsthmusBaseFields, ambassador_impl_L1BlockInfoIsthmusBaseFields},
     },
 };
 use alloc::vec::Vec;

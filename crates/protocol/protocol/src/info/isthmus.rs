@@ -1,7 +1,9 @@
 //! Isthmus L1 Block Info transaction types.
 
-use crate::info::bedrock_base::ambassador_impl_L1BlockInfoBedrockBaseFields;
-use crate::info::ecotone_base::ambassador_impl_L1BlockInfoEcotoneBaseFields;
+use crate::info::{
+    bedrock_base::ambassador_impl_L1BlockInfoBedrockBaseFields,
+    ecotone_base::ambassador_impl_L1BlockInfoEcotoneBaseFields,
+};
 use alloc::vec::Vec;
 use alloy_primitives::{Address, B256, Bytes};
 use ambassador::{Delegate, delegatable_trait};

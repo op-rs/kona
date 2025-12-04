@@ -1,8 +1,10 @@
 use alloy_primitives::{Address, B256};
 use ambassador::{Delegate, delegatable_trait};
 
-use crate::info::bedrock_base::ambassador_impl_L1BlockInfoBedrockBaseFields;
-use crate::info::{L1BlockInfoBedrockBaseFields, bedrock_base::L1BlockInfoBedrockBase};
+use crate::info::{
+    L1BlockInfoBedrockBaseFields,
+    bedrock_base::{L1BlockInfoBedrockBase, ambassador_impl_L1BlockInfoBedrockBaseFields},
+};
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Default, Copy, Delegate)]
 #[delegate(L1BlockInfoBedrockBaseFields, target = "base")]

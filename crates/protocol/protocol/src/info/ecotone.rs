@@ -1,12 +1,13 @@
 //! Contains ecotone-specific L1 block info types.
 
-use crate::info::bedrock_base::ambassador_impl_L1BlockInfoBedrockBaseFields;
-use crate::info::ecotone_base::ambassador_impl_L1BlockInfoEcotoneBaseFields;
 use crate::{
     DecodeError,
     info::{
         CommonL1BlockFields, L1BlockInfoEcotoneBaseFields,
-        bedrock_base::L1BlockInfoBedrockBaseFields, ecotone_base::L1BlockInfoEcotoneBase,
+        bedrock_base::{
+            L1BlockInfoBedrockBaseFields, ambassador_impl_L1BlockInfoBedrockBaseFields,
+        },
+        ecotone_base::{L1BlockInfoEcotoneBase, ambassador_impl_L1BlockInfoEcotoneBaseFields},
     },
 };
 use alloc::vec::Vec;
