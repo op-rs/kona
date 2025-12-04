@@ -133,10 +133,11 @@ where
         // 1. If the precompile has an accelerated version, use that.
         // 2. If the precompile is not accelerated, use the default version.
         // 3. If the precompile is not found, return None.
-        let output = if let Some(precompile) = self.inner.precompiles.get(&inputs.target_address) {
+        let output = if let Some(precompile) = self.inner.precompiles.get(&inputs.bytecode_address)
+        {
             // Track cycles for accelerated precompiles
             #[cfg(target_os = "zkvm")]
-            let tracker_name = get_precompile_tracker_name(&inputs.target_address);
+            let tracker_name = get_precompile_tracker_name(&inputs.bytecode_address);
 
             #[cfg(target_os = "zkvm")]
             if let Some(name) = tracker_name {

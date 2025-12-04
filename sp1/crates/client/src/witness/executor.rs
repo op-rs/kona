@@ -149,7 +149,7 @@ pub trait WitnessExecutor {
             rollup_config.as_ref(),
             l2_provider.clone(),
             l2_provider,
-            ZkvmOpEvmFactory::new(),
+            ZkvmOpEvmFactory,
             None,
         );
         let mut driver = Driver::new(cursor, executor, pipeline);

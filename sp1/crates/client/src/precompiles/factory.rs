@@ -16,20 +16,7 @@ use revm::{
 
 /// Factory producing [`OpEvm`]s with FPVM-accelerated precompile overrides enabled.
 #[derive(Debug, Clone)]
-pub struct ZkvmOpEvmFactory {}
-
-impl ZkvmOpEvmFactory {
-    /// Creates a new [`ZkvmOpEvmFactory`].
-    pub const fn new() -> Self {
-        Self {}
-    }
-}
-
-impl Default for ZkvmOpEvmFactory {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+pub struct ZkvmOpEvmFactory;
 
 impl EvmFactory for ZkvmOpEvmFactory {
     type Evm<DB: Database, I: Inspector<OpContext<DB>>> = OpEvm<DB, I, OpZkvmPrecompiles>;

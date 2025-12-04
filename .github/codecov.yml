@@ -57,9 +57,6 @@ ignore:
   - "**/test_util*"
   # Ignore noop files
   - "**/noop.rs"
-  # TODO(inphi): Remove sp1 ignore once tests are added
-  - "sp1/**/*"
-
 
 flag_management:
   individual_flags:
