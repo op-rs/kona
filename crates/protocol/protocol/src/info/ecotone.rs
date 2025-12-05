@@ -32,6 +32,7 @@ use ambassador::Delegate;
 /// | 32      | BatcherHash              |
 /// +---------+--------------------------+
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Default, Copy, Delegate)]
+#[allow(clippy::duplicated_attributes)]
 #[delegate(L1BlockInfoBedrockBaseFields, target = "base")]
 #[delegate(L1BlockInfoEcotoneBaseFields, target = "base")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

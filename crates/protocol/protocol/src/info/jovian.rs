@@ -35,6 +35,7 @@ use ambassador::{self, Delegate};
 /// +---------+--------------------------+
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Default, Copy, Delegate)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::duplicated_attributes)]
 #[delegate(L1BlockInfoBedrockBaseFields, target = "base")]
 #[delegate(L1BlockInfoEcotoneBaseFields, target = "base")]
 #[delegate(L1BlockInfoIsthmusBaseFields, target = "base")]
