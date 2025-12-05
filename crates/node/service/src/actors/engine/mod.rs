@@ -3,7 +3,7 @@
 mod actor;
 pub use actor::{
     BuildRequest, EngineActor, EngineConfig, EngineContext, EngineInboundData, ResetRequest,
-    SealRequest, validate_sequencer_fields,
+    SealRequest,
 };
 
 mod error;

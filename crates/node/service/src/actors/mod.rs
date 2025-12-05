@@ -9,7 +9,7 @@ mod engine;
 pub use engine::{
     BlockBuildingClient, BlockEngineError, BlockEngineResult, BuildRequest, EngineActor,
     EngineConfig, EngineContext, EngineError, EngineInboundData, L2Finalizer,
-    QueuedBlockBuildingClient, ResetRequest, SealRequest, validate_sequencer_fields,
+    QueuedBlockBuildingClient, ResetRequest, SealRequest,
 };
 
 mod rpc;
@@ -39,5 +39,5 @@ pub use sequencer::{
     Conductor, ConductorClient, ConductorError, DelayedL1OriginSelectorProvider, L1OriginSelector,
     L1OriginSelectorError, L1OriginSelectorProvider, OriginSelector, QueuedSequencerAdminAPIClient,
     SequencerActor, SequencerActorBuilder, SequencerActorError, SequencerAdminQuery,
-    SequencerBuilderError, SequencerConfig,
+    SequencerConfig,
 };

@@ -141,29 +141,6 @@ pub struct EngineInboundData {
     pub unsafe_head_rx: Option<watch::Receiver<L2BlockInfo>>,
 }
 
-/// Validates that the sequencer fields are set.
-pub fn validate_sequencer_fields(
-    build_request_tx: &Option<mpsc::Sender<BuildRequest>>,
-    seal_request_tx: &Option<mpsc::Sender<SealRequest>>,
-    unsafe_head_rx: &Option<watch::Receiver<L2BlockInfo>>,
-) -> Result<(), String> {
-    if build_request_tx.is_none() {
-        return Err(
-            "build_request_tx is None in sequencer mode. This should never happen.".to_string()
-        );
-    }
-    if seal_request_tx.is_none() {
-        return Err(
-            "seal_request_tx is None in sequencer mode. This should never happen.".to_string()
-        );
-    }
-    if unsafe_head_rx.is_none() {
-        return Err("unsafe_head_rx is None in sequencer mode. This should never happen".to_string());
-    }
-
-    Ok(())
-}
-
 /// Configuration for the Engine Actor.
 #[derive(Debug, Clone)]
 pub struct EngineConfig {

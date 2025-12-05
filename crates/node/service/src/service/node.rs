@@ -9,7 +9,6 @@ use crate::{
         DerivationInboundChannels, EngineInboundData, L1WatcherRpcInboundChannels,
         NetworkInboundData, QueuedUnsafePayloadGossipClient, SequencerActorBuilder,
     },
-    validate_sequencer_fields,
 };
 use alloy_provider::RootProvider;
 use kona_derive::StatefulAttributesBuilder;
@@ -188,69 +187,50 @@ impl RollupNode {
         // Create the RPC server actor.
         let rpc = self.rpc_builder().map(RpcActor::new);
 
-        let (sequencer_actor_builder, sequencer_admin_api_client) = if self.mode().is_sequencer() {
+        let (sequencer_actor, sequencer_admin_api_client) = if self.mode().is_sequencer() {
             // Create the admin API channel
             let (admin_api_tx, admin_api_rx) = mpsc::channel(1024);
 
+            // 2. CONFIGURE DEPENDENCIES
             let cfg = self.sequencer_config.clone();
 
-            let builder = SequencerActorBuilder::new()
-                .with_active_status(!cfg.sequencer_stopped)
-                .with_recovery_mode_status(cfg.sequencer_recovery_mode)
-                .with_rollup_config(self.config.clone())
-                .with_admin_api_receiver(admin_api_rx);
+            // will never panic if `mode().is_sequencer()`
+            let block_building_client = QueuedBlockBuildingClient {
+                build_request_tx: build_request_tx.unwrap(),
+                reset_request_tx: reset_request_tx.clone(),
+                seal_request_tx: seal_request_tx.unwrap(),
+                unsafe_head_rx: unsafe_head_rx.unwrap(),
+            };
 
-            (Some(builder), Some(QueuedSequencerAdminAPIClient::new(admin_api_tx)))
+            let l1_provider = DelayedL1OriginSelectorProvider::new(
+                self.l1_provider.clone(),
+                l1_head_updates_tx.subscribe(),
+                cfg.l1_conf_delay,
+            );
+
+            let origin_selector = L1OriginSelector::new(self.config.clone(), l1_provider);
+
+            let mut builder = SequencerActorBuilder::new(
+                admin_api_rx,
+                self.create_attributes_builder(),
+                block_building_client,
+                origin_selector,
+                self.config.clone(),
+                QueuedUnsafePayloadGossipClient::new(gossip_payload_tx.clone()),
+            )
+            .with_active_status(!cfg.sequencer_stopped)
+            .with_recovery_mode_status(cfg.sequencer_recovery_mode)
+            .with_cancellation_token(cancellation.clone());
+
+            // Conditionally add conductor if configured
+            if let Some(conductor_url) = cfg.conductor_rpc_url {
+                builder = builder.with_conductor(ConductorClient::new_http(conductor_url));
+            }
+
+            (Some(builder.build()), Some(QueuedSequencerAdminAPIClient::new(admin_api_tx)))
         } else {
             (None, None)
         };
-
-        // 2. CONFIGURE DEPENDENCIES
-
-        let sequencer_actor = sequencer_actor_builder.map_or_else(
-            || None,
-            |mut builder| {
-                let cfg = self.sequencer_config.clone();
-
-                let l1_provider = DelayedL1OriginSelectorProvider::new(
-                    self.l1_provider.clone(),
-                    l1_head_updates_tx.subscribe(),
-                    cfg.l1_conf_delay,
-                );
-
-                let origin_selector = L1OriginSelector::new(self.config.clone(), l1_provider);
-
-                // Validate sequencer fields if node is in sequencer mode.
-                if self.mode().is_sequencer() {
-                    validate_sequencer_fields(&build_request_tx, &seal_request_tx, &unsafe_head_rx)
-                        .ok()?;
-                }
-                let block_building_client = QueuedBlockBuildingClient {
-                    build_request_tx: build_request_tx.unwrap(),
-                    reset_request_tx: reset_request_tx.clone(),
-                    seal_request_tx: seal_request_tx.unwrap(),
-                    unsafe_head_rx: unsafe_head_rx.unwrap(),
-                };
-
-                // Conditionally add conductor if configured
-                if let Some(conductor_url) = cfg.conductor_rpc_url {
-                    builder = builder.with_conductor(ConductorClient::new_http(conductor_url));
-                }
-
-                Some(
-                    builder
-                        .with_attributes_builder(self.create_attributes_builder())
-                        .with_block_building_client(block_building_client)
-                        .with_cancellation_token(cancellation.clone())
-                        .with_unsafe_payload_gossip_client(QueuedUnsafePayloadGossipClient::new(
-                            gossip_payload_tx.clone(),
-                        ))
-                        .with_origin_selector(origin_selector)
-                        .build()
-                        .expect("Failed to build SequencerActor"),
-                )
-            },
-        );
 
         crate::service::spawn_and_wait!(
             cancellation,

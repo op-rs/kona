@@ -25,9 +25,8 @@ pub use actors::{
     NetworkHandler, NetworkInboundData, NodeActor, OriginSelector, PipelineBuilder,
     QueuedBlockBuildingClient, QueuedSequencerAdminAPIClient, QueuedUnsafePayloadGossipClient,
     ResetRequest, RpcActor, RpcActorError, RpcContext, SealRequest, SequencerActor,
-    SequencerActorBuilder, SequencerActorError, SequencerAdminQuery, SequencerBuilderError,
-    SequencerConfig, UnsafePayloadGossipClient, UnsafePayloadGossipClientError,
-    validate_sequencer_fields,
+    SequencerActorBuilder, SequencerActorError, SequencerAdminQuery, SequencerConfig,
+    UnsafePayloadGossipClient, UnsafePayloadGossipClientError,
 };
 
 mod metrics;
