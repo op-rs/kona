@@ -17,8 +17,6 @@ pub use admin_api_client::{QueuedSequencerAdminAPIClient, SequencerAdminQuery};
 
 mod admin_api_impl;
 
-mod builder;
-pub use builder::SequencerActorBuilder;
 mod metrics;
 
 mod error;
