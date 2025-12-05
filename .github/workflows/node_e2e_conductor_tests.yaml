@@ -1,9 +1,9 @@
 name: Conductor E2E Tests
 on:
-  push:
-    branches: [main]
-  merge_group:
-  pull_request:
+  # Temporarily disabled until upstream fix is merged.
+  # See: https://github.com/ethpandaops/optimism-package/issues/406
+  # The kona-node launcher needs --l1-config-file support for custom devnet chains.
+  workflow_dispatch:
 env:
   CARGO_TERM_COLOR: always
 jobs:
