@@ -170,7 +170,7 @@ impl ConnectionGater {
         debug!(target: "p2p", %hostname, "Resolving DNS hostname");
 
         use std::net::ToSocketAddrs;
-        match format!("{}:0", hostname).to_socket_addrs() {
+        match format!("{hostname}:0").to_socket_addrs() {
             Ok(mut addrs) => {
                 let ip = addrs.next().map(|socket_addr| socket_addr.ip());
                 if let Some(resolved_ip) = ip {
