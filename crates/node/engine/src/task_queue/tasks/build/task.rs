@@ -89,12 +89,14 @@ impl<EngineClient_: EngineClient> BuildTask<EngineClient_> {
         attributes_envelope: OpAttributesWithParent,
     ) -> Result<PayloadId, BuildTaskError> {
         // When inserting a payload, we advertise the parent's unsafe head as the current unsafe
-        // head to build on top of.
+        // head to build on top of. Also update cross_unsafe_head to maintain the invariant:
+        // finalized <= safe <= local_safe <= cross_unsafe <= unsafe
         // Validation is performed inside apply_update to prevent invalid states.
         let new_forkchoice = state
             .sync_state
             .apply_update(EngineSyncStateUpdate {
                 unsafe_head: Some(attributes_envelope.parent),
+                cross_unsafe_head: Some(attributes_envelope.parent),
                 ..Default::default()
             })
             .map_err(|e| BuildTaskError::EngineBuildError(EngineBuildError::InvalidSyncState(e)))?
