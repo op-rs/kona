@@ -6,7 +6,7 @@ use jsonrpsee::{
 use rollup_boost::Health;
 use tokio::sync::{mpsc, oneshot};
 
-use crate::jsonrpsee::HealthzApiServer;
+use crate::jsonrpsee::{HealthzApiServer, RollupBoostHealthzApiServer};
 
 /// Key for the rollup boost health status.
 /// +----------------+-------------------------------+--------------------------------------+-------------------------------+
@@ -55,6 +55,11 @@ impl From<Health> for RollupBoostHealth {
 pub struct HealthzResponse {
     /// The application version.
     pub version: String,
+}
+
+/// A healthcheck response for the rollup boost health.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct RollupBoostHealthzResponse {
     /// The rollup boost health.
     pub rollup_boost_health: RollupBoostHealth,
 }
@@ -67,7 +72,7 @@ pub struct RollupBoostHealthQuery {
 }
 
 /// The healthz rpc server.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HealthzRpc {
     /// The rollup boost health.
     pub rollup_boost_health: mpsc::Sender<RollupBoostHealthQuery>,
@@ -83,6 +88,13 @@ impl HealthzRpc {
 #[async_trait]
 impl HealthzApiServer for HealthzRpc {
     async fn healthz(&self) -> RpcResult<HealthzResponse> {
+        Ok(HealthzResponse { version: env!("CARGO_PKG_VERSION").to_string() })
+    }
+}
+
+#[async_trait]
+impl RollupBoostHealthzApiServer for HealthzRpc {
+    async fn rollup_boost_healthz(&self) -> RpcResult<RollupBoostHealthzResponse> {
         let (tx, rx) = oneshot::channel();
 
         self.rollup_boost_health
@@ -93,6 +105,6 @@ impl HealthzApiServer for HealthzRpc {
         let rollup_boost_health =
             rx.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
 
-        Ok(HealthzResponse { version: env!("CARGO_PKG_VERSION").to_string(), rollup_boost_health })
+        Ok(RollupBoostHealthzResponse { rollup_boost_health })
     }
 }

@@ -12,6 +12,9 @@ pub enum SpanBatchError {
     /// Empty Span Batch
     #[error("Empty span batch")]
     EmptySpanBatch,
+    /// Future batch L1 origin before safe head
+    #[error("Future batch L1 origin before safe head")]
+    L1OriginBeforeSafeHead,
     /// Missing L1 origin
     #[error("Missing L1 origin")]
     MissingL1Origin,

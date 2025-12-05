@@ -1,6 +1,9 @@
 //! The Optimism RPC API using `jsonrpsee`
 
-use crate::{OutputResponse, SafeHeadResponse, health::HealthzResponse};
+use crate::{
+    OutputResponse, SafeHeadResponse,
+    health::{HealthzResponse, RollupBoostHealthzResponse},
+};
 use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::B256;
 use core::net::IpAddr;
@@ -200,6 +203,10 @@ pub trait AdminApi {
     #[method(name = "overrideLeader")]
     async fn admin_override_leader(&self) -> RpcResult<()>;
 
+    /// Resets the derivation pipeline.
+    #[method(name = "resetDerivationPipeline")]
+    async fn admin_reset_derivation_pipeline(&self) -> RpcResult<()>;
+
     /// Sets the rollup boost execution mode.
     #[method(name = "setExecutionMode")]
     async fn set_execution_mode(
@@ -219,4 +226,13 @@ pub trait HealthzApi {
     /// Gets the health of the kona-node.
     #[method(name = "healthz")]
     async fn healthz(&self) -> RpcResult<HealthzResponse>;
+}
+
+/// The rollup boost health namespace.
+#[cfg_attr(not(feature = "client"), rpc(server, namespace = "kona-rollup-boost"))]
+#[cfg_attr(feature = "client", rpc(server, client, namespace = "kona-rollup-boost"))]
+pub trait RollupBoostHealthzApi {
+    /// Gets the rollup boost health.
+    #[method(name = "healthz")]
+    async fn rollup_boost_healthz(&self) -> RpcResult<RollupBoostHealthzResponse>;
 }

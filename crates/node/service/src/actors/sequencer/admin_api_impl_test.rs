@@ -320,6 +320,56 @@ async fn test_override_leader(
 
 #[rstest]
 #[tokio::test]
+async fn test_reset_derivation_pipeline_success(#[values(true, false)] via_channel: bool) {
+    let mut client = MockBlockBuildingClient::new();
+    client.expect_reset_engine_forkchoice().times(1).return_once(|| Ok(()));
+
+    let mut actor = test_builder().with_block_building_client(client).build().unwrap();
+
+    let result = async {
+        match via_channel {
+            false => actor.reset_derivation_pipeline().await,
+            true => {
+                let (tx, rx) = oneshot::channel();
+                actor.handle_admin_query(SequencerAdminQuery::ResetDerivationPipeline(tx)).await;
+                rx.await.unwrap()
+            }
+        }
+    }
+    .await;
+
+    assert!(result.is_ok());
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_reset_derivation_pipeline_error(#[values(true, false)] via_channel: bool) {
+    let mut client = MockBlockBuildingClient::new();
+    client
+        .expect_reset_engine_forkchoice()
+        .times(1)
+        .return_once(|| Err(BlockEngineError::RequestError("reset failed".to_string())));
+
+    let mut actor = test_builder().with_block_building_client(client).build().unwrap();
+
+    let result = async {
+        match via_channel {
+            false => actor.reset_derivation_pipeline().await,
+            true => {
+                let (tx, rx) = oneshot::channel();
+                actor.handle_admin_query(SequencerAdminQuery::ResetDerivationPipeline(tx)).await;
+                rx.await.unwrap()
+            }
+        }
+    }
+    .await;
+
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("Failed to reset engine"));
+}
+
+#[rstest]
+#[tokio::test]
 async fn test_handle_admin_query_resilient_to_dropped_receiver() {
     let mut conductor = MockConductor::new();
     conductor.expect_override_leader().times(1).returning(|| Ok(()));
@@ -330,6 +380,7 @@ async fn test_handle_admin_query_resilient_to_dropped_receiver() {
     };
     let mut client = MockBlockBuildingClient::new();
     client.expect_get_unsafe_head().times(1).returning(move || Ok(unsafe_head));
+    client.expect_reset_engine_forkchoice().times(1).returning(|| Ok(()));
 
     let mut actor = test_builder()
         .with_conductor(conductor)
@@ -372,6 +423,11 @@ async fn test_handle_admin_query_resilient_to_dropped_receiver() {
         // immediately drop receiver
         let (tx, _rx) = oneshot::channel();
         queries.push(SequencerAdminQuery::OverrideLeader(tx));
+    }
+    {
+        // immediately drop receiver
+        let (tx, _rx) = oneshot::channel();
+        queries.push(SequencerAdminQuery::ResetDerivationPipeline(tx));
     }
 
     // None of these should fail even if the receiver is dropped
