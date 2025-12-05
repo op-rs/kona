@@ -3,14 +3,14 @@
 //!
 //! [`NodeActor`]: crate::NodeActor
 
-mod core;
-pub use core::RollupNodeService;
-
-mod standard;
-pub use standard::{RollupNode, RollupNodeBuilder};
+mod builder;
+pub use builder::RollupNodeBuilder;
 
 mod mode;
 pub use mode::{InteropMode, NodeMode};
+
+mod node;
+pub use node::RollupNode;
 
 pub(crate) mod util;
 pub(crate) use util::spawn_and_wait;

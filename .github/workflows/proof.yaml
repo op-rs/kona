@@ -29,8 +29,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v5
         with:
-          submodules: recursive   # or 'true' if you don't need nested subs
-          fetch-depth: 1          # optional, but nice for versioning
+          submodules: true
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
@@ -38,35 +37,22 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           components: llvm-tools-preview
-          prefix-key: ${{ matrix.kind }}
       - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Setup Go toolchain
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22.7"
+          go-version: "1.23.8"
           cache-dependency-path: |
             tests/go.sum
+            tests/optimism/go.sum
+      - name: Unzip contract artifacts
+        run: |
+          echo "Building contract artifacts for the optimism"
+          just unzip-contract-artifacts tests/optimism/packages/contracts-bedrock
       - name: Setup gotestsum
         uses: autero1/action-gotestsum@v2.0.0
         with:
           gotestsum_version: 1.12.1
-
-      - name: Download JUnit Summary from Previous Workflow
-        id: download-artifact
-        uses: dawidd6/action-download-artifact@v11
-        with:
-          workflow_conclusion: success
-          name: junit-test-summary
-          if_no_artifact_found: warn
-          use_unzip: true
-          # todo: uncomment this before merging to main
-          # branch: main
-
-      - name: Build Action Tests
-        run: |
-          source <(cargo llvm-cov show-env --export-prefix)
-          just "action-tests-${{ matrix.kind }}-build"
-          cargo llvm-cov report --lcov --output-path actions_cov.lcov
 
       - name: Split Action Tests
         id: test_split
@@ -74,19 +60,19 @@ jobs:
         with:
           total: ${{ matrix.parallel }}
           index: ${{ matrix.index }}
-          junit-summary: ./junit-test-summary.xml
           working-directory: ./tests/optimism/op-e2e/actions/proofs
 
-      - name: Run Action Tests
+      - name: Build and Run Action Tests
         run: |
+          source <(cargo llvm-cov show-env --export-prefix)
+
+          echo "Building host program for the native target"
+          just build-native --bin kona-host
+
+          echo "Running action tests"
           just "action-tests-${{ matrix.kind }}-run" "${{ steps.test_split.outputs.run }}"
 
-      - name: Upload test artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: junit-test-summary-${{ matrix.index }}
-          path: tests/optimism/op-e2e/actions/proofs/node-summary.xml
-          retention-days: 1
+          cargo llvm-cov report --lcov --output-path actions_cov.lcov
 
       - name: Upload coverage to codecov.io
         uses: codecov/codecov-action@v5
@@ -97,32 +83,6 @@ jobs:
           files: actions_cov.lcov
           flags: proof
           verbose: true
-
-
-  tests-combine-summaries:
-    name: Combine Test Reports
-    needs: [action-tests]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-
-      - name: Install junit-report-merger
-        run: npm install -g junit-report-merger
-
-      - name: Merge reports
-        run: jrm ./junit-test-summary.xml "junit-test-summary-0/*.xml" "junit-test-summary-1/*.xml" "junit-test-summary-2/*.xml" "junit-test-summary-3/*.xml"
-
-      - name: Upload test artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: junit-test-summary
-          path: ./junit-test-summary.xml
-
 
   host-client-offline-runs:
     name: FPP e2e - ${{ matrix.target}} | ${{ matrix.name }}
@@ -135,6 +95,10 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v5
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          large-packages: false
       - uses: ./.github/actions/setup
         with:
           components: llvm-tools-preview

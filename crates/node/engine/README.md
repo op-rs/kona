@@ -31,37 +31,6 @@ The engine implements a task-driven architecture where forkchoice synchronizatio
 - **Internal Synchronization**: [`SynchronizeTask`](crate::SynchronizeTask) handles internal execution layer synchronization and is primarily used by other tasks rather than directly by users.
 - **Priority-Based Execution**: Tasks are executed in priority order to ensure optimal sequencer performance and block processing efficiency.
 
-## Usage
-
-```rust,no_run
-use kona_engine::{Engine, EngineClient, EngineState};
-use kona_genesis::RollupConfig;
-use alloy_rpc_types_engine::JwtSecret;
-use url::Url;
-use std::sync::Arc;
-
-# async fn example() -> Result<(), Box<dyn std::error::Error>> {
-// Create an engine client
-let engine_url = Url::parse("http://localhost:8551")?;
-let l1_url = Url::parse("http://localhost:8545")?;
-let config = Arc::new(RollupConfig::default());
-let jwt = JwtSecret::from_hex("0xabcd")?;
-
-let client = EngineClient::new_http(engine_url, l1_url, config, jwt);
-
-// Initialize engine state
-let state = EngineState::default();
-
-// Create task queue watchers
-let (state_sender, _) = tokio::sync::watch::channel(state);
-let (queue_sender, _) = tokio::sync::watch::channel(0);
-
-// Create the engine
-let engine = Engine::new(state, state_sender, queue_sender);
-# Ok(())
-# }
-```
-
 ## Engine API Compatibility
 
 The crate supports multiple Engine API versions with automatic version selection based on the rollup configuration:

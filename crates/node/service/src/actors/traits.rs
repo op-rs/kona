@@ -19,18 +19,10 @@ pub trait CancellableContext: Send {
 pub trait NodeActor: Send + 'static {
     /// The error type for the actor.
     type Error: std::fmt::Debug;
-    /// The communication context used by the actor.
-    /// These are the channels that the actor will use to send messages to other actors.
-    type OutboundData: CancellableContext;
-    /// The inbound communication channels used by the actor.
-    /// These are the channels that the actor will use to receive messages from other actors.
-    type InboundData: Sized;
-    /// The configuration needed to build the actor.
-    type Builder;
-
-    /// Builds the actor.
-    fn build(builder: Self::Builder) -> (Self::InboundData, Self);
+    /// The type necessary to pass to the start function.
+    /// This is the result of
+    type StartData: Sized;
 
     /// Starts the actor.
-    async fn start(self, inbound_context: Self::OutboundData) -> Result<(), Self::Error>;
+    async fn start(self, start_context: Self::StartData) -> Result<(), Self::Error>;
 }
