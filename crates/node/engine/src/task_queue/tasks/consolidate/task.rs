@@ -84,10 +84,12 @@ impl<EngineClient_: EngineClient> ConsolidateTask<EngineClient_> {
                     let total_duration = global_start.elapsed();
 
                     // Apply a transient update to the safe head.
-                    // Validation is performed inside apply_update to prevent invalid states.
+                    // Also update cross_unsafe_head to maintain the invariant:
+                    // finalized <= safe <= local_safe <= cross_unsafe <= unsafe
                     state.sync_state = state.sync_state.apply_update(EngineSyncStateUpdate {
                         safe_head: Some(block_info),
                         local_safe_head: Some(block_info),
+                        cross_unsafe_head: Some(block_info),
                         ..Default::default()
                     })?;
 
@@ -105,12 +107,15 @@ impl<EngineClient_: EngineClient> ConsolidateTask<EngineClient_> {
                 Ok(block_info) => {
                     let fcu_start = Instant::now();
 
+                    // Also update cross_unsafe_head to maintain the invariant:
+                    // finalized <= safe <= local_safe <= cross_unsafe <= unsafe
                     SynchronizeTask::new(
                         Arc::clone(&self.client),
                         self.cfg.clone(),
                         EngineSyncStateUpdate {
                             safe_head: Some(block_info),
                             local_safe_head: Some(block_info),
+                            cross_unsafe_head: Some(block_info),
                             ..Default::default()
                         },
                     )
