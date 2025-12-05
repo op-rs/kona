@@ -276,8 +276,7 @@ impl Service {
         let cancel_token = self.cancel_token.clone();
         let event_senders = self.chain_event_senders.clone();
         self.join_set.spawn(async move {
-            let reorg_handler =
-                ReorgHandler::new(l1_rpc.clone(), chain_dbs_map.clone()).with_metrics();
+            let reorg_handler = ReorgHandler::new(l1_rpc.clone(), chain_dbs_map).with_metrics();
 
             // Start the L1 watcher streaming loop.
             let l1_watcher = L1Watcher::new(

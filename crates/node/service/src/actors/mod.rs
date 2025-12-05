@@ -41,3 +41,10 @@ pub use sequencer::{
     SequencerActor, SequencerActorBuilder, SequencerActorError, SequencerAdminQuery,
     SequencerConfig,
 };
+
+#[cfg(test)]
+pub use engine::MockBlockBuildingClient;
+#[cfg(test)]
+pub use network::MockUnsafePayloadGossipClient;
+#[cfg(test)]
+pub use sequencer::{MockConductor, MockOriginSelector};
