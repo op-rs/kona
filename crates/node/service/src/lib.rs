@@ -14,13 +14,13 @@ pub use service::{InteropMode, NodeMode, RollupNode, RollupNodeBuilder};
 
 mod actors;
 pub use actors::{
-    BlockBuildingClient, BlockEngineError, BlockEngineResult, BuildRequest, CancellableContext,
-    Conductor, ConductorClient, ConductorError, DelayedL1OriginSelectorProvider, DerivationActor,
-    DerivationBuilder, DerivationContext, DerivationError, DerivationInboundChannels,
-    DerivationState, EngineActor, EngineConfig, EngineContext, EngineError, EngineInboundData,
-    InboundDerivationMessage, L1OriginSelector, L1OriginSelectorError, L1OriginSelectorProvider,
-    L1WatcherRpc, L1WatcherRpcContext, L1WatcherRpcError, L1WatcherRpcInboundChannels,
-    L1WatcherRpcState, L2Finalizer, NetworkActor, NetworkActorError, NetworkBuilder,
+    BlockBuildingClient, BlockEngineError, BlockEngineResult, BlockStream, BuildRequest,
+    CancellableContext, Conductor, ConductorClient, ConductorError,
+    DelayedL1OriginSelectorProvider, DerivationActor, DerivationBuilder, DerivationContext,
+    DerivationError, DerivationInboundChannels, DerivationState, EngineActor, EngineConfig,
+    EngineContext, EngineError, EngineInboundData, InboundDerivationMessage, L1OriginSelector,
+    L1OriginSelectorError, L1OriginSelectorProvider, L1WatcherActor, L1WatcherActorBuilderError,
+    L1WatcherActorError, L2Finalizer, NetworkActor, NetworkActorError, NetworkBuilder,
     NetworkBuilderError, NetworkConfig, NetworkContext, NetworkDriver, NetworkDriverError,
     NetworkHandler, NetworkInboundData, NodeActor, OriginSelector, PipelineBuilder,
     QueuedBlockBuildingClient, QueuedSequencerAdminAPIClient, QueuedUnsafePayloadGossipClient,
