@@ -16,7 +16,7 @@ use clap::Parser;
 use kona_cli::{LogConfig, MetricsArgs};
 use kona_engine::{EngineClient, HyperAuthClient};
 use kona_genesis::{L1ChainConfig, RollupConfig};
-use kona_node_service::{EngineConfig, NodeMode, RollupNodeBuilder};
+use kona_node_service::{EngineConfig, L1BuilderConfig, NodeMode, RollupNodeBuilder};
 use kona_registry::{L1Config, scr_rollup_config_by_alloy_ident};
 use op_alloy_network::Optimism;
 use op_alloy_provider::ext::engine::OpEngineApi;
@@ -280,7 +280,13 @@ impl NodeCommand {
             info!(target: "rollup_node", "{hf}");
         }
 
-        let l1_cfg = self.get_l1_config(cfg.l1_chain_id)?;
+        let l1_cfg = L1BuilderConfig {
+            chain_config: self.get_l1_config(cfg.l1_chain_id)?,
+            trust_rpc: self.l1_rpc_args.l1_trust_rpc,
+            beacon: self.l1_rpc_args.l1_beacon.clone(),
+            engine: self.l1_rpc_args.l1_eth_rpc.clone(),
+            slot_duration: self.l1_rpc_args.l1_slot_duration,
+        };
 
         // If metrics are enabled, initialize the global cli metrics.
         args.metrics.enabled.then(|| init_rollup_config_metrics(&cfg));
@@ -312,7 +318,6 @@ impl NodeCommand {
         RollupNodeBuilder::new(
             cfg,
             l1_cfg,
-            self.l1_rpc_args.l1_trust_rpc,
             self.l2_client_args.l2_trust_rpc,
             engine_config,
             p2p_config,

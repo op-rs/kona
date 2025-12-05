@@ -73,7 +73,7 @@ pub trait BeaconClient {
     /// The error type for [BeaconClient] implementations.
     type Error: core::fmt::Display;
 
-    /// Returns the config spec.
+    /// Returns the slot interval in seconds.
     async fn config_spec(&self) -> Result<APIConfigResponse, Self::Error>;
 
     /// Returns the beacon genesis.
@@ -95,6 +95,9 @@ pub struct OnlineBeaconClient {
     pub base: String,
     /// The inner reqwest client.
     pub inner: Client,
+    /// The duration in seconds of an L1 slot. This can be used to fallback to a fixed slot
+    /// duration if the l1-beacon's slot configuration is not available.
+    pub l1_slot_duration: Option<u64>,
 }
 
 impl OnlineBeaconClient {
@@ -104,7 +107,18 @@ impl OnlineBeaconClient {
         if base.ends_with("/") {
             base.remove(base.len() - 1);
         }
-        Self { base, inner: Client::builder().build().expect("Failed to create beacon client") }
+        Self {
+            base,
+            inner: Client::builder().build().expect("Failed to create beacon client"),
+            l1_slot_duration: None,
+        }
+    }
+
+    /// Sets the duration in seconds of an L1 slot. This can be used to fallback to a fixed slot
+    /// duration if the l1-beacon's slot configuration is not available.
+    pub const fn with_l1_slot_duration(mut self, l1_slot_duration: u64) -> Self {
+        self.l1_slot_duration = Some(l1_slot_duration);
+        self
     }
 
     async fn filtered_beacon_blobs(
@@ -163,6 +177,11 @@ impl BeaconClient for OnlineBeaconClient {
 
     async fn config_spec(&self) -> Result<APIConfigResponse, Self::Error> {
         kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_REQUESTS, "method" => "spec");
+
+        // Use the l1 slot duration if provided
+        if let Some(l1_slot_duration) = self.l1_slot_duration {
+            return Ok(APIConfigResponse::new(l1_slot_duration));
+        }
 
         let result = async {
             let first = self.inner.get(format!("{}/{}", self.base, SPEC_METHOD)).send().await?;
