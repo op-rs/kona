@@ -139,7 +139,7 @@ pub enum BatchValidity {
 impl core::fmt::Display for BatchValidity {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Self::Drop(reason) => write!(f, "Drop({})", reason),
+            Self::Drop(reason) => write!(f, "Drop({reason})"),
             Self::Accept => write!(f, "Accept"),
             Self::Undecided => write!(f, "Undecided"),
             Self::Future => write!(f, "Future"),
