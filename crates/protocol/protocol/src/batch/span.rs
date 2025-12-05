@@ -13,9 +13,9 @@ use op_alloy_consensus::OpTxType;
 use tracing::{info, warn};
 
 use crate::{
-    BatchValidationProvider, BatchValidity, BlockInfo, L2BlockInfo, RawSpanBatch, SingleBatch,
-    SpanBatchBits, SpanBatchElement, SpanBatchError, SpanBatchPayload, SpanBatchPrefix,
-    SpanBatchTransactions,
+    BatchDropReason, BatchValidationProvider, BatchValidity, BlockInfo, L2BlockInfo, RawSpanBatch,
+    SingleBatch, SpanBatchBits, SpanBatchElement, SpanBatchError, SpanBatchPayload,
+    SpanBatchPrefix, SpanBatchTransactions,
 };
 
 /// Container for the inputs required to build a span of L2 blocks in derived form.
@@ -408,7 +408,7 @@ impl SpanBatch {
                     batch_epoch,
                     l2_safe_head.l1_origin
                 );
-                return BatchValidity::Drop;
+                return BatchValidity::Drop(BatchDropReason::L1OriginBeforeSafeHead);
             }
 
             // Find the L1 origin for the batch.
@@ -421,7 +421,7 @@ impl SpanBatch {
                     batch_epoch,
                     batch_timestamp
                 );
-                return BatchValidity::Drop;
+                return BatchValidity::Drop(BatchDropReason::MissingL1Origin);
             };
             origin_index += offset;
 
@@ -439,7 +439,7 @@ impl SpanBatch {
                     l1_origin.timestamp,
                     l1_origin.id()
                 );
-                return BatchValidity::Drop;
+                return BatchValidity::Drop(BatchDropReason::TimestampBeforeL1Origin);
             }
 
             // Check if we ran out of sequencer time drift
@@ -465,7 +465,9 @@ impl SpanBatch {
                                 target: "batch_span",
                                 "batch exceeded sequencer time drift without adopting next origin, and next L1 origin would have been valid"
                             );
-                            return BatchValidity::Drop;
+                            return BatchValidity::Drop(
+                                BatchDropReason::SequencerDriftNotAdoptedNextOrigin,
+                            );
                         } else {
                             info!(
                                 target: "batch_span",
@@ -482,7 +484,7 @@ impl SpanBatch {
                         "batch exceeded sequencer time drift, sequencer must adopt new L1 origin to include transactions again, max_time: {}",
                         l1_origin.timestamp + max_drift
                     );
-                    return BatchValidity::Drop;
+                    return BatchValidity::Drop(BatchDropReason::SequencerDriftExceeded);
                 }
             }
 
@@ -494,7 +496,7 @@ impl SpanBatch {
                         "transaction data must not be empty, but found empty tx, tx_index: {}",
                         i
                     );
-                    return BatchValidity::Drop;
+                    return BatchValidity::Drop(BatchDropReason::EmptyTransaction);
                 }
                 if tx.as_ref().first() == Some(&(OpTxType::Deposit as u8)) {
                     warn!(
@@ -502,7 +504,7 @@ impl SpanBatch {
                         "sequencers may not embed any deposits into batch data, but found tx that has one, tx_index: {}",
                         i
                     );
-                    return BatchValidity::Drop;
+                    return BatchValidity::Drop(BatchDropReason::DepositTransaction);
                 }
 
                 // If isthmus is not active yet and the transaction is a 7702, drop the batch.
@@ -510,7 +512,7 @@ impl SpanBatch {
                     tx.as_ref().first() == Some(&(OpTxType::Eip7702 as u8))
                 {
                     warn!(target: "batch_span", "EIP-7702 transactions are not supported pre-isthmus. tx_index: {}", i);
-                    return BatchValidity::Drop;
+                    return BatchValidity::Drop(BatchDropReason::Eip7702PreIsthmus);
                 }
             }
         }
@@ -543,7 +545,7 @@ impl SpanBatch {
                         safe_block.transactions.len(),
                         batch_txs.len()
                     );
-                    return BatchValidity::Drop;
+                    return BatchValidity::Drop(BatchDropReason::OverlappedTxCountMismatch);
                 }
                 let batch_txs_len = batch_txs.len();
                 #[allow(clippy::needless_range_loop)]
@@ -552,7 +554,7 @@ impl SpanBatch {
                     safe_block.transactions[j + deposit_count].encode_2718(&mut buf);
                     if buf != batch_txs[j].0 {
                         warn!(target: "batch_span", "overlapped block's transaction does not match");
-                        return BatchValidity::Drop;
+                        return BatchValidity::Drop(BatchDropReason::OverlappedTxMismatch);
                     }
                 }
                 let safe_block_ref = match L2BlockInfo::from_block_and_genesis(
@@ -566,7 +568,7 @@ impl SpanBatch {
                             "failed to extract L2BlockInfo from execution payload, hash: {}, err: {e}",
                             safe_block_payload.header.hash_slow()
                         );
-                        return BatchValidity::Drop;
+                        return BatchValidity::Drop(BatchDropReason::L2BlockInfoExtractionFailed);
                     }
                 };
                 if safe_block_ref.l1_origin.number != self.batches[i as usize].epoch_num {
@@ -574,7 +576,7 @@ impl SpanBatch {
                         "overlapped block's L1 origin number does not match {}, {}",
                         safe_block_ref.l1_origin.number, self.batches[i as usize].epoch_num
                     );
-                    return BatchValidity::Drop;
+                    return BatchValidity::Drop(BatchDropReason::OverlappedL1OriginMismatch);
                 }
             }
         }
@@ -626,7 +628,7 @@ impl SpanBatch {
                 batch_origin.id(),
                 batch_origin.timestamp
             );
-            return (BatchValidity::Drop, None);
+            return (BatchValidity::Drop(BatchDropReason::SpanBatchPreDelta), None);
         }
 
         if self.starting_timestamp() > next_timestamp {
@@ -639,7 +641,7 @@ impl SpanBatch {
 
             // After holocene is activated, gaps are disallowed.
             if cfg.is_holocene_active(inclusion_block.timestamp) {
-                return (BatchValidity::Drop, None);
+                return (BatchValidity::Drop(BatchDropReason::FutureTimestampHolocene), None);
             }
             return (BatchValidity::Future, None);
         }
@@ -650,7 +652,7 @@ impl SpanBatch {
             return if cfg.is_holocene_active(inclusion_block.timestamp) {
                 (BatchValidity::Past, None)
             } else {
-                (BatchValidity::Drop, None)
+                (BatchValidity::Drop(BatchDropReason::SpanBatchNoNewBlocksPreHolocene), None)
             };
         }
 
@@ -663,13 +665,13 @@ impl SpanBatch {
             if self.starting_timestamp() > l2_safe_head.block_info.timestamp {
                 // Batch timestamp cannot be between safe head and next timestamp.
                 warn!(target: "batch_span", "batch has misaligned timestamp, block time is too short");
-                return (BatchValidity::Drop, None);
+                return (BatchValidity::Drop(BatchDropReason::SpanBatchMisalignedTimestamp), None);
             }
             if !(l2_safe_head.block_info.timestamp - self.starting_timestamp())
                 .is_multiple_of(cfg.block_time)
             {
                 warn!(target: "batch_span", "batch has misaligned timestamp, not overlapped exactly");
-                return (BatchValidity::Drop, None);
+                return (BatchValidity::Drop(BatchDropReason::SpanBatchNotOverlappedExactly), None);
             }
             parent_num = l2_safe_head.block_info.number -
                 (l2_safe_head.block_info.timestamp - self.starting_timestamp()) / cfg.block_time -
@@ -689,13 +691,13 @@ impl SpanBatch {
                 "parent block mismatch, expected: {parent_num}, received: {}. parent hash: {}, parent hash check: {}",
                 parent_block.block_info.number, parent_block.block_info.hash, self.parent_check,
             );
-            return (BatchValidity::Drop, None);
+            return (BatchValidity::Drop(BatchDropReason::ParentHashMismatch), None);
         }
 
         // Filter out batches that were included too late.
         if starting_epoch_num + cfg.seq_window_size < inclusion_block.number {
             warn!(target: "batch_span", "batch was included too late, sequence window expired");
-            return (BatchValidity::Drop, None);
+            return (BatchValidity::Drop(BatchDropReason::IncludedTooLate), None);
         }
 
         // Check the L1 origin of the batch
@@ -706,7 +708,7 @@ impl SpanBatch {
                 starting_epoch_num,
                 parent_block.l1_origin.number + 1
             );
-            return (BatchValidity::Drop, None);
+            return (BatchValidity::Drop(BatchDropReason::EpochTooFarInFuture), None);
         }
 
         // Verify the l1 origin hash for each l1 block.
@@ -725,7 +727,7 @@ impl SpanBatch {
                         l1_check_hash = ?self.l1_origin_check,
                         "batch is for different L1 chain, epoch hash does not match",
                     );
-                    return (BatchValidity::Drop, None);
+                    return (BatchValidity::Drop(BatchDropReason::EpochHashMismatch), None);
                 }
                 origin_checked = true;
                 break;
@@ -738,7 +740,7 @@ impl SpanBatch {
 
         if starting_epoch_num < parent_block.l1_origin.number {
             warn!(target: "batch_span", "dropped batch, epoch is too old, minimum: {:?}", parent_block.block_info.id());
-            return (BatchValidity::Drop, None);
+            return (BatchValidity::Drop(BatchDropReason::EpochTooOld), None);
         }
 
         (BatchValidity::Accept, Some(parent_block))
@@ -749,7 +751,7 @@ impl SpanBatch {
 mod tests {
     use super::*;
     use crate::test_utils::{CollectingLayer, TestBatchValidator, TraceStorage};
-    use alloc::vec;
+    use alloc::{string::ToString, vec};
     use alloy_consensus::{Header, constants::EIP1559_TX_TYPE_ID};
     use alloy_eips::BlockNumHash;
     use alloy_primitives::{B256, Bytes, b256};
@@ -993,7 +995,7 @@ mod tests {
         let batch = SpanBatch { batches: vec![first], ..Default::default() };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::SpanBatchPreDelta)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -1060,7 +1062,7 @@ mod tests {
         let batch = SpanBatch { batches: vec![first], ..Default::default() };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::FutureTimestampHolocene)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -1123,7 +1125,7 @@ mod tests {
         let batch = SpanBatch { batches: vec![first, second], ..Default::default() };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::OverlappedTxCountMismatch)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -1203,7 +1205,7 @@ mod tests {
         let batch = SpanBatch { batches: vec![first, second], ..Default::default() };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::OverlappedTxMismatch)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -1236,7 +1238,7 @@ mod tests {
         let batch = SpanBatch { batches: vec![first, second, third], ..Default::default() };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::OverlappedTxMismatch)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -1271,7 +1273,7 @@ mod tests {
         let batch = SpanBatch { batches: vec![first, second], ..Default::default() };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::SpanBatchMisalignedTimestamp)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -1302,7 +1304,7 @@ mod tests {
         let batch = SpanBatch { batches: vec![first, second], ..Default::default() };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::SpanBatchMisalignedTimestamp)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -1379,7 +1381,7 @@ mod tests {
         // parent number = 41 - (10 - 10) / 10 - 1 = 40
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::ParentHashMismatch)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -1426,7 +1428,7 @@ mod tests {
         // parent number = 41 - (10 - 10) / 10 - 1 = 40
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::ParentHashMismatch)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -1476,7 +1478,7 @@ mod tests {
         // parent number = 41 - (10 - 10) / 10 - 1 = 40
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::IncludedTooLate)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -1534,7 +1536,7 @@ mod tests {
         };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::EpochHashMismatch)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -1641,7 +1643,7 @@ mod tests {
         };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::EpochTooOld)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -1695,7 +1697,7 @@ mod tests {
         };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::EpochTooOld)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -1818,7 +1820,7 @@ mod tests {
         };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::SequencerDriftExceeded)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -1885,7 +1887,7 @@ mod tests {
         };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::EmptyTransaction)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -1946,7 +1948,7 @@ mod tests {
         };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::DepositTransaction)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -2007,7 +2009,7 @@ mod tests {
         };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::Eip7702PreIsthmus)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -2126,7 +2128,7 @@ mod tests {
         };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::L2BlockInfoExtractionFailed)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -2200,7 +2202,7 @@ mod tests {
         };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::OverlappedL1OriginMismatch)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
@@ -2269,7 +2271,7 @@ mod tests {
         };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop
+            BatchValidity::Drop(BatchDropReason::L1OriginBeforeSafeHead)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);

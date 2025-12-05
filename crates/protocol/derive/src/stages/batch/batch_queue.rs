@@ -144,11 +144,11 @@ where
                         warn!(target: "batch_queue", "[HOLOCENE] Dropping future batch with parent: {}", parent.block_info.number);
                     }
                 }
-                BatchValidity::Drop => {
+                BatchValidity::Drop(reason) => {
                     // If we drop a batch, flush previous batches buffered in the BatchStream
                     // stage.
                     self.prev.flush();
-                    warn!(target: "batch_queue", "Dropping batch with parent: {}", parent.block_info);
+                    warn!(target: "batch_queue", "Dropping batch with parent: {}, reason: {}", parent.block_info, reason);
                     continue;
                 }
                 BatchValidity::Accept => {
@@ -614,7 +614,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_batch_drop() {
-        // Construct a single batch with BatchValidity::Drop.
+        // Construct a single batch that will be dropped (BatchValidity::Drop).
         let cfg = Arc::new(RollupConfig::default());
         assert!(!cfg.is_holocene_active(0));
         let batch = SingleBatch {
