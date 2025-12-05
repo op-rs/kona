@@ -1697,7 +1697,7 @@ mod tests {
         };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop(BatchDropReason::EpochTooOld)
+            BatchValidity::Drop(BatchDropReason::SequencerDriftNotAdoptedNextOrigin)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
