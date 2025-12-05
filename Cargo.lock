@@ -4804,7 +4804,6 @@ dependencies = [
  "kona-sources",
  "metrics",
  "metrics-exporter-prometheus 0.17.2",
- "mockall",
  "op-alloy-consensus 0.22.2",
  "op-alloy-network",
  "op-alloy-provider",
