@@ -1304,7 +1304,7 @@ mod tests {
         let batch = SpanBatch { batches: vec![first, second], ..Default::default() };
         assert_eq!(
             batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block, &mut fetcher).await,
-            BatchValidity::Drop(BatchDropReason::SpanBatchMisalignedTimestamp)
+            BatchValidity::Drop(BatchDropReason::SpanBatchNotOverlappedExactly)
         );
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
