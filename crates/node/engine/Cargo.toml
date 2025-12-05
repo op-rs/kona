@@ -69,7 +69,6 @@ arbitrary.workspace = true
 op-alloy-rpc-types = {workspace = true, features = ["arbitrary", "k256"]}
 metrics-exporter-prometheus.workspace = true
 rstest.workspace = true
-mockall.workspace = true
 
 [features]
 metrics = [ "dep:metrics" ]

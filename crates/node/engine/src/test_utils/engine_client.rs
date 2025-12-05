@@ -4,13 +4,13 @@ use crate::{EngineClient, HyperAuthClient};
 use alloy_eips::{BlockId, eip1898::BlockNumberOrTag};
 use alloy_network::{Ethereum, Network};
 use alloy_primitives::{Address, B256, BlockHash, StorageKey};
-use alloy_provider::{EthGetBlock, RpcWithBlock};
+use alloy_provider::{EthGetBlock, ProviderCall, RpcWithBlock};
 use alloy_rpc_types_engine::{
     ClientVersionV1, ExecutionPayloadBodiesV1, ExecutionPayloadEnvelopeV2, ExecutionPayloadInputV2,
     ExecutionPayloadV1, ExecutionPayloadV3, ForkchoiceState, ForkchoiceUpdated, PayloadId,
     PayloadStatus,
 };
-use alloy_rpc_types_eth::{Block, EIP1186AccountProofResponse};
+use alloy_rpc_types_eth::{Block, EIP1186AccountProofResponse, Transaction as EthTransaction};
 use alloy_transport::{TransportError, TransportErrorKind, TransportResult};
 use alloy_transport_http::Http;
 use async_trait::async_trait;
@@ -18,7 +18,7 @@ use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
 use op_alloy_network::Optimism;
 use op_alloy_provider::ext::engine::OpEngineApi;
-use op_alloy_rpc_types::Transaction;
+use op_alloy_rpc_types::Transaction as OpTransaction;
 use op_alloy_rpc_types_engine::{
     OpExecutionPayloadEnvelopeV3, OpExecutionPayloadEnvelopeV4, OpExecutionPayloadV4,
     OpPayloadAttributes, ProtocolVersion,
@@ -40,7 +40,7 @@ pub fn test_engine_client_builder() -> MockEngineClientBuilder {
 #[derive(Debug, Clone, Default)]
 pub struct MockEngineStorage {
     /// Storage for block responses by tag.
-    pub blocks_by_tag: HashMap<BlockNumberOrTag, Block<Transaction>>,
+    pub l2_blocks_by_label: HashMap<BlockNumberOrTag, Block<OpTransaction>>,
     /// Storage for block info responses by tag.
     pub block_info_by_tag: HashMap<BlockNumberOrTag, L2BlockInfo>,
 
@@ -81,6 +81,16 @@ pub struct MockEngineStorage {
     pub protocol_version: Option<ProtocolVersion>,
     /// Storage for capabilities responses.
     pub capabilities: Option<Vec<String>>,
+
+    // Storage for get_l1_block, get_l2_block, and get_proof
+    /// Storage for L1 blocks by stringified BlockId.
+    /// L1 blocks use standard Ethereum transactions.
+    pub l1_blocks_by_id: HashMap<String, Block<EthTransaction>>,
+    /// Storage for L2 blocks by stringified BlockId.
+    /// L2 blocks use OP Stack transactions.
+    pub l2_blocks_by_id: HashMap<String, Block<OpTransaction>>,
+    /// Storage for proofs by (address, stringified BlockId) key.
+    pub proofs_by_address: HashMap<(Address, String), EIP1186AccountProofResponse>,
 }
 
 /// Builder for constructing a [`MockEngineClient`] with pre-configured responses.
@@ -122,8 +132,12 @@ impl MockEngineClientBuilder {
     }
 
     /// Sets a block response for a specific tag.
-    pub fn with_block_by_tag(mut self, tag: BlockNumberOrTag, block: Block<Transaction>) -> Self {
-        self.storage.blocks_by_tag.insert(tag, block);
+    pub fn with_l2_block_by_label(
+        mut self,
+        tag: BlockNumberOrTag,
+        block: Block<OpTransaction>,
+    ) -> Self {
+        self.storage.l2_blocks_by_label.insert(tag, block);
         self
     }
 
@@ -223,6 +237,32 @@ impl MockEngineClientBuilder {
         self
     }
 
+    /// Sets an L1 block response for a specific BlockId.
+    pub fn with_l1_block(mut self, block_id: BlockId, block: Block<EthTransaction>) -> Self {
+        let key = block_id_to_key(&block_id);
+        self.storage.l1_blocks_by_id.insert(key, block);
+        self
+    }
+
+    /// Sets an L2 block response for a specific BlockId.
+    pub fn with_l2_block(mut self, block_id: BlockId, block: Block<OpTransaction>) -> Self {
+        let key = block_id_to_key(&block_id);
+        self.storage.l2_blocks_by_id.insert(key, block);
+        self
+    }
+
+    /// Sets a proof response for a specific address and BlockId.
+    pub fn with_proof(
+        mut self,
+        address: Address,
+        block_id: BlockId,
+        proof: EIP1186AccountProofResponse,
+    ) -> Self {
+        let key = block_id_to_key(&block_id);
+        self.storage.proofs_by_address.insert((address, key), proof);
+        self
+    }
+
     /// Builds the [`MockEngineClient`] with the configured values.
     ///
     /// # Panics
@@ -271,8 +311,8 @@ impl MockEngineClient {
     }
 
     /// Sets a block response for a specific tag.
-    pub async fn set_block_by_tag(&self, tag: BlockNumberOrTag, block: Block<Transaction>) {
-        self.storage.write().await.blocks_by_tag.insert(tag, block);
+    pub async fn set_l2_block_by_label(&self, tag: BlockNumberOrTag, block: Block<OpTransaction>) {
+        self.storage.write().await.l2_blocks_by_label.insert(tag, block);
     }
 
     /// Sets a block info response for a specific tag.
@@ -349,6 +389,29 @@ impl MockEngineClient {
     pub async fn set_capabilities(&self, capabilities: Vec<String>) {
         self.storage.write().await.capabilities = Some(capabilities);
     }
+
+    /// Sets an L1 block response for a specific BlockId.
+    pub async fn set_l1_block(&self, block_id: BlockId, block: Block<EthTransaction>) {
+        let key = block_id_to_key(&block_id);
+        self.storage.write().await.l1_blocks_by_id.insert(key, block);
+    }
+
+    /// Sets an L2 block response for a specific BlockId.
+    pub async fn set_l2_block(&self, block_id: BlockId, block: Block<OpTransaction>) {
+        let key = block_id_to_key(&block_id);
+        self.storage.write().await.l2_blocks_by_id.insert(key, block);
+    }
+
+    /// Sets a proof response for a specific address and BlockId.
+    pub async fn set_proof(
+        &self,
+        address: Address,
+        block_id: BlockId,
+        proof: EIP1186AccountProofResponse,
+    ) {
+        let key = block_id_to_key(&block_id);
+        self.storage.write().await.proofs_by_address.insert((address, key), proof);
+    }
 }
 
 #[async_trait]
@@ -357,24 +420,66 @@ impl EngineClient for MockEngineClient {
         self.cfg.as_ref()
     }
 
-    fn get_l1_block(&self, _block: BlockId) -> EthGetBlock<<Ethereum as Network>::BlockResponse> {
-        unimplemented!(
-            "MockEngineClient does not support get_l1_block. Use l2_block_by_label instead."
+    fn get_l1_block(&self, block: BlockId) -> EthGetBlock<<Ethereum as Network>::BlockResponse> {
+        let storage = Arc::clone(&self.storage);
+        let block_key = block_id_to_key(&block);
+
+        EthGetBlock::new_provider(
+            block,
+            Box::new(move |_kind| {
+                let storage = Arc::clone(&storage);
+                let block_key = block_key.clone();
+
+                ProviderCall::BoxedFuture(Box::pin(async move {
+                    let storage_guard = storage.read().await;
+                    Ok(storage_guard.l1_blocks_by_id.get(&block_key).cloned())
+                }))
+            }),
         )
     }
 
-    fn get_l2_block(&self, _block: BlockId) -> EthGetBlock<<Optimism as Network>::BlockResponse> {
-        unimplemented!(
-            "MockEngineClient does not support get_l2_block. Use l2_block_by_label instead."
+    fn get_l2_block(&self, block: BlockId) -> EthGetBlock<<Optimism as Network>::BlockResponse> {
+        let storage = Arc::clone(&self.storage);
+        let block_key = block_id_to_key(&block);
+
+        EthGetBlock::new_provider(
+            block,
+            Box::new(move |_kind| {
+                let storage = Arc::clone(&storage);
+                let block_key = block_key.clone();
+
+                ProviderCall::BoxedFuture(Box::pin(async move {
+                    let storage_guard = storage.read().await;
+                    Ok(storage_guard.l2_blocks_by_id.get(&block_key).cloned())
+                }))
+            }),
         )
     }
 
     fn get_proof(
         &self,
-        _address: Address,
+        address: Address,
         _keys: Vec<StorageKey>,
     ) -> RpcWithBlock<(Address, Vec<StorageKey>), EIP1186AccountProofResponse> {
-        unimplemented!("MockEngineClient does not support get_proof")
+        let storage = Arc::clone(&self.storage);
+
+        RpcWithBlock::new_provider(move |block_id| {
+            let storage = Arc::clone(&storage);
+            let block_key = block_id_to_key(&block_id);
+            let address = address;
+
+            ProviderCall::BoxedFuture(Box::pin(async move {
+                let storage_guard = storage.read().await;
+                storage_guard.proofs_by_address.get(&(address, block_key)).cloned().ok_or_else(
+                    || {
+                        TransportError::from(TransportErrorKind::custom_str(
+                            "No proof configured for this address and block. \
+                             Use with_proof() or set_proof() to set a response.",
+                        ))
+                    },
+                )
+            }))
+        })
     }
 
     async fn new_payload_v1(&self, _payload: ExecutionPayloadV1) -> TransportResult<PayloadStatus> {
@@ -390,9 +495,9 @@ impl EngineClient for MockEngineClient {
     async fn l2_block_by_label(
         &self,
         numtag: BlockNumberOrTag,
-    ) -> Result<Option<Block<Transaction>>, EngineClientError> {
+    ) -> Result<Option<Block<OpTransaction>>, EngineClientError> {
         let storage = self.storage.read().await;
-        Ok(storage.blocks_by_tag.get(&numtag).cloned())
+        Ok(storage.l2_blocks_by_label.get(&numtag).cloned())
     }
 
     async fn l2_block_info_by_label(
@@ -567,6 +672,15 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for MockEngineClient {
         storage.capabilities.clone().ok_or_else(|| {
             TransportError::from(TransportErrorKind::custom_str("No capabilities set in mock"))
         })
+    }
+}
+
+/// Helper function to convert BlockId to a string key for HashMap storage.
+/// This is necessary because BlockId doesn't implement Hash.
+fn block_id_to_key(block_id: &BlockId) -> String {
+    match block_id {
+        BlockId::Hash(hash) => format!("hash:{}", hash.block_hash),
+        BlockId::Number(num) => format!("number:{num}"),
     }
 }
 
