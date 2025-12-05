@@ -251,7 +251,7 @@ metrics-process = "2.4.0"
 pprof = "0.15.0"
 arbtest = "0.3.2"
 proptest = "1.6.0"
-criterion = "0.5.1"
+criterion = "0.8.0"
 mockall = "0.13.1"
 
 # Serialization
