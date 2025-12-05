@@ -28,7 +28,10 @@ use std::{
     sync::Arc,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
-use tokio::{select, sync::mpsc};
+use tokio::{
+    select,
+    sync::mpsc::{self, Receiver},
+};
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
 /// The handle to a block that has been started but not sealed.
@@ -95,32 +98,6 @@ impl<
     Conductor_,
     OriginSelector_,
     UnsafePayloadGossipClient_,
-> CancellableContext
-    for SequencerActor<
-        AttributesBuilder_,
-        BlockBuildingClient_,
-        Conductor_,
-        OriginSelector_,
-        UnsafePayloadGossipClient_,
-    >
-where
-    AttributesBuilder_: AttributesBuilder,
-    BlockBuildingClient_: BlockBuildingClient,
-    Conductor_: Conductor,
-    OriginSelector_: OriginSelector,
-    UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
-{
-    fn cancelled(&self) -> WaitForCancellationFuture<'_> {
-        self.cancellation_token.cancelled()
-    }
-}
-
-impl<
-    AttributesBuilder_,
-    BlockBuildingClient_,
-    Conductor_,
-    OriginSelector_,
-    UnsafePayloadGossipClient_,
 >
     SequencerActor<
         AttributesBuilder_,
@@ -136,6 +113,33 @@ where
     OriginSelector_: OriginSelector,
     UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
 {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) const fn new(
+        admin_api_rx: Receiver<SequencerAdminQuery>,
+        attributes_builder: AttributesBuilder_,
+        block_building_client: BlockBuildingClient_,
+        cancellation_token: CancellationToken,
+        conductor: Option<Conductor_>,
+        is_active: bool,
+        in_recovery_mode: bool,
+        origin_selector: OriginSelector_,
+        rollup_config: Arc<RollupConfig>,
+        unsafe_payload_gossip_client: UnsafePayloadGossipClient_,
+    ) -> Self {
+        Self {
+            admin_api_rx,
+            attributes_builder,
+            block_building_client,
+            cancellation_token,
+            conductor,
+            is_active,
+            in_recovery_mode,
+            origin_selector,
+            rollup_config,
+            unsafe_payload_gossip_client,
+        }
+    }
+
     /// Seals and commits the last pending block, if one exists and starts the build job for the
     /// next L2 block, on top of the current unsafe head.
     ///
@@ -486,6 +490,32 @@ where
                 }
             }
         }
+    }
+}
+
+impl<
+    AttributesBuilder_,
+    BlockBuildingClient_,
+    Conductor_,
+    OriginSelector_,
+    UnsafePayloadGossipClient_,
+> CancellableContext
+    for SequencerActor<
+        AttributesBuilder_,
+        BlockBuildingClient_,
+        Conductor_,
+        OriginSelector_,
+        UnsafePayloadGossipClient_,
+    >
+where
+    AttributesBuilder_: AttributesBuilder,
+    BlockBuildingClient_: BlockBuildingClient,
+    Conductor_: Conductor,
+    OriginSelector_: OriginSelector,
+    UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
+{
+    fn cancelled(&self) -> WaitForCancellationFuture<'_> {
+        self.cancellation_token.cancelled()
     }
 }
 
