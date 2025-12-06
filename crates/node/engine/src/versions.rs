@@ -12,6 +12,7 @@
 //!
 //! Adapted from the [OP Node version providers](https://github.com/ethereum-optimism/optimism/blob/develop/op-node/rollup/types.go#L546).
 
+use alloy_op_hardforks::OpHardfork;
 use kona_genesis::RollupConfig;
 
 /// Engine API version for `engine_forkchoiceUpdated` method calls.
@@ -62,13 +63,17 @@ impl EngineNewPayloadVersion {
     ///
     /// Uses the [`RollupConfig`] to check which hardfork is active at the given timestamp.
     pub fn from_cfg(cfg: &RollupConfig, timestamp: u64) -> Self {
-        if cfg.is_isthmus_active(timestamp) {
-            Self::V4
-        } else if cfg.is_ecotone_active(timestamp) {
-            // Cancun
-            Self::V3
-        } else {
-            Self::V2
+        match cfg.latest_hardfork(timestamp) {
+            OpHardfork::Bedrock => Self::V2,
+            OpHardfork::Regolith => Self::V2,
+            OpHardfork::Canyon => Self::V2,
+            OpHardfork::Ecotone => Self::V3,
+            OpHardfork::Fjord => Self::V3,
+            OpHardfork::Granite => Self::V3,
+            OpHardfork::Holocene => Self::V3,
+            OpHardfork::Isthmus => Self::V4,
+            OpHardfork::Jovian => Self::V4,
+            OpHardfork::Interop => Self::V4,
         }
     }
 }

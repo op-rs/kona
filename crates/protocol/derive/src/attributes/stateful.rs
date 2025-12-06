@@ -7,12 +7,13 @@ use crate::{
 use alloc::{boxed::Box, fmt::Debug, string::ToString, sync::Arc, vec, vec::Vec};
 use alloy_consensus::{Eip658Value, Receipt};
 use alloy_eips::{BlockNumHash, eip2718::Encodable2718};
+use alloy_op_hardforks::OpHardfork;
 use alloy_primitives::{Address, B256, Bytes};
 use alloy_rlp::Encodable;
 use alloy_rpc_types_engine::PayloadAttributes;
 use async_trait::async_trait;
 use kona_genesis::{L1ChainConfig, RollupConfig};
-use kona_hardforks::{Hardfork, Hardforks};
+use kona_hardforks::{Hardfork as _, Hardforks};
 use kona_protocol::{
     DEPOSIT_EVENT_ABI_HASH, L1BlockInfoTx, L2BlockInfo, Predeploys, decode_deposit,
 };
@@ -139,30 +140,35 @@ where
         }
 
         let mut upgrade_transactions: Vec<Bytes> = vec![];
-        if self.rollup_cfg.is_ecotone_active(next_l2_time) &&
-            !self.rollup_cfg.is_ecotone_active(l2_parent.block_info.timestamp)
-        {
-            upgrade_transactions = Hardforks::ECOTONE.txs().collect();
-        }
-        if self.rollup_cfg.is_fjord_active(next_l2_time) &&
-            !self.rollup_cfg.is_fjord_active(l2_parent.block_info.timestamp)
-        {
-            upgrade_transactions.append(&mut Hardforks::FJORD.txs().collect());
-        }
-        if self.rollup_cfg.is_isthmus_active(next_l2_time) &&
-            !self.rollup_cfg.is_isthmus_active(l2_parent.block_info.timestamp)
-        {
-            upgrade_transactions.append(&mut Hardforks::ISTHMUS.txs().collect());
-        }
-        if self.rollup_cfg.is_jovian_active(next_l2_time) &&
-            !self.rollup_cfg.is_jovian_active(l2_parent.block_info.timestamp)
-        {
-            upgrade_transactions.append(&mut Hardforks::JOVIAN.txs().collect());
-        }
-        if self.rollup_cfg.is_interop_active(next_l2_time) &&
-            !self.rollup_cfg.is_interop_active(l2_parent.block_info.timestamp)
-        {
-            upgrade_transactions.append(&mut Hardforks::INTEROP.txs().collect());
+        for hardfork in self.rollup_cfg.active_hardforks(next_l2_time) {
+            match hardfork {
+                OpHardfork::Bedrock => {}
+                OpHardfork::Regolith => {}
+                OpHardfork::Canyon => {}
+                OpHardfork::Granite => {}
+                OpHardfork::Holocene => {}
+                OpHardfork::Interop => {}
+                OpHardfork::Ecotone => {
+                    if self.rollup_cfg.is_first_ecotone_block(next_l2_time) {
+                        upgrade_transactions = Hardforks::ECOTONE.txs().collect();
+                    }
+                }
+                OpHardfork::Fjord => {
+                    if self.rollup_cfg.is_first_fjord_block(next_l2_time) {
+                        upgrade_transactions.append(&mut Hardforks::FJORD.txs().collect());
+                    }
+                }
+                OpHardfork::Isthmus => {
+                    if self.rollup_cfg.is_first_isthmus_block(next_l2_time) {
+                        upgrade_transactions.append(&mut Hardforks::ISTHMUS.txs().collect());
+                    }
+                }
+                OpHardfork::Jovian => {
+                    if self.rollup_cfg.is_first_jovian_block(next_l2_time) {
+                        upgrade_transactions.append(&mut Hardforks::JOVIAN.txs().collect());
+                    }
+                }
+            }
         }
 
         // Build and encode the L1 info transaction for the current payload.
