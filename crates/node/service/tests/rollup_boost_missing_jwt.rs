@@ -42,6 +42,7 @@ mod tests {
                     flashblock_builder_ws_max_reconnect_ms: 5000,
                     flashblock_builder_ws_ping_interval_ms: 500,
                     flashblock_builder_ws_pong_timeout_ms: 1500,
+                    flashblock_builder_ws_connect_timeout_ms: 5000,
                 },
             },
             block_selection_policy: None,

@@ -64,6 +64,9 @@ pub struct FlashblocksWebsocketConfig {
     /// Timeout in milliseconds to wait for pong responses from upstream servers before considering
     /// the connection dead
     pub flashblock_builder_ws_pong_timeout_ms: u64,
+
+    /// Timeout in milliseconds to wait for the connection to be established
+    pub flashblock_builder_ws_connect_timeout_ms: u64,
 }
 
 /// An error that occurred in the rollup-boost server.
