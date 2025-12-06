@@ -138,6 +138,15 @@ impl RollupNode {
     pub async fn start(&self) -> Result<(), String> {
         // Create a global cancellation token for graceful shutdown of tasks.
         let cancellation = CancellationToken::new();
+        // Spawn a task to listen for OS signals and trigger graceful shutdown
+        tokio::spawn({
+            let cancellation = cancellation.clone();
+            async move {
+                shutdown_signal().await;
+                tracing::info!(target: "rollup_node", "Received shutdown signal, initiating graceful shutdown...");
+                cancellation.cancel();
+            }
+        });
 
         // 1. CONFIGURE STATE
 
@@ -302,5 +311,32 @@ impl RollupNode {
             ]
         );
         Ok(())
+    }
+}
+
+/// Listens for OS shutdown signals (SIGTERM, SIGINT)
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c().await.expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install SIGTERM handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {
+            tracing::info!(target: "rollup_node", "Received SIGINT (Ctrl+C)");
+        },
+        _ = terminate => {
+            tracing::info!(target: "rollup_node", "Received SIGTERM");
+        },
     }
 }
