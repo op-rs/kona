@@ -27,7 +27,7 @@ jobs:
           - kind: "interop"  # See https://github.com/op-rs/kona/issues/3010
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           submodules: true
       - name: Free Disk Space (Ubuntu)
@@ -94,7 +94,7 @@ jobs:
     timeout-minutes: 40
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:

@@ -23,7 +23,7 @@ jobs:
         version: ["kona-client", "kona-client-int"]
     steps: 
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Authenticate to GCP
         id: 'auth'
