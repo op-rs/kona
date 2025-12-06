@@ -5,6 +5,8 @@ pub use actor::{NetworkActor, NetworkActorError, NetworkContext, NetworkInboundD
 
 mod builder;
 pub use builder::NetworkBuilder;
+mod network_builder;
+pub use network_builder::NetworkBuilderExt;
 
 mod driver;
 pub use driver::{NetworkDriver, NetworkDriverError};

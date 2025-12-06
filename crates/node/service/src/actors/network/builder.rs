@@ -15,6 +15,8 @@ use crate::{
     actors::network::{NetworkConfig, NetworkDriver},
 };
 
+use super::NetworkBuilderExt;
+
 /// Constructs a [`NetworkDriver`] for the OP Stack Consensus Layer.
 #[derive(Debug)]
 pub struct NetworkBuilder {
@@ -170,6 +172,12 @@ impl NetworkBuilder {
             signer: self.signer,
             enr_update: self.enr_update,
         })
+    }
+}
+
+impl NetworkBuilderExt for NetworkBuilder {
+    fn build(self) -> Result<NetworkDriver, NetworkBuilderError> {
+        self.build()
     }
 }
 
