@@ -90,7 +90,10 @@ impl From<RollupBoostServerError> for RpcError<TransportErrorKind> {
 #[async_trait::async_trait]
 pub trait RollupBoostServerLike: Debug + Send + Sync {
     /// Sets the execution mode.
-    fn set_execution_mode(&self, execution_mode: ExecutionMode);
+    fn set_execution_mode(
+        &self,
+        execution_mode: ExecutionMode,
+    ) -> Result<(), RollupBoostServerError>;
 
     /// Gets the execution mode.
     fn get_execution_mode(&self) -> ExecutionMode;
@@ -136,8 +139,12 @@ pub trait RollupBoostServerLike: Debug + Send + Sync {
 impl<T: EngineApiExt + Send + Sync + 'static + Debug> RollupBoostServerLike
     for rollup_boost::RollupBoostServer<T>
 {
-    fn set_execution_mode(&self, execution_mode: ExecutionMode) {
+    fn set_execution_mode(
+        &self,
+        execution_mode: ExecutionMode,
+    ) -> Result<(), RollupBoostServerError> {
         *self.execution_mode.lock() = execution_mode;
+        Ok(())
     }
 
     fn get_execution_mode(&self) -> ExecutionMode {
