@@ -5,7 +5,6 @@ use crate::{
     state::EngineSyncStateUpdate,
 };
 use alloy_eips::eip7685::EMPTY_REQUESTS_HASH;
-use alloy_provider::ext::EngineApi;
 use alloy_rpc_types_engine::{
     CancunPayloadFields, ExecutionPayloadInputV2, PayloadStatusEnum, PraguePayloadFields,
 };
@@ -13,7 +12,6 @@ use async_trait::async_trait;
 use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
 use op_alloy_consensus::OpBlock;
-use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types_engine::{
     OpExecutionPayload, OpExecutionPayloadEnvelope, OpExecutionPayloadSidecar,
 };
@@ -21,9 +19,9 @@ use std::{sync::Arc, time::Instant};
 
 /// The task to insert a payload into the execution engine.
 #[derive(Debug, Clone)]
-pub struct InsertTask {
+pub struct InsertTask<EngineClient_: EngineClient> {
     /// The engine client.
-    client: Arc<EngineClient>,
+    client: Arc<EngineClient_>,
     /// The rollup config.
     rollup_config: Arc<RollupConfig>,
     /// The network payload envelope.
@@ -33,10 +31,10 @@ pub struct InsertTask {
     is_payload_safe: bool,
 }
 
-impl InsertTask {
+impl<EngineClient_: EngineClient> InsertTask<EngineClient_> {
     /// Creates a new insert task.
     pub const fn new(
-        client: Arc<EngineClient>,
+        client: Arc<EngineClient_>,
         rollup_config: Arc<RollupConfig>,
         envelope: OpExecutionPayloadEnvelope,
         is_attributes_derived: bool,
@@ -51,7 +49,7 @@ impl InsertTask {
 }
 
 #[async_trait]
-impl EngineTaskExt for InsertTask {
+impl<EngineClient_: EngineClient> EngineTaskExt for InsertTask<EngineClient_> {
     type Output = ();
 
     type Error = InsertTaskError;

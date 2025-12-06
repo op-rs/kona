@@ -10,7 +10,6 @@ use async_trait::async_trait;
 use derive_more::Constructor;
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
-use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types_engine::{OpExecutionPayload, OpExecutionPayloadEnvelope};
 use std::{sync::Arc, time::Instant};
 use tokio::sync::mpsc;
@@ -29,9 +28,9 @@ use tokio::sync::mpsc;
 /// [`InsertTask`]: crate::InsertTask
 /// [`InsertTaskError`]: crate::InsertTaskError
 #[derive(Debug, Clone, Constructor)]
-pub struct SealTask {
+pub struct SealTask<EngineClient_: EngineClient> {
     /// The engine API client.
-    pub engine: Arc<EngineClient>,
+    pub engine: Arc<EngineClient_>,
     /// The [`RollupConfig`].
     pub cfg: Arc<RollupConfig>,
     /// The [`PayloadId`] being sealed.
@@ -46,7 +45,7 @@ pub struct SealTask {
     pub result_tx: Option<mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>>,
 }
 
-impl SealTask {
+impl<EngineClient_: EngineClient> SealTask<EngineClient_> {
     /// Seals the execution payload in the EL, returning the execution envelope.
     ///
     /// ## Engine Method Selection
@@ -59,7 +58,7 @@ impl SealTask {
     async fn seal_payload(
         &self,
         cfg: &RollupConfig,
-        engine: &EngineClient,
+        engine: &EngineClient_,
         payload_id: PayloadId,
         payload_attrs: OpAttributesWithParent,
     ) -> Result<OpExecutionPayloadEnvelope, SealTaskError> {
@@ -248,7 +247,7 @@ impl SealTask {
 }
 
 #[async_trait]
-impl EngineTaskExt for SealTask {
+impl<EngineClient_: EngineClient> EngineTaskExt for SealTask<EngineClient_> {
     type Output = ();
 
     type Error = SealTaskError;

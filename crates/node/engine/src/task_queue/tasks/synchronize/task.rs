@@ -5,8 +5,8 @@ use crate::{
 };
 use alloy_rpc_types_engine::{INVALID_FORK_CHOICE_STATE_ERROR, PayloadStatusEnum};
 use async_trait::async_trait;
+use derive_more::Constructor;
 use kona_genesis::RollupConfig;
-use op_alloy_provider::ext::engine::OpEngineApi;
 use std::sync::Arc;
 use tokio::time::Instant;
 
@@ -34,26 +34,17 @@ use tokio::time::Instant;
 /// [`ConsolidateTask`]: crate::ConsolidateTask  
 /// [`FinalizeTask`]: crate::FinalizeTask
 /// [`BuildTask`]: crate::BuildTask
-#[derive(Debug, Clone)]
-pub struct SynchronizeTask {
+#[derive(Debug, Clone, Constructor)]
+pub struct SynchronizeTask<EngineClient_: EngineClient> {
     /// The engine client.
-    pub client: Arc<EngineClient>,
+    pub client: Arc<EngineClient_>,
     /// The rollup config.
     pub rollup: Arc<RollupConfig>,
     /// The sync state update to apply to the engine state.
     pub state_update: EngineSyncStateUpdate,
 }
 
-impl SynchronizeTask {
-    /// Creates a new [`SynchronizeTask`].
-    pub const fn new(
-        client: Arc<EngineClient>,
-        rollup: Arc<RollupConfig>,
-        state_update: EngineSyncStateUpdate,
-    ) -> Self {
-        Self { client, rollup, state_update }
-    }
-
+impl<EngineClient_: EngineClient> SynchronizeTask<EngineClient_> {
     /// Checks the response of the `engine_forkchoiceUpdated` call, and updates the sync status if
     /// necessary.
     fn check_forkchoice_updated_status(
@@ -87,7 +78,7 @@ impl SynchronizeTask {
 }
 
 #[async_trait]
-impl EngineTaskExt for SynchronizeTask {
+impl<EngineClient_: EngineClient> EngineTaskExt for SynchronizeTask<EngineClient_> {
     type Output = ();
     type Error = SynchronizeTaskError;
 
