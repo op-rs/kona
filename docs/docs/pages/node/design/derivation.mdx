@@ -52,12 +52,18 @@ The derivation pipeline is constructed using the `DerivationBuilder` which imple
 pub struct DerivationBuilder {
     /// The L1 provider.
     pub l1_provider: RootProvider,
+    /// Whether to trust the L1 RPC.
+    pub l1_trust_rpc: bool,
     /// The L1 beacon client.
     pub l1_beacon: OnlineBeaconClient,
     /// The L2 provider.
     pub l2_provider: RootProvider<Optimism>,
+    /// Whether to trust the L2 RPC.
+    pub l2_trust_rpc: bool,
     /// The rollup config.
     pub rollup_config: Arc<RollupConfig>,
+    /// The L1 chain configuration.
+    pub l1_config: Arc<L1ChainConfig>,
     /// The interop mode.
     pub interop_mode: InteropMode,
 }
@@ -72,12 +78,14 @@ The builder creates an `OnlinePipeline` which can operate in two modes:
 let pipeline = match self.interop_mode {
     InteropMode::Polled => OnlinePipeline::new_polled(
         self.rollup_config.clone(),
+        self.l1_config.clone(),
         OnlineBlobProvider::init(self.l1_beacon.clone()).await,
         l1_derivation_provider,
         l2_derivation_provider,
     ),
     InteropMode::Indexed => OnlinePipeline::new_indexed(
         self.rollup_config.clone(),
+        self.l1_config.clone(),
         OnlineBlobProvider::init(self.l1_beacon.clone()).await,
         l1_derivation_provider,
         l2_derivation_provider,
@@ -118,7 +126,7 @@ The core derivation logic is implemented in `produce_next_attributes()`:
 async fn produce_next_attributes(
     &mut self,
     engine_l2_safe_head: &watch::Receiver<L2BlockInfo>,
-    reset_request_tx: &mpsc::Sender<()>,
+    reset_request_tx: &mpsc::Sender<ResetRequest>,
 ) -> Result<OpAttributesWithParent, DerivationError>
 ```
 
@@ -155,6 +163,7 @@ The pipeline supports several signal types for coordination:
 - **ResetSignal**: Resets pipeline state with new L1 origin and system config
 - **ActivationSignal**: Handles hardfork activations (e.g., Holocene)
 - **FlushChannel**: Invalidates current channel data for deposit-only blocks
+- **ProvideBlock**: Provides the next L1 block directly to the traversal stage in indexed/managed mode
 
 Signals are sent from the engine actor when specific conditions are detected during payload execution.
 
@@ -199,7 +208,7 @@ The derivation actor receives L1 head updates from the P2P layer, which indicate
 ```rust
 Some(msg) = self.l1_head_updates.changed() => {
     if let Err(e) = state.process(
-        InboundDerivationMessage::L1HeadUpdated,
+        InboundDerivationMessage::NewDataAvailable,
         // ... other parameters
     ).await {
         // Handle derivation error
