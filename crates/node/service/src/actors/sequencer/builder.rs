@@ -14,7 +14,7 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 /// Builder for constructing a [`SequencerActor`].
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct SequencerActorBuilder<
     AttributesBuilder_,
     BlockBuildingClient_,
@@ -29,25 +29,25 @@ pub struct SequencerActorBuilder<
     UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
 {
     /// Receiver for admin API requests.
-    pub admin_api_rx: Option<mpsc::Receiver<SequencerAdminQuery>>,
+    pub admin_api_rx: mpsc::Receiver<SequencerAdminQuery>,
     /// The attributes builder used for block building.
-    pub attributes_builder: Option<AttributesBuilder_>,
+    pub attributes_builder: AttributesBuilder_,
     /// The struct used to build blocks.
-    pub block_building_client: Option<BlockBuildingClient_>,
+    pub block_building_client: BlockBuildingClient_,
     /// The cancellation token, shared between all tasks.
-    pub cancellation_token: Option<CancellationToken>,
+    pub cancellation_token: CancellationToken,
     /// The optional conductor RPC client.
     pub conductor: Option<Conductor_>,
     /// Whether the sequencer is active.
-    pub is_active: Option<bool>,
+    pub is_active: bool,
     /// Whether the sequencer is in recovery mode.
-    pub in_recovery_mode: Option<bool>,
+    pub in_recovery_mode: bool,
     /// The struct used to determine the next L1 origin.
-    pub origin_selector: Option<OriginSelector_>,
+    pub origin_selector: OriginSelector_,
     /// The rollup configuration.
-    pub rollup_config: Option<Arc<RollupConfig>>,
+    pub rollup_config: Arc<RollupConfig>,
     /// A client to asynchronously sign and gossip built payloads to the network actor.
-    pub unsafe_payload_gossip_client: Option<UnsafePayloadGossipClient_>,
+    pub unsafe_payload_gossip_client: UnsafePayloadGossipClient_,
 }
 
 impl<
@@ -72,36 +72,43 @@ where
     UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
 {
     /// Creates a new empty [`SequencerActorBuilder`].
-    pub const fn new() -> Self {
+    pub fn new(
+        admin_api_rx: mpsc::Receiver<SequencerAdminQuery>,
+        attributes_builder: AttributesBuilder_,
+        block_building_client: BlockBuildingClient_,
+        origin_selector: OriginSelector_,
+        rollup_config: Arc<RollupConfig>,
+        unsafe_payload_gossip_client: UnsafePayloadGossipClient_,
+    ) -> Self {
         Self {
-            admin_api_rx: None,
-            attributes_builder: None,
-            block_building_client: None,
-            cancellation_token: None,
+            admin_api_rx,
+            attributes_builder,
+            block_building_client,
+            cancellation_token: CancellationToken::new(),
             conductor: None,
-            unsafe_payload_gossip_client: None,
-            is_active: None,
-            in_recovery_mode: None,
-            origin_selector: None,
-            rollup_config: None,
+            is_active: false,
+            in_recovery_mode: false,
+            origin_selector,
+            rollup_config,
+            unsafe_payload_gossip_client,
         }
     }
 
     /// Sets whether the sequencer is active.
     pub const fn with_active_status(mut self, is_active: bool) -> Self {
-        self.is_active = Some(is_active);
+        self.is_active = is_active;
         self
     }
 
     /// Sets whether the sequencer is in recovery mode.
     pub const fn with_recovery_mode_status(mut self, is_recovery_mode: bool) -> Self {
-        self.in_recovery_mode = Some(is_recovery_mode);
+        self.in_recovery_mode = is_recovery_mode;
         self
     }
 
     /// Sets the rollup configuration.
     pub fn with_rollup_config(mut self, rollup_config: Arc<RollupConfig>) -> Self {
-        self.rollup_config = Some(rollup_config);
+        self.rollup_config = rollup_config;
         self
     }
 
@@ -110,13 +117,13 @@ where
         mut self,
         admin_api_rx: mpsc::Receiver<SequencerAdminQuery>,
     ) -> Self {
-        self.admin_api_rx = Some(admin_api_rx);
+        self.admin_api_rx = admin_api_rx;
         self
     }
 
     /// Sets the attributes builder.
     pub fn with_attributes_builder(mut self, attributes_builder: AttributesBuilder_) -> Self {
-        self.attributes_builder = Some(attributes_builder);
+        self.attributes_builder = attributes_builder;
         self
     }
 
@@ -128,7 +135,7 @@ where
 
     /// Sets the origin selector.
     pub fn with_origin_selector(mut self, origin_selector: OriginSelector_) -> Self {
-        self.origin_selector = Some(origin_selector);
+        self.origin_selector = origin_selector;
         self
     }
 
@@ -137,13 +144,13 @@ where
         mut self,
         block_building_client: BlockBuildingClient_,
     ) -> Self {
-        self.block_building_client = Some(block_building_client);
+        self.block_building_client = block_building_client;
         self
     }
 
     /// Sets the cancellation token.
     pub fn with_cancellation_token(mut self, token: CancellationToken) -> Self {
-        self.cancellation_token = Some(token);
+        self.cancellation_token = token;
         self
     }
 
@@ -152,42 +159,34 @@ where
         mut self,
         gossip_client: UnsafePayloadGossipClient_,
     ) -> Self {
-        self.unsafe_payload_gossip_client = Some(gossip_client);
+        self.unsafe_payload_gossip_client = gossip_client;
         self
     }
 
-    /// Builds the [`SequencerActor`].
-    ///
-    /// # Panics
-    ///
-    /// Panics if any required field is not set.
+    /// Builds the [`SequencerActor`].  
+    ///  
+    /// This builder cannot fail because all required fields are provided  
+    /// through `new()`. Optional fields (like `conductor`) may be unset.
     pub fn build(
         self,
-    ) -> Result<
-        SequencerActor<
-            AttributesBuilder_,
-            BlockBuildingClient_,
-            Conductor_,
-            OriginSelector_,
-            UnsafePayloadGossipClient_,
-        >,
-        String,
+    ) -> SequencerActor<
+        AttributesBuilder_,
+        BlockBuildingClient_,
+        Conductor_,
+        OriginSelector_,
+        UnsafePayloadGossipClient_,
     > {
-        Ok(SequencerActor {
-            admin_api_rx: self.admin_api_rx.expect("admin_api_rx is required"),
-            attributes_builder: self.attributes_builder.expect("attributes_builder is required"),
-            block_building_client: self
-                .block_building_client
-                .expect("block_building_client is required"),
-            cancellation_token: self.cancellation_token.expect("cancellation is required"),
+        SequencerActor {
+            admin_api_rx: self.admin_api_rx,
+            attributes_builder: self.attributes_builder,
+            block_building_client: self.block_building_client,
+            cancellation_token: self.cancellation_token,
             conductor: self.conductor,
-            is_active: self.is_active.expect("initial active status not set"),
-            in_recovery_mode: self.in_recovery_mode.expect("initial recovery mode status not set"),
-            origin_selector: self.origin_selector.expect("origin_selector is required"),
-            rollup_config: self.rollup_config.expect("rollup_config is required"),
-            unsafe_payload_gossip_client: self
-                .unsafe_payload_gossip_client
-                .expect("unsafe_payload_gossip_client is required"),
-        })
+            is_active: self.is_active,
+            in_recovery_mode: self.in_recovery_mode,
+            origin_selector: self.origin_selector,
+            rollup_config: self.rollup_config,
+            unsafe_payload_gossip_client: self.unsafe_payload_gossip_client,
+        }
     }
 }
