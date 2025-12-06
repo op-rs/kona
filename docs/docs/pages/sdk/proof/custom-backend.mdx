@@ -21,7 +21,7 @@ verifiable manner.
 > 📖 Why just a single block by default?
 >
 > On the OP Stack, we employ an interactive bisection game that narrows in on the disagreed upon block -> block state
-> transition before requiring a fault proof to be ran. Because of this, the default implementation only serves
+> transition before requiring a fault proof to be run. Because of this, the default implementation only serves
 > to derive and execute the single block that the participants of the bisection game landed on.
 
 ## Backend Traits
@@ -49,7 +49,7 @@ Before getting started, we need to create custom implementations of the followin
 | Trait                                                                                                 | Description                                                                                                                         |
 | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | [`ChainProvider`](https://docs.rs/kona-derive/latest/kona_derive/trait.ChainProvider.html)     | The `ChainProvider` trait describes the minimal interface for fetching data from L1 during L2 chain derivation.                     |
-| [`L2ChainProvider`](https://docs.rs/kona-derive/latest/kona_derive/trait.L2ChainProvider.html) | The `ChainProvider` trait describes the minimal interface for fetching data from the safe L2 chain during L2 chain derivation.      |
+| [`L2ChainProvider`](https://docs.rs/kona-derive/latest/kona_derive/trait.L2ChainProvider.html) | The `L2ChainProvider` trait describes the minimal interface for fetching data from the safe L2 chain during L2 chain derivation, including access to `SystemConfig` via `system_config_by_number(...)`. |
 | [`BlobProvider`](https://docs.rs/kona-derive/latest/kona_derive/trait.BlobProvider.html)       | The `BlobProvider` trait describes an interface for fetching EIP-4844 blobs from the L1 consensus layer during L2 chain derivation. |
 
 Once these are implemented, constructing the pipeline is as simple as passing in the data sources to the `PipelineBuilder`. Keep in mind the requirements for validation of incoming data, depending on your platform. For example, programs
@@ -62,12 +62,14 @@ let blob_provider = ...;
 let l1_origin = ...;
 
 let cfg = Arc::new(RollupConfig::default());
+let l1_cfg = Arc::new(L1ChainConfig::sepolia().into());
 let attributes = StatefulAttributesBuilder::new(
    cfg.clone(),
+   l1_cfg,
    l2_chain_provider.clone(),
    chain_provider.clone(),
 );
-let dap = EthereumDataSource::new(
+let dap = EthereumDataSource::new_from_parts(
    chain_provider.clone(),
    blob_provider,
    cfg.as_ref()
@@ -81,7 +83,7 @@ let pipeline = PipelineBuilder::new()
    .chain_provider(chain_provider)
    .builder(attributes)
    .origin(l1_origin)
-   .build();
+   .build_polled();
 ```
 
 From here, a custom derivation driver is needed to produce the desired execution payload(s). An example of this for
@@ -94,20 +96,20 @@ Before getting started, we need to create custom implementations of the followin
 | Trait                                                                                | Description                                                                                                                                                                                                                                                                                                                        |
 | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`TrieProvider`](https://docs.rs/kona-mpt/latest/kona_mpt/trait.TrieProvider.html) | The `TrieProvider` trait describes the interface for fetching trie node preimages and chain information while executing a payload on the L2 chain.                                                                                                                                                                                |
-| [`TrieDBHinter`](https://docs.rs/kona-mpt/latest/kona_mpt/trait.TrieHinter.html)   | The `TrieDBHinter` trait describes the interface for requesting the host program to prepare trie proof preimages for the client's consumption. For targets with upfront witness generation, i.e. zkVMs, a no-op hinter is exported as [`NoopTrieHinter`](https://docs.rs/kona-mpt/latest/kona_mpt/struct.NoopTrieHinter.html). |
+| [`TrieHinter`](https://docs.rs/kona-mpt/latest/kona_mpt/trait.TrieHinter.html)   | The `TrieHinter` trait describes the interface for requesting the host program to prepare trie proof preimages (payload witness hinting) for the client's consumption. For targets with upfront witness generation, i.e. zkVMs, a no-op hinter is exported as [`NoopTrieHinter`](https://docs.rs/kona-mpt/latest/kona_mpt/struct.NoopTrieHinter.html). |
 
-Once we have those, the `StatelessL2BlockExecutor` can be constructed like so:
+Once we have those, the executor can be constructed using `StatelessL2Builder` like so:
 
 ```rust
 let cfg = RollupConfig::default();
 let provider = ...;
 let hinter = ...;
+let evm_factory = ...;
+let parent_header = ...;
 
-let executor = StatelessL2BlockExecutor::builder(&cfg, provider, hinter)
-   .with_parent_header(...)
-   .build();
-
-let header = executor.execute_payload(...).expect("Failed execution");
+let mut builder = StatelessL2Builder::new(&cfg, evm_factory, provider, hinter, parent_header);
+let outcome = builder.build_block(...).expect("Failed execution");
+let header = outcome.header;
 ```
 
 ### Bringing it Together
