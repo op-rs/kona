@@ -358,10 +358,10 @@ impl EngineActorState {
 
                         match admin_query {
                             RollupBoostAdminQuery::SetExecutionMode { execution_mode } => {
-                                rollup_boost.server.set_execution_mode(execution_mode);
+                                *rollup_boost.execution_mode.lock() = execution_mode;
                             }
                             RollupBoostAdminQuery::GetExecutionMode { sender } => {
-                                let execution_mode = rollup_boost.server.get_execution_mode();
+                                let execution_mode = *rollup_boost.execution_mode.lock();
                                 sender.send(execution_mode).unwrap();
                             }
                         }
@@ -374,7 +374,7 @@ impl EngineActorState {
                             return Err(EngineError::ChannelClosed);
                         };
 
-                        let health = rollup_boost.get_health();
+                        let health = rollup_boost.probes().health();
                         health_query.sender.send(health.into()).unwrap();
                     }
                 }

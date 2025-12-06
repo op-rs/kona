@@ -1,7 +1,8 @@
 //! An Engine API Client.
 
-use crate::{Metrics, RollupBoostServer, RollupBoostServerArgs, RollupBoostServerLike};
+use crate::{Metrics, RollupBoostServerArgs, rollup_boost::RollupBoostBackend};
 use alloy_eips::eip1898::BlockNumberOrTag;
+use alloy_json_rpc::ErrorPayload;
 use alloy_network::Network;
 use alloy_primitives::{B256, BlockHash, Bytes};
 use alloy_provider::{Provider, RootProvider};
@@ -22,6 +23,7 @@ use alloy_transport_http::{
 use derive_more::Deref;
 use http::uri::InvalidUri;
 use http_body_util::Full;
+use jsonrpsee_types::ErrorObject;
 use kona_genesis::RollupConfig;
 use kona_protocol::{FromBlockError, L2BlockInfo};
 use op_alloy_network::Optimism;
@@ -32,8 +34,10 @@ use op_alloy_rpc_types_engine::{
     OpPayloadAttributes, ProtocolVersion,
 };
 use rollup_boost::{
-    Flashblocks, FlashblocksService, FlashblocksWebsocketConfig, Probes, RpcClientError,
+    EngineApiServer, Flashblocks, FlashblocksWebsocketConfig, Probes, RollupBoostServer,
+    RpcClientError,
 };
+use serde_json::value::RawValue;
 use std::{
     future::Future,
     net::{AddrParseError, IpAddr, SocketAddr},
@@ -76,7 +80,7 @@ pub struct EngineClient {
     /// The [`RollupConfig`] for determining Engine API versions based on hardfork activations.
     cfg: Arc<RollupConfig>,
     /// The rollup boost server
-    pub rollup_boost: Arc<RollupBoostServer>,
+    pub rollup_boost: Arc<RollupBoostServer<RollupBoostBackend>>,
 }
 
 impl EngineClient {
@@ -157,57 +161,48 @@ impl EngineClientBuilder {
             rollup_boost::PayloadSource::Builder,
         )?;
 
-        let rollup_boost_server: Box<dyn RollupBoostServerLike + Send + Sync + 'static> =
-            match self.rollup_boost.flashblocks {
-                Some(flashblocks) => {
-                    let inbound_url = flashblocks.flashblocks_builder_url;
-                    let outbound_addr = SocketAddr::new(
-                        IpAddr::from_str(&flashblocks.flashblocks_host)?,
-                        flashblocks.flashblocks_port,
-                    );
+        let backend: RollupBoostBackend = match self.rollup_boost.flashblocks {
+            Some(flashblocks) => {
+                let ws_config = flashblocks.flashblocks_ws_config;
 
-                    let ws_config = flashblocks.flashblocks_ws_config;
-
-                    let builder_client = Arc::new(
-                        Flashblocks::run(
-                            builder_client,
-                            inbound_url,
-                            outbound_addr,
-                            FlashblocksWebsocketConfig {
-                                flashblock_builder_ws_initial_reconnect_ms: ws_config
-                                    .flashblock_builder_ws_initial_reconnect_ms,
-                                flashblock_builder_ws_max_reconnect_ms: ws_config
-                                    .flashblock_builder_ws_max_reconnect_ms,
-                                flashblock_builder_ws_ping_interval_ms: ws_config
-                                    .flashblock_builder_ws_ping_interval_ms,
-                                flashblock_builder_ws_pong_timeout_ms: ws_config
-                                    .flashblock_builder_ws_pong_timeout_ms,
-                            },
-                        )
-                        .map_err(|e| EngineClientBuilderError::FlashblocksError(e.to_string()))?,
-                    );
-                    Box::new(rollup_boost::RollupBoostServer::<FlashblocksService>::new(
-                        l2_client,
+                let builder_client = Arc::new(
+                    Flashblocks::run(
                         builder_client,
-                        self.rollup_boost.initial_execution_mode,
-                        self.rollup_boost.block_selection_policy,
-                        probes.clone(),
-                        self.rollup_boost.external_state_root,
-                        self.rollup_boost.ignore_unhealthy_builders,
-                    ))
-                }
-                None => Box::new(rollup_boost::RollupBoostServer::<rollup_boost::RpcClient>::new(
-                    l2_client,
-                    Arc::new(builder_client),
-                    self.rollup_boost.initial_execution_mode,
-                    self.rollup_boost.block_selection_policy,
-                    probes.clone(),
-                    self.rollup_boost.external_state_root,
-                    self.rollup_boost.ignore_unhealthy_builders,
-                )),
-            };
+                        flashblocks.flashblocks_builder_url,
+                        SocketAddr::new(
+                            IpAddr::from_str(&flashblocks.flashblocks_host)?,
+                            flashblocks.flashblocks_port,
+                        ),
+                        FlashblocksWebsocketConfig {
+                            flashblock_builder_ws_initial_reconnect_ms: ws_config
+                                .flashblock_builder_ws_initial_reconnect_ms,
+                            flashblock_builder_ws_max_reconnect_ms: ws_config
+                                .flashblock_builder_ws_max_reconnect_ms,
+                            flashblock_builder_ws_ping_interval_ms: ws_config
+                                .flashblock_builder_ws_ping_interval_ms,
+                            flashblock_builder_ws_pong_timeout_ms: ws_config
+                                .flashblock_builder_ws_pong_timeout_ms,
+                        },
+                    )
+                    .map_err(|e| EngineClientBuilderError::FlashblocksError(e.to_string()))?,
+                );
 
-        let rollup_boost = Arc::new(RollupBoostServer { server: rollup_boost_server, probes });
+                RollupBoostBackend::Flashblocks(builder_client)
+            }
+            None => RollupBoostBackend::Rpc(Arc::new(builder_client)),
+        };
+
+        let rollup_boost_server = RollupBoostServer::<RollupBoostBackend>::new(
+            l2_client,
+            backend.into(),
+            self.rollup_boost.initial_execution_mode,
+            self.rollup_boost.block_selection_policy,
+            probes.clone(),
+            self.rollup_boost.external_state_root,
+            self.rollup_boost.ignore_unhealthy_builders,
+        );
+
+        let rollup_boost = Arc::new(rollup_boost_server);
 
         // TODO(@theochap): remove this client, upstream the remaining EngineApiExt methods to the
         // RollupBoostServer
@@ -276,10 +271,9 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
         payload: ExecutionPayloadV3,
         parent_beacon_block_root: B256,
     ) -> TransportResult<PayloadStatus> {
-        let call =
-            self.rollup_boost.server.new_payload_v3(payload, vec![], parent_beacon_block_root);
+        let call = self.rollup_boost.new_payload_v3(payload, vec![], parent_beacon_block_root);
 
-        record_call_time(call, Metrics::NEW_PAYLOAD_METHOD).await.map_err(Into::into)
+        record_call_time(call, Metrics::NEW_PAYLOAD_METHOD).await.map_err(convert_rpc_error)
     }
 
     async fn new_payload_v4(
@@ -287,14 +281,14 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
         payload: OpExecutionPayloadV4,
         parent_beacon_block_root: B256,
     ) -> TransportResult<PayloadStatus> {
-        let call = self.rollup_boost.server.new_payload_v4(
+        let call = self.rollup_boost.new_payload_v4(
             payload.clone(),
             vec![],
             parent_beacon_block_root,
             vec![],
         );
 
-        record_call_time(call, Metrics::NEW_PAYLOAD_METHOD).await.map_err(Into::into)
+        record_call_time(call, Metrics::NEW_PAYLOAD_METHOD).await.map_err(convert_rpc_error)
     }
 
     async fn fork_choice_updated_v2(
@@ -315,10 +309,9 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
         fork_choice_state: ForkchoiceState,
         payload_attributes: Option<OpPayloadAttributes>,
     ) -> TransportResult<ForkchoiceUpdated> {
-        let call =
-            self.rollup_boost.server.fork_choice_updated_v3(fork_choice_state, payload_attributes);
+        let call = self.rollup_boost.fork_choice_updated_v3(fork_choice_state, payload_attributes);
 
-        record_call_time(call, Metrics::FORKCHOICE_UPDATE_METHOD).await.map_err(Into::into)
+        record_call_time(call, Metrics::FORKCHOICE_UPDATE_METHOD).await.map_err(convert_rpc_error)
     }
 
     async fn get_payload_v2(
@@ -337,18 +330,18 @@ impl OpEngineApi<Optimism, Http<HyperAuthClient>> for EngineClient {
         &self,
         payload_id: PayloadId,
     ) -> TransportResult<OpExecutionPayloadEnvelopeV3> {
-        let call = self.rollup_boost.server.get_payload_v3(payload_id);
+        let call = self.rollup_boost.get_payload_v3(payload_id);
 
-        record_call_time(call, Metrics::GET_PAYLOAD_METHOD).await.map_err(Into::into)
+        record_call_time(call, Metrics::GET_PAYLOAD_METHOD).await.map_err(convert_rpc_error)
     }
 
     async fn get_payload_v4(
         &self,
         payload_id: PayloadId,
     ) -> TransportResult<OpExecutionPayloadEnvelopeV4> {
-        let call = self.rollup_boost.server.get_payload_v4(payload_id);
+        let call = self.rollup_boost.get_payload_v4(payload_id);
 
-        record_call_time(call, Metrics::GET_PAYLOAD_METHOD).await.map_err(Into::into)
+        record_call_time(call, Metrics::GET_PAYLOAD_METHOD).await.map_err(convert_rpc_error)
     }
 
     async fn get_payload_bodies_by_hash_v1(
@@ -423,4 +416,15 @@ async fn record_call_time<T, Err>(
         duration.as_secs_f64()
     );
     Ok(result)
+}
+
+/// Converts an RPC error to a TransportErrorKind error.
+fn convert_rpc_error(err: ErrorObject<'_>) -> RpcError<TransportErrorKind, Box<RawValue>> {
+    let data = err.data().and_then(|d| serde_json::from_str(d.get()).ok());
+
+    RpcError::ErrorResp(ErrorPayload {
+        code: err.code() as i64,
+        message: err.message().to_string().into(),
+        data,
+    })
 }
