@@ -93,11 +93,23 @@ impl ConsolidateTask {
                     let total_duration = global_start.elapsed();
 
                     // Apply a transient update to the safe head.
+                    // Update cross_unsafe_head and unsafe_head to maintain the invariant:
+                    // finalized <= safe <= local_safe <= cross_unsafe <= unsafe
+                    // We must also update unsafe_head if block_info is ahead of current unsafe.
+                    let unsafe_update = if block_info.block_info.number >
+                        state.sync_state.unsafe_head().block_info.number
+                    {
+                        Some(block_info)
+                    } else {
+                        None
+                    };
                     state.sync_state = state.sync_state.apply_update(EngineSyncStateUpdate {
+                        unsafe_head: unsafe_update,
                         safe_head: Some(block_info),
                         local_safe_head: Some(block_info),
+                        cross_unsafe_head: Some(block_info),
                         ..Default::default()
-                    });
+                    })?;
 
                     info!(
                         target: "engine",
@@ -113,12 +125,24 @@ impl ConsolidateTask {
                 Ok(block_info) => {
                     let fcu_start = Instant::now();
 
+                    // Update cross_unsafe_head and unsafe_head to maintain the invariant:
+                    // finalized <= safe <= local_safe <= cross_unsafe <= unsafe
+                    // We must also update unsafe_head if block_info is ahead of current unsafe.
+                    let unsafe_update = if block_info.block_info.number >
+                        state.sync_state.unsafe_head().block_info.number
+                    {
+                        Some(block_info)
+                    } else {
+                        None
+                    };
                     SynchronizeTask::new(
                         Arc::clone(&self.client),
                         self.cfg.clone(),
                         EngineSyncStateUpdate {
+                            unsafe_head: unsafe_update,
                             safe_head: Some(block_info),
                             local_safe_head: Some(block_info),
+                            cross_unsafe_head: Some(block_info),
                             ..Default::default()
                         },
                     )

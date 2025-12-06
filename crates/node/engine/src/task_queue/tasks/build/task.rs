@@ -87,25 +87,40 @@ impl BuildTask {
         engine_client: &EngineClient,
         attributes_envelope: OpAttributesWithParent,
     ) -> Result<PayloadId, BuildTaskError> {
-        // Sanity check if the head is behind the finalized head. If it is, this is a critical
-        // error.
-        if state.sync_state.unsafe_head().block_info.number <
-            state.sync_state.finalized_head().block_info.number
-        {
-            return Err(BuildTaskError::EngineBuildError(EngineBuildError::FinalizedAheadOfUnsafe(
-                state.sync_state.unsafe_head().block_info.number,
-                state.sync_state.finalized_head().block_info.number,
-            )));
-        }
-
         // When inserting a payload, we advertise the parent's unsafe head as the current unsafe
-        // head to build on top of.
+        // head to build on top of. Also update cross_unsafe_head to maintain the invariant:
+        // finalized <= safe <= local_safe <= cross_unsafe <= unsafe
+        // If the parent is behind current safe heads (e.g., during reorg), we must also
+        // update local_safe and safe to maintain the invariant.
+        // Validation is performed inside apply_update to prevent invalid states.
+        let parent = attributes_envelope.parent;
+        let parent_number = parent.block_info.number;
+
+        // Update local_safe_head if parent is behind it
+        let local_safe_update =
+            if parent_number < state.sync_state.local_safe_head().block_info.number {
+                Some(parent)
+            } else {
+                None
+            };
+
+        // Update safe_head if parent is behind it
+        let safe_update = if parent_number < state.sync_state.safe_head().block_info.number {
+            Some(parent)
+        } else {
+            None
+        };
+
         let new_forkchoice = state
             .sync_state
             .apply_update(EngineSyncStateUpdate {
-                unsafe_head: Some(attributes_envelope.parent),
+                unsafe_head: Some(parent),
+                cross_unsafe_head: Some(parent),
+                local_safe_head: local_safe_update,
+                safe_head: safe_update,
                 ..Default::default()
             })
+            .map_err(|e| BuildTaskError::EngineBuildError(EngineBuildError::InvalidSyncState(e)))?
             .create_forkchoice_state();
 
         let forkchoice_version = EngineForkchoiceVersion::from_cfg(
