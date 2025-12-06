@@ -40,12 +40,7 @@ mod private {
 
     #[doc(hidden)]
     pub trait ConvertRuint: Copy + Sized {
-        type Ruint: Copy
-            + serde::Serialize
-            + serde::de::DeserializeOwned
-            + TryFrom<Self>
-            + TryInto<Self>
-            + FromStr;
+        type Ruint: Copy + serde::Serialize + TryFrom<Self> + TryInto<Self> + FromStr;
 
         #[inline]
         fn into_ruint(self) -> Self::Ruint {
