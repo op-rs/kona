@@ -107,10 +107,14 @@ The derivation providers include several security mechanisms that should be unde
   - `trust_rpc: true` (default): Skips hash verification for better performance
   - `trust_rpc: false`: Verifies block and header hashes against expected values
 - **Hash Verification**: When `trust_rpc: false`, providers verify that:
-  - Block hashes match the requested hash
-  - Header hashes are correctly computed
+  - Block hashes match the requested hash (see [`AlloyL2ChainProvider::verify_block_hash`][l2_verify] in `crates/providers/providers-alloy/src/l2_chain_provider.rs`)
+  - Header hashes are correctly computed (see [`AlloyChainProvider::verify_header_hash`][l1_verify] in `crates/providers/providers-alloy/src/chain_provider.rs`)
+  - Verification occurs in `header_by_hash`, `block_info_and_transactions_by_hash` (L1), and `block_info_by_id` (L2) methods before caching
 - **JWT Authentication**: L2 providers use JWT secrets for secure communication with execution engines
-- **Cache Security**: LRU caches store blockchain data without additional validation - consider cache poisoning risks
+- **Cache Security**: LRU caches store blockchain data without re-verification when serving cached entries. This means:
+  - Data cached with `trust_rpc: true` will be served from cache even if `trust_rpc: false` is set later
+  - Cache entries bypass hash verification checks that would normally occur on fresh RPC calls
+  - Consider cache poisoning risks if the RPC endpoint is untrusted or if `trust_rpc` settings change during runtime
 
 **Production Recommendations**:
 - Use `trust_rpc: false` for critical production environments
@@ -251,3 +255,5 @@ For more details on the underlying derivation pipeline implementation, see:
 [kd]: https://crates.io/crates/kona-derive
 [na]: /node/design/intro#node-actors
 [rc]: /sdk/protocol/genesis/rollup-config
+[l1_verify]: https://github.com/op-rs/kona/blob/main/crates/providers/providers-alloy/src/chain_provider.rs#L82-L105
+[l2_verify]: https://github.com/op-rs/kona/blob/main/crates/providers/providers-alloy/src/l2_chain_provider.rs#L82-L99
