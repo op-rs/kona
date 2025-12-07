@@ -437,7 +437,7 @@ mod test {
             ),
         };
         let err = decode_deposit(B256::default(), 0, &log).unwrap_err();
-        let bytes = Bytes::from(data.get(0..32).unwrap().to_vec());
+        let bytes = Bytes::copy_from_slice(data.get(0..32).unwrap());
         assert_eq!(err, DepositError::InvalidOpaqueDataOffset(bytes));
     }
 
@@ -458,7 +458,7 @@ mod test {
         let err = decode_deposit(B256::default(), 0, &log).unwrap_err();
         assert_eq!(
             err,
-            DepositError::OpaqueContentOverflow(Bytes::from(data.get(32..64).unwrap().to_vec()))
+            DepositError::OpaqueContentOverflow(Bytes::copy_from_slice(data.get(32..64).unwrap()))
         );
     }
 
@@ -583,7 +583,7 @@ mod test {
         let err = decode_deposit(B256::default(), 0, &log).unwrap_err();
         assert_eq!(
             err,
-            DepositError::InvalidOpaqueDataPadding(Bytes::from(data.get(191..).unwrap().to_vec()))
+            DepositError::InvalidOpaqueDataPadding(Bytes::copy_from_slice(data.get(191..).unwrap()))
         );
     }
 
