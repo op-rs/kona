@@ -15,7 +15,7 @@ concurrency:
 jobs:
   action-tests:
     name: FPP actions (${{ matrix.kind }})
-    runs-on: ubuntu-latest
+    runs-on: kona-8cores
     timeout-minutes: 90
     strategy:
       fail-fast: true
@@ -90,7 +90,7 @@ jobs:
       matrix:
         target: ["native", "asterisc", "cannon"]
         name: ["OP Sepolia (Holocene) - Block #26215604"]
-    runs-on: ubuntu-latest
+    runs-on: kona-8cores
     timeout-minutes: 40
     steps:
       - name: Checkout sources
