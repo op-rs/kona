@@ -158,25 +158,38 @@ impl ConnectionGater {
     /// Extracts the DNS hostname from a [`Multiaddr`] and resolves it to an [`IpAddr`].
     ///
     /// Returns `None` if no DNS component is found or if resolution fails.
+    /// Respects the DNS protocol type: `dns4` only returns IPv4, `dns6` only returns IPv6.
     pub fn resolve_dns_multiaddr(addr: &Multiaddr) -> Option<IpAddr> {
-        let hostname = addr.iter().find_map(|component| match component {
+        // Track which DNS protocol type was used
+        let (hostname, ipv4_only, ipv6_only) = addr.iter().find_map(|component| match component {
             libp2p::multiaddr::Protocol::Dns(h) |
-            libp2p::multiaddr::Protocol::Dns4(h) |
-            libp2p::multiaddr::Protocol::Dns6(h) |
-            libp2p::multiaddr::Protocol::Dnsaddr(h) => Some(h.to_string()),
+            libp2p::multiaddr::Protocol::Dnsaddr(h) => Some((h.to_string(), false, false)),
+            libp2p::multiaddr::Protocol::Dns4(h) => Some((h.to_string(), true, false)),
+            libp2p::multiaddr::Protocol::Dns6(h) => Some((h.to_string(), false, true)),
             _ => None,
         })?;
 
-        debug!(target: "p2p", %hostname, "Resolving DNS hostname");
+        debug!(target: "p2p", %hostname, ipv4_only, ipv6_only, "Resolving DNS hostname");
 
         use std::net::ToSocketAddrs;
         match format!("{hostname}:0").to_socket_addrs() {
-            Ok(mut addrs) => {
-                let ip = addrs.next().map(|socket_addr| socket_addr.ip());
+            Ok(addrs) => {
+                // Filter addresses based on DNS protocol type
+                let ip = addrs
+                    .map(|socket_addr| socket_addr.ip())
+                    .find(|ip| {
+                        if ipv4_only {
+                            ip.is_ipv4()
+                        } else if ipv6_only {
+                            ip.is_ipv6()
+                        } else {
+                            true
+                        }
+                    });
                 if let Some(resolved_ip) = ip {
                     debug!(target: "p2p", %hostname, %resolved_ip, "DNS resolution successful");
                 } else {
-                    warn!(target: "p2p", %hostname, "DNS resolution returned no addresses");
+                    warn!(target: "p2p", %hostname, "DNS resolution returned no matching addresses");
                 }
                 ip
             }
