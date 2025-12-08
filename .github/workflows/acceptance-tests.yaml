@@ -8,7 +8,7 @@ env:
   CARGO_TERM_COLOR: always
 jobs:
   acceptance-tests:
-    runs-on: ubuntu-latest
+    runs-on: kona-8cores
     timeout-minutes: 40
     name: ${{ matrix.devnet-config }}-sysgo-tests
     strategy:
