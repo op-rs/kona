@@ -183,16 +183,16 @@ impl ConnectionGater {
             }
         };
 
-        match ip {
-            Some(resolved_ip) => {
-                debug!(target: "p2p", %hostname, %resolved_ip, "DNS resolution successful");
-                Some(Ok(resolved_ip))
-            }
-            None => {
+        ip.map_or_else(
+            || {
                 warn!(target: "p2p", %hostname, "DNS resolution returned no matching addresses");
                 Some(Err(()))
-            }
-        }
+            },
+            |resolved_ip| {
+                debug!(target: "p2p", %hostname, %resolved_ip, "DNS resolution successful");
+                Some(Ok(resolved_ip))
+            },
+        )
     }
 
     /// Checks if a given [`IpAddr`] is within any of the `blocked_subnets`.
