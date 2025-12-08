@@ -5,7 +5,7 @@ use ipnet::IpNet;
 use libp2p::{Multiaddr, PeerId};
 use std::{
     collections::{HashMap, HashSet},
-    net::IpAddr,
+    net::{IpAddr, ToSocketAddrs},
     time::Duration,
 };
 use tokio::time::Instant;
@@ -142,24 +142,15 @@ impl ConnectionGater {
         })
     }
 
-    /// Returns `true` if the given [`Multiaddr`] contains a DNS-based address.
-    pub fn is_dns_multiaddr(addr: &Multiaddr) -> bool {
-        addr.iter().any(|component| {
-            matches!(
-                component,
-                libp2p::multiaddr::Protocol::Dns(_) |
-                    libp2p::multiaddr::Protocol::Dns4(_) |
-                    libp2p::multiaddr::Protocol::Dns6(_) |
-                    libp2p::multiaddr::Protocol::Dnsaddr(_)
-            )
-        })
-    }
-
-    /// Extracts the DNS hostname from a [`Multiaddr`] and resolves it to an [`IpAddr`].
+    /// Attempts to resolve a DNS-based [`Multiaddr`] to an [`IpAddr`].
     ///
-    /// Returns `None` if no DNS component is found or if resolution fails.
+    /// Returns:
+    /// - `None` if the multiaddr does not contain a DNS component (use [`Self::ip_from_addr`])
+    /// - `Some(Err(()))` if DNS resolution failed
+    /// - `Some(Ok(ip))` if DNS resolution succeeded
+    ///
     /// Respects the DNS protocol type: `dns4` only returns IPv4, `dns6` only returns IPv6.
-    pub fn resolve_dns_multiaddr(addr: &Multiaddr) -> Option<IpAddr> {
+    pub fn try_resolve_dns(addr: &Multiaddr) -> Option<Result<IpAddr, ()>> {
         // Track which DNS protocol type was used
         let (hostname, ipv4_only, ipv6_only) =
             addr.iter().find_map(|component| match component {
@@ -173,11 +164,10 @@ impl ConnectionGater {
 
         debug!(target: "p2p", %hostname, ipv4_only, ipv6_only, "Resolving DNS hostname");
 
-        use std::net::ToSocketAddrs;
-        match format!("{hostname}:0").to_socket_addrs() {
+        let ip = match format!("{hostname}:0").to_socket_addrs() {
             Ok(addrs) => {
                 // Filter addresses based on DNS protocol type
-                let ip = addrs.map(|socket_addr| socket_addr.ip()).find(|ip| {
+                addrs.map(|socket_addr| socket_addr.ip()).find(|ip| {
                     if ipv4_only {
                         ip.is_ipv4()
                     } else if ipv6_only {
@@ -185,17 +175,22 @@ impl ConnectionGater {
                     } else {
                         true
                     }
-                });
-                if let Some(resolved_ip) = ip {
-                    debug!(target: "p2p", %hostname, %resolved_ip, "DNS resolution successful");
-                } else {
-                    warn!(target: "p2p", %hostname, "DNS resolution returned no matching addresses");
-                }
-                ip
+                })
             }
             Err(e) => {
                 warn!(target: "p2p", %hostname, error = %e, "DNS resolution failed");
-                None
+                return Some(Err(()));
+            }
+        };
+
+        match ip {
+            Some(resolved_ip) => {
+                debug!(target: "p2p", %hostname, %resolved_ip, "DNS resolution successful");
+                Some(Ok(resolved_ip))
+            }
+            None => {
+                warn!(target: "p2p", %hostname, "DNS resolution returned no matching addresses");
+                Some(Err(()))
             }
         }
     }
@@ -247,23 +242,20 @@ impl ConnectionGate for ConnectionGater {
         }
 
         // Get IP address - either directly from multiaddr or by resolving DNS.
-        let ip_addr = if Self::is_dns_multiaddr(addr) {
-            match Self::resolve_dns_multiaddr(addr) {
-                Some(ip) => {
-                    debug!(target: "gossip", peer=?addr, resolved_ip=?ip, "Resolved DNS multiaddr");
-                    ip
-                }
-                None => {
-                    // DNS resolution failed - allow the dial, libp2p will handle it.
-                    debug!(target: "gossip", peer=?addr, "DNS resolution failed, allowing dial");
-                    return Ok(());
-                }
+        let ip_addr = match Self::try_resolve_dns(addr) {
+            Some(Ok(ip)) => {
+                debug!(target: "gossip", peer=?addr, resolved_ip=?ip, "Resolved DNS multiaddr");
+                ip
             }
-        } else {
-            Self::ip_from_addr(addr).ok_or_else(|| {
+            Some(Err(())) => {
+                // DNS resolution failed - allow the dial, libp2p will handle it.
+                debug!(target: "gossip", peer=?addr, "DNS resolution failed, allowing dial");
+                return Ok(());
+            }
+            None => Self::ip_from_addr(addr).ok_or_else(|| {
                 warn!(target: "p2p", peer=?addr, "Failed to extract IpAddr from Multiaddr");
                 DialError::InvalidIpAddress { addr: addr.clone() }
-            })?
+            })?,
         };
 
         // If the address is blocked, do not dial.
@@ -446,47 +438,47 @@ fn test_dial_error_handling() {
 fn test_dns_multiaddr_detection() {
     use std::str::FromStr;
 
-    // Test DNS4 multiaddr
+    // Test DNS4 multiaddr (try_resolve_dns returns Some for DNS addresses)
     let dns4_addr = Multiaddr::from_str(
         "/dns4/example.com/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
     )
     .unwrap();
-    assert!(ConnectionGater::is_dns_multiaddr(&dns4_addr));
+    assert!(ConnectionGater::try_resolve_dns(&dns4_addr).is_some());
 
     // Test DNS6 multiaddr
     let dns6_addr = Multiaddr::from_str(
         "/dns6/example.com/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
     )
     .unwrap();
-    assert!(ConnectionGater::is_dns_multiaddr(&dns6_addr));
+    assert!(ConnectionGater::try_resolve_dns(&dns6_addr).is_some());
 
     // Test DNS multiaddr (generic)
     let dns_addr = Multiaddr::from_str(
         "/dns/example.com/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
     )
     .unwrap();
-    assert!(ConnectionGater::is_dns_multiaddr(&dns_addr));
+    assert!(ConnectionGater::try_resolve_dns(&dns_addr).is_some());
 
     // Test dnsaddr multiaddr
     let dnsaddr = Multiaddr::from_str(
         "/dnsaddr/example.com/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
     )
     .unwrap();
-    assert!(ConnectionGater::is_dns_multiaddr(&dnsaddr));
+    assert!(ConnectionGater::try_resolve_dns(&dnsaddr).is_some());
 
-    // Test IP4 multiaddr (should NOT be detected as DNS)
+    // Test IP4 multiaddr (should NOT be detected as DNS - returns None)
     let ip4_addr = Multiaddr::from_str(
         "/ip4/127.0.0.1/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
     )
     .unwrap();
-    assert!(!ConnectionGater::is_dns_multiaddr(&ip4_addr));
+    assert!(ConnectionGater::try_resolve_dns(&ip4_addr).is_none());
 
-    // Test IP6 multiaddr (should NOT be detected as DNS)
+    // Test IP6 multiaddr (should NOT be detected as DNS - returns None)
     let ip6_addr = Multiaddr::from_str(
         "/ip6/::1/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
     )
     .unwrap();
-    assert!(!ConnectionGater::is_dns_multiaddr(&ip6_addr));
+    assert!(ConnectionGater::try_resolve_dns(&ip6_addr).is_none());
 }
 
 #[test]
