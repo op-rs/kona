@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo:rustc-env=KONA_NODE_VERSION_SUFFIX={version_suffix}");
 
     // Set short SHA
-    println!("cargo:rustc-env=VERGEN_GIT_SHA_SHORT={}", &sha[..8]);
+    println!("cargo:rustc-env=VERGEN_GIT_SHA_SHORT={sha_short}");
 
     // Set the build profile
     let out_dir = env::var("OUT_DIR").unwrap();

@@ -4,4 +4,4 @@ mod task;
 pub use task::SealTask;
 
 mod error;
-pub use error::{SealError, SealTaskError};
+pub use error::SealTaskError;

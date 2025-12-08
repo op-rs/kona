@@ -43,7 +43,7 @@ where
         oracle_reader,
         &[precompile.address().as_slice(), &gas_used.to_be_bytes(), input]
     })
-    .map_err(|e| PrecompileError::Other(e.to_string()))?;
+    .map_err(|e| PrecompileError::Other(e.to_string().into()))?;
 
     Ok(PrecompileOutput::new(gas_used, result_data.into()))
 }

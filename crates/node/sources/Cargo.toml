@@ -45,7 +45,6 @@ url.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 rustls.workspace = true
-rustls-pemfile = { workspace = true, features = ["std"] }
 tokio = { workspace = true, features = ["full"] }
 notify.workspace = true
 

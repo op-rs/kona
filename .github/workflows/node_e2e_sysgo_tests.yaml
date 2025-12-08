@@ -8,7 +8,7 @@ env:
   CARGO_TERM_COLOR: always
 jobs:
   node-e2e-sysgo-tests:
-    runs-on: ubuntu-latest
+    runs-on: kona-8cores
     timeout-minutes: 60
     name: ${{ matrix.devnet-config }}-sysgo-tests
     strategy:
@@ -17,19 +17,19 @@ jobs:
         devnet-config: ["simple-kona", "simple-kona-geth", "simple-kona-sequencer", "large-kona-sequencer"]
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           submodules: true
-
-      - uses: ./.github/actions/setup
-        with:
-          channel: stable
-          components: llvm-tools-preview
 
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
           large-packages: false
+
+      - uses: ./.github/actions/setup
+        with:
+          channel: stable
+          components: llvm-tools-preview
 
       - uses: taiki-e/install-action@just
 
@@ -42,14 +42,23 @@ jobs:
         with:
           # Semantic version range syntax or exact version of Go
           go-version: '1.23.8'
-          cache-dependency-path: "**/go.sum"
+          cache-dependency-path: |
+            tests/go.sum
+            tests/optimism/go.sum
 
-      - name: common tests for node with sysgo orchestrator and report coverage
+      - name: run common tests for node with sysgo orchestrator and report coverage
         run: |
+          echo "Building op-reth..."
+          just build-reth
+          echo "Unzipping contract artifacts..."
+          just unzip-contract-artifacts
+          echo "Building kona-node with llvm-cov..."
           source <(cargo llvm-cov show-env --export-prefix)
-          just test-e2e-sysgo node node/common "${{ matrix.devnet-config }}"
+          just build-kona
+          echo "Running tests..."
+          just test-e2e-sysgo-run node node/common "${{ matrix.devnet-config }}"
           cargo llvm-cov report --lcov --output-path node_common_cov.lcov
-      
+
       - name: Upload coverage to codecov.io
         uses: codecov/codecov-action@v5
         with:
@@ -63,8 +72,10 @@ jobs:
       
       - name: reorg tests for node with sysgo orchestrator and report coverage
         run: |
+          echo "Building kona-node with llvm-cov..."
           source <(cargo llvm-cov show-env --export-prefix)
-          just test-e2e-sysgo node node/reorgs "${{ matrix.devnet-config }}"
+          just build-kona
+          just test-e2e-sysgo-run node node/reorgs "${{ matrix.devnet-config }}"
           cargo llvm-cov report --lcov --output-path node_reorgs_cov.lcov
 
       - name: Upload coverage to codecov.io
@@ -84,19 +95,19 @@ jobs:
     name: sysgo-restart-tests
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           submodules: true
-
-      - uses: ./.github/actions/setup
-        with:
-          channel: stable
-          components: llvm-tools-preview
 
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
           large-packages: false
+
+      - uses: ./.github/actions/setup
+        with:
+          channel: stable
+          components: llvm-tools-preview
 
       - uses: taiki-e/install-action@just
 
@@ -109,12 +120,20 @@ jobs:
         with:
           # Semantic version range syntax or exact version of Go
           go-version: '1.23.8'
-          cache-dependency-path: "**/go.sum"
-
+          cache-dependency-path: |
+            tests/go.sum
+            tests/optimism/go.sum
 
       - name: restart tests for node with sysgo orchestrator and report coverage
         run: |
+          echo "Building op-reth..."
+          just build-reth
+          echo "Unzipping contract artifacts..."
+          just unzip-contract-artifacts
+          echo "Building kona-node with llvm-cov..."
           source <(cargo llvm-cov show-env --export-prefix)
+          just build-kona
+          echo "Running tests..."
           just test-e2e-sysgo node node/restart 
           cargo llvm-cov report --lcov --output-path node_restart_cov.lcov
 

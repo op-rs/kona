@@ -38,6 +38,7 @@ tabled = { workspace = true, features = ["derive"], optional = true }
 
 [build-dependencies]
 toml = { workspace = true, features = ["parse"] }
+serde = { workspace = true }
 serde_json = { workspace = true, features = ["raw_value"] }
 kona-genesis = { workspace = true, features = ["serde"] }
 

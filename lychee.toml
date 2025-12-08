@@ -1,4 +1,4 @@
-# Config example at: https://lychee.cli.rs/usage/config/
+# Config example at: https://github.com/lycheeverse/lychee/blob/master/lychee.example.toml
 
 verbose = "debug"
 
