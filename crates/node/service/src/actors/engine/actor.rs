@@ -2,6 +2,7 @@
 
 use super::{BlockEngineResult, EngineError, L2Finalizer};
 use crate::{BlockEngineError, NodeActor, NodeMode, actors::CancellableContext};
+use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::{JwtSecret, PayloadId};
 use async_trait::async_trait;
 use futures::{FutureExt, future::OptionFuture};
@@ -9,12 +10,13 @@ use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
     BuildTask, ConsolidateTask, Engine, EngineClient, EngineClientBuilder,
     EngineClientBuilderError, EngineQueries, EngineState as InnerEngineState, EngineTask,
-    EngineTaskError, EngineTaskErrorSeverity, InsertTask, RollupBoostServerArgs, SealTask,
-    SealTaskError,
+    EngineTaskError, EngineTaskErrorSeverity, InsertTask, OpEngineClient, RollupBoostServer,
+    RollupBoostServerArgs, SealTask, SealTaskError,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use kona_rpc::{RollupBoostAdminQuery, RollupBoostHealthQuery};
+use op_alloy_network::Optimism;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{fmt::Debug, sync::Arc, time::Duration};
 use tokio::{
@@ -176,7 +178,12 @@ pub struct EngineConfig {
 impl EngineConfig {
     /// Launches the [`Engine`]. Returns the [`Engine`] and a channel to receive engine state
     /// updates.
-    fn build_state(self) -> Result<EngineActorState, EngineClientBuilderError> {
+    fn build_state(
+        self,
+    ) -> Result<
+        EngineActorState<OpEngineClient<RootProvider, RootProvider<Optimism>>>,
+        EngineClientBuilderError,
+    > {
         let client = EngineClientBuilder {
             builder: self.builder_url.clone(),
             builder_jwt: self.builder_jwt_secret,
@@ -205,13 +212,13 @@ impl EngineConfig {
 
 /// The configuration for the [`EngineActor`].
 #[derive(Debug)]
-pub(super) struct EngineActorState {
+pub(super) struct EngineActorState<EngineClient_: EngineClient> {
     /// The [`RollupConfig`] used to build tasks.
     pub(super) rollup: Arc<RollupConfig>,
-    /// An [`EngineClient`] used for creating engine tasks.
-    pub(super) client: Arc<EngineClient>,
+    /// An [`OpEngineClient`] used for creating engine tasks.
+    pub(super) client: Arc<EngineClient_>,
     /// The [`Engine`] task queue.
-    pub(super) engine: Engine,
+    pub(super) engine: Engine<EngineClient_>,
 }
 
 /// The communication context used by the engine actor.
@@ -312,19 +319,19 @@ impl EngineActor {
     }
 }
 
-impl EngineActorState {
+impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
     /// Starts a task to handle engine queries.
     fn start_query_task(
         &self,
         mut inbound_query_channel: tokio::sync::mpsc::Receiver<EngineQueries>,
         mut rollup_boost_admin_query_rx: tokio::sync::mpsc::Receiver<RollupBoostAdminQuery>,
         mut rollup_boost_health_query_rx: tokio::sync::mpsc::Receiver<RollupBoostHealthQuery>,
+        rollup_boost: Arc<RollupBoostServer>,
     ) -> JoinHandle<Result<(), EngineError>> {
         let state_recv = self.engine.state_subscribe();
         let queue_length_recv = self.engine.queue_length_subscribe();
         let engine_client = self.client.clone();
         let rollup_config = self.rollup.clone();
-        let rollup_boost = self.client.rollup_boost.clone();
 
         tokio::spawn(async move {
             loop {
@@ -536,6 +543,7 @@ impl NodeActor for EngineActor {
                 self.inbound_queries,
                 self.rollup_boost_admin_query_rx,
                 self.rollup_boost_health_query_rx,
+                state.client.rollup_boost.clone(),
             )
             .with_cancellation_token(&cancellation)
             .then(async |result| {

@@ -1,6 +1,6 @@
 //! The [`L2Finalizer`].
 
-use kona_engine::{EngineTask, FinalizeTask};
+use kona_engine::{EngineClient, EngineTask, FinalizeTask};
 use kona_protocol::{BlockInfo, OpAttributesWithParent};
 use std::collections::BTreeMap;
 use tokio::sync::watch;
@@ -59,7 +59,10 @@ impl L2Finalizer {
 
     /// Attempts to finalize any L2 blocks that the finalizer knows about and are contained within
     /// the new finalized L1 chain.
-    pub(super) async fn try_finalize_next(&mut self, engine_state: &mut EngineActorState) {
+    pub(super) async fn try_finalize_next<EngineClient_: EngineClient>(
+        &mut self,
+        engine_state: &mut EngineActorState<EngineClient_>,
+    ) {
         // If there is no finalized L1 block available in the watch channel, do nothing.
         let Some(new_finalized_l1) = *self.finalized_l1_block_rx.borrow() else {
             return;
