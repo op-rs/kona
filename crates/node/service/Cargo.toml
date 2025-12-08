@@ -52,7 +52,6 @@ libp2p.workspace = true
 libp2p-stream.workspace = true
 discv5.workspace = true
 futures.workspace = true
-ethereum_ssz.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
 tokio-util.workspace = true
