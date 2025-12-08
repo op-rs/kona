@@ -22,22 +22,29 @@ use tokio_util::sync::CancellationToken;
 
 const DERIVATION_PROVIDER_CACHE_SIZE: usize = 1024;
 
+/// The configuration for the L1 chain.
+#[derive(Debug, Clone)]
+pub struct L1Config {
+    /// The L1 chain configuration.
+    pub chain_config: Arc<L1ChainConfig>,
+    /// Whether to trust the L1 RPC.
+    pub trust_rpc: bool,
+    /// The L1 beacon client.
+    pub beacon_client: OnlineBeaconClient,
+    /// The L1 engine provider.
+    pub engine_provider: RootProvider,
+}
+
 /// The standard implementation of the [RollupNode] service, using the governance approved OP Stack
 /// configuration of components.
 #[derive(Debug)]
 pub struct RollupNode {
     /// The rollup configuration.
     pub(crate) config: Arc<RollupConfig>,
-    /// The L1 chain configuration.
-    pub(crate) l1_config: Arc<L1ChainConfig>,
+    /// The L1 configuration.
+    pub(crate) l1_config: L1Config,
     /// The interop mode for the node.
     pub(crate) interop_mode: InteropMode,
-    /// The L1 EL provider.
-    pub(crate) l1_provider: RootProvider,
-    /// Whether to trust the L1 RPC.
-    pub(crate) l1_trust_rpc: bool,
-    /// The L1 beacon API.
-    pub(crate) l1_beacon: OnlineBeaconClient,
     /// The L2 EL provider.
     pub(crate) l2_provider: RootProvider<Optimism>,
     /// Whether to trust the L2 RPC.
@@ -60,19 +67,22 @@ impl RollupNode {
 
     /// Returns a DA watcher builder for the node.
     fn da_watcher_builder(&self) -> L1WatcherRpcState {
-        L1WatcherRpcState { rollup: self.config.clone(), l1_provider: self.l1_provider.clone() }
+        L1WatcherRpcState {
+            rollup: self.config.clone(),
+            l1_provider: self.l1_config.engine_provider.clone(),
+        }
     }
 
     /// Returns a derivation builder for the node.
     fn derivation_builder(&self) -> DerivationBuilder {
         DerivationBuilder {
-            l1_provider: self.l1_provider.clone(),
-            l1_trust_rpc: self.l1_trust_rpc,
-            l1_beacon: self.l1_beacon.clone(),
+            l1_provider: self.l1_config.engine_provider.clone(),
+            l1_trust_rpc: self.l1_config.trust_rpc,
+            l1_beacon: self.l1_config.beacon_client.clone(),
             l2_provider: self.l2_provider.clone(),
             l2_trust_rpc: self.l2_trust_rpc,
             rollup_config: self.config.clone(),
-            l1_config: self.l1_config.clone(),
+            l1_config: self.l1_config.chain_config.clone(),
             interop_mode: self.interop_mode,
         }
     }
@@ -97,9 +107,9 @@ impl RollupNode {
         &self,
     ) -> StatefulAttributesBuilder<AlloyChainProvider, AlloyL2ChainProvider> {
         let l1_derivation_provider = AlloyChainProvider::new_with_trust(
-            self.l1_provider.clone(),
+            self.l1_config.engine_provider.clone(),
             DERIVATION_PROVIDER_CACHE_SIZE,
-            self.l1_trust_rpc,
+            self.l1_config.trust_rpc,
         );
         let l2_derivation_provider = AlloyL2ChainProvider::new_with_trust(
             self.l2_provider.clone(),
@@ -110,7 +120,7 @@ impl RollupNode {
 
         StatefulAttributesBuilder::new(
             self.config.clone(),
-            self.l1_config.clone(),
+            self.l1_config.chain_config.clone(),
             l2_derivation_provider,
             l1_derivation_provider,
         )
@@ -212,7 +222,7 @@ impl RollupNode {
                 let cfg = self.sequencer_config.clone();
 
                 let l1_provider = DelayedL1OriginSelectorProvider::new(
-                    self.l1_provider.clone(),
+                    self.l1_config.engine_provider.clone(),
                     l1_head_updates_tx.subscribe(),
                     cfg.l1_conf_delay,
                 );

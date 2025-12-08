@@ -16,7 +16,7 @@ use clap::Parser;
 use kona_cli::{LogConfig, MetricsArgs};
 use kona_engine::{EngineClient, HyperAuthClient};
 use kona_genesis::{L1ChainConfig, RollupConfig};
-use kona_node_service::{EngineConfig, NodeMode, RollupNodeBuilder};
+use kona_node_service::{EngineConfig, L1ConfigBuilder, NodeMode, RollupNodeBuilder};
 use kona_registry::{L1Config, scr_rollup_config_by_alloy_ident};
 use op_alloy_network::Optimism;
 use op_alloy_provider::ext::engine::OpEngineApi;
@@ -280,7 +280,12 @@ impl NodeCommand {
             info!(target: "rollup_node", "{hf}");
         }
 
-        let l1_cfg = self.get_l1_config(cfg.l1_chain_id)?;
+        let l1_config = L1ConfigBuilder {
+            chain_config: self.get_l1_config(cfg.l1_chain_id)?,
+            trust_rpc: self.l1_rpc_args.l1_trust_rpc,
+            beacon: self.l1_rpc_args.l1_beacon.clone(),
+            rpc_url: self.l1_rpc_args.l1_eth_rpc.clone(),
+        };
 
         // If metrics are enabled, initialize the global cli metrics.
         args.metrics.enabled.then(|| init_rollup_config_metrics(&cfg));
@@ -304,15 +309,13 @@ impl NodeCommand {
             l2_jwt_secret: jwt_secret,
             l2_timeout: Duration::from_millis(self.l2_client_args.l2_engine_timeout),
             l1_url: self.l1_rpc_args.l1_eth_rpc.clone(),
-            l1_beacon: self.l1_rpc_args.l1_beacon.clone(),
             mode: self.node_mode,
             rollup_boost: self.rollup_boost_flags.as_rollup_boost_args(),
         };
 
         RollupNodeBuilder::new(
             cfg,
-            l1_cfg,
-            self.l1_rpc_args.l1_trust_rpc,
+            l1_config,
             self.l2_client_args.l2_trust_rpc,
             engine_config,
             p2p_config,
