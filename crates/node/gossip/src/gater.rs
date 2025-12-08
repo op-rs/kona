@@ -161,13 +161,15 @@ impl ConnectionGater {
     /// Respects the DNS protocol type: `dns4` only returns IPv4, `dns6` only returns IPv6.
     pub fn resolve_dns_multiaddr(addr: &Multiaddr) -> Option<IpAddr> {
         // Track which DNS protocol type was used
-        let (hostname, ipv4_only, ipv6_only) = addr.iter().find_map(|component| match component {
-            libp2p::multiaddr::Protocol::Dns(h) |
-            libp2p::multiaddr::Protocol::Dnsaddr(h) => Some((h.to_string(), false, false)),
-            libp2p::multiaddr::Protocol::Dns4(h) => Some((h.to_string(), true, false)),
-            libp2p::multiaddr::Protocol::Dns6(h) => Some((h.to_string(), false, true)),
-            _ => None,
-        })?;
+        let (hostname, ipv4_only, ipv6_only) =
+            addr.iter().find_map(|component| match component {
+                libp2p::multiaddr::Protocol::Dns(h) | libp2p::multiaddr::Protocol::Dnsaddr(h) => {
+                    Some((h.to_string(), false, false))
+                }
+                libp2p::multiaddr::Protocol::Dns4(h) => Some((h.to_string(), true, false)),
+                libp2p::multiaddr::Protocol::Dns6(h) => Some((h.to_string(), false, true)),
+                _ => None,
+            })?;
 
         debug!(target: "p2p", %hostname, ipv4_only, ipv6_only, "Resolving DNS hostname");
 
@@ -175,17 +177,15 @@ impl ConnectionGater {
         match format!("{hostname}:0").to_socket_addrs() {
             Ok(addrs) => {
                 // Filter addresses based on DNS protocol type
-                let ip = addrs
-                    .map(|socket_addr| socket_addr.ip())
-                    .find(|ip| {
-                        if ipv4_only {
-                            ip.is_ipv4()
-                        } else if ipv6_only {
-                            ip.is_ipv6()
-                        } else {
-                            true
-                        }
-                    });
+                let ip = addrs.map(|socket_addr| socket_addr.ip()).find(|ip| {
+                    if ipv4_only {
+                        ip.is_ipv4()
+                    } else if ipv6_only {
+                        ip.is_ipv6()
+                    } else {
+                        true
+                    }
+                });
                 if let Some(resolved_ip) = ip {
                     debug!(target: "p2p", %hostname, %resolved_ip, "DNS resolution successful");
                 } else {
