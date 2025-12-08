@@ -9,7 +9,7 @@ pub fn test_block_info(number: u64) -> L2BlockInfo {
             number,
             hash: B256::random(),
             parent_hash: B256::random(),
-            timestamp: 1000 + (number * 2),
+            timestamp: number * 2,
         },
         l1_origin: BlockNumHash::default(),
         seq_num: 0,

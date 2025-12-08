@@ -1,38 +1,128 @@
 //! Tests for BuildTask::start_build
 
-use alloy_primitives::B256;
-use alloy_rpc_types_engine::{ForkchoiceUpdated, PayloadId, PayloadStatus, PayloadStatusEnum};
-use kona_genesis::RollupConfig;
-use std::sync::Arc;
-
 use crate::{
-    BuildTask,
+    BuildTask, BuildTaskError, EngineBuildError, EngineClient, EngineForkchoiceVersion,
+    EngineState,
     test_utils::{
-        TestAttributesBuilder, TestEngineStateBuilder, test_block_info, test_engine_client_builder,
+        MockEngineClientBuilder, TestAttributesBuilder, TestEngineStateBuilder, test_block_info,
+        test_engine_client_builder,
     },
 };
+use alloy_primitives::FixedBytes;
+use alloy_rpc_types_engine::{ForkchoiceUpdated, PayloadId, PayloadStatus, PayloadStatusEnum};
+use kona_genesis::RollupConfig;
+use kona_protocol::OpAttributesWithParent;
+use rstest::rstest;
+use std::sync::Arc;
+use thiserror::Error;
 
-#[tokio::test]
-async fn test_start_build_happy_path() {
-    // Setup: Create a mock engine client that will return a successful forkchoice update
-    let payload_id = PayloadId::new([1u8; 8]);
-    let forkchoice_updated = ForkchoiceUpdated {
-        payload_status: PayloadStatus {
-            status: PayloadStatusEnum::Valid,
-            latest_valid_hash: Some(B256::ZERO),
+fn fcu_for_payload(payload_id: Option<PayloadId>, status: PayloadStatusEnum) -> ForkchoiceUpdated {
+    ForkchoiceUpdated {
+        payload_status: PayloadStatus { status, latest_valid_hash: Some(FixedBytes([2u8; 32])) },
+        payload_id,
+    }
+}
+
+fn configure_fcu(
+    b: MockEngineClientBuilder,
+    fcu_version: EngineForkchoiceVersion,
+    fcu_response: ForkchoiceUpdated,
+    cfg: &mut RollupConfig,
+    attributes_timestamp: u64,
+) -> MockEngineClientBuilder {
+    match fcu_version {
+        EngineForkchoiceVersion::V2 => {
+            // Ecotone not yet active
+            cfg.hardforks.ecotone_time = Some(attributes_timestamp + 1);
+            b.with_fork_choice_updated_v2_response(fcu_response)
+        }
+        EngineForkchoiceVersion::V3 => {
+            // Ecotone is active
+            cfg.hardforks.ecotone_time = Some(attributes_timestamp);
+            b.with_fork_choice_updated_v3_response(fcu_response)
+        }
+    }
+}
+
+#[derive(Debug, Error, PartialEq, Eq)]
+enum TestErr {
+    #[error("AttributesInsertionFailed.")]
+    AttributesInsertionFailed,
+    #[error("EngineSyncing.")]
+    EngineSyncing,
+    #[error("FinalizedAheadOfUnsafe.")]
+    FinalizedAheadOfUnsafe,
+    #[error("InvalidPayload.")]
+    InvalidPayload,
+    #[error("MissingPayloadId.")]
+    MissingPayloadId,
+    #[error("UnexpectedPayloadStatus.")]
+    Unexpected,
+    #[error("MpscSend.")]
+    MpscSend,
+}
+
+// Wraps real errors, ignoring details so we can easily match on results.
+async fn wrapped_start_build<EngineClient_: EngineClient>(
+    task: BuildTask<EngineClient_>,
+    state: &EngineState,
+    engine_client: &EngineClient_,
+    attributes_envelope: OpAttributesWithParent,
+) -> Result<PayloadId, TestErr> {
+    match task.start_build(state, engine_client, attributes_envelope).await {
+        Ok(payload_id) => Ok(payload_id),
+        Err(BuildTaskError::EngineBuildError(e)) => match e {
+            EngineBuildError::AttributesInsertionFailed(_) => {
+                Err(TestErr::AttributesInsertionFailed)
+            }
+            EngineBuildError::EngineSyncing => Err(TestErr::EngineSyncing),
+            EngineBuildError::FinalizedAheadOfUnsafe(_, _) => Err(TestErr::FinalizedAheadOfUnsafe),
+            EngineBuildError::InvalidPayload(_) => Err(TestErr::InvalidPayload),
+            EngineBuildError::MissingPayloadId => Err(TestErr::MissingPayloadId),
+            EngineBuildError::UnexpectedPayloadStatus(_) => Err(TestErr::Unexpected),
         },
-        payload_id: Some(payload_id),
-    };
+        Err(BuildTaskError::MpscSend(_)) => Err(TestErr::MpscSend),
+    }
+}
 
-    // Use v2 because the default RollupConfig will trigger v2 for these timestamps
-    let client = test_engine_client_builder()
-        .with_fork_choice_updated_v2_response(forkchoice_updated)
-        .build();
+#[rstest]
+#[case::success(Some(PayloadStatusEnum::Valid), true, None)]
+#[case::missing_id(Some(PayloadStatusEnum::Valid), false, Some(TestErr::MissingPayloadId))]
+#[case::fcu_fail(None, false, Some(TestErr::AttributesInsertionFailed))]
+#[case::fcu_status_fail(Some(PayloadStatusEnum::Invalid{validation_error: "".to_string()}), false, Some(TestErr::InvalidPayload))]
+#[case::fcu_status_fail(Some(PayloadStatusEnum::Syncing), false, Some(TestErr::EngineSyncing))]
+#[case::fcu_status_fail(Some(PayloadStatusEnum::Accepted), false, Some(TestErr::Unexpected))]
+#[tokio::test]
+async fn test_start_build_fcu_variants(
+    // NB: none = failure
+    #[case] fcu_status: Option<PayloadStatusEnum>,
+    // NB: none = failure
+    #[case] payload_id_present: bool,
+    // NB: none = success
+    #[case] expected_err: Option<TestErr>,
+    #[values(EngineForkchoiceVersion::V2, EngineForkchoiceVersion::V3)]
+    fcu_version: EngineForkchoiceVersion,
+) {
+    let payload_id = if payload_id_present { Some(PayloadId::new([1u8; 8])) } else { None };
 
-    // Setup: Create an engine state with proper block hierarchy
-    // unsafe_head (block 1) should be at or ahead of finalized_head (block 0)
     let parent_block = test_block_info(0);
     let unsafe_block = test_block_info(1);
+    let attributes_timestamp = unsafe_block.block_info.timestamp;
+
+    let mut cfg = RollupConfig::default();
+
+    // Configure client with FCU response. If none, it will err on call, which is also a test case.
+    let engine_client = fcu_status
+        .map_or(test_engine_client_builder(), |status| {
+            configure_fcu(
+                test_engine_client_builder(),
+                fcu_version,
+                fcu_for_payload(payload_id, status),
+                &mut cfg,
+                attributes_timestamp,
+            )
+        })
+        .build();
 
     let state = TestEngineStateBuilder::new()
         .with_unsafe_head(unsafe_block)
@@ -40,24 +130,22 @@ async fn test_start_build_happy_path() {
         .with_finalized_head(parent_block)
         .build();
 
-    // Setup: Create attributes for building block 1
     let attributes = TestAttributesBuilder::new()
         .with_parent(parent_block)
-        .with_timestamp(unsafe_block.block_info.timestamp)
+        .with_timestamp(attributes_timestamp)
         .build();
 
-    // Setup: Create the build task
-    let task = BuildTask::new(
-        Arc::new(client.clone()),
-        Arc::new(RollupConfig::default()),
-        attributes.clone(),
-        None,
-    );
+    let task =
+        BuildTask::new(Arc::new(engine_client.clone()), Arc::new(cfg), attributes.clone(), None);
 
     // Execute: Call start_build
-    let result = task.start_build(&state, &client, attributes).await;
+    let result = wrapped_start_build(task, &state, &engine_client, attributes).await;
 
-    // Assert: The build should succeed and return the expected payload ID
-    assert!(result.is_ok(), "start_build should succeed: {:?}", result.err());
-    assert_eq!(result.unwrap(), payload_id, "Should return the correct payload ID");
+    if expected_err.is_some() {
+        assert_eq!(expected_err, result.err());
+    } else {
+        assert!(result.is_ok());
+        assert!(payload_id.is_some(), "Payload id none when it should be some.");
+        assert_eq!(result.unwrap(), payload_id.unwrap(), "Should return the correct payload ID");
+    }
 }
