@@ -7,4 +7,4 @@ mod error;
 pub use error::{BuildTaskError, EngineBuildError};
 
 #[cfg(test)]
-mod tests;
+mod task_test;

@@ -1,8 +1,8 @@
-//! Tests for BuildTask::start_build
+//! Tests for BuildTask::execute
 
 use crate::{
     BuildTask, BuildTaskError, EngineBuildError, EngineClient, EngineForkchoiceVersion,
-    EngineState,
+    EngineState, EngineTaskExt,
     test_utils::{
         MockEngineClientBuilder, TestAttributesBuilder, TestEngineStateBuilder, test_block_info,
         test_engine_client_builder,
@@ -11,10 +11,10 @@ use crate::{
 use alloy_primitives::FixedBytes;
 use alloy_rpc_types_engine::{ForkchoiceUpdated, PayloadId, PayloadStatus, PayloadStatusEnum};
 use kona_genesis::RollupConfig;
-use kona_protocol::OpAttributesWithParent;
 use rstest::rstest;
 use std::sync::Arc;
 use thiserror::Error;
+use tokio::sync::mpsc;
 
 fn fcu_for_payload(payload_id: Option<PayloadId>, status: PayloadStatusEnum) -> ForkchoiceUpdated {
     ForkchoiceUpdated {
@@ -63,13 +63,11 @@ enum TestErr {
 }
 
 // Wraps real errors, ignoring details so we can easily match on results.
-async fn wrapped_start_build<EngineClient_: EngineClient>(
-    task: BuildTask<EngineClient_>,
-    state: &EngineState,
-    engine_client: &EngineClient_,
-    attributes_envelope: OpAttributesWithParent,
+async fn wrapped_execute<EngineClient_: EngineClient>(
+    task: &mut BuildTask<EngineClient_>,
+    state: &mut EngineState,
 ) -> Result<PayloadId, TestErr> {
-    match task.start_build(state, engine_client, attributes_envelope).await {
+    match task.execute(state).await {
         Ok(payload_id) => Ok(payload_id),
         Err(BuildTaskError::EngineBuildError(e)) => match e {
             EngineBuildError::AttributesInsertionFailed(_) => {
@@ -93,13 +91,14 @@ async fn wrapped_start_build<EngineClient_: EngineClient>(
 #[case::fcu_status_fail(Some(PayloadStatusEnum::Syncing), false, Some(TestErr::EngineSyncing))]
 #[case::fcu_status_fail(Some(PayloadStatusEnum::Accepted), false, Some(TestErr::Unexpected))]
 #[tokio::test]
-async fn test_start_build_fcu_variants(
+async fn test_execute_variants(
     // NB: none = failure
     #[case] fcu_status: Option<PayloadStatusEnum>,
     // NB: none = failure
     #[case] payload_id_present: bool,
     // NB: none = success
     #[case] expected_err: Option<TestErr>,
+    #[values(true, false)] with_channel: bool,
     #[values(EngineForkchoiceVersion::V2, EngineForkchoiceVersion::V3)]
     fcu_version: EngineForkchoiceVersion,
 ) {
@@ -124,22 +123,28 @@ async fn test_start_build_fcu_variants(
         })
         .build();
 
-    let state = TestEngineStateBuilder::new()
-        .with_unsafe_head(unsafe_block)
-        .with_safe_head(parent_block)
-        .with_finalized_head(parent_block)
-        .build();
-
     let attributes = TestAttributesBuilder::new()
         .with_parent(parent_block)
         .with_timestamp(attributes_timestamp)
         .build();
 
-    let task =
-        BuildTask::new(Arc::new(engine_client.clone()), Arc::new(cfg), attributes.clone(), None);
+    let (tx, mut rx) = mpsc::channel(1);
 
-    // Execute: Call start_build
-    let result = wrapped_start_build(task, &state, &engine_client, attributes).await;
+    let mut task = BuildTask::new(
+        Arc::new(engine_client.clone()),
+        Arc::new(cfg),
+        attributes.clone(),
+        if with_channel { Some(tx) } else { None },
+    );
+
+    let mut state = TestEngineStateBuilder::new()
+        .with_unsafe_head(unsafe_block)
+        .with_safe_head(parent_block)
+        .with_finalized_head(parent_block)
+        .build();
+
+    // Execute: Call execute
+    let result = wrapped_execute(&mut task, &mut state).await;
 
     if expected_err.is_some() {
         assert_eq!(expected_err, result.err());
@@ -147,5 +152,16 @@ async fn test_start_build_fcu_variants(
         assert!(result.is_ok());
         assert!(payload_id.is_some(), "Payload id none when it should be some.");
         assert_eq!(result.unwrap(), payload_id.unwrap(), "Should return the correct payload ID");
+
+        // test channel payload send
+        if task.payload_id_tx.is_some() {
+            let res = rx.recv().await;
+            assert!(res.is_some(), "channel result is None");
+            assert_eq!(
+                res.unwrap(),
+                payload_id.unwrap(),
+                "channel should have received correct payload id"
+            );
+        }
     }
 }
