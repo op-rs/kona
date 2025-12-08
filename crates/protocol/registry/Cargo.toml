@@ -37,7 +37,7 @@ lazy_static = { workspace = true, features = ["spin_no_std"] }
 tabled = { workspace = true, features = ["derive"], optional = true }
 
 [build-dependencies]
-toml = { workspace = true, features = ["parse"] }
+toml = { workspace = true, features = ["parse", "serde"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["raw_value"] }
 kona-genesis = { workspace = true, features = ["serde"] }
