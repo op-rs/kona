@@ -10,7 +10,9 @@
 extern crate tracing;
 
 mod service;
-pub use service::{InteropMode, NodeMode, RollupNode, RollupNodeBuilder};
+pub use service::{
+    InteropMode, L1Config, L1ConfigBuilder, NodeMode, RollupNode, RollupNodeBuilder,
+};
 
 mod actors;
 pub use actors::{
