@@ -228,7 +228,7 @@ brotli = { version = "8.0.1", default-features = false }
 
 # Networking
 snap = "1.1.1"
-discv5 = "0.9.1"
+discv5 = "0.10.2"
 libp2p = "0.56.0"
 libp2p-stream = "0.4.0-alpha"
 libp2p-identity = "0.2.11"
