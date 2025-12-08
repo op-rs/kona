@@ -89,6 +89,23 @@ Returns whether the conductor is enabled.
 
 **Note**: This method will return a "Method not found" error if the node is running in validator mode (sequencer not enabled).
 
+## `admin_adminRecoverMode`
+
+Returns whether the sequencer is currently in recovery mode.
+
+| Client | Method invocation                                      |
+| ------ | ------------------------------------------------------ |
+| RPC    | `{"method": "admin_adminRecoverMode","params":[]}`     |
+
+### Example
+
+```js
+// > {"jsonrpc":"2.0","id":1,"method":"admin_adminRecoverMode","params":[]}
+{"jsonrpc":"2.0","id":1,"result":true}
+```
+
+**Note**: This method will return a "Method not found" error if the node is running in validator mode (sequencer not enabled).
+
 ## `admin_setRecoverMode`
 
 Sets the recovery mode for the sequencer.
@@ -126,3 +143,58 @@ Overrides the leader in the conductor.
 ```
 
 **Note**: This method will return a "Method not found" error if the node is running in validator mode (sequencer not enabled).
+
+## `admin_resetDerivationPipeline`
+
+Resets the L2 derivation pipeline.
+
+| Client | Method invocation                                          |
+| ------ | ---------------------------------------------------------- |
+| RPC    | `{"method": "admin_resetDerivationPipeline","params":[]}`  |
+
+### Example
+
+```js
+// > {"jsonrpc":"2.0","id":1,"method":"admin_resetDerivationPipeline","params":[]}
+{"jsonrpc":"2.0","id":1,"result":null}
+```
+
+**Note**: This method will return a "Method not found" error if the node is running in validator mode (sequencer not enabled).
+
+## `admin_setExecutionMode`
+
+Sets the rollup boost execution mode.
+
+| Client | Method invocation                                                                 |
+| ------ | --------------------------------------------------------------------------------- |
+| RPC    | `{"method": "admin_setExecutionMode","params":[{"execution_mode":"...mode..."}]}` |
+
+### Parameters
+
+- `execution_mode` (`ExecutionMode`): The execution mode to set for rollup boost.
+
+### Example
+
+```js
+// > {"jsonrpc":"2.0","id":1,"method":"admin_setExecutionMode","params":[{"execution_mode":"...mode..."}]}
+{"jsonrpc":"2.0","id":1,"result":{"execution_mode":"...mode..."}}
+```
+
+**Note**: This method will return a "Method not found" error if rollup boost is not enabled.
+
+## `admin_getExecutionMode`
+
+Returns the current rollup boost execution mode.
+
+| Client | Method invocation                                      |
+| ------ | ------------------------------------------------------ |
+| RPC    | `{"method": "admin_getExecutionMode","params":[]}`     |
+
+### Example
+
+```js
+// > {"jsonrpc":"2.0","id":1,"method":"admin_getExecutionMode","params":[]}
+{"jsonrpc":"2.0","id":1,"result":{"execution_mode":"...mode..."}}
+```
+
+**Note**: This method will return a "Method not found" error if rollup boost is not enabled.
