@@ -98,7 +98,7 @@ pub struct OnlineBeaconClient {
 }
 
 impl OnlineBeaconClient {
-    /// Creates a new [OnlineBeaconClient] from the provided [reqwest::Url].
+    /// Creates a new [OnlineBeaconClient] from the provided base URL string.
     pub fn new_http(mut base: String) -> Self {
         // If base ends with a slash, remove it
         if base.ends_with("/") {
