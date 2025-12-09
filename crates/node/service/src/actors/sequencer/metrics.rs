@@ -68,3 +68,8 @@ pub(super) fn update_seal_duration_metrics(duration: Duration) {
     // Log the block building seal task duration, if metrics are enabled.
     kona_macros::set!(gauge, crate::Metrics::SEQUENCER_BLOCK_BUILDING_SEAL_TASK_DURATION, duration);
 }
+
+#[inline]
+pub(super) fn update_total_transactions_sequenced() {
+    kona_macros::inc!(counter, crate::Metrics::SEQUENCER_TOTAL_TRANSACTIONS_SEQUENCED);
+}
