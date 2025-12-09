@@ -8,7 +8,7 @@ use crate::PeerId;
 use core::{
     fmt,
     fmt::Write,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::{IpAddr, SocketAddr},
     num::ParseIntError,
     str::FromStr,
 };
@@ -143,10 +143,14 @@ impl FromStr for NodeRecord {
 
         let url = Url::parse(s).map_err(|e| NodeRecordParseError::InvalidUrl(e.to_string()))?;
 
+        let port = url
+            .port()
+            .ok_or_else(|| NodeRecordParseError::InvalidUrl("no port specified".to_string()))?;
+
         let address = match url.host() {
             Some(Host::Ipv4(ip)) => IpAddr::V4(ip),
             Some(Host::Ipv6(ip)) => IpAddr::V6(ip),
-            Some(Host::Domain(ip)) => ip
+            Some(Host::Domain(ip)) => format!("{ip}:{port}")
                 .to_socket_addrs()
                 .map_err(|e| NodeRecordParseError::InvalidUrl(e.to_string()))?
                 .into_iter()
@@ -158,9 +162,6 @@ impl FromStr for NodeRecord {
 
             _ => return Err(NodeRecordParseError::InvalidUrl(format!("invalid host: {url:?}"))),
         };
-        let port = url
-            .port()
-            .ok_or_else(|| NodeRecordParseError::InvalidUrl("no port specified".to_string()))?;
 
         let udp_port = if let Some(discovery_port) = url
             .query_pairs()
