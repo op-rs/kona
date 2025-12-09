@@ -9835,17 +9835,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rollup"
-version = "0.0.0"
-dependencies = [
- "clap",
- "kona-cli",
- "kona-genesis",
- "vergen",
- "vergen-git2",
-]
-
-[[package]]
 name = "rollup-boost"
 version = "0.1.0"
 source = "git+https://github.com/flashbots/rollup-boost.git?rev=7fda98f#7fda98f6a514c0d7ce9b0c44992ff679dca482ef"
