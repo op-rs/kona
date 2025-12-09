@@ -76,8 +76,8 @@ pub trait BeaconClient {
     /// Returns the slot interval in seconds.
     async fn slot_interval(&self) -> Result<APIConfigResponse, Self::Error>;
 
-    /// Returns the beacon genesis.
-    async fn beacon_genesis(&self) -> Result<APIGenesisResponse, Self::Error>;
+    /// Returns the beacon genesis time.
+    async fn genesis_time(&self) -> Result<APIGenesisResponse, Self::Error>;
 
     /// Fetches blobs that were confirmed in the specified L1 block with the given slot.
     /// Blob data is not checked for validity.
@@ -196,7 +196,7 @@ impl BeaconClient for OnlineBeaconClient {
         result
     }
 
-    async fn beacon_genesis(&self) -> Result<APIGenesisResponse, Self::Error> {
+    async fn genesis_time(&self) -> Result<APIGenesisResponse, Self::Error> {
         kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_REQUESTS, "method" => "genesis");
 
         let result = async {

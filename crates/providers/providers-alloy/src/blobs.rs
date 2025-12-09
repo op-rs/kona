@@ -43,7 +43,7 @@ impl<B: BeaconClient> OnlineBlobProvider<B> {
     /// Panics if the genesis time or slot interval cannot be loaded from the beacon client.
     pub async fn init(beacon_client: B) -> Self {
         let genesis_time = beacon_client
-            .beacon_genesis()
+            .genesis_time()
             .await
             .map(|r| r.data.genesis_time)
             .map_err(|e| BlobProviderError::Backend(e.to_string()))
