@@ -8,10 +8,11 @@ use crate::PeerId;
 use core::{
     fmt,
     fmt::Write,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::{IpAddr, SocketAddr},
     num::ParseIntError,
     str::FromStr,
 };
+use std::net::ToSocketAddrs;
 
 /// Represents an ENR in discovery.
 ///
@@ -29,7 +30,7 @@ pub struct NodeRecord {
 }
 
 impl NodeRecord {
-    /// Converts the `address` into an [`Ipv4Addr`] if the `address` is a mapped
+    /// Converts the `address` into an [`core::net::Ipv4Addr`] if the `address` is a mapped
     /// [`Ipv6Addr`](std::net::Ipv6Addr).
     ///
     /// Returns `true` if the address was converted.
@@ -142,18 +143,24 @@ impl FromStr for NodeRecord {
 
         let url = Url::parse(s).map_err(|e| NodeRecordParseError::InvalidUrl(e.to_string()))?;
 
-        let address = match url.host() {
-            Some(Host::Ipv4(ip)) => IpAddr::V4(ip),
-            Some(Host::Ipv6(ip)) => IpAddr::V6(ip),
-            Some(Host::Domain(ip)) => IpAddr::V4(
-                Ipv4Addr::from_str(ip)
-                    .map_err(|e| NodeRecordParseError::InvalidUrl(e.to_string()))?,
-            ),
-            _ => return Err(NodeRecordParseError::InvalidUrl(format!("invalid host: {url:?}"))),
-        };
         let port = url
             .port()
             .ok_or_else(|| NodeRecordParseError::InvalidUrl("no port specified".to_string()))?;
+
+        let address = match url.host() {
+            Some(Host::Ipv4(ip)) => IpAddr::V4(ip),
+            Some(Host::Ipv6(ip)) => IpAddr::V6(ip),
+            Some(Host::Domain(dns)) => format!("{dns}:{port}")
+                .to_socket_addrs()
+                .map_err(|e| NodeRecordParseError::InvalidUrl(e.to_string()))?
+                .next()
+                .map(|addr| addr.ip())
+                .ok_or_else(|| {
+                    NodeRecordParseError::InvalidUrl(format!("no IP found for host: {url:?}"))
+                })?,
+
+            _ => return Err(NodeRecordParseError::InvalidUrl(format!("invalid host: {url:?}"))),
+        };
 
         let udp_port = if let Some(discovery_port) = url
             .query_pairs()
@@ -176,6 +183,19 @@ impl FromStr for NodeRecord {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_url_parse_domain() {
+        let url = "enode://6f8a80d14311c39f35f516fa664deaaaa13e85b2f7493f37f6144d86991ec012937307647bd3b9a82abe2974e1407241d54947bbb39763a4cac9f77166ad92a0@localhost:30303?discport=30301";
+        let node: NodeRecord = url.parse().unwrap();
+        let localhost_socket_addr = "localhost:30303".to_socket_addrs().unwrap().next().unwrap();
+        assert_eq!(node, NodeRecord {
+            address: localhost_socket_addr.ip(),
+            tcp_port: 30303,
+            udp_port: 30301,
+            id: "6f8a80d14311c39f35f516fa664deaaaa13e85b2f7493f37f6144d86991ec012937307647bd3b9a82abe2974e1407241d54947bbb39763a4cac9f77166ad92a0".parse().unwrap(),
+        })
+    }
 
     #[test]
     fn test_url_parse() {
