@@ -20,7 +20,7 @@ use kona_genesis::RollupConfig;
 use kona_mpt::TrieHinter;
 use op_alloy_consensus::{OpReceiptEnvelope, OpTxEnvelope};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use op_revm::OpSpecId;
+use op_revm::{OpSpecId, OpTransaction};
 use revm::{
     context::BlockEnv,
     database::{State, states::bundle_state::BundleRetention},
@@ -103,9 +103,8 @@ impl<'a, P, H, Evm> StatelessL2Builder<'a, P, H, Evm>
 where
     P: TrieDBProvider + Debug,
     H: TrieHinter + Debug,
-    Evm: EvmFactory<Spec = OpSpecId, BlockEnv = BlockEnv> + 'static,
-    <Evm as EvmFactory>::Tx:
-        FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope> + OpTxEnv,
+    Evm: EvmFactory<Spec = OpSpecId, BlockEnv = BlockEnv, Tx = OpTransaction<revm::context::TxEnv>>
+        + 'static,
 {
     /// Creates a new stateless L2 block builder instance.
     ///

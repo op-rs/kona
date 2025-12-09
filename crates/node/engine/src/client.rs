@@ -197,13 +197,13 @@ impl EngineClientBuilder {
             http::Uri::from_str(self.l2.to_string().as_str())?,
             self.l2_jwt,
             self.l2_timeout.as_millis() as u64,
-            rollup_boost::PayloadSource::L2,
+            rollup_boost_types::PayloadSource::L2,
         )?;
         let builder_client = rollup_boost::RpcClient::new(
             http::Uri::from_str(self.builder.to_string().as_str())?,
             self.builder_jwt,
             self.builder_timeout.as_millis() as u64,
-            rollup_boost::PayloadSource::Builder,
+            rollup_boost_types::PayloadSource::Builder,
         )?;
 
         let rollup_boost_server: Box<dyn RollupBoostServerLike + Send + Sync + 'static> =
@@ -231,6 +231,8 @@ impl EngineClientBuilder {
                                     .flashblock_builder_ws_ping_interval_ms,
                                 flashblock_builder_ws_pong_timeout_ms: ws_config
                                     .flashblock_builder_ws_pong_timeout_ms,
+                                flashblock_builder_ws_connect_timeout_ms: ws_config
+                                    .flashblock_builder_ws_connect_timeout_ms,
                             },
                         )
                         .map_err(|e| EngineClientBuilderError::FlashblocksError(e.to_string()))?,
