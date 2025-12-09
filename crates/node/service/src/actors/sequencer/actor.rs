@@ -519,3 +519,76 @@ fn is_seal_task_err_fatal(err: &SealTaskError) -> bool {
         SealTaskError::UnsafeHeadChangedSinceBuild => false,
     }
 }
+
+#[cfg(test)]
+pub(crate) mod testing {
+    use crate::{
+        SequencerActorBuilder,
+        actors::{
+            MockBlockBuildingClient, MockConductor, MockOriginSelector, MockUnsafePayloadGossipClient,
+        },
+    };
+    use tokio::sync::mpsc;
+    use kona_derive::test_utils::TestAttributesBuilder;
+    use tokio_util::sync::CancellationToken;
+    use kona_genesis::RollupConfig;
+    use std::sync::Arc;
+
+    // Returns a test SequencerActorBuilder with mocks that can be used or overridden.
+    pub(crate) fn test_builder() -> SequencerActorBuilder<
+        TestAttributesBuilder,
+        MockBlockBuildingClient,
+        MockConductor,
+        MockOriginSelector,
+        MockUnsafePayloadGossipClient,
+    > {
+        let (_admin_api_tx, admin_api_rx) = mpsc::channel(20);
+        SequencerActorBuilder::new()
+            .with_active_status(true)
+            .with_admin_api_receiver(admin_api_rx)
+            .with_attributes_builder(TestAttributesBuilder { attributes: vec![] })
+            .with_block_building_client(MockBlockBuildingClient::new())
+            .with_cancellation_token(CancellationToken::new())
+            .with_origin_selector(MockOriginSelector::new())
+            .with_recovery_mode_status(false)
+            .with_rollup_config(Arc::new(RollupConfig::default()))
+            .with_unsafe_payload_gossip_client(MockUnsafePayloadGossipClient::new())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::testing::test_builder;
+
+    use crate::actors::{MockBlockBuildingClient, MockOriginSelector};
+
+    #[tokio::test]
+    async fn test_build_unsealed_payload_no_attributes() {
+        let mut client = MockBlockBuildingClient::new();
+
+        let unsafe_head = L2BlockInfo::default();
+        client.expect_get_unsafe_head().times(1).return_once(move || Ok(unsafe_head));
+        // Must not be called on critical error
+        client.expect_start_build_block().times(0);
+
+        let l1_origin = BlockInfo::default();
+        let mut origin_selector = MockOriginSelector::new();
+        origin_selector.expect_next_l1_origin().times(1).return_once(move |_, _| Ok(l1_origin));
+    
+        let mut actor = test_builder()
+            .with_origin_selector(origin_selector)
+            .with_block_building_client(client)
+            .build()
+            .unwrap();
+
+        let result = actor.build_unsealed_payload().await;
+        assert!(result.is_err());
+
+        let err = result.unwrap_err();
+        assert!(matches!(
+            err,
+            SequencerActorError::AttributesBuilder(PipelineErrorKind::Critical(_))
+        ));
+    }
+}
