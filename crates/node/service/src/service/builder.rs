@@ -31,6 +31,9 @@ pub struct L1ConfigBuilder {
     pub beacon: Url,
     /// The L1 RPC URL.
     pub rpc_url: Url,
+    /// The duration in seconds of an L1 slot. This can be used to hardcode a fixed slot
+    /// duration if the l1-beacon's slot configuration is not available.
+    pub slot_duration_override: Option<u64>,
 }
 
 /// The [`RollupNodeBuilder`] is used to construct a [`RollupNode`] service.
@@ -104,10 +107,15 @@ impl RollupNodeBuilder {
     /// - The P2P config is not set.
     /// - The rollup boost args are not set.
     pub fn build(self) -> RollupNode {
+        let mut l1_beacon = OnlineBeaconClient::new_http(self.l1_config_builder.beacon.to_string());
+        if let Some(l1_slot_duration) = self.l1_config_builder.slot_duration_override {
+            l1_beacon = l1_beacon.with_l1_slot_duration_override(l1_slot_duration);
+        }
+
         let l1_config = L1Config {
             chain_config: Arc::new(self.l1_config_builder.chain_config),
             trust_rpc: self.l1_config_builder.trust_rpc,
-            beacon_client: OnlineBeaconClient::new_http(self.l1_config_builder.beacon.to_string()),
+            beacon_client: l1_beacon,
             engine_provider: RootProvider::new_http(self.l1_config_builder.rpc_url.clone()),
         };
 

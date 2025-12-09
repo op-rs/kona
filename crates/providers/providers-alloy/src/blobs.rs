@@ -49,7 +49,7 @@ impl<B: BeaconClient> OnlineBlobProvider<B> {
             .map_err(|e| BlobProviderError::Backend(e.to_string()))
             .expect("Failed to load genesis time from beacon client");
         let slot_interval = beacon_client
-            .config_spec()
+            .slot_interval()
             .await
             .map(|r| r.data.seconds_per_slot)
             .map_err(|e| BlobProviderError::Backend(e.to_string()))
