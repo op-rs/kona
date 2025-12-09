@@ -2,25 +2,28 @@
 use crate::{
     ConductorClient, DelayedL1OriginSelectorProvider, DerivationActor, DerivationBuilder,
     DerivationContext, EngineActor, EngineConfig, EngineContext, InteropMode, L1OriginSelector,
-    L1WatcherRpc, L1WatcherRpcContext, L1WatcherRpcState, NetworkActor, NetworkBuilder,
-    NetworkConfig, NetworkContext, NodeActor, NodeMode, QueuedBlockBuildingClient,
-    QueuedSequencerAdminAPIClient, RpcActor, RpcContext, SequencerConfig,
+    L1WatcherActor, NetworkActor, NetworkBuilder, NetworkConfig, NetworkContext, NodeActor,
+    NodeMode, QueuedBlockBuildingClient, QueuedSequencerAdminAPIClient, RpcActor, RpcContext,
+    SequencerConfig,
     actors::{
-        DerivationInboundChannels, EngineInboundData, L1WatcherRpcInboundChannels,
-        NetworkInboundData, QueuedUnsafePayloadGossipClient, SequencerActorBuilder,
+        BlockStream, DerivationInboundChannels, EngineInboundData, NetworkInboundData,
+        QueuedUnsafePayloadGossipClient, SequencerActorBuilder,
     },
 };
+use alloy_eips::BlockNumberOrTag;
 use alloy_provider::RootProvider;
 use kona_derive::StatefulAttributesBuilder;
 use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_providers_alloy::{AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient};
 use kona_rpc::RpcBuilder;
 use op_alloy_network::Optimism;
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 const DERIVATION_PROVIDER_CACHE_SIZE: usize = 1024;
+const HEAD_STREAM_POLL_INTERVAL: u64 = 4;
+const FINALIZED_STREAM_POLL_INTERVAL: u64 = 60;
 
 /// The configuration for the L1 chain.
 #[derive(Debug, Clone)]
@@ -63,14 +66,6 @@ impl RollupNode {
     /// The mode of operation for the node.
     const fn mode(&self) -> NodeMode {
         self.engine_config.mode
-    }
-
-    /// Returns a DA watcher builder for the node.
-    fn da_watcher_builder(&self) -> L1WatcherRpcState {
-        L1WatcherRpcState {
-            rollup: self.config.clone(),
-            l1_provider: self.l1_config.engine_provider.clone(),
-        }
     }
 
     /// Returns a derivation builder for the node.
@@ -151,10 +146,6 @@ impl RollupNode {
 
         // 1. CONFIGURE STATE
 
-        // Create the DA watcher actor.
-        let (L1WatcherRpcInboundChannels { inbound_queries: da_watcher_rpc }, da_watcher) =
-            L1WatcherRpc::new(self.da_watcher_builder());
-
         // Create the derivation actor.
         let (
             DerivationInboundChannels {
@@ -214,6 +205,35 @@ impl RollupNode {
             (None, None)
         };
 
+        // Create the L1 Watcher actor
+
+        // A channel to send queries about the state of L1.
+        let (l1_query_tx, l1_query_rx) = mpsc::channel(1024);
+
+        let head_stream = BlockStream::new_as_stream(
+            self.l1_config.engine_provider.clone(),
+            BlockNumberOrTag::Latest,
+            Duration::from_secs(HEAD_STREAM_POLL_INTERVAL),
+        )?;
+        let finalized_stream = BlockStream::new_as_stream(
+            self.l1_config.engine_provider.clone(),
+            BlockNumberOrTag::Finalized,
+            Duration::from_secs(FINALIZED_STREAM_POLL_INTERVAL),
+        )?;
+
+        // Create the [`L1WatcherActor`]. Previously known as the DA watcher actor.
+        let l1_watcher = L1WatcherActor::new(
+            self.config.clone(),
+            self.l1_config.engine_provider.clone(),
+            l1_query_rx,
+            l1_head_updates_tx.clone(),
+            finalized_l1_block_tx.clone(),
+            signer,
+            cancellation.clone(),
+            head_stream,
+            finalized_stream,
+        );
+
         // 2. CONFIGURE DEPENDENCIES
 
         let sequencer_actor = sequencer_actor_builder.map_or_else(
@@ -272,7 +292,7 @@ impl RollupNode {
                         p2p_network: network_rpc,
                         network_admin: net_admin_rpc,
                         sequencer_admin: sequencer_admin_api_client,
-                        l1_watcher_queries: da_watcher_rpc,
+                        l1_watcher_queries: l1_query_tx,
                         engine_query: engine_rpc,
                         rollup_boost_admin: rollup_boost_admin_rpc,
                         rollup_boost_health: rollup_boost_health_rpc,
@@ -283,15 +303,7 @@ impl RollupNode {
                     network,
                     NetworkContext { blocks: unsafe_block_tx, cancellation: cancellation.clone() }
                 )),
-                Some((
-                    da_watcher,
-                    L1WatcherRpcContext {
-                        latest_head: l1_head_updates_tx,
-                        latest_finalized: finalized_l1_block_tx,
-                        block_signer_sender: signer,
-                        cancellation: cancellation.clone(),
-                    }
-                )),
+                Some((l1_watcher, ())),
                 Some((
                     derivation,
                     DerivationContext {
