@@ -12,6 +12,7 @@ use core::{
     num::ParseIntError,
     str::FromStr,
 };
+use std::net::ToSocketAddrs;
 
 /// Represents an ENR in discovery.
 ///
@@ -145,10 +146,16 @@ impl FromStr for NodeRecord {
         let address = match url.host() {
             Some(Host::Ipv4(ip)) => IpAddr::V4(ip),
             Some(Host::Ipv6(ip)) => IpAddr::V6(ip),
-            Some(Host::Domain(ip)) => IpAddr::V4(
-                Ipv4Addr::from_str(ip)
-                    .map_err(|e| NodeRecordParseError::InvalidUrl(e.to_string()))?,
-            ),
+            Some(Host::Domain(ip)) => ip
+                .to_socket_addrs()
+                .map_err(|e| NodeRecordParseError::InvalidUrl(e.to_string()))?
+                .into_iter()
+                .next()
+                .map(|addr| addr.ip())
+                .ok_or_else(|| {
+                    NodeRecordParseError::InvalidUrl(format!("no IP found for host: {url:?}"))
+                })?,
+
             _ => return Err(NodeRecordParseError::InvalidUrl(format!("invalid host: {url:?}"))),
         };
         let port = url
