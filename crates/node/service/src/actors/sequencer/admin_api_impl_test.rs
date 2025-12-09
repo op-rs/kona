@@ -1,8 +1,7 @@
+use super::actor::testing::test_builder;
 use crate::{
     BlockEngineError, ConductorError, SequencerAdminQuery,
-    actors::{
-        MockBlockBuildingClient, MockConductor,
-    },
+    actors::{MockBlockBuildingClient, MockConductor},
 };
 use alloy_primitives::B256;
 use alloy_transport::RpcError;
@@ -10,7 +9,6 @@ use kona_protocol::{BlockInfo, L2BlockInfo};
 use kona_rpc::{SequencerAdminAPIError, StopSequencerError};
 use rstest::rstest;
 use tokio::sync::oneshot;
-use super::actor::testing::test_builder;
 
 #[rstest]
 #[tokio::test]

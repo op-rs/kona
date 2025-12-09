@@ -525,14 +525,15 @@ pub(crate) mod testing {
     use crate::{
         SequencerActorBuilder,
         actors::{
-            MockBlockBuildingClient, MockConductor, MockOriginSelector, MockUnsafePayloadGossipClient,
+            MockBlockBuildingClient, MockConductor, MockOriginSelector,
+            MockUnsafePayloadGossipClient,
         },
     };
-    use tokio::sync::mpsc;
     use kona_derive::test_utils::TestAttributesBuilder;
-    use tokio_util::sync::CancellationToken;
     use kona_genesis::RollupConfig;
     use std::sync::Arc;
+    use tokio::sync::mpsc;
+    use tokio_util::sync::CancellationToken;
 
     // Returns a test SequencerActorBuilder with mocks that can be used or overridden.
     pub(crate) fn test_builder() -> SequencerActorBuilder<
@@ -558,8 +559,7 @@ pub(crate) mod testing {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use super::testing::test_builder;
+    use super::{testing::test_builder, *};
 
     use crate::actors::{MockBlockBuildingClient, MockOriginSelector};
 
@@ -575,7 +575,7 @@ mod tests {
         let l1_origin = BlockInfo::default();
         let mut origin_selector = MockOriginSelector::new();
         origin_selector.expect_next_l1_origin().times(1).return_once(move |_, _| Ok(l1_origin));
-    
+
         let mut actor = test_builder()
             .with_origin_selector(origin_selector)
             .with_block_building_client(client)
