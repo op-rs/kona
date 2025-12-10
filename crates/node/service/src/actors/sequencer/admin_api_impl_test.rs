@@ -1,4 +1,4 @@
-use super::actor::testing::test_builder;
+use super::actor::testing::test_actor;
 use crate::{
     BlockEngineError, ConductorError, SequencerAdminQuery,
     actors::{MockBlockBuildingClient, MockConductor},

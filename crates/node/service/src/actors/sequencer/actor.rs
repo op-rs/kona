@@ -523,7 +523,7 @@ fn is_seal_task_err_fatal(err: &SealTaskError) -> bool {
 #[cfg(test)]
 pub(crate) mod testing {
     use crate::{
-        SequencerActorBuilder,
+        SequencerActor,
         actors::{
             MockBlockBuildingClient, MockConductor, MockOriginSelector,
             MockUnsafePayloadGossipClient,
@@ -535,8 +535,8 @@ pub(crate) mod testing {
     use tokio::sync::mpsc;
     use tokio_util::sync::CancellationToken;
 
-    // Returns a test SequencerActorBuilder with mocks that can be used or overridden.
-    pub(crate) fn test_builder() -> SequencerActorBuilder<
+    // Returns a test SequencerActor with mocks that can be used or overridden.
+    pub(crate) fn test_actor() -> SequencerActor<
         TestAttributesBuilder,
         MockBlockBuildingClient,
         MockConductor,
@@ -544,22 +544,24 @@ pub(crate) mod testing {
         MockUnsafePayloadGossipClient,
     > {
         let (_admin_api_tx, admin_api_rx) = mpsc::channel(20);
-        SequencerActorBuilder::new()
-            .with_active_status(true)
-            .with_admin_api_receiver(admin_api_rx)
-            .with_attributes_builder(TestAttributesBuilder { attributes: vec![] })
-            .with_block_building_client(MockBlockBuildingClient::new())
-            .with_cancellation_token(CancellationToken::new())
-            .with_origin_selector(MockOriginSelector::new())
-            .with_recovery_mode_status(false)
-            .with_rollup_config(Arc::new(RollupConfig::default()))
-            .with_unsafe_payload_gossip_client(MockUnsafePayloadGossipClient::new())
+        SequencerActor {
+            admin_api_rx,
+            attributes_builder: TestAttributesBuilder { attributes: vec![] },
+            block_building_client: MockBlockBuildingClient::new(),
+            cancellation_token: CancellationToken::new(),
+            conductor: None,
+            is_active: true,
+            in_recovery_mode: false,
+            origin_selector: MockOriginSelector::new(),
+            rollup_config: Arc::new(RollupConfig::default()),
+            unsafe_payload_gossip_client: MockUnsafePayloadGossipClient::new(),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{testing::test_builder, *};
+    use super::{testing::test_actor, *};
 
     use crate::actors::{MockBlockBuildingClient, MockOriginSelector};
 
@@ -576,11 +578,9 @@ mod tests {
         let mut origin_selector = MockOriginSelector::new();
         origin_selector.expect_next_l1_origin().times(1).return_once(move |_, _| Ok(l1_origin));
 
-        let mut actor = test_builder()
-            .with_origin_selector(origin_selector)
-            .with_block_building_client(client)
-            .build()
-            .unwrap();
+        let mut actor = test_actor();
+        actor.origin_selector = origin_selector;
+        actor.block_building_client = client;
 
         let result = actor.build_unsealed_payload().await;
         assert!(result.is_err());
