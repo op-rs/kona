@@ -23,7 +23,7 @@ pub(crate) fn test_actor() -> SequencerActor<
     let (_admin_api_tx, admin_api_rx) = mpsc::channel(20);
     SequencerActor {
         admin_api_rx,
-        attributes_builder: TestAttributesBuilder { attributes: vec![] },
+        attributes_builder: TestAttributesBuilder { forced_error: None, attributes: vec![] },
         block_building_client: MockBlockBuildingClient::new(),
         cancellation_token: CancellationToken::new(),
         conductor: None,

@@ -12,17 +12,14 @@ use alloy_eips::BlockNumHash;
 use async_trait::async_trait;
 use kona_protocol::{BlockInfo, L2BlockInfo, SingleBatch};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use thiserror::Error;
-
-/// An error returned by the [`TestAttributesBuilder`].
-#[derive(Error, Debug, PartialEq, Eq)]
-pub enum TestAttributesBuilderError {}
 
 /// A mock implementation of the [`AttributesBuilder`] for testing.
 #[derive(Debug, Default)]
 pub struct TestAttributesBuilder {
     /// The attributes to return.
-    pub attributes: Vec<Result<OpPayloadAttributes, TestAttributesBuilderError>>,
+    pub attributes: Vec<Result<OpPayloadAttributes, PipelineErrorKind>>,
+    /// Returned first before consuming attributes.
+    pub forced_error: Option<PipelineErrorKind>,
 }
 
 #[async_trait]
@@ -33,6 +30,10 @@ impl AttributesBuilder for TestAttributesBuilder {
         _l2_parent: L2BlockInfo,
         _epoch: BlockNumHash,
     ) -> PipelineResult<OpPayloadAttributes> {
+        if let Some(err) = self.forced_error.take() {
+            return Err(err);
+        }
+
         match self.attributes.pop() {
             Some(Ok(attrs)) => Ok(attrs),
             Some(Err(err)) => {
