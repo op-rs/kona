@@ -61,6 +61,7 @@ services:
       - op-rs-op-sepolia-reth
     env_file:
       - path: default.env
+      - path: publicnode.env
       - path: override.env
         required: false
     build:
