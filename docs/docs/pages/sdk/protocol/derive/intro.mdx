@@ -102,7 +102,7 @@ use kona_providers_alloy::*;
 // Use a default rollup config.
 let rollup_config = Arc::new(RollupConfig::default());
 
-// Providers are instantiated to with localhost urls (`127.0.0.1`)
+// Providers are instantiated with localhost URLs (`127.0.0.1`)
 let chain_provider =
     AlloyChainProvider::new_http("http://127.0.0.1:8545".try_into().unwrap());
 let l2_chain_provider = AlloyL2ChainProvider::new_http(
