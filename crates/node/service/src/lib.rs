@@ -26,8 +26,8 @@ pub use actors::{
     NetworkConfig, NetworkContext, NetworkDriver, NetworkDriverError, NetworkHandler,
     NetworkInboundData, NodeActor, OriginSelector, PipelineBuilder, QueuedBlockBuildingClient,
     QueuedSequencerAdminAPIClient, QueuedUnsafePayloadGossipClient, ResetRequest, RpcActor,
-    RpcActorError, RpcContext, SealRequest, SequencerActor, SequencerActorBuilder,
-    SequencerActorError, SequencerAdminQuery, SequencerConfig, UnsafePayloadGossipClient,
+    RpcActorError, RpcContext, SealRequest, SequencerActor, SequencerActorError,
+    SequencerAdminQuery, SequencerConfig, UnsafePayloadGossipClient,
     UnsafePayloadGossipClientError,
 };
 

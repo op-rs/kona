@@ -95,32 +95,6 @@ impl<
     Conductor_,
     OriginSelector_,
     UnsafePayloadGossipClient_,
-> CancellableContext
-    for SequencerActor<
-        AttributesBuilder_,
-        BlockBuildingClient_,
-        Conductor_,
-        OriginSelector_,
-        UnsafePayloadGossipClient_,
-    >
-where
-    AttributesBuilder_: AttributesBuilder,
-    BlockBuildingClient_: BlockBuildingClient,
-    Conductor_: Conductor,
-    OriginSelector_: OriginSelector,
-    UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
-{
-    fn cancelled(&self) -> WaitForCancellationFuture<'_> {
-        self.cancellation_token.cancelled()
-    }
-}
-
-impl<
-    AttributesBuilder_,
-    BlockBuildingClient_,
-    Conductor_,
-    OriginSelector_,
-    UnsafePayloadGossipClient_,
 >
     SequencerActor<
         AttributesBuilder_,
@@ -486,6 +460,32 @@ where
                 }
             }
         }
+    }
+}
+
+impl<
+    AttributesBuilder_,
+    BlockBuildingClient_,
+    Conductor_,
+    OriginSelector_,
+    UnsafePayloadGossipClient_,
+> CancellableContext
+    for SequencerActor<
+        AttributesBuilder_,
+        BlockBuildingClient_,
+        Conductor_,
+        OriginSelector_,
+        UnsafePayloadGossipClient_,
+    >
+where
+    AttributesBuilder_: AttributesBuilder,
+    BlockBuildingClient_: BlockBuildingClient,
+    Conductor_: Conductor,
+    OriginSelector_: OriginSelector,
+    UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
+{
+    fn cancelled(&self) -> WaitForCancellationFuture<'_> {
+        self.cancellation_token.cancelled()
     }
 }
 

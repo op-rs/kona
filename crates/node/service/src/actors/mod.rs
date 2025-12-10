@@ -35,8 +35,7 @@ mod sequencer;
 pub use sequencer::{
     Conductor, ConductorClient, ConductorError, DelayedL1OriginSelectorProvider, L1OriginSelector,
     L1OriginSelectorError, L1OriginSelectorProvider, OriginSelector, QueuedSequencerAdminAPIClient,
-    SequencerActor, SequencerActorBuilder, SequencerActorError, SequencerAdminQuery,
-    SequencerConfig,
+    SequencerActor, SequencerActorError, SequencerAdminQuery, SequencerConfig,
 };
 
 #[cfg(test)]
