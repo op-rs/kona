@@ -96,11 +96,11 @@ pub struct L2ClientArgs {
     pub l2_engine_rpc: Url,
     /// JWT secret for the auth-rpc endpoint of the execution client.
     /// This MUST be a valid path to a file containing the hex-encoded JWT secret.
-    #[arg(long, visible_alias = "l2.jwt-secret", env = "KONA_NODE_L2_ENGINE_AUTH")]
+    #[arg(long, visible_alias = "l2.jwt-path", env = "KONA_NODE_L2_ENGINE_PATH")]
     pub l2_engine_jwt_secret: Option<PathBuf>,
     /// Hex encoded JWT secret to use for the authenticated engine-API RPC server.
-    /// This MUST be a valid path to a file containing the hex-encoded JWT secret.
-    #[arg(long, visible_alias = "l2.jwt-path", env = "KONA_NODE_L2_ENGINE_JWT_PATH")]
+    /// This MUST be a valid hex-encoded JWT secret of 64 digits.
+    #[arg(long, visible_alias = "l2.jwt-secret", env = "KONA_NODE_L2_ENGINE_JWT_AUTH")]
     pub l2_engine_jwt_encoded: Option<JwtSecret>,
     /// Timeout for http calls in milliseconds.
     #[arg(
