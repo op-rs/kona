@@ -204,6 +204,44 @@ impl ConnectionGater {
         }
         false
     }
+
+    /// Converts a DNS-based [`Multiaddr`] to an IP-based [`Multiaddr`].
+    ///
+    /// If the multiaddr contains DNS components, attempts to resolve them and replace
+    /// with the corresponding IP address. Returns the converted multiaddr on success,
+    /// or None if DNS resolution fails or no DNS component exists.
+    pub fn resolve_dns_multiaddr(addr: &Multiaddr) -> Option<Multiaddr> {
+        let resolved_ip = match Self::try_resolve_dns(addr) {
+            Some(Ok(ip)) => ip,
+            Some(Err(())) => return None, // DNS resolution failed
+            None => return Some(addr.clone()), // No DNS component, return as-is
+        };
+
+        // Rebuild the multiaddr with the resolved IP instead of DNS
+        let mut new_addr = Multiaddr::empty();
+        let mut dns_replaced = false;
+
+        for component in addr.iter() {
+            match component {
+                libp2p::multiaddr::Protocol::Dns(_)
+                | libp2p::multiaddr::Protocol::Dns4(_)
+                | libp2p::multiaddr::Protocol::Dns6(_)
+                | libp2p::multiaddr::Protocol::Dnsaddr(_) => {
+                    // Replace DNS with resolved IP (only once)
+                    if !dns_replaced {
+                        match resolved_ip {
+                            IpAddr::V4(ip) => new_addr.push(libp2p::multiaddr::Protocol::Ip4(ip)),
+                            IpAddr::V6(ip) => new_addr.push(libp2p::multiaddr::Protocol::Ip6(ip)),
+                        }
+                        dns_replaced = true;
+                    }
+                }
+                other => new_addr.push(other),
+            }
+        }
+
+        Some(new_addr)
+    }
 }
 
 impl ConnectionGate for ConnectionGater {
@@ -554,4 +592,33 @@ fn test_dns_multiaddr_blocked_by_subnet() {
     // Should now fail because localhost resolves to IP in blocked subnet
     let result = gater.can_dial(&dns_localhost);
     assert!(matches!(result, Err(DialError::SubnetBlocked { .. })));
+}
+
+#[test]
+fn test_resolve_dns_multiaddr() {
+    use std::str::FromStr;
+
+    // Test DNS4 multiaddr conversion
+    let dns_addr = Multiaddr::from_str(
+        "/dns4/localhost/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
+    )
+    .unwrap();
+
+    let resolved = ConnectionGater::resolve_dns_multiaddr(&dns_addr);
+    assert!(resolved.is_some());
+
+    let resolved_addr = resolved.unwrap();
+    // Should contain ip4 instead of dns4
+    assert!(resolved_addr.to_string().contains("/ip4/127.0.0.1/"));
+    assert!(!resolved_addr.to_string().contains("/dns4/"));
+
+    // Test IP4 multiaddr (should return as-is)
+    let ip_addr = Multiaddr::from_str(
+        "/ip4/192.168.1.1/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
+    )
+    .unwrap();
+
+    let resolved = ConnectionGater::resolve_dns_multiaddr(&ip_addr);
+    assert!(resolved.is_some());
+    assert_eq!(resolved.unwrap(), ip_addr);
 }
