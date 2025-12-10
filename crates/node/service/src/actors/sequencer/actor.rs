@@ -566,7 +566,7 @@ mod tests {
     use crate::actors::{MockBlockBuildingClient, MockOriginSelector};
 
     #[tokio::test]
-    async fn test_build_unsealed_payload_no_attributes() {
+    async fn test_build_unsealed_payload_prepare_payload_attributes_error() {
         let mut client = MockBlockBuildingClient::new();
 
         let unsafe_head = L2BlockInfo::default();
