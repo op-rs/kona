@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 use crate::{
     SequencerActor,
     actors::{
