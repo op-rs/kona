@@ -409,6 +409,10 @@ where
             }
             SwarmEvent::OutgoingConnectionError { peer_id: _peer_id, error, .. } => {
                 debug!(target: "gossip", "Outgoing connection error: {:?}", error);
+                // Remove the peer from current_dials so it can be dialed again
+                if let Some(peer_id) = _peer_id {
+                    self.connection_gate.remove_dial(&peer_id);
+                }
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
