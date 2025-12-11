@@ -351,10 +351,8 @@ mod tests {
         let cfg = RollupConfig::default();
         let mock = new_test_attributes_provider(None, vec![]);
         let mut payload_attributes = default_optimism_payload_attributes();
-        let mock_builder = TestAttributesBuilder {
-            forced_error: None,
-            attributes: vec![Ok(payload_attributes.clone())],
-        };
+        let mock_builder =
+            TestAttributesBuilder { attributes: vec![Ok(payload_attributes.clone())] };
         let mut aq = AttributesQueue::new(Arc::new(cfg), mock, mock_builder);
         let parent = L2BlockInfo::default();
         let txs = vec![Bytes::default(), Bytes::default()];
@@ -383,8 +381,7 @@ mod tests {
         let mock =
             new_test_attributes_provider(Some(Default::default()), vec![Ok(Default::default())]);
         let mut pa = default_optimism_payload_attributes();
-        let mock_builder =
-            TestAttributesBuilder { forced_error: None, attributes: vec![Ok(pa.clone())] };
+        let mock_builder = TestAttributesBuilder { attributes: vec![Ok(pa.clone())] };
         let mut aq = AttributesQueue::new(Arc::new(cfg), mock, mock_builder);
         // If we load the batch, we should get the last in span.
         // But it won't take it so it will be available in the next_attributes call.

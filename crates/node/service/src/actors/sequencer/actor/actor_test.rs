@@ -30,8 +30,7 @@ async fn test_build_unsealed_payload_prepare_payload_attributes_error(
     let mut origin_selector = MockOriginSelector::new();
     origin_selector.expect_next_l1_origin().times(1).return_once(move |_, _| Ok(l1_origin));
 
-    let attributes_builder =
-        TestAttributesBuilder { forced_error: Some(forced_error), attributes: vec![] };
+    let attributes_builder = TestAttributesBuilder { attributes: vec![Err(forced_error)] };
 
     let mut actor = test_actor();
     actor.origin_selector = origin_selector;

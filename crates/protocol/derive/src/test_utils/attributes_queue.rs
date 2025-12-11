@@ -18,8 +18,6 @@ use op_alloy_rpc_types_engine::OpPayloadAttributes;
 pub struct TestAttributesBuilder {
     /// The attributes to return.
     pub attributes: Vec<Result<OpPayloadAttributes, PipelineErrorKind>>,
-    /// Returned first before consuming attributes.
-    pub forced_error: Option<PipelineErrorKind>,
 }
 
 #[async_trait]
@@ -30,16 +28,12 @@ impl AttributesBuilder for TestAttributesBuilder {
         _l2_parent: L2BlockInfo,
         _epoch: BlockNumHash,
     ) -> PipelineResult<OpPayloadAttributes> {
-        if let Some(err) = self.forced_error.take() {
-            return Err(err);
-        }
-
         match self.attributes.pop() {
             Some(Ok(attrs)) => Ok(attrs),
-            Some(Err(err)) => {
-                Err(PipelineErrorKind::Temporary(BuilderError::Custom(err.to_string()).into()))
-            }
-            None => Err(PipelineErrorKind::Critical(BuilderError::AttributesUnavailable.into())),
+            Some(Err(err)) => Err(err),
+            None => panic!(
+                "Unexpected call to TestAttributesBuilder::prepare_payload_attributes. Configure the mocked result to return to avoid this error."
+            ),
         }
     }
 }
