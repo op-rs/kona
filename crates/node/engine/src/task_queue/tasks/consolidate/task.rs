@@ -1,10 +1,11 @@
 //! A task to consolidate the engine state.
 
 use crate::{
-    BuildTask, ConsolidateTaskError, EngineClient, EngineState, EngineTaskExt, SynchronizeTask,
-    state::EngineSyncStateUpdate,
+    ConsolidateTaskError, EngineClient, EngineState, EngineTaskExt, SynchronizeTask,
+    state::EngineSyncStateUpdate, task_queue::build_and_seal,
 };
 use async_trait::async_trait;
+use derive_more::Constructor;
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use std::{sync::Arc, time::Instant};
@@ -12,11 +13,11 @@ use std::{sync::Arc, time::Instant};
 /// The [`ConsolidateTask`] attempts to consolidate the engine state
 /// using the specified payload attributes and the oldest unsafe head.
 ///
-/// If consolidation fails, payload attributes processing is attempted using the [`BuildTask`].
-#[derive(Debug, Clone)]
-pub struct ConsolidateTask {
+/// If consolidation fails, payload attributes processing is attempted using `build_and_seal`.
+#[derive(Debug, Clone, Constructor)]
+pub struct ConsolidateTask<EngineClient_: EngineClient> {
     /// The engine client.
-    pub client: Arc<EngineClient>,
+    pub client: Arc<EngineClient_>,
     /// The [`RollupConfig`].
     pub cfg: Arc<RollupConfig>,
     /// The [`OpAttributesWithParent`] to instruct the execution layer to build.
@@ -25,31 +26,22 @@ pub struct ConsolidateTask {
     pub is_attributes_derived: bool,
 }
 
-impl ConsolidateTask {
-    /// Creates a new [`ConsolidateTask`].
-    pub const fn new(
-        client: Arc<EngineClient>,
-        config: Arc<RollupConfig>,
-        attributes: OpAttributesWithParent,
-        is_attributes_derived: bool,
-    ) -> Self {
-        Self { client, cfg: config, attributes, is_attributes_derived }
-    }
-
-    /// Executes a new [`BuildTask`].
+impl<EngineClient_: EngineClient> ConsolidateTask<EngineClient_> {
     /// This is used when the [`ConsolidateTask`] fails to consolidate the engine state.
-    async fn execute_build_task(
+    async fn execute_build_and_seal_tasks(
         &self,
         state: &mut EngineState,
     ) -> Result<(), ConsolidateTaskError> {
-        let build_task = BuildTask::new(
+        build_and_seal(
+            state,
             self.client.clone(),
             self.cfg.clone(),
             self.attributes.clone(),
             self.is_attributes_derived,
-            None,
-        );
-        Ok(build_task.execute(state).await?)
+        )
+        .await?;
+
+        Ok(())
     }
 
     /// Attempts consolidation on the engine state.
@@ -158,12 +150,12 @@ impl ConsolidateTask {
             block_hash = %block_hash,
             "Attributes mismatch! Executing build task to initiate reorg",
         );
-        self.execute_build_task(state).await
+        self.execute_build_and_seal_tasks(state).await
     }
 }
 
 #[async_trait]
-impl EngineTaskExt for ConsolidateTask {
+impl<EngineClient_: EngineClient> EngineTaskExt for ConsolidateTask<EngineClient_> {
     type Output = ();
 
     type Error = ConsolidateTaskError;
@@ -175,7 +167,7 @@ impl EngineTaskExt for ConsolidateTask {
         {
             self.consolidate(state).await
         } else {
-            self.execute_build_task(state).await
+            self.execute_build_and_seal_tasks(state).await
         }
     }
 }

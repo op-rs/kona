@@ -31,24 +31,26 @@ pub struct LogArgs {
         env = "KONA_STDOUT_LOG_QUIET"
     )]
     pub stdout_quiet: bool,
-    /// The format of the logs printed to stdout. One of: full, json, pretty, compact.
+    /// The format of the logs printed to stdout. One of: full, json, pretty, compact, logfmt.
     ///
     /// full: The default rust log format.
     /// json: The logs are printed in JSON structured format.
     /// pretty: The logs are printed in a pretty, human readable format.
     /// compact: The logs are printed in a compact format.
+    /// logfmt: The logs are printed in logfmt key=value format.
     #[arg(long = "logs.stdout.format", default_value = "full", env = "KONA_LOG_STDOUT_FORMAT")]
     pub stdout_format: LogFormat,
     /// The directory to store the log files.
     /// If not set, no logs are printed to files.
     #[arg(long = "logs.file.directory", env = "KONA_LOG_FILE_DIRECTORY")]
     pub file_directory: Option<PathBuf>,
-    /// The format of the logs printed to log files. One of: full, json, pretty, compact.
+    /// The format of the logs printed to log files. One of: full, json, pretty, compact, logfmt.
     ///
     /// full: The default rust log format.
     /// json: The logs are printed in JSON structured format.
     /// pretty: The logs are printed in a pretty, human readable format.
     /// compact: The logs are printed in a compact format.
+    /// logfmt: The logs are printed in logfmt key=value format.
     #[arg(long = "logs.file.format", default_value = "full", env = "KONA_LOG_FILE_FORMAT")]
     pub file_format: LogFormat,
     /// The rotation of the log files. One of: hourly, daily, weekly, monthly, never.

@@ -5,8 +5,8 @@ use crate::{
 };
 use alloy_rpc_types_engine::{INVALID_FORK_CHOICE_STATE_ERROR, PayloadStatusEnum};
 use async_trait::async_trait;
+use derive_more::Constructor;
 use kona_genesis::RollupConfig;
-use op_alloy_provider::ext::engine::OpEngineApi;
 use std::sync::Arc;
 use tokio::time::Instant;
 
@@ -27,33 +27,24 @@ use tokio::time::Instant;
 /// ## Automatic Integration
 ///
 /// Unlike the legacy `ForkchoiceTask`, forkchoice updates during block building are now
-/// handled automatically within [`BuildTask`], eliminating the need for explicit
+/// explicitly handled within [`BuildTask`], eliminating the need for explicit
 /// forkchoice management in most user scenarios.
 ///
 /// [`InsertTask`]: crate::InsertTask
 /// [`ConsolidateTask`]: crate::ConsolidateTask  
 /// [`FinalizeTask`]: crate::FinalizeTask
 /// [`BuildTask`]: crate::BuildTask
-#[derive(Debug, Clone)]
-pub struct SynchronizeTask {
+#[derive(Debug, Clone, Constructor)]
+pub struct SynchronizeTask<EngineClient_: EngineClient> {
     /// The engine client.
-    pub client: Arc<EngineClient>,
+    pub client: Arc<EngineClient_>,
     /// The rollup config.
     pub rollup: Arc<RollupConfig>,
     /// The sync state update to apply to the engine state.
     pub state_update: EngineSyncStateUpdate,
 }
 
-impl SynchronizeTask {
-    /// Creates a new [`SynchronizeTask`].
-    pub const fn new(
-        client: Arc<EngineClient>,
-        rollup: Arc<RollupConfig>,
-        state_update: EngineSyncStateUpdate,
-    ) -> Self {
-        Self { client, rollup, state_update }
-    }
-
+impl<EngineClient_: EngineClient> SynchronizeTask<EngineClient_> {
     /// Checks the response of the `engine_forkchoiceUpdated` call, and updates the sync status if
     /// necessary.
     fn check_forkchoice_updated_status(
@@ -87,7 +78,7 @@ impl SynchronizeTask {
 }
 
 #[async_trait]
-impl EngineTaskExt for SynchronizeTask {
+impl<EngineClient_: EngineClient> EngineTaskExt for SynchronizeTask<EngineClient_> {
     type Output = ();
     type Error = SynchronizeTaskError;
 
@@ -133,12 +124,17 @@ impl EngineTaskExt for SynchronizeTask {
 
         let valid_response = response.map_err(|e| {
             // Fatal forkchoice update error.
-            e.as_error_resp()
+            let error = e
+                .as_error_resp()
                 .and_then(|e| {
                     (e.code == INVALID_FORK_CHOICE_STATE_ERROR as i64)
                         .then_some(SynchronizeTaskError::InvalidForkchoiceState)
                 })
-                .unwrap_or_else(|| SynchronizeTaskError::ForkchoiceUpdateFailed(e))
+                .unwrap_or_else(|| SynchronizeTaskError::ForkchoiceUpdateFailed(e));
+
+            debug!(target: "engine", error = ?error, "Unexpected forkchoice update error");
+
+            error
         })?;
 
         self.check_forkchoice_updated_status(state, &valid_response.payload_status.status)?;

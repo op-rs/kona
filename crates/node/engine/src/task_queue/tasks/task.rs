@@ -4,7 +4,9 @@
 
 use super::{BuildTask, ConsolidateTask, FinalizeTask, InsertTask};
 use crate::{
-    BuildTaskError, ConsolidateTaskError, EngineState, FinalizeTaskError, InsertTaskError,
+    BuildTaskError, ConsolidateTaskError, EngineClient, EngineState, FinalizeTaskError,
+    InsertTaskError,
+    task_queue::{SealTask, SealTaskError},
 };
 use async_trait::async_trait;
 use derive_more::Display;
@@ -62,6 +64,9 @@ pub enum EngineTaskErrors {
     /// An error that occurred while building a block.
     #[error(transparent)]
     Build(#[from] BuildTaskError),
+    /// An error that occurred while sealing a block.
+    #[error(transparent)]
+    Seal(#[from] SealTaskError),
     /// An error that occurred while consolidating the engine state.
     #[error(transparent)]
     Consolidate(#[from] ConsolidateTaskError),
@@ -75,6 +80,7 @@ impl EngineTaskError for EngineTaskErrors {
         match self {
             Self::Insert(inner) => inner.severity(),
             Self::Build(inner) => inner.severity(),
+            Self::Seal(inner) => inner.severity(),
             Self::Consolidate(inner) => inner.severity(),
             Self::Finalize(inner) => inner.severity(),
         }
@@ -85,26 +91,32 @@ impl EngineTaskError for EngineTaskErrors {
 ///
 /// [`Engine`]: crate::Engine
 #[derive(Debug, Clone)]
-pub enum EngineTask {
+pub enum EngineTask<EngineClient_: EngineClient> {
     /// Inserts a payload into the execution engine.
-    Insert(Box<InsertTask>),
-    /// Builds a new block with the given attributes, and inserts it into the execution engine.
-    Build(Box<BuildTask>),
+    Insert(Box<InsertTask<EngineClient_>>),
+    /// Begins building a new block with the given attributes, producing a new payload ID.
+    Build(Box<BuildTask<EngineClient_>>),
+    /// Seals the block with the given payload ID and attributes, inserting it into the execution
+    /// engine.
+    Seal(Box<SealTask<EngineClient_>>),
     /// Performs consolidation on the engine state, reverting to payload attribute processing
     /// via the [`BuildTask`] if consolidation fails.
-    Consolidate(Box<ConsolidateTask>),
+    Consolidate(Box<ConsolidateTask<EngineClient_>>),
     /// Finalizes an L2 block
-    Finalize(Box<FinalizeTask>),
+    Finalize(Box<FinalizeTask<EngineClient_>>),
 }
 
-impl EngineTask {
+impl<EngineClient_: EngineClient> EngineTask<EngineClient_> {
     /// Executes the task without consuming it.
     async fn execute_inner(&self, state: &mut EngineState) -> Result<(), EngineTaskErrors> {
-        match self.clone() {
+        match self {
             Self::Insert(task) => task.execute(state).await?,
-            Self::Build(task) => task.execute(state).await?,
+            Self::Seal(task) => task.execute(state).await?,
             Self::Consolidate(task) => task.execute(state).await?,
             Self::Finalize(task) => task.execute(state).await?,
+            Self::Build(task) => {
+                task.execute(state).await?;
+            }
         };
 
         Ok(())
@@ -115,32 +127,34 @@ impl EngineTask {
             Self::Insert(_) => crate::Metrics::INSERT_TASK_LABEL,
             Self::Consolidate(_) => crate::Metrics::CONSOLIDATE_TASK_LABEL,
             Self::Build(_) => crate::Metrics::BUILD_TASK_LABEL,
+            Self::Seal(_) => crate::Metrics::SEAL_TASK_LABEL,
             Self::Finalize(_) => crate::Metrics::FINALIZE_TASK_LABEL,
         }
     }
 }
 
-impl PartialEq for EngineTask {
+impl<EngineClient_: EngineClient> PartialEq for EngineTask<EngineClient_> {
     fn eq(&self, other: &Self) -> bool {
         matches!(
             (self, other),
             (Self::Insert(_), Self::Insert(_)) |
                 (Self::Build(_), Self::Build(_)) |
+                (Self::Seal(_), Self::Seal(_)) |
                 (Self::Consolidate(_), Self::Consolidate(_)) |
                 (Self::Finalize(_), Self::Finalize(_))
         )
     }
 }
 
-impl Eq for EngineTask {}
+impl<EngineClient_: EngineClient> Eq for EngineTask<EngineClient_> {}
 
-impl PartialOrd for EngineTask {
+impl<EngineClient_: EngineClient> PartialOrd for EngineTask<EngineClient_> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for EngineTask {
+impl<EngineClient_: EngineClient> Ord for EngineTask<EngineClient_> {
     fn cmp(&self, other: &Self) -> Ordering {
         // Order (descending): BuildBlock -> InsertUnsafe -> Consolidate -> Finalize
         //
@@ -158,7 +172,12 @@ impl Ord for EngineTask {
             (Self::Insert(_), Self::Insert(_)) => Ordering::Equal,
             (Self::Consolidate(_), Self::Consolidate(_)) => Ordering::Equal,
             (Self::Build(_), Self::Build(_)) => Ordering::Equal,
+            (Self::Seal(_), Self::Seal(_)) => Ordering::Equal,
             (Self::Finalize(_), Self::Finalize(_)) => Ordering::Equal,
+
+            // SealBlock tasks are prioritized over all others
+            (Self::Seal(_), _) => Ordering::Greater,
+            (_, Self::Seal(_)) => Ordering::Less,
 
             // BuildBlock tasks are prioritized over InsertUnsafe and Consolidate tasks
             (Self::Build(_), _) => Ordering::Greater,
@@ -176,7 +195,7 @@ impl Ord for EngineTask {
 }
 
 #[async_trait]
-impl EngineTaskExt for EngineTask {
+impl<EngineClient_: EngineClient> EngineTaskExt for EngineTask<EngineClient_> {
     type Output = ();
 
     type Error = EngineTaskErrors;
