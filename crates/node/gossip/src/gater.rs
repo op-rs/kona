@@ -5,7 +5,7 @@ use ipnet::IpNet;
 use libp2p::{Multiaddr, PeerId};
 use std::{
     collections::{HashMap, HashSet},
-    net::{IpAddr, ToSocketAddrs},
+    net::IpAddr,
     time::Duration,
 };
 use tokio::time::Instant;
@@ -142,59 +142,6 @@ impl ConnectionGater {
         })
     }
 
-    /// Attempts to resolve a DNS-based [`Multiaddr`] to an [`IpAddr`].
-    ///
-    /// Returns:
-    /// - `None` if the multiaddr does not contain a DNS component (use [`Self::ip_from_addr`])
-    /// - `Some(Err(()))` if DNS resolution failed
-    /// - `Some(Ok(ip))` if DNS resolution succeeded
-    ///
-    /// Respects the DNS protocol type: `dns4` only returns IPv4, `dns6` only returns IPv6.
-    pub fn try_resolve_dns(addr: &Multiaddr) -> Option<Result<IpAddr, ()>> {
-        // Track which DNS protocol type was used
-        let (hostname, ipv4_only, ipv6_only) =
-            addr.iter().find_map(|component| match component {
-                libp2p::multiaddr::Protocol::Dns(h) | libp2p::multiaddr::Protocol::Dnsaddr(h) => {
-                    Some((h.to_string(), false, false))
-                }
-                libp2p::multiaddr::Protocol::Dns4(h) => Some((h.to_string(), true, false)),
-                libp2p::multiaddr::Protocol::Dns6(h) => Some((h.to_string(), false, true)),
-                _ => None,
-            })?;
-
-        debug!(target: "p2p", %hostname, ipv4_only, ipv6_only, "Resolving DNS hostname");
-
-        let ip = match format!("{hostname}:0").to_socket_addrs() {
-            Ok(addrs) => {
-                // Filter addresses based on DNS protocol type
-                addrs.map(|socket_addr| socket_addr.ip()).find(|ip| {
-                    if ipv4_only {
-                        ip.is_ipv4()
-                    } else if ipv6_only {
-                        ip.is_ipv6()
-                    } else {
-                        true
-                    }
-                })
-            }
-            Err(e) => {
-                warn!(target: "p2p", %hostname, error = %e, "DNS resolution failed");
-                return Some(Err(()));
-            }
-        };
-
-        ip.map_or_else(
-            || {
-                warn!(target: "p2p", %hostname, "DNS resolution returned no matching addresses");
-                Some(Err(()))
-            },
-            |resolved_ip| {
-                debug!(target: "p2p", %hostname, %resolved_ip, "DNS resolution successful");
-                Some(Ok(resolved_ip))
-            },
-        )
-    }
-
     /// Checks if a given [`IpAddr`] is within any of the `blocked_subnets`.
     pub fn check_ip_in_blocked_subnets(&self, ip_addr: &IpAddr) -> bool {
         for subnet in &self.blocked_subnets {
@@ -203,44 +150,6 @@ impl ConnectionGater {
             }
         }
         false
-    }
-
-    /// Converts a DNS-based [`Multiaddr`] to an IP-based [`Multiaddr`].
-    ///
-    /// If the multiaddr contains DNS components, attempts to resolve them and replace
-    /// with the corresponding IP address. Returns the converted multiaddr on success,
-    /// or None if DNS resolution fails or no DNS component exists.
-    pub fn resolve_dns_multiaddr(addr: &Multiaddr) -> Option<Multiaddr> {
-        let resolved_ip = match Self::try_resolve_dns(addr) {
-            Some(Ok(ip)) => ip,
-            Some(Err(())) => return None, // DNS resolution failed
-            None => return Some(addr.clone()), // No DNS component, return as-is
-        };
-
-        // Rebuild the multiaddr with the resolved IP instead of DNS
-        let mut new_addr = Multiaddr::empty();
-        let mut dns_replaced = false;
-
-        for component in addr.iter() {
-            match component {
-                libp2p::multiaddr::Protocol::Dns(_)
-                | libp2p::multiaddr::Protocol::Dns4(_)
-                | libp2p::multiaddr::Protocol::Dns6(_)
-                | libp2p::multiaddr::Protocol::Dnsaddr(_) => {
-                    // Replace DNS with resolved IP (only once)
-                    if !dns_replaced {
-                        match resolved_ip {
-                            IpAddr::V4(ip) => new_addr.push(libp2p::multiaddr::Protocol::Ip4(ip)),
-                            IpAddr::V6(ip) => new_addr.push(libp2p::multiaddr::Protocol::Ip6(ip)),
-                        }
-                        dns_replaced = true;
-                    }
-                }
-                other => new_addr.push(other),
-            }
-        }
-
-        Some(new_addr)
     }
 }
 
@@ -279,36 +188,23 @@ impl ConnectionGate for ConnectionGater {
             return Err(DialError::PeerBlocked { peer_id });
         }
 
-        // Get IP address - either directly from multiaddr or by resolving DNS.
-        let ip_addr = match Self::try_resolve_dns(addr) {
-            Some(Ok(ip)) => {
-                debug!(target: "gossip", peer=?addr, resolved_ip=?ip, "Resolved DNS multiaddr");
-                ip
+        // For IP-based multiaddrs, check if the address or subnet is blocked.
+        // For DNS-based multiaddrs, skip IP blocking checks since libp2p-dns will resolve them.
+        if let Some(ip_addr) = Self::ip_from_addr(addr) {
+            // If the address is blocked, do not dial.
+            if self.blocked_addrs.contains(&ip_addr) {
+                debug!(target: "gossip", peer=?addr, "Address is blocked, not dialing");
+                self.connectedness.insert(peer_id, Connectedness::CannotConnect);
+                kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "blocked_address", "peer" => peer_id.to_string());
+                return Err(DialError::AddressBlocked { ip: ip_addr });
             }
-            Some(Err(())) => {
-                // DNS resolution failed - allow the dial, libp2p will handle it.
-                debug!(target: "gossip", peer=?addr, "DNS resolution failed, allowing dial");
-                return Ok(());
+
+            // If address lies in any blocked subnets, do not dial.
+            if self.check_ip_in_blocked_subnets(&ip_addr) {
+                debug!(target: "gossip", ip=?ip_addr, "IP address is in a blocked subnet, not dialing");
+                kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "blocked_subnet", "peer" => peer_id.to_string());
+                return Err(DialError::SubnetBlocked { ip: ip_addr });
             }
-            None => Self::ip_from_addr(addr).ok_or_else(|| {
-                warn!(target: "p2p", peer=?addr, "Failed to extract IpAddr from Multiaddr");
-                DialError::InvalidIpAddress { addr: addr.clone() }
-            })?,
-        };
-
-        // If the address is blocked, do not dial.
-        if self.blocked_addrs.contains(&ip_addr) {
-            debug!(target: "gossip", peer=?addr, "Address is blocked, not dialing");
-            self.connectedness.insert(peer_id, Connectedness::CannotConnect);
-            kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "blocked_address", "peer" => peer_id.to_string());
-            return Err(DialError::AddressBlocked { ip: ip_addr });
-        }
-
-        // If address lies in any blocked subnets, do not dial.
-        if self.check_ip_in_blocked_subnets(&ip_addr) {
-            debug!(target: "gossip", ip=?ip_addr, "IP address is in a blocked subnet, not dialing");
-            kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "blocked_subnet", "peer" => peer_id.to_string());
-            return Err(DialError::SubnetBlocked { ip: ip_addr });
         }
 
         Ok(())
@@ -473,53 +369,6 @@ fn test_dial_error_handling() {
 }
 
 #[test]
-fn test_dns_multiaddr_detection() {
-    use std::str::FromStr;
-
-    // Test DNS4 multiaddr (try_resolve_dns returns Some for DNS addresses)
-    let dns4_addr = Multiaddr::from_str(
-        "/dns4/example.com/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
-    )
-    .unwrap();
-    assert!(ConnectionGater::try_resolve_dns(&dns4_addr).is_some());
-
-    // Test DNS6 multiaddr
-    let dns6_addr = Multiaddr::from_str(
-        "/dns6/example.com/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
-    )
-    .unwrap();
-    assert!(ConnectionGater::try_resolve_dns(&dns6_addr).is_some());
-
-    // Test DNS multiaddr (generic)
-    let dns_addr = Multiaddr::from_str(
-        "/dns/example.com/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
-    )
-    .unwrap();
-    assert!(ConnectionGater::try_resolve_dns(&dns_addr).is_some());
-
-    // Test dnsaddr multiaddr
-    let dnsaddr = Multiaddr::from_str(
-        "/dnsaddr/example.com/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
-    )
-    .unwrap();
-    assert!(ConnectionGater::try_resolve_dns(&dnsaddr).is_some());
-
-    // Test IP4 multiaddr (should NOT be detected as DNS - returns None)
-    let ip4_addr = Multiaddr::from_str(
-        "/ip4/127.0.0.1/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
-    )
-    .unwrap();
-    assert!(ConnectionGater::try_resolve_dns(&ip4_addr).is_none());
-
-    // Test IP6 multiaddr (should NOT be detected as DNS - returns None)
-    let ip6_addr = Multiaddr::from_str(
-        "/ip6/::1/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
-    )
-    .unwrap();
-    assert!(ConnectionGater::try_resolve_dns(&ip6_addr).is_none());
-}
-
-#[test]
 fn test_dns_multiaddr_can_dial() {
     use crate::ConnectionGate;
     use std::str::FromStr;
@@ -544,81 +393,4 @@ fn test_dns_multiaddr_can_dial() {
     let peer_id = ConnectionGater::peer_id_from_addr(&dns4_addr).unwrap();
     gater.block_peer(&peer_id);
     assert!(gater.can_dial(&dns4_addr).is_err());
-}
-
-#[test]
-fn test_dns_multiaddr_blocked_by_resolved_ip() {
-    use crate::{ConnectionGate, DialError};
-    use std::{net::IpAddr, str::FromStr};
-
-    let mut gater = ConnectionGater::new(GaterConfig::default());
-
-    // localhost resolves to 127.0.0.1
-    let dns_localhost = Multiaddr::from_str(
-        "/dns4/localhost/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
-    )
-    .unwrap();
-
-    // Should succeed before blocking
-    assert!(gater.can_dial(&dns_localhost).is_ok());
-
-    // Block 127.0.0.1
-    gater.block_addr(IpAddr::from_str("127.0.0.1").unwrap());
-
-    // Should now fail because localhost resolves to blocked IP
-    let result = gater.can_dial(&dns_localhost);
-    assert!(matches!(result, Err(DialError::AddressBlocked { .. })));
-}
-
-#[test]
-fn test_dns_multiaddr_blocked_by_subnet() {
-    use crate::{ConnectionGate, DialError};
-    use std::str::FromStr;
-
-    let mut gater = ConnectionGater::new(GaterConfig::default());
-
-    // localhost resolves to 127.0.0.1
-    let dns_localhost = Multiaddr::from_str(
-        "/dns4/localhost/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
-    )
-    .unwrap();
-
-    // Should succeed before blocking
-    assert!(gater.can_dial(&dns_localhost).is_ok());
-
-    // Block the 127.0.0.0/8 subnet
-    gater.block_subnet("127.0.0.0/8".parse().unwrap());
-
-    // Should now fail because localhost resolves to IP in blocked subnet
-    let result = gater.can_dial(&dns_localhost);
-    assert!(matches!(result, Err(DialError::SubnetBlocked { .. })));
-}
-
-#[test]
-fn test_resolve_dns_multiaddr() {
-    use std::str::FromStr;
-
-    // Test DNS4 multiaddr conversion
-    let dns_addr = Multiaddr::from_str(
-        "/dns4/localhost/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
-    )
-    .unwrap();
-
-    let resolved = ConnectionGater::resolve_dns_multiaddr(&dns_addr);
-    assert!(resolved.is_some());
-
-    let resolved_addr = resolved.unwrap();
-    // Should contain ip4 instead of dns4
-    assert!(resolved_addr.to_string().contains("/ip4/127.0.0.1/"));
-    assert!(!resolved_addr.to_string().contains("/dns4/"));
-
-    // Test IP4 multiaddr (should return as-is)
-    let ip_addr = Multiaddr::from_str(
-        "/ip4/192.168.1.1/tcp/9003/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
-    )
-    .unwrap();
-
-    let resolved = ConnectionGater::resolve_dns_multiaddr(&ip_addr);
-    assert!(resolved.is_some());
-    assert_eq!(resolved.unwrap(), ip_addr);
 }

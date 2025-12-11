@@ -265,29 +265,15 @@ where
             return;
         }
 
-        // Convert DNS multiaddr to IP multiaddr if needed
-        let dial_addr = match ConnectionGater::resolve_dns_multiaddr(&addr) {
-            Some(resolved_addr) => {
-                if resolved_addr != addr {
-                    debug!(target: "gossip", original=?addr, resolved=?resolved_addr, "Converted DNS multiaddr to IP multiaddr");
-                }
-                resolved_addr
-            }
-            None => {
-                warn!(target: "gossip", peer=?addr, "DNS resolution failed, cannot dial");
-                kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "dns_resolution_failed", "peer" => peer_id.to_string());
-                return;
-            }
-        };
-
         // Let the gate know we are dialing the address.
-        self.connection_gate.dialing(&dial_addr);
+        // Note: libp2p-dns will automatically resolve DNS multiaddrs at the transport layer.
+        self.connection_gate.dialing(&addr);
 
         // Dial
-        match self.swarm.dial(dial_addr.clone()) {
+        match self.swarm.dial(addr.clone()) {
             Ok(_) => {
-                trace!(target: "gossip", peer=?dial_addr, "Dialed peer");
-                self.connection_gate.dialed(&dial_addr);
+                trace!(target: "gossip", peer=?addr, "Dialed peer");
+                self.connection_gate.dialed(&addr);
                 kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER, "peer" => peer_id.to_string());
             }
             Err(e) => {
