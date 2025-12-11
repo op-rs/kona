@@ -1,17 +1,15 @@
 //! A task for importing a block that has already been started.
 use super::SealTaskError;
 use crate::{
-    EngineClient, EngineGetPayloadVersion, EngineState, EngineTaskError, EngineTaskErrorSeverity,
-    EngineTaskExt, InsertTask,
+    EngineClient, EngineGetPayloadVersion, EngineState, EngineTaskExt, InsertTask,
     InsertTaskError::{self},
-    task_queue::{build_and_seal, tasks::seal::error::SealError},
+    task_queue::build_and_seal,
 };
 use alloy_rpc_types_engine::{ExecutionPayload, PayloadId};
 use async_trait::async_trait;
 use derive_more::Constructor;
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
-use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types_engine::{OpExecutionPayload, OpExecutionPayloadEnvelope};
 use std::{sync::Arc, time::Instant};
 use tokio::sync::mpsc;
@@ -30,9 +28,9 @@ use tokio::sync::mpsc;
 /// [`InsertTask`]: crate::InsertTask
 /// [`InsertTaskError`]: crate::InsertTaskError
 #[derive(Debug, Clone, Constructor)]
-pub struct SealTask {
+pub struct SealTask<EngineClient_: EngineClient> {
     /// The engine API client.
-    pub engine: Arc<EngineClient>,
+    pub engine: Arc<EngineClient_>,
     /// The [`RollupConfig`].
     pub cfg: Arc<RollupConfig>,
     /// The [`PayloadId`] being sealed.
@@ -44,10 +42,10 @@ pub struct SealTask {
     /// An optional sender to convey success/failure result of the built
     /// [`OpExecutionPayloadEnvelope`] after the block has been built, imported, and canonicalized
     /// or the [`SealTaskError`] that occurred during processing.
-    pub result_tx: Option<mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealError>>>,
+    pub result_tx: Option<mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>>,
 }
 
-impl SealTask {
+impl<EngineClient_: EngineClient> SealTask<EngineClient_> {
     /// Seals the execution payload in the EL, returning the execution envelope.
     ///
     /// ## Engine Method Selection
@@ -60,11 +58,11 @@ impl SealTask {
     async fn seal_payload(
         &self,
         cfg: &RollupConfig,
-        engine: &EngineClient,
+        engine: &EngineClient_,
         payload_id: PayloadId,
         payload_attrs: OpAttributesWithParent,
     ) -> Result<OpExecutionPayloadEnvelope, SealTaskError> {
-        let payload_timestamp = payload_attrs.inner().payload_attributes.timestamp;
+        let payload_timestamp = payload_attrs.attributes().payload_attributes.timestamp;
 
         debug!(
             target: "engine",
@@ -147,9 +145,9 @@ impl SealTask {
                 return Err(SealTaskError::DepositOnlyPayloadFailed);
             }
             Err(InsertTaskError::UnexpectedPayloadStatus(e))
-                if self
-                    .cfg
-                    .is_holocene_active(self.attributes.inner().payload_attributes.timestamp) =>
+                if self.cfg.is_holocene_active(
+                    self.attributes.attributes().payload_attributes.timestamp,
+                ) =>
             {
                 warn!(target: "engine", error = ?e, "Re-attempting payload import with deposits only.");
 
@@ -203,7 +201,7 @@ impl SealTask {
 
         let new_block_ref = L2BlockInfo::from_payload_and_genesis(
             new_payload.execution_payload.clone(),
-            self.attributes.inner().payload_attributes.parent_beacon_block_root,
+            self.attributes.attributes().payload_attributes.parent_beacon_block_root,
             &self.cfg.genesis,
         )
         .map_err(SealTaskError::FromBlock)?;
@@ -239,21 +237,7 @@ impl SealTask {
         // NB: If a response channel was provided, that channel will receive success/failure info,
         // and this task will always succeed. If not, task failure will be relayed to the caller.
         if let Some(tx) = &self.result_tx {
-            let to_send = match res {
-                Ok(x) => Ok(x),
-                // NB: This error is critical IFF not relayed back to a caller, so we can't rely on
-                // the severity below.
-                Err(SealTaskError::UnsafeHeadChangedSinceBuild) => Err(SealError::ConsiderRebuild),
-                Err(err) => match err.severity() {
-                    EngineTaskErrorSeverity::Temporary | EngineTaskErrorSeverity::Reset => {
-                        Err(SealError::ConsiderRebuild)
-                    }
-                    EngineTaskErrorSeverity::Flush => Err(SealError::HoloceneRetry),
-                    EngineTaskErrorSeverity::Critical => Err(SealError::EngineError),
-                },
-            };
-
-            tx.send(to_send).await.map_err(Box::new).map_err(SealTaskError::MpscSend)?;
+            tx.send(res).await.map_err(|e| SealTaskError::MpscSend(Box::new(e)))?;
         } else if let Err(x) = res {
             return Err(x)
         }
@@ -263,7 +247,7 @@ impl SealTask {
 }
 
 #[async_trait]
-impl EngineTaskExt for SealTask {
+impl<EngineClient_: EngineClient> EngineTaskExt for SealTask<EngineClient_> {
     type Output = ();
 
     type Error = SealTaskError;
@@ -271,7 +255,7 @@ impl EngineTaskExt for SealTask {
     async fn execute(&self, state: &mut EngineState) -> Result<(), SealTaskError> {
         debug!(
             target: "engine",
-            txs = self.attributes.inner().transactions.as_ref().map_or(0, |txs| txs.len()),
+            txs = self.attributes.attributes().transactions.as_ref().map_or(0, |txs| txs.len()),
             is_deposits = self.attributes.is_deposits_only(),
             "Starting new seal job"
         );

@@ -16,4 +16,12 @@ mod handler;
 pub use handler::NetworkHandler;
 
 mod config;
+mod gossip;
+pub use gossip::{
+    QueuedUnsafePayloadGossipClient, UnsafePayloadGossipClient, UnsafePayloadGossipClientError,
+};
+
 pub use config::NetworkConfig;
+
+#[cfg(test)]
+pub use gossip::MockUnsafePayloadGossipClient;

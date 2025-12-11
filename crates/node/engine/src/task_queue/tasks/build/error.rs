@@ -1,8 +1,6 @@
 //! Contains error types for the [crate::SynchronizeTask].
 
-use crate::{
-    EngineTaskError, SynchronizeTaskError, task_queue::tasks::task::EngineTaskErrorSeverity,
-};
+use crate::{EngineTaskError, task_queue::tasks::task::EngineTaskErrorSeverity};
 use alloy_rpc_types_engine::{PayloadId, PayloadStatusEnum};
 use alloy_transport::{RpcError, TransportErrorKind};
 use thiserror::Error;
@@ -50,9 +48,6 @@ pub enum BuildTaskError {
     /// An error occurred when building the payload attributes in the engine.
     #[error("An error occurred when building the payload attributes to the engine.")]
     EngineBuildError(EngineBuildError),
-    /// The initial forkchoice update call to the engine api failed.
-    #[error(transparent)]
-    ForkchoiceUpdateFailed(#[from] SynchronizeTaskError),
     /// Error sending the built payload envelope.
     #[error(transparent)]
     MpscSend(#[from] Box<mpsc::error::SendError<PayloadId>>),
@@ -61,7 +56,6 @@ pub enum BuildTaskError {
 impl EngineTaskError for BuildTaskError {
     fn severity(&self) -> EngineTaskErrorSeverity {
         match self {
-            Self::ForkchoiceUpdateFailed(inner) => inner.severity(),
             Self::EngineBuildError(EngineBuildError::FinalizedAheadOfUnsafe(_, _)) => {
                 EngineTaskErrorSeverity::Critical
             }

@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     emitter.emit_and_set()?;
     let sha = env::var("VERGEN_GIT_SHA")?;
-    let sha_short = &sha[0..7];
+    let sha_short = &sha[0..8];
 
     let is_dirty = env::var("VERGEN_GIT_DIRTY")? == "true";
     // > git describe --always --tags
@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo:rustc-env=KONA_NODE_VERSION_SUFFIX={version_suffix}");
 
     // Set short SHA
-    println!("cargo:rustc-env=VERGEN_GIT_SHA_SHORT={}", &sha[..8]);
+    println!("cargo:rustc-env=VERGEN_GIT_SHA_SHORT={sha_short}");
 
     // Set the build profile
     let out_dir = env::var("OUT_DIR").unwrap();
