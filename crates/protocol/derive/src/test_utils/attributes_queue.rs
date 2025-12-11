@@ -1,13 +1,13 @@
 //! Testing utilities for the attributes queue stage.
 
 use crate::{
-    errors::{BuilderError, PipelineError, PipelineErrorKind},
+    errors::{PipelineError, PipelineErrorKind},
     traits::{
         AttributesBuilder, AttributesProvider, OriginAdvancer, OriginProvider, SignalReceiver,
     },
     types::{PipelineResult, Signal},
 };
-use alloc::{boxed::Box, string::ToString, vec::Vec};
+use alloc::{boxed::Box, vec::Vec};
 use alloy_eips::BlockNumHash;
 use async_trait::async_trait;
 use kona_protocol::{BlockInfo, L2BlockInfo, SingleBatch};
