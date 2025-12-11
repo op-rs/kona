@@ -8,6 +8,7 @@ use crate::{
 };
 use alloy_primitives::B256;
 use alloy_provider::RootProvider;
+use alloy_rpc_client::RpcClient;
 use clap::Parser;
 use kona_cli::cli_styles;
 use kona_genesis::{L1ChainConfig, RollupConfig};
@@ -62,6 +63,10 @@ pub struct SingleChainHost {
         env
     )]
     pub l1_node_address: Option<String>,
+    /// Pre-configured L1 RPC client (not settable via CLI, used internally)
+    #[serde(skip)]
+    #[arg(skip)]
+    pub l1_rpc_client: Option<RpcClient>,
     /// Address of the L1 Beacon API endpoint to use.
     #[arg(
         long,
@@ -271,12 +276,17 @@ impl SingleChainHost {
 
     /// Creates the providers required for the host backend.
     pub async fn create_providers(&self) -> Result<SingleChainProviders, SingleChainHostError> {
-        let l1_provider = rpc_provider(
-            self.l1_node_address
-                .as_ref()
-                .ok_or(SingleChainHostError::Other("Provider must be set"))?,
-        )
-        .await;
+        let l1_rpc_client = if let Some(client) = &self.l1_rpc_client {
+            client.clone()
+        } else if let Some(url) = &self.l1_node_address {
+            RpcClient::builder()
+                .connect(url)
+                .await
+                .map_err(|_| SingleChainHostError::Other("Failed to connect to L1 RPC endpoint"))?
+        } else {
+            return Err(SingleChainHostError::Other("L1 node address must be set"))
+        };
+        let l1_provider = RootProvider::new(l1_rpc_client);
         let blob_provider = OnlineBlobProvider::init(OnlineBeaconClient::new_http(
             self.l1_beacon_address
                 .clone()
