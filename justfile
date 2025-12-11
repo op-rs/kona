@@ -73,6 +73,21 @@ lint-all: lint-native lint-cannon lint-asterisc lint-docs lint-typos
 
 # Check spelling with typos (`cargo install typos-cli`)
 lint-typos:
+  #!/usr/bin/env bash
+  set -e
+  if ! command -v typos &> /dev/null; then
+    echo "Error: typos-cli is not installed."
+    echo ""
+    echo "Would you like to install it now? (y/n)"
+    read -r response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+      echo "Installing typos-cli..."
+      cargo install typos-cli
+    else
+      echo "Skipping typos check. Install typos-cli with: cargo install typos-cli"
+      exit 1
+    fi
+  fi
   typos
 
 # Runs `cargo hack check` against the workspace
