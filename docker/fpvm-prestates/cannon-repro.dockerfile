@@ -35,12 +35,18 @@ SHELL ["/bin/bash", "-c"]
 
 ARG CLIENT_BIN
 ARG CLIENT_TAG
+ARG KONA_CUSTOM_CONFIGS
+
+COPY --from=custom_configs / /usr/local/kona-custom-configs
 
 # Install deps
 RUN apt-get update && apt-get install -y --no-install-recommends git
 
 # Clone kona at the specified tag
 RUN git clone https://github.com/op-rs/kona
+
+ENV KONA_CUSTOM_CONFIGS=$KONA_CUSTOM_CONFIGS
+ENV KONA_CUSTOM_CONFIGS_DIR=/usr/local/kona-custom-configs
 
 # Build kona-client on the selected tag
 RUN cd kona && \

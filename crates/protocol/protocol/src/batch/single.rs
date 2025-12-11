@@ -26,11 +26,6 @@ pub struct SingleBatch {
 }
 
 impl SingleBatch {
-    /// If any transactions are empty or deposited transaction types.
-    pub fn has_invalid_transactions(&self) -> bool {
-        self.transactions.iter().any(|tx| tx.0.is_empty() || tx.0[0] == OpTxType::Deposit as u8)
-    }
-
     /// Returns the [`BlockNumHash`] of the batch.
     pub const fn epoch(&self) -> BlockNumHash {
         BlockNumHash { number: self.epoch_num, hash: self.epoch_hash }
