@@ -1,9 +1,12 @@
 #[cfg(test)]
-use super::*;
-use crate::actors::{
-    MockBlockBuildingClient, MockOriginSelector, sequencer::test_util::test_actor,
+use crate::{
+    SequencerActorError,
+    actors::{
+        MockBlockBuildingClient, MockOriginSelector, sequencer::tests::test_util::test_actor,
+    },
 };
 use kona_derive::{BuilderError, PipelineErrorKind, test_utils::TestAttributesBuilder};
+use kona_protocol::{BlockInfo, L2BlockInfo};
 use rstest::rstest;
 
 #[rstest]

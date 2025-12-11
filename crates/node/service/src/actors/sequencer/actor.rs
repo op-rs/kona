@@ -33,7 +33,7 @@ use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
 /// The handle to a block that has been started but not sealed.
 #[derive(Debug)]
-struct UnsealedPayloadHandle {
+pub(super) struct UnsealedPayloadHandle {
     /// The [`PayloadId`] of the unsealed payload.
     pub payload_id: PayloadId,
     /// The [`OpAttributesWithParent`] used to start block building.
@@ -170,7 +170,7 @@ where
 
     /// Starts building an L2 block by creating and populating payload attributes referencing the
     /// correct L1 origin block and sending them to the block engine.
-    async fn build_unsealed_payload(
+    pub(super) async fn build_unsealed_payload(
         &mut self,
     ) -> Result<Option<UnsealedPayloadHandle>, SequencerActorError> {
         let unsafe_head = self.block_building_client.get_unsafe_head().await?;
@@ -519,6 +519,3 @@ fn is_seal_task_err_fatal(err: &SealTaskError) -> bool {
         SealTaskError::UnsafeHeadChangedSinceBuild => false,
     }
 }
-
-#[cfg(test)]
-mod actor_test;
