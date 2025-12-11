@@ -1,7 +1,7 @@
 //! Testing utilities for the attributes queue stage.
 
 use crate::{
-    errors::{PipelineError, PipelineErrorKind},
+    errors::{BuilderError, PipelineError, PipelineErrorKind},
     traits::{
         AttributesBuilder, AttributesProvider, OriginAdvancer, OriginProvider, SignalReceiver,
     },
@@ -31,9 +31,7 @@ impl AttributesBuilder for TestAttributesBuilder {
         match self.attributes.pop() {
             Some(Ok(attrs)) => Ok(attrs),
             Some(Err(err)) => Err(err),
-            None => panic!(
-                "Unexpected call to TestAttributesBuilder::prepare_payload_attributes. Configure the mocked result to return to avoid this error."
-            ),
+            None => Err(PipelineErrorKind::Critical(BuilderError::AttributesUnavailable.into())),
         }
     }
 }
