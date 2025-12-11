@@ -7,14 +7,13 @@ use kona_derive::{BuilderError, PipelineErrorKind, test_utils::TestAttributesBui
 use rstest::rstest;
 
 #[rstest]
-#[case::temp(PipelineErrorKind::Temporary(BuilderError::Custom("".into()).into()), false, false)]
-#[case::reset(PipelineErrorKind::Reset(BuilderError::Custom("".into()).into()), false, true)]
-#[case::critical(PipelineErrorKind::Critical(BuilderError::Custom("".into()).into()), true, false)]
+#[case::temp(PipelineErrorKind::Temporary(BuilderError::Custom("".into()).into()), false)]
+#[case::reset(PipelineErrorKind::Reset(BuilderError::Custom("".into()).into()), false)]
+#[case::critical(PipelineErrorKind::Critical(BuilderError::Custom("".into()).into()), true)]
 #[tokio::test]
 async fn test_build_unsealed_payload_prepare_payload_attributes_error(
     #[case] forced_error: PipelineErrorKind,
     #[case] expect_err: bool,
-    #[case] is_reset: bool,
 ) {
     let mut client = MockBlockBuildingClient::new();
 
@@ -22,7 +21,7 @@ async fn test_build_unsealed_payload_prepare_payload_attributes_error(
     client.expect_get_unsafe_head().times(1).return_once(move || Ok(unsafe_head));
     // Must not be called on critical error
     client.expect_start_build_block().times(0);
-    if is_reset {
+    if let PipelineErrorKind::Reset(_) = &forced_error {
         client.expect_reset_engine_forkchoice().times(1).return_once(move || Ok(()));
     }
 
