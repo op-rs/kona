@@ -16,7 +16,7 @@ use kona_disc::LocalNode;
 use kona_genesis::RollupConfig;
 use kona_gossip::GaterConfig;
 use kona_node_service::NetworkConfig;
-use kona_peers::{BootNode, BootStoreFile, PeerMonitoring, PeerScoreLevel};
+use kona_peers::{BootNode, BootNodeParseError, BootStoreFile, PeerMonitoring, PeerScoreLevel};
 use kona_providers_alloy::AlloyChainProvider;
 use libp2p::identity::Keypair;
 use std::{
@@ -396,12 +396,13 @@ impl P2PArgs {
             ))
         };
 
-        let bootnodes = self
+        let bootnodes: Vec<BootNode> = self
             .bootnodes
             .iter()
             .map(|bootnode| BootNode::parse_bootnode(bootnode))
-            .collect::<Vec<BootNode>>()
+            .collect::<Result<Vec<_>, BootNodeParseError>>()?
             .into();
+        let bootnodes = bootnodes.into();
 
         Ok(NetworkConfig {
             discovery_config,
@@ -582,12 +583,12 @@ mod tests {
         );
 
         // Parse the bootnodes.
-        let bootnodes = args
+        let bootnodes: Vec<BootNode> = args
             .p2p
             .bootnodes
             .iter()
-            .map(|bootnode| BootNode::parse_bootnode(bootnode))
-            .collect::<Vec<BootNode>>();
+            .map(|bootnode| BootNode::parse_bootnode(bootnode).unwrap())
+            .collect();
 
         // Otherwise, attempt to use the Node Record format.
         let record = NodeRecord::from_str(

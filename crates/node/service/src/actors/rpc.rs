@@ -91,17 +91,15 @@ impl<S: SequencerAdminAPIClient> CancellableContext for RpcContext<S> {
 ///
 /// - [`RpcActorError::ProxyMiddleware`] if the proxy middleware fails to build.
 /// - [`RpcActorError::LaunchFailed`] if the server fails to start.
-async fn launch(
-    config: &RpcBuilder,
-    module: RpcModule<()>,
-) -> Result<ServerHandle, RpcActorError> {
+async fn launch(config: &RpcBuilder, module: RpcModule<()>) -> Result<ServerHandle, RpcActorError> {
     let proxy_layer = ProxyGetRequestLayer::new([
         ("/healthz", "healthz"),
         ("/kona-rollup-boost/healthz", "kona-rollup-boost_healthz"),
     ])
     .map_err(|e| RpcActorError::ProxyMiddleware(e.to_string()))?;
 
-    let middleware = tower::ServiceBuilder::new().layer(proxy_layer).timeout(Duration::from_secs(2));
+    let middleware =
+        tower::ServiceBuilder::new().layer(proxy_layer).timeout(Duration::from_secs(2));
     let server = Server::builder().set_http_middleware(middleware).build(config.socket).await?;
 
     if let Ok(addr) = server.local_addr() {
