@@ -31,9 +31,12 @@ impl InfoCommand {
     pub fn run(&self, args: &GlobalArgs) -> anyhow::Result<()> {
         info!(target: "node_info", "Running info command");
 
-        let op_chain_config = OPCHAINS.get(&args.l2_chain_id.id()).expect("No Chain config found");
-        let op_rollup_config =
-            ROLLUP_CONFIGS.get(&args.l2_chain_id.id()).expect("No Rollup config found");
+        let op_chain_config = OPCHAINS.get(&args.l2_chain_id.id()).ok_or_else(|| {
+            anyhow::anyhow!("No chain config found for chain id: {}", args.l2_chain_id)
+        })?;
+        let op_rollup_config = ROLLUP_CONFIGS.get(&args.l2_chain_id.id()).ok_or_else(|| {
+            anyhow::anyhow!("No rollup config found for chain id: {}", args.l2_chain_id)
+        })?;
 
         println!("Name: {}", op_chain_config.name);
         println!("Block Time: {}", op_chain_config.block_time);
