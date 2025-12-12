@@ -18,6 +18,8 @@ pub(crate) fn test_actor() -> SequencerActor<
     MockOriginSelector,
     MockUnsafePayloadGossipClient,
 > {
+    // The sender is intentionally dropped, so the channel starts closed.
+    // If future tests need to send messages, keep the sender instead of dropping it.
     let (_admin_api_tx, admin_api_rx) = mpsc::channel(20);
     SequencerActor {
         admin_api_rx,
