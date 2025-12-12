@@ -2,25 +2,41 @@
 use crate::{
     ConductorClient, DelayedL1OriginSelectorProvider, DerivationActor, DerivationBuilder,
     DerivationContext, EngineActor, EngineConfig, EngineContext, InteropMode, L1OriginSelector,
-    L1WatcherRpc, L1WatcherRpcContext, L1WatcherRpcState, NetworkActor, NetworkBuilder,
-    NetworkConfig, NetworkContext, NodeActor, NodeMode, QueuedBlockBuildingClient,
-    QueuedSequencerAdminAPIClient, RpcActor, RpcContext, SequencerConfig,
+    L1WatcherActor, NetworkActor, NetworkBuilder, NetworkConfig, NetworkContext, NodeActor,
+    NodeMode, QueuedBlockBuildingClient, QueuedSequencerAdminAPIClient, RpcActor, RpcContext,
+    SequencerActor, SequencerConfig,
     actors::{
-        DerivationInboundChannels, EngineInboundData, L1WatcherRpcInboundChannels,
-        NetworkInboundData, QueuedUnsafePayloadGossipClient, SequencerActorBuilder,
+        BlockStream, DerivationInboundChannels, EngineInboundData, NetworkInboundData,
+        QueuedUnsafePayloadGossipClient,
     },
 };
+use alloy_eips::BlockNumberOrTag;
 use alloy_provider::RootProvider;
 use kona_derive::StatefulAttributesBuilder;
 use kona_genesis::{L1ChainConfig, RollupConfig};
 use kona_providers_alloy::{AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient};
 use kona_rpc::RpcBuilder;
 use op_alloy_network::Optimism;
-use std::sync::Arc;
+use std::{ops::Not as _, sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 const DERIVATION_PROVIDER_CACHE_SIZE: usize = 1024;
+const HEAD_STREAM_POLL_INTERVAL: u64 = 4;
+const FINALIZED_STREAM_POLL_INTERVAL: u64 = 60;
+
+/// The configuration for the L1 chain.
+#[derive(Debug, Clone)]
+pub struct L1Config {
+    /// The L1 chain configuration.
+    pub chain_config: Arc<L1ChainConfig>,
+    /// Whether to trust the L1 RPC.
+    pub trust_rpc: bool,
+    /// The L1 beacon client.
+    pub beacon_client: OnlineBeaconClient,
+    /// The L1 engine provider.
+    pub engine_provider: RootProvider,
+}
 
 /// The standard implementation of the [RollupNode] service, using the governance approved OP Stack
 /// configuration of components.
@@ -28,16 +44,10 @@ const DERIVATION_PROVIDER_CACHE_SIZE: usize = 1024;
 pub struct RollupNode {
     /// The rollup configuration.
     pub(crate) config: Arc<RollupConfig>,
-    /// The L1 chain configuration.
-    pub(crate) l1_config: Arc<L1ChainConfig>,
+    /// The L1 configuration.
+    pub(crate) l1_config: L1Config,
     /// The interop mode for the node.
     pub(crate) interop_mode: InteropMode,
-    /// The L1 EL provider.
-    pub(crate) l1_provider: RootProvider,
-    /// Whether to trust the L1 RPC.
-    pub(crate) l1_trust_rpc: bool,
-    /// The L1 beacon API.
-    pub(crate) l1_beacon: OnlineBeaconClient,
     /// The L2 EL provider.
     pub(crate) l2_provider: RootProvider<Optimism>,
     /// Whether to trust the L2 RPC.
@@ -58,21 +68,16 @@ impl RollupNode {
         self.engine_config.mode
     }
 
-    /// Returns a DA watcher builder for the node.
-    fn da_watcher_builder(&self) -> L1WatcherRpcState {
-        L1WatcherRpcState { rollup: self.config.clone(), l1_provider: self.l1_provider.clone() }
-    }
-
     /// Returns a derivation builder for the node.
     fn derivation_builder(&self) -> DerivationBuilder {
         DerivationBuilder {
-            l1_provider: self.l1_provider.clone(),
-            l1_trust_rpc: self.l1_trust_rpc,
-            l1_beacon: self.l1_beacon.clone(),
+            l1_provider: self.l1_config.engine_provider.clone(),
+            l1_trust_rpc: self.l1_config.trust_rpc,
+            l1_beacon: self.l1_config.beacon_client.clone(),
             l2_provider: self.l2_provider.clone(),
             l2_trust_rpc: self.l2_trust_rpc,
             rollup_config: self.config.clone(),
-            l1_config: self.l1_config.clone(),
+            l1_config: self.l1_config.chain_config.clone(),
             interop_mode: self.interop_mode,
         }
     }
@@ -97,9 +102,9 @@ impl RollupNode {
         &self,
     ) -> StatefulAttributesBuilder<AlloyChainProvider, AlloyL2ChainProvider> {
         let l1_derivation_provider = AlloyChainProvider::new_with_trust(
-            self.l1_provider.clone(),
+            self.l1_config.engine_provider.clone(),
             DERIVATION_PROVIDER_CACHE_SIZE,
-            self.l1_trust_rpc,
+            self.l1_config.trust_rpc,
         );
         let l2_derivation_provider = AlloyL2ChainProvider::new_with_trust(
             self.l2_provider.clone(),
@@ -110,7 +115,7 @@ impl RollupNode {
 
         StatefulAttributesBuilder::new(
             self.config.clone(),
-            self.l1_config.clone(),
+            self.l1_config.chain_config.clone(),
             l2_derivation_provider,
             l1_derivation_provider,
         )
@@ -138,12 +143,6 @@ impl RollupNode {
     pub async fn start(&self) -> Result<(), String> {
         // Create a global cancellation token for graceful shutdown of tasks.
         let cancellation = CancellationToken::new();
-
-        // 1. CONFIGURE STATE
-
-        // Create the DA watcher actor.
-        let (L1WatcherRpcInboundChannels { inbound_queries: da_watcher_rpc }, da_watcher) =
-            L1WatcherRpc::new(self.da_watcher_builder());
 
         // Create the derivation actor.
         let (
@@ -187,70 +186,89 @@ impl RollupNode {
         // Create the RPC server actor.
         let rpc = self.rpc_builder().map(RpcActor::new);
 
-        let (sequencer_actor_builder, sequencer_admin_api_client) = if self.mode().is_sequencer() {
+        let delayed_l1_provider = DelayedL1OriginSelectorProvider::new(
+            self.l1_config.engine_provider.clone(),
+            l1_head_updates_tx.subscribe(),
+            self.sequencer_config.l1_conf_delay,
+        );
+
+        let delayed_origin_selector =
+            L1OriginSelector::new(self.config.clone(), delayed_l1_provider);
+
+        // Conditionally add conductor if configured
+        let conductor =
+            self.sequencer_config.conductor_rpc_url.clone().map(ConductorClient::new_http);
+
+        // Create the L1 Watcher actor
+
+        // A channel to send queries about the state of L1.
+        let (l1_query_tx, l1_query_rx) = mpsc::channel(1024);
+
+        let head_stream = BlockStream::new_as_stream(
+            self.l1_config.engine_provider.clone(),
+            BlockNumberOrTag::Latest,
+            Duration::from_secs(HEAD_STREAM_POLL_INTERVAL),
+        )?;
+        let finalized_stream = BlockStream::new_as_stream(
+            self.l1_config.engine_provider.clone(),
+            BlockNumberOrTag::Finalized,
+            Duration::from_secs(FINALIZED_STREAM_POLL_INTERVAL),
+        )?;
+
+        // Create the [`L1WatcherActor`]. Previously known as the DA watcher actor.
+        let l1_watcher = L1WatcherActor::new(
+            self.config.clone(),
+            self.l1_config.engine_provider.clone(),
+            l1_query_rx,
+            l1_head_updates_tx.clone(),
+            finalized_l1_block_tx.clone(),
+            signer,
+            cancellation.clone(),
+            head_stream,
+            finalized_stream,
+        );
+
+        // Create the sequencer if needed
+        let (sequencer_actor, sequencer_admin_api_tx) = if self.mode().is_sequencer() {
+            let block_building_client = QueuedBlockBuildingClient {
+                build_request_tx: build_request_tx.ok_or(
+                    "build_request_tx is None in sequencer mode. This should never happen."
+                        .to_string(),
+                )?,
+                reset_request_tx: reset_request_tx.clone(),
+                seal_request_tx: seal_request_tx.ok_or(
+                    "seal_request_tx is None in sequencer mode. This should never happen."
+                        .to_string(),
+                )?,
+                unsafe_head_rx: unsafe_head_rx.ok_or(
+                    "unsafe_head_rx is None in sequencer mode. This should never happen."
+                        .to_string(),
+                )?,
+            };
+
             // Create the admin API channel
-            let (admin_api_tx, admin_api_rx) = mpsc::channel(1024);
+            let (sequencer_admin_api_tx, sequencer_admin_api_rx) = mpsc::channel(1024);
+            let queued_gossip_client =
+                QueuedUnsafePayloadGossipClient::new(gossip_payload_tx.clone());
 
-            let cfg = self.sequencer_config.clone();
-
-            let builder = SequencerActorBuilder::new()
-                .with_active_status(!cfg.sequencer_stopped)
-                .with_recovery_mode_status(cfg.sequencer_recovery_mode)
-                .with_rollup_config(self.config.clone())
-                .with_admin_api_receiver(admin_api_rx);
-
-            (Some(builder), Some(QueuedSequencerAdminAPIClient::new(admin_api_tx)))
+            (
+                Some(SequencerActor {
+                    admin_api_rx: sequencer_admin_api_rx,
+                    attributes_builder: self.create_attributes_builder(),
+                    block_building_client,
+                    cancellation_token: cancellation.clone(),
+                    conductor,
+                    is_active: self.sequencer_config.sequencer_stopped.not(),
+                    in_recovery_mode: self.sequencer_config.sequencer_recovery_mode,
+                    origin_selector: delayed_origin_selector,
+                    rollup_config: self.config.clone(),
+                    unsafe_payload_gossip_client: queued_gossip_client,
+                }),
+                Some(QueuedSequencerAdminAPIClient::new(sequencer_admin_api_tx)),
+            )
         } else {
             (None, None)
         };
-
-        // 2. CONFIGURE DEPENDENCIES
-
-        let sequencer_actor = sequencer_actor_builder.map_or_else(
-            || None,
-            |mut builder| {
-                let cfg = self.sequencer_config.clone();
-
-                let l1_provider = DelayedL1OriginSelectorProvider::new(
-                    self.l1_provider.clone(),
-                    l1_head_updates_tx.subscribe(),
-                    cfg.l1_conf_delay,
-                );
-
-                let origin_selector = L1OriginSelector::new(self.config.clone(), l1_provider);
-
-                let block_building_client = QueuedBlockBuildingClient {
-                    build_request_tx: build_request_tx.expect(
-                        "build_request_tx is None in sequencer mode. This should never happen.",
-                    ),
-                    reset_request_tx: reset_request_tx.clone(),
-                    seal_request_tx: seal_request_tx.expect(
-                        "seal_request_tx is None in sequencer mode. This should never happen.",
-                    ),
-                    unsafe_head_rx: unsafe_head_rx.expect(
-                        "unsafe_head_rx is None in sequencer mode. This should never happen.",
-                    ),
-                };
-
-                // Conditionally add conductor if configured
-                if let Some(conductor_url) = cfg.conductor_rpc_url {
-                    builder = builder.with_conductor(ConductorClient::new_http(conductor_url));
-                }
-
-                Some(
-                    builder
-                        .with_attributes_builder(self.create_attributes_builder())
-                        .with_block_building_client(block_building_client)
-                        .with_cancellation_token(cancellation.clone())
-                        .with_unsafe_payload_gossip_client(QueuedUnsafePayloadGossipClient::new(
-                            gossip_payload_tx.clone(),
-                        ))
-                        .with_origin_selector(origin_selector)
-                        .build()
-                        .expect("Failed to build SequencerActor"),
-                )
-            },
-        );
 
         crate::service::spawn_and_wait!(
             cancellation,
@@ -261,8 +279,8 @@ impl RollupNode {
                         cancellation: cancellation.clone(),
                         p2p_network: network_rpc,
                         network_admin: net_admin_rpc,
-                        sequencer_admin: sequencer_admin_api_client,
-                        l1_watcher_queries: da_watcher_rpc,
+                        sequencer_admin: sequencer_admin_api_tx,
+                        l1_watcher_queries: l1_query_tx,
                         engine_query: engine_rpc,
                         rollup_boost_admin: rollup_boost_admin_rpc,
                         rollup_boost_health: rollup_boost_health_rpc,
@@ -273,15 +291,7 @@ impl RollupNode {
                     network,
                     NetworkContext { blocks: unsafe_block_tx, cancellation: cancellation.clone() }
                 )),
-                Some((
-                    da_watcher,
-                    L1WatcherRpcContext {
-                        latest_head: l1_head_updates_tx,
-                        latest_finalized: finalized_l1_block_tx,
-                        block_signer_sender: signer,
-                        cancellation: cancellation.clone(),
-                    }
-                )),
+                Some((l1_watcher, ())),
                 Some((
                     derivation,
                     DerivationContext {

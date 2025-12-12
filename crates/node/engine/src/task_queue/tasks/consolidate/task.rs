@@ -5,6 +5,7 @@ use crate::{
     state::EngineSyncStateUpdate, task_queue::build_and_seal,
 };
 use async_trait::async_trait;
+use derive_more::Constructor;
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use std::{sync::Arc, time::Instant};
@@ -13,10 +14,10 @@ use std::{sync::Arc, time::Instant};
 /// using the specified payload attributes and the oldest unsafe head.
 ///
 /// If consolidation fails, payload attributes processing is attempted using `build_and_seal`.
-#[derive(Debug, Clone)]
-pub struct ConsolidateTask {
+#[derive(Debug, Clone, Constructor)]
+pub struct ConsolidateTask<EngineClient_: EngineClient> {
     /// The engine client.
-    pub client: Arc<EngineClient>,
+    pub client: Arc<EngineClient_>,
     /// The [`RollupConfig`].
     pub cfg: Arc<RollupConfig>,
     /// The [`OpAttributesWithParent`] to instruct the execution layer to build.
@@ -25,17 +26,7 @@ pub struct ConsolidateTask {
     pub is_attributes_derived: bool,
 }
 
-impl ConsolidateTask {
-    /// Creates a new [`ConsolidateTask`].
-    pub const fn new(
-        client: Arc<EngineClient>,
-        config: Arc<RollupConfig>,
-        attributes: OpAttributesWithParent,
-        is_attributes_derived: bool,
-    ) -> Self {
-        Self { client, cfg: config, attributes, is_attributes_derived }
-    }
-
+impl<EngineClient_: EngineClient> ConsolidateTask<EngineClient_> {
     /// This is used when the [`ConsolidateTask`] fails to consolidate the engine state.
     async fn execute_build_and_seal_tasks(
         &self,
@@ -164,7 +155,7 @@ impl ConsolidateTask {
 }
 
 #[async_trait]
-impl EngineTaskExt for ConsolidateTask {
+impl<EngineClient_: EngineClient> EngineTaskExt for ConsolidateTask<EngineClient_> {
     type Output = ();
 
     type Error = ConsolidateTaskError;

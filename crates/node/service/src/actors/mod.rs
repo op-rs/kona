@@ -21,11 +21,8 @@ pub use derivation::{
     DerivationInboundChannels, DerivationState, InboundDerivationMessage, PipelineBuilder,
 };
 
-mod l1_watcher_rpc;
-pub use l1_watcher_rpc::{
-    L1WatcherRpc, L1WatcherRpcContext, L1WatcherRpcError, L1WatcherRpcInboundChannels,
-    L1WatcherRpcState,
-};
+mod l1_watcher;
+pub use l1_watcher::{BlockStream, L1WatcherActor, L1WatcherActorError};
 
 mod network;
 pub use network::{
@@ -38,8 +35,7 @@ mod sequencer;
 pub use sequencer::{
     Conductor, ConductorClient, ConductorError, DelayedL1OriginSelectorProvider, L1OriginSelector,
     L1OriginSelectorError, L1OriginSelectorProvider, OriginSelector, QueuedSequencerAdminAPIClient,
-    SequencerActor, SequencerActorBuilder, SequencerActorError, SequencerAdminQuery,
-    SequencerConfig,
+    SequencerActor, SequencerActorError, SequencerAdminQuery, SequencerConfig,
 };
 
 #[cfg(test)]
