@@ -365,6 +365,12 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
                             Some(result_tx),
                         )));
                         self.engine.enqueue(task);
+=======
+                        let health = rollup_boost.get_health();
+                        if health_query.sender.send(health.into()).is_err() {
+                            warn!(target: "engine", "Failed to send health query response: receiver dropped");
+                        }
+>>>>>>> 2a480c13 (refactor(service): replace expect/unwrap with proper error handling)
                     }
                 }
             }
