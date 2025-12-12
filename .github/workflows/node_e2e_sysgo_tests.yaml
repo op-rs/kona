@@ -1,9 +1,6 @@
 name: Sysgo E2E Tests
 on:
-  push:
-    branches: [main]
   merge_group:
-  pull_request:
 env:
   CARGO_TERM_COLOR: always
 jobs:
