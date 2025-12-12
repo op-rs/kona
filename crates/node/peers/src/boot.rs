@@ -71,6 +71,7 @@ impl BootNode {
     pub fn parse_bootnode(raw: &str) -> Result<Self, BootNodeParseError> {
         // If the string starts with "enr:" it is an ENR record.
         if raw.starts_with("enr:") {
+            #[allow(clippy::redundant_clone)]
             let enr =
                 Enr::from_str(raw).map_err(|e| BootNodeParseError::EnrParse(e.to_string()))?;
             return Ok(Self::from(enr));
