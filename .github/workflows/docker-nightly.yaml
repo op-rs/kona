@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [kona-node, kona-host, kona-supervisor]
+        target: [kona-node, kona-host, kona-supervisor, kona-client]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
