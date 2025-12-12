@@ -9,7 +9,6 @@ use async_trait::async_trait;
 use derive_more::Constructor;
 use kona_genesis::RollupConfig;
 use kona_protocol::OpAttributesWithParent;
-use op_alloy_provider::ext::engine::OpEngineApi;
 use std::{sync::Arc, time::Instant};
 use tokio::sync::mpsc;
 
@@ -26,9 +25,9 @@ use tokio::sync::mpsc;
 ///
 /// [`EngineBuildError`]: crate::EngineBuildError
 #[derive(Debug, Clone, Constructor)]
-pub struct BuildTask {
+pub struct BuildTask<EngineClient_: EngineClient> {
     /// The engine API client.
-    pub engine: Arc<EngineClient>,
+    pub engine: Arc<EngineClient_>,
     /// The [`RollupConfig`].
     pub cfg: Arc<RollupConfig>,
     /// The [`OpAttributesWithParent`] to instruct the execution layer to build.
@@ -38,7 +37,7 @@ pub struct BuildTask {
     pub payload_id_tx: Option<mpsc::Sender<PayloadId>>,
 }
 
-impl BuildTask {
+impl<EngineClient_: EngineClient> BuildTask<EngineClient_> {
     /// Validates the provided [PayloadStatusEnum] according to the rules listed below.
     ///
     /// ## Observed [PayloadStatusEnum] Variants
@@ -81,10 +80,12 @@ impl BuildTask {
     /// ### Syncing (`SYNCING`)
     /// If the EL is syncing, the payload attributes are buffered and the function returns early.
     /// This is a temporary state, and the function should be called again later.
-    async fn start_build(
+    ///
+    /// Note: This is `pub(super)` to allow testing via the `tests` submodule.
+    pub(super) async fn start_build(
         &self,
         state: &EngineState,
-        engine_client: &EngineClient,
+        engine_client: &EngineClient_,
         attributes_envelope: OpAttributesWithParent,
     ) -> Result<PayloadId, BuildTaskError> {
         // Sanity check if the head is behind the finalized head. If it is, this is a critical
@@ -110,17 +111,17 @@ impl BuildTask {
 
         let forkchoice_version = EngineForkchoiceVersion::from_cfg(
             &self.cfg,
-            attributes_envelope.inner.payload_attributes.timestamp,
+            attributes_envelope.attributes.payload_attributes.timestamp,
         );
         let update = match forkchoice_version {
             EngineForkchoiceVersion::V3 => {
                 engine_client
-                    .fork_choice_updated_v3(new_forkchoice, Some(attributes_envelope.inner))
+                    .fork_choice_updated_v3(new_forkchoice, Some(attributes_envelope.attributes))
                     .await
             }
             EngineForkchoiceVersion::V2 => {
                 engine_client
-                    .fork_choice_updated_v2(new_forkchoice, Some(attributes_envelope.inner))
+                    .fork_choice_updated_v2(new_forkchoice, Some(attributes_envelope.attributes))
                     .await
             }
         }
@@ -148,7 +149,7 @@ impl BuildTask {
 }
 
 #[async_trait]
-impl EngineTaskExt for BuildTask {
+impl<EngineClient_: EngineClient> EngineTaskExt for BuildTask<EngineClient_> {
     type Output = PayloadId;
 
     type Error = BuildTaskError;
@@ -156,7 +157,7 @@ impl EngineTaskExt for BuildTask {
     async fn execute(&self, state: &mut EngineState) -> Result<PayloadId, BuildTaskError> {
         debug!(
             target: "engine_builder",
-            txs = self.attributes.inner().transactions.as_ref().map_or(0, |txs| txs.len()),
+            txs = self.attributes.attributes().transactions.as_ref().map_or(0, |txs| txs.len()),
             is_deposits = self.attributes.is_deposits_only(),
             "Starting new build job"
         );

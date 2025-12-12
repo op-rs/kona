@@ -8,7 +8,7 @@ env:
   CARGO_TERM_COLOR: always
 jobs:
   node-e2e-sysgo-tests:
-    runs-on: ubuntu-latest
+    runs-on: kona-8cores
     timeout-minutes: 60
     name: ${{ matrix.devnet-config }}-sysgo-tests
     strategy:
@@ -17,7 +17,7 @@ jobs:
         devnet-config: ["simple-kona", "simple-kona-geth", "simple-kona-sequencer", "large-kona-sequencer"]
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           submodules: true
 
@@ -95,7 +95,7 @@ jobs:
     name: sysgo-restart-tests
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           submodules: true
 

@@ -42,8 +42,8 @@ mod task_queue;
 pub use task_queue::{
     BuildTask, BuildTaskError, ConsolidateTask, ConsolidateTaskError, Engine, EngineBuildError,
     EngineResetError, EngineTask, EngineTaskError, EngineTaskErrorSeverity, EngineTaskErrors,
-    EngineTaskExt, FinalizeTask, FinalizeTaskError, InsertTask, InsertTaskError, SealError,
-    SealTask, SealTaskError, SynchronizeTask, SynchronizeTaskError,
+    EngineTaskExt, FinalizeTask, FinalizeTaskError, InsertTask, InsertTaskError, SealTask,
+    SealTaskError, SynchronizeTask, SynchronizeTaskError,
 };
 
 mod attributes;
@@ -51,7 +51,8 @@ pub use attributes::{AttributesMatch, AttributesMismatch};
 
 mod client;
 pub use client::{
-    EngineClient, EngineClientBuilder, EngineClientBuilderError, EngineClientError, HyperAuthClient,
+    EngineClient, EngineClientBuilder, EngineClientBuilderError, EngineClientError,
+    HyperAuthClient, OpEngineClient,
 };
 
 mod rollup_boost;
@@ -74,3 +75,10 @@ pub use query::{EngineQueries, EngineQueriesError, EngineQuerySender};
 
 mod metrics;
 pub use metrics::Metrics;
+
+mod sync;
+pub use sync::{L2ForkchoiceState, SyncStartError, find_starting_forkchoice};
+
+#[cfg(any(test, feature = "test-utils"))]
+/// Utilities that are useful when creating unit tests using structs within this library.
+pub mod test_utils;

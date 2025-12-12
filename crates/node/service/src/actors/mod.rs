@@ -7,7 +7,9 @@ pub use traits::{CancellableContext, NodeActor};
 
 mod engine;
 pub use engine::{
-    EngineActor, EngineConfig, EngineContext, EngineError, EngineInboundData, L2Finalizer,
+    BlockBuildingClient, BlockEngineError, BlockEngineResult, BuildRequest, EngineActor,
+    EngineConfig, EngineContext, EngineError, EngineInboundData, L2Finalizer,
+    QueuedBlockBuildingClient, ResetRequest, SealRequest,
 };
 
 mod rpc;
@@ -19,21 +21,26 @@ pub use derivation::{
     DerivationInboundChannels, DerivationState, InboundDerivationMessage, PipelineBuilder,
 };
 
-mod l1_watcher_rpc;
-pub use l1_watcher_rpc::{
-    L1WatcherRpc, L1WatcherRpcContext, L1WatcherRpcError, L1WatcherRpcInboundChannels,
-    L1WatcherRpcState,
-};
+mod l1_watcher;
+pub use l1_watcher::{BlockStream, L1WatcherActor, L1WatcherActorError};
 
 mod network;
 pub use network::{
     NetworkActor, NetworkActorError, NetworkBuilder, NetworkBuilderError, NetworkConfig,
     NetworkContext, NetworkDriver, NetworkDriverError, NetworkHandler, NetworkInboundData,
+    QueuedUnsafePayloadGossipClient, UnsafePayloadGossipClient, UnsafePayloadGossipClientError,
 };
 
 mod sequencer;
 pub use sequencer::{
-    AttributesBuilderConfig, ConductorClient, ConductorError, DelayedL1OriginSelectorProvider,
-    L1OriginSelector, L1OriginSelectorError, L1OriginSelectorProvider, SequencerActor,
-    SequencerActorError, SequencerBuilder, SequencerConfig, SequencerContext, SequencerInboundData,
+    Conductor, ConductorClient, ConductorError, DelayedL1OriginSelectorProvider, L1OriginSelector,
+    L1OriginSelectorError, L1OriginSelectorProvider, OriginSelector, QueuedSequencerAdminAPIClient,
+    SequencerActor, SequencerActorError, SequencerAdminQuery, SequencerConfig,
 };
+
+#[cfg(test)]
+pub use engine::MockBlockBuildingClient;
+#[cfg(test)]
+pub use network::MockUnsafePayloadGossipClient;
+#[cfg(test)]
+pub use sequencer::{MockConductor, MockOriginSelector};

@@ -25,3 +25,13 @@ just asterisc <kona|kona-int> <kona_tag> <asterisc_tag>
 # Produce the prestate artifacts for `kona-client` running on `cannon` (version specified by `cannon_tag`)
 just cannon <kona|kona-int> <kona_tag> <cannon_tag>
 ```
+
+### `kona-client` + `cannon` prestate artifacts for custom chains
+
+To create a reproducible kona-client prestate build that supports custom or devnet chain configurations that are not in the superchain-registry:
+
+```sh
+# Produce the prestate artifacts for `kona-client` running on `cannon` (version specified by `cannon_tag`)
+just cannon <kona|kona-int> <kona_tag> <cannon_tag> <artifacts_output_dir> <custom_config_dir>
+```
+

@@ -6,7 +6,7 @@ use kona_gossip::P2pRpcRequest;
 use kona_rpc::{
     AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzApiServer, HealthzRpc,
     NetworkAdminQuery, OpP2PApiServer, RollupBoostAdminQuery, RollupBoostHealthQuery,
-    RollupNodeApiServer, SequencerAdminQuery, WsRPC, WsServer,
+    RollupBoostHealthzApiServer, RollupNodeApiServer, SequencerAdminAPIClient, WsRPC, WsServer,
 };
 use std::time::Duration;
 
@@ -39,27 +39,29 @@ pub enum RpcActorError {
 
 /// An actor that handles the RPC server for the rollup node.
 #[derive(Debug)]
-pub struct RpcActor {
+pub struct RpcActor<S: SequencerAdminAPIClient> {
     /// A launcher for the rpc.
     config: RpcBuilder,
+
+    phantom: std::marker::PhantomData<S>,
 }
 
-impl RpcActor {
+impl<S: SequencerAdminAPIClient> RpcActor<S> {
     /// Constructs a new [`RpcActor`] given the [`RpcBuilder`].
     pub const fn new(config: RpcBuilder) -> Self {
-        Self { config }
+        Self { config, phantom: std::marker::PhantomData }
     }
 }
 
 /// The communication context used by the RPC actor.
 #[derive(Debug)]
-pub struct RpcContext {
+pub struct RpcContext<SequencerAdminApiClient> {
     /// The network p2p rpc sender.
     pub p2p_network: mpsc::Sender<P2pRpcRequest>,
     /// The network admin rpc sender.
     pub network_admin: mpsc::Sender<NetworkAdminQuery>,
     /// The sequencer admin rpc sender.
-    pub sequencer_admin: Option<mpsc::Sender<SequencerAdminQuery>>,
+    pub sequencer_admin: Option<SequencerAdminApiClient>,
     /// The l1 watcher queries sender.
     pub l1_watcher_queries: mpsc::Sender<L1WatcherQueries>,
     /// The engine query sender.
@@ -72,7 +74,7 @@ pub struct RpcContext {
     pub rollup_boost_health: mpsc::Sender<RollupBoostHealthQuery>,
 }
 
-impl CancellableContext for RpcContext {
+impl<S: SequencerAdminAPIClient> CancellableContext for RpcContext<S> {
     fn cancelled(&self) -> WaitForCancellationFuture<'_> {
         self.cancellation.cancelled()
     }
@@ -91,8 +93,11 @@ async fn launch(
 ) -> Result<ServerHandle, std::io::Error> {
     let middleware = tower::ServiceBuilder::new()
         .layer(
-            ProxyGetRequestLayer::new([("/healthz", "healthz")])
-                .expect("Critical: Failed to build GET method proxy"),
+            ProxyGetRequestLayer::new([
+                ("/healthz", "healthz"),
+                ("/kona-rollup-boost/healthz", "kona-rollup-boost_healthz"),
+            ])
+            .expect("Critical: Failed to build GET method proxy"),
         )
         .timeout(Duration::from_secs(2));
     let server = Server::builder().set_http_middleware(middleware).build(config.socket).await?;
@@ -107,15 +112,9 @@ async fn launch(
 }
 
 #[async_trait]
-impl NodeActor for RpcActor {
+impl<S: SequencerAdminAPIClient + 'static> NodeActor for RpcActor<S> {
     type Error = RpcActorError;
-    type OutboundData = RpcContext;
-    type InboundData = ();
-    type Builder = RpcBuilder;
-
-    fn build(config: Self::Builder) -> (Self::InboundData, Self) {
-        ((), Self::new(config))
-    }
+    type StartData = RpcContext<S>;
 
     async fn start(
         mut self,
@@ -128,11 +127,13 @@ impl NodeActor for RpcActor {
             sequencer_admin,
             rollup_boost_admin,
             rollup_boost_health,
-        }: Self::OutboundData,
+        }: Self::StartData,
     ) -> Result<(), Self::Error> {
         let mut modules = RpcModule::new(());
 
-        modules.merge(HealthzRpc::new(rollup_boost_health).into_rpc())?;
+        let healthz_rpc = HealthzRpc::new(rollup_boost_health);
+        modules.merge(HealthzApiServer::into_rpc(healthz_rpc.clone()))?;
+        modules.merge(RollupBoostHealthzApiServer::into_rpc(healthz_rpc))?;
 
         // Build the p2p rpc module.
         modules.merge(P2pRpc::new(p2p_network).into_rpc())?;

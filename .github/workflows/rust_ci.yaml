@@ -16,7 +16,7 @@ jobs:
     name: test
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           submodules: true
       - name: Free Disk Space (Ubuntu)
@@ -39,7 +39,7 @@ jobs:
     name: lint-${{ matrix.target }}
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           submodules: true
       - name: Free Disk Space (Ubuntu)
@@ -77,7 +77,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           submodules: true
       - name: Free Disk Space (Ubuntu)
@@ -108,7 +108,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           submodules: true
       - name: Free Disk Space (Ubuntu)
@@ -128,7 +128,7 @@ jobs:
     name: check-udeps
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           submodules: true
       - name: Free Disk Space (Ubuntu)
@@ -148,7 +148,7 @@ jobs:
     timeout-minutes: 40
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           submodules: true
       - name: Free Disk Space (Ubuntu)
@@ -164,7 +164,7 @@ jobs:
     timeout-minutes: 40
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           submodules: true
       - name: Free Disk Space (Ubuntu)
@@ -179,7 +179,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: crate-ci/typos@v1
 
   cargo-hack:
@@ -187,7 +187,7 @@ jobs:
     timeout-minutes: 40
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           submodules: true
       - name: Free Disk Space (Ubuntu)
@@ -205,7 +205,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           submodules: true
       - name: Install mold linker
@@ -225,7 +225,7 @@ jobs:
     runs-on: ubuntu-latest
     name: coverage
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           submodules: true
       - name: Free Disk Space (Ubuntu)
@@ -263,7 +263,7 @@ jobs:
   deny:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           submodules: true
       - uses: EmbarkStudios/cargo-deny-action@v2
@@ -273,7 +273,7 @@ jobs:
   zepter:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           submodules: true
       - name: Install zepter

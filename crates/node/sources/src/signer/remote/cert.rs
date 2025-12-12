@@ -1,9 +1,12 @@
-use std::{io::BufReader, sync::Arc};
+use std::sync::Arc;
 
 use alloy_rpc_client::{ClientBuilder, RpcClient};
 use alloy_transport_http::Http;
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use rustls::{ClientConfig, RootCertStore};
+use rustls::{
+    ClientConfig, RootCertStore,
+    pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject},
+};
 use thiserror::Error;
 use tokio::sync::RwLock;
 
@@ -18,15 +21,18 @@ pub struct ClientCert {
     pub key: std::path::PathBuf,
 }
 
+/// PEM parsing error type alias
+type PemError = rustls::pki_types::pem::Error;
+
 /// Errors that can occur when handling certificates
 #[derive(Debug, Error)]
 pub enum CertificateError {
     /// Invalid CA certificate path
     #[error("Invalid CA certificate path: {0}")]
-    InvalidCACertificatePath(std::io::Error),
+    InvalidCACertificatePath(PemError),
     /// Invalid certificate error
     #[error("Invalid CA certificate: {0}")]
-    InvalidCACertificate(std::io::Error),
+    InvalidCACertificate(PemError),
     /// Failed to add CA certificate
     #[error("Failed to add CA certificate: {0}")]
     AddCACertificate(rustls::Error),
@@ -35,19 +41,13 @@ pub enum CertificateError {
     ConfigureClientAuth(rustls::Error),
     /// Invalid client certificate path
     #[error("Invalid client certificate path: {0}")]
-    InvalidClientCertificatePath(std::io::Error),
+    InvalidClientCertificatePath(PemError),
     /// Invalid client certificate
     #[error("Invalid client certificate: {0}")]
-    InvalidClientCertificate(std::io::Error),
-    /// Invalid private key path
-    #[error("Invalid private key path: {0}")]
-    InvalidPrivateKeyPath(std::io::Error),
+    InvalidClientCertificate(PemError),
     /// Invalid private key
     #[error("Invalid private key: {0}")]
-    InvalidPrivateKey(std::io::Error),
-    /// No private key found while parsing the client certificate
-    #[error("No private key found while parsing the client certificate")]
-    NoPrivateKey,
+    InvalidPrivateKey(PemError),
 }
 
 impl RemoteSigner {
@@ -57,14 +57,13 @@ impl RemoteSigner {
 
         // Add custom CA certificate if provided
         if let Some(ca_cert_path) = &self.ca_cert {
-            let ca_cert_file = std::fs::File::open(ca_cert_path)
-                .map_err(CertificateError::InvalidCACertificatePath)?;
-            let mut ca_cert_reader = BufReader::new(ca_cert_file);
-            let ca_cert = rustls_pemfile::certs(&mut ca_cert_reader)
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(CertificateError::InvalidCACertificate)?;
+            let ca_certs: Vec<CertificateDer<'static>> =
+                CertificateDer::pem_file_iter(ca_cert_path)
+                    .map_err(CertificateError::InvalidCACertificatePath)?
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(CertificateError::InvalidCACertificate)?;
 
-            for cert in ca_cert {
+            for cert in ca_certs {
                 root_store.add(cert).map_err(CertificateError::AddCACertificate)?;
             }
         }
@@ -75,22 +74,16 @@ impl RemoteSigner {
         match &self.client_cert {
             None => Ok(tls_config.with_no_client_auth()),
             Some(ClientCert { cert, key }) => {
-                let cert_file = std::fs::File::open(cert)
-                    .map_err(CertificateError::InvalidClientCertificatePath)?;
-                let mut cert_reader = BufReader::new(cert_file);
-                let certs = rustls_pemfile::certs(&mut cert_reader)
+                let certs: Vec<CertificateDer<'static>> = CertificateDer::pem_file_iter(cert)
+                    .map_err(CertificateError::InvalidClientCertificatePath)?
                     .collect::<Result<Vec<_>, _>>()
                     .map_err(CertificateError::InvalidClientCertificate)?;
 
-                let key_file =
-                    std::fs::File::open(key).map_err(CertificateError::InvalidPrivateKeyPath)?;
-                let mut key_reader = BufReader::new(key_file);
-                let key = rustls_pemfile::private_key(&mut key_reader)
-                    .map_err(CertificateError::InvalidPrivateKey)?
-                    .ok_or_else(|| CertificateError::NoPrivateKey)?;
+                let private_key = PrivateKeyDer::from_pem_file(key)
+                    .map_err(CertificateError::InvalidPrivateKey)?;
 
                 Ok(tls_config
-                    .with_client_auth_cert(certs, key)
+                    .with_client_auth_cert(certs, private_key)
                     .map_err(CertificateError::ConfigureClientAuth)?)
             }
         }

@@ -52,7 +52,6 @@ libp2p.workspace = true
 libp2p-stream.workspace = true
 discv5.workspace = true
 futures.workspace = true
-ethereum_ssz.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
 tokio-util.workspace = true
@@ -77,10 +76,12 @@ rand.workspace = true
 anyhow.workspace = true
 backon.workspace = true
 http = "1"
+mockall.workspace = true
 alloy-primitives = { workspace = true, features = ["k256"] }
 alloy-rpc-types-engine = { workspace = true, features = ["arbitrary"] }
 alloy-consensus = { workspace = true, features = ["arbitrary"] }
 op-alloy-consensus = { workspace = true, features = ["arbitrary", "k256"] }
+kona-derive = {workspace = true, features = ["test-utils"]}
 
 [features]
 default = []

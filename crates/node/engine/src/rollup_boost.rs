@@ -164,7 +164,7 @@ impl<T: EngineApiExt + Send + Sync + 'static + Debug> RollupBoostServerLike
     ) -> Result<PayloadStatus, RollupBoostServerError> {
         EngineApiServer::new_payload_v4(
             self,
-            payload.clone(),
+            payload,
             versioned_hashes,
             parent_beacon_block_root,
             execution_requests,

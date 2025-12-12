@@ -1,14 +1,11 @@
 package utils
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/ethereum-optimism/optimism/devnet-sdk/shell/env"
 	"github.com/ethereum-optimism/optimism/op-devstack/devtest"
-	"github.com/kurtosis-tech/kurtosis/api/golang/engine/lib/kurtosis_context"
 )
 
 type TestReorgManager struct {
@@ -73,39 +70,41 @@ func NewTestReorgManager(t devtest.CommonT) *TestReorgManager {
 func (m *TestReorgManager) StopL1CL() {
 	m.t.Log("Stopping L1 CL services")
 
-	kurtosisCtx, err := kurtosis_context.NewKurtosisContextFromLocalEngine()
-	if err != nil {
-		m.t.Errorf("failed to create kurtosis context: %v", err)
-		return
-	}
+	panic("not implemented. TODO(@theochap): implement this `https://github.com/op-rs/kona/issues/3174`")
 
-	// Use a bounded context to avoid hanging tests if Kurtosis call stalls.
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	enclaveCtx, err := kurtosisCtx.GetEnclaveContext(ctx, m.env.Env.Name)
-	if err != nil {
-		m.t.Errorf("failed to get enclave context: %v", err)
-		return
-	}
+	// kurtosisCtx, err := kurtosis_context.NewKurtosisContextFromLocalEngine()
+	// if err != nil {
+	// 	m.t.Errorf("failed to create kurtosis context: %v", err)
+	// 	return
+	// }
 
-	for _, node := range m.env.Env.L1.Nodes {
-		cl, ok := node.Services["cl"]
-		if !ok {
-			continue
-		}
+	// // Use a bounded context to avoid hanging tests if Kurtosis call stalls.
+	// ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// defer cancel()
+	// enclaveCtx, err := kurtosisCtx.GetEnclaveContext(ctx, m.env.Env.Name)
+	// if err != nil {
+	// 	m.t.Errorf("failed to get enclave context: %v", err)
+	// 	return
+	// }
 
-		svcCtx, err := enclaveCtx.GetServiceContext(cl.Name)
-		if err != nil {
-			m.t.Errorf("failed to get service context for %s: %v", cl.Name, err)
-			return
-		}
+	// for _, node := range m.env.Env.L1.Nodes {
+	// 	cl, ok := node.Services["cl"]
+	// 	if !ok {
+	// 		continue
+	// 	}
 
-		_, _, err = svcCtx.ExecCommand([]string{"sh", "-c", "kill 1"})
-		if err != nil {
-			m.t.Errorf("failed to stop service %s: %v", cl.Name, err)
-			return
-		}
-	}
+	// 	svcCtx, err := enclaveCtx.GetServiceContext(cl.Name)
+	// 	if err != nil {
+	// 		m.t.Errorf("failed to get service context for %s: %v", cl.Name, err)
+	// 		return
+	// 	}
+
+	// 	_, _, err = svcCtx.ExecCommand([]string{"sh", "-c", "kill 1"})
+	// 	if err != nil {
+	// 		m.t.Errorf("failed to stop service %s: %v", cl.Name, err)
+	// 		return
+	// 	}
+	// }
 }
 
 func (m *TestReorgManager) GetBlockBuilder() *TestBlockBuilder {
