@@ -104,7 +104,7 @@ impl NetCommand {
                         warn!(target: "net", "Failed to send network rpc request: {:?}", e);
                         continue;
                     }
-                    tokio::time::timeout(tokio::time::Duration::from_secs(5), async move {
+                    if let Ok(()) = tokio::time::timeout(tokio::time::Duration::from_secs(5), async move {
                         loop {
                             match orx.try_recv() {
                                 Ok((d, g)) => {
@@ -120,7 +120,9 @@ impl NetCommand {
                                 }
                             }
                         }
-                    }).await.unwrap();
+                    }).await {
+                        // Timeout completed successfully
+                    }
                 }
                 _ = OptionFuture::from(handle.clone().map(|h| h.stopped())) => {
                     warn!(target: "net", "RPC server stopped");

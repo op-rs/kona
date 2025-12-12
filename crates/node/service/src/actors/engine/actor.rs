@@ -367,7 +367,9 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
                             }
                             RollupBoostAdminQuery::GetExecutionMode { sender } => {
                                 let execution_mode = rollup_boost.server.get_execution_mode();
-                                sender.send(execution_mode).unwrap();
+                                if sender.send(execution_mode).is_err() {
+                                    warn!(target: "engine", "Failed to send execution mode response: receiver dropped");
+                                }
                             }
                         }
                     }
@@ -380,7 +382,9 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
                         };
 
                         let health = rollup_boost.get_health();
-                        health_query.sender.send(health.into()).unwrap();
+                        if health_query.sender.send(health.into()).is_err() {
+                            warn!(target: "engine", "Failed to send health query response: receiver dropped");
+                        }
                     }
                 }
             }
