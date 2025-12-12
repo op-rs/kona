@@ -400,8 +400,7 @@ impl P2PArgs {
             .bootnodes
             .iter()
             .map(|bootnode| BootNode::parse_bootnode(bootnode))
-            .collect::<Result<Vec<_>, BootNodeParseError>>()?
-            .into();
+            .collect::<Result<Vec<_>, BootNodeParseError>>()?;
         let bootnodes = bootnodes.into();
 
         Ok(NetworkConfig {
