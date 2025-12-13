@@ -124,6 +124,24 @@ impl<EngineClient_: EngineClient> EngineTaskExt for InsertTask<EngineClient_> {
             L2BlockInfo::from_block_and_genesis(&block, &self.rollup_config.genesis)
                 .map_err(InsertTaskError::L2BlockInfoConstruction)?;
 
+        // When inserting an unsafe payload, we need to maintain the invariant:
+        // finalized <= safe <= local_safe <= cross_unsafe <= unsafe
+        // If new_unsafe_ref is behind current safe heads (e.g., during reorg from P2P),
+        // we must also update local_safe and safe to maintain the invariant.
+        let new_block_number = new_unsafe_ref.block_info.number;
+
+        // Update local_safe_head if payload is safe (derived) or if new block is behind current
+        // local_safe (to maintain invariant during reorg)
+        let local_safe_update = (self.is_payload_safe ||
+            new_block_number < state.sync_state.local_safe_head().block_info.number)
+            .then_some(new_unsafe_ref);
+
+        // Update safe_head if payload is safe (derived) or if new block is behind current safe
+        // (to maintain invariant during reorg)
+        let safe_update = (self.is_payload_safe ||
+            new_block_number < state.sync_state.safe_head().block_info.number)
+            .then_some(new_unsafe_ref);
+
         // Send a FCU to canonicalize the imported block.
         SynchronizeTask::new(
             Arc::clone(&self.client),
@@ -131,8 +149,8 @@ impl<EngineClient_: EngineClient> EngineTaskExt for InsertTask<EngineClient_> {
             EngineSyncStateUpdate {
                 cross_unsafe_head: Some(new_unsafe_ref),
                 unsafe_head: Some(new_unsafe_ref),
-                local_safe_head: self.is_payload_safe.then_some(new_unsafe_ref),
-                safe_head: self.is_payload_safe.then_some(new_unsafe_ref),
+                local_safe_head: local_safe_update,
+                safe_head: safe_update,
                 ..Default::default()
             },
         )
