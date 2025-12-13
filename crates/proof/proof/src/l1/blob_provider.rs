@@ -71,7 +71,8 @@ impl<T: CommsClient> OracleBlobProvider<T> {
                 )
                 .await
                 .map_err(OracleProviderError::Preimage)?;
-            blob[(i as usize) << 5..(i as usize + 1) << 5].copy_from_slice(field_element.as_ref());
+            let i_usize = i as usize;
+            blob[i_usize << 5..(i_usize + 1) << 5].copy_from_slice(field_element.as_ref());
         }
 
         tracing::info!(
@@ -186,13 +187,14 @@ mod test {
 
         // Validate each field element in the blob
         (0..FIELD_ELEMENTS_PER_BLOB).into_par_iter().for_each(|i| {
+            let i_usize = i as usize;
             let field_element = {
                 let mut fe = [0u8; 32];
-                fe.copy_from_slice(&blob[(i as usize) << 5..(i as usize + 1) << 5]);
+                fe.copy_from_slice(&blob[i_usize << 5..(i_usize + 1) << 5]);
                 Bytes32::new(fe)
             };
 
-            let z_bytes = Bytes32::new(ROOTS_OF_UNITY[i as usize].into_bigint().to_bytes_be().try_into().unwrap());
+            let z_bytes = Bytes32::new(ROOTS_OF_UNITY[i_usize].into_bigint().to_bytes_be().try_into().unwrap());
             let (proof, fe) = kzg.get().compute_kzg_proof(&blob, &z_bytes).unwrap();
 
             // Ensure the field element matches the expected value
