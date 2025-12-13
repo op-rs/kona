@@ -55,6 +55,7 @@ metrics = { workspace = true, optional = true }
 
 # rollup boost
 rollup-boost.workspace = true
+rollup-boost-types.workspace = true
 http.workspace = true
 
 [dev-dependencies]
