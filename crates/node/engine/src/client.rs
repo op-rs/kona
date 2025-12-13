@@ -355,12 +355,8 @@ where
         payload: OpExecutionPayloadV4,
         parent_beacon_block_root: B256,
     ) -> TransportResult<PayloadStatus> {
-        let call = self.rollup_boost.server.new_payload_v4(
-            payload.clone(),
-            vec![],
-            parent_beacon_block_root,
-            vec![],
-        );
+        let call =
+            self.rollup_boost.server.new_payload_v4(payload, vec![], parent_beacon_block_root, vec![]);
 
         record_call_time(call, Metrics::NEW_PAYLOAD_METHOD).await.map_err(Into::into)
     }
