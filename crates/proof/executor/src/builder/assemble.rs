@@ -5,7 +5,6 @@ use crate::{
     ExecutorError, ExecutorResult, TrieDBError, TrieDBProvider,
     util::{encode_holocene_eip_1559_params, encode_jovian_eip_1559_params},
 };
-use alloc::vec::Vec;
 use alloy_consensus::{EMPTY_OMMER_ROOT_HASH, Header, Sealed};
 use alloy_eips::{Encodable2718, eip7685::EMPTY_REQUESTS_HASH};
 use alloy_evm::{EvmFactory, block::BlockExecutionResult};
@@ -17,6 +16,7 @@ use kona_protocol::{OutputRoot, Predeploys};
 use op_alloy_consensus::OpReceiptEnvelope;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use revm::{context::BlockEnv, database::BundleState};
+use std::borrow::Cow;
 
 impl<P, H, Evm> StatelessL2Builder<'_, P, H, Evm>
 where
@@ -176,20 +176,16 @@ pub fn compute_receipts_root(
     // receipt encoding. In the Regolith hardfork, we must strip the deposit nonce
     // from the receipt encoding to match the receipt root calculation.
     if config.is_regolith_active(timestamp) && !config.is_canyon_active(timestamp) {
-        let receipts = receipts
-            .iter()
-            .cloned()
-            .map(|receipt| match receipt {
-                OpReceiptEnvelope::Deposit(mut deposit_receipt) => {
-                    deposit_receipt.receipt.deposit_nonce = None;
-                    OpReceiptEnvelope::Deposit(deposit_receipt)
+        ordered_trie_with_encoder(receipts, |receipt, mut buf| {
+            let to_encode: Cow<'_, OpReceiptEnvelope> = match receipt {
+                OpReceiptEnvelope::Deposit(dep) if dep.receipt.deposit_nonce.is_some() => {
+                    let mut dep2 = dep.clone();
+                    dep2.receipt.deposit_nonce = None;
+                    Cow::Owned(OpReceiptEnvelope::Deposit(dep2))
                 }
-                _ => receipt,
-            })
-            .collect::<Vec<_>>();
-
-        ordered_trie_with_encoder(receipts.as_ref(), |receipt, mut buf| {
-            receipt.encode_2718(&mut buf)
+                _ => Cow::Borrowed(receipt),
+            };
+            to_encode.encode_2718(&mut buf)
         })
         .root()
     } else {
