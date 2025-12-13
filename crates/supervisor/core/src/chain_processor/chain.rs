@@ -21,7 +21,6 @@ use tracing::debug;
 #[derive(Debug)]
 pub struct ChainProcessor<P, W, V> {
     chain_id: ChainId,
-    metrics_enabled: Option<bool>,
 
     // state
     state: ProcessorState,
@@ -82,7 +81,6 @@ where
 
         Self {
             chain_id,
-            metrics_enabled: None,
 
             state: ProcessorState::new(),
 
@@ -100,7 +98,6 @@ where
 
     /// Enables metrics on the database environment.
     pub fn with_metrics(mut self) -> Self {
-        self.metrics_enabled = Some(true);
         super::Metrics::init(self.chain_id);
         self
     }
