@@ -12,6 +12,7 @@ use crate::{
             metrics::{
                 update_attributes_build_duration_metrics, update_block_build_duration_metrics,
                 update_conductor_commitment_duration_metrics, update_seal_duration_metrics,
+                update_total_transactions_sequenced,
             },
             origin_selector::OriginSelector,
         },
@@ -151,15 +152,16 @@ where
             .await?;
 
         update_seal_duration_metrics(seal_request_start.elapsed());
+        update_total_transactions_sequenced();
 
         // If the conductor is available, commit the payload to it.
         if let Some(conductor) = &self.conductor {
-            let _conductor_commitment_start = Instant::now();
+            let conductor_commitment_start = Instant::now();
             if let Err(err) = conductor.commit_unsafe_payload(&payload).await {
                 error!(target: "sequencer", ?err, "Failed to commit unsafe payload to conductor");
             }
 
-            update_conductor_commitment_duration_metrics(_conductor_commitment_start.elapsed());
+            update_conductor_commitment_duration_metrics(conductor_commitment_start.elapsed());
         }
 
         self.unsafe_payload_gossip_client
