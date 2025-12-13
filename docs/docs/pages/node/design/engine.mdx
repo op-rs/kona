@@ -167,14 +167,14 @@ The `EngineActor` implements the `NodeActor` trait:
 #[async_trait]
 pub trait NodeActor: Send + 'static {
     type Error: std::fmt::Debug;
-    type OutboundData: CancellableContext;
-    type InboundData: Sized;
-    type Builder;
+    type StartData: Sized;
 
-    fn build(builder: Self::Builder) -> (Self::InboundData, Self);
-    async fn start(self, inbound_context: Self::OutboundData) -> Result<(), Self::Error>;
+    async fn start(self, start_context: Self::StartData) -> Result<(), Self::Error>;
 }
 ```
+
+The `StartData` associated type provides all the necessary context for the actor to run,
+including communication channels, cancellation tokens, and configuration.
 
 ### Communication Channels
 

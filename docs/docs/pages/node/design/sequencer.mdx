@@ -22,37 +22,23 @@ The sequencer uses the same core derivation pipeline as validator nodes but oper
 
 ### Core Interfaces
 
-The sequencer functionality is built around several key trait abstractions:
+The sequencer functionality is built around the `SequencerActor`, which implements the `NodeActor` trait:
 
-#### `RollupNodeService`
-The main service trait that defines the node's operational mode and actor types:
-
-```rust
-pub trait RollupNodeService {
-    type SequencerActor: NodeActor<
-        Error: Display,
-        OutboundData = SequencerContext,
-        Builder: AttributesBuilderConfig<AB = Self::AttributesBuilder>,
-        InboundData = SequencerInboundData,
-    >;
-
-    fn mode(&self) -> NodeMode;
-    // ... other methods
-}
-```
-
-#### `AttributesBuilderConfig`
-Configures how L2 block attributes are constructed:
+#### `NodeActor`
+The base trait for all actors in the node:
 
 ```rust
-pub trait AttributesBuilderConfig {
-    type AB: AttributesBuilder;
-    fn build(self) -> Self::AB;
+#[async_trait]
+pub trait NodeActor: Send + 'static {
+    type Error: std::fmt::Debug;
+    type StartData: Sized;
+
+    async fn start(self, start_context: Self::StartData) -> Result<(), Self::Error>;
 }
 ```
 
 #### `SequencerActor`
-The core actor responsible for block production:
+The core actor responsible for block production. It is a generic struct parameterized by several trait bounds:
 
 - Builds L2 blocks using the `AttributesBuilder`
 - Manages timing and L1 origin selection
