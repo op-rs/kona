@@ -4,6 +4,9 @@
 The system comprises the following actors and connections
 
 ```mermaid
+    ---
+    title: Kona Node's Actor System
+    ---
     flowchart TD
 
     seq[SequencerActor]
@@ -22,7 +25,7 @@ The system comprises the following actors and connections
 
     %% L1 Watcher Actor
 
-    tbd -- inbound_queries --> l1w
+    seq -- l1_query_rx --> l1w
 
 
     %% Network Actor
@@ -37,7 +40,7 @@ The system comprises the following actors and connections
     rpc --> seq
     net --> seq
     adm -- admin_tx --> seq
-    l1w -- channel_name --> seq
+    l1w -- l1_query_tx --> seq
     eng -- channel_name --> seq
     rpc -- derivation_signal_rx --> der
 
