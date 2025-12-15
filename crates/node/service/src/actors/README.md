@@ -4,9 +4,6 @@
 The system comprises the following actors and connections
 
 ```mermaid
-    ---
-    title: Kona Node's Actor System
-    ---
     flowchart TD
 
     seq[SequencerActor]
