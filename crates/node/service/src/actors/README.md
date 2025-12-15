@@ -13,13 +13,39 @@ The system comprises the following actors and connections
     rpc[RPCActor]
     der[DerivationActor]
     adm{Admin RPC}
+    tbd{TBD}
+
+    # Engine Actor
 
 
-    l1w -- channel_name --> seq
-    eng -- channel_name --> seq
-    rpc --> der
+    # RPC Actor
+
+    # L1 Watcher Actor
+
+    tbd -- inbound_queries --> l1w
+
+
+    # Network Actor
+
+    tbd -- signer --> net
+    tbd -- p2p_rpc --> net
+    tbd -- admin_rpc --> net
+    tbd -- publish_rx --> net
+
+    # Sequencer Actor
+
     rpc --> seq
     net --> seq
     adm -- admin_tx --> seq
+    l1w -- channel_name --> seq
+    eng -- channel_name --> seq
+    rpc -- derivation_signal_rx --> der
+
+    # Derivation Actor
+
+    tbd -- l1_head_updates_rx --> der
+    tbd -- engine_l2_safe_head --> der
+    tbd -- engine_l2_safe_head --> der
+
     seq -- admin_rx --> adm
 ```
