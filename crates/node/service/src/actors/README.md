@@ -1,23 +1,25 @@
 
 # Actors
 
-The system comprises the following actors and connected through channels
+The system comprises the following actors and connections
 
 ```mermaid
     flowchart TD
 
+    seq[SequencerActor]
+    eng[EngineActor]
+    l1w[L1WatcherActor]
+    net[NetworkActor]
+    rpc[RPCActor]
+    der[DerivationActor]
     adm{Admin RPC}
-    seq[Sequencer]
-    eng[Engine]
-    l1w[L1Watcher]
-    net[Network]
-    rpc[RPC]
-    der[Derivation]
 
 
-    adm -- admin_tx --> seq
-    seq -- admin_rx --> adm
     l1w -- channel_name --> seq
     eng -- channel_name --> seq
-    rpc --> der --> net --> seq
+    rpc --> der
+    rpc --> seq
+    net --> seq
+    adm -- admin_tx --> seq
+    seq -- admin_rx --> adm
 ```
