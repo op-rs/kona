@@ -15,24 +15,24 @@ The system comprises the following actors and connections
     adm{Admin RPC}
     tbd{TBD}
 
-    # Engine Actor
+    %% Engine Actor
 
 
-    # RPC Actor
+    %% RPC Actor
 
-    # L1 Watcher Actor
+    %% L1 Watcher Actor
 
     tbd -- inbound_queries --> l1w
 
 
-    # Network Actor
+    %% Network Actor
 
     tbd -- signer --> net
     tbd -- p2p_rpc --> net
     tbd -- admin_rpc --> net
     tbd -- publish_rx --> net
 
-    # Sequencer Actor
+    %% Sequencer Actor
 
     rpc --> seq
     net --> seq
@@ -41,7 +41,7 @@ The system comprises the following actors and connections
     eng -- channel_name --> seq
     rpc -- derivation_signal_rx --> der
 
-    # Derivation Actor
+    %% Derivation Actor
 
     tbd -- l1_head_updates_rx --> der
     tbd -- engine_l2_safe_head --> der
