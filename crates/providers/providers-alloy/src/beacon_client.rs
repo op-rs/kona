@@ -229,3 +229,47 @@ impl BeaconClient for OnlineBeaconClient {
         result
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_consensus::Blob;
+    use alloy_primitives::FixedBytes;
+    use httpmock::prelude::*;
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn test_filtered_beacon_blobs() {
+        let slot = 987654321;
+        let slot_string = slot.to_string();
+        let blob_data: Blob = FixedBytes::repeat_byte(1);
+        let repeated_blob_data: Vec<Blob> =
+            vec![blob_data.clone(), blob_data.clone(), blob_data.clone()];
+        let repeated_blob_response = json!({
+            "execution_optimistic": false,
+            "finalized": false,
+            "data": repeated_blob_data
+        });
+
+        let server = MockServer::start();
+        let blobs_mock = server.mock(|when, then| {
+            when.method(GET).path(format!("/eth/v1/beacon/blobs/{}", slot_string));
+            then.status(200).json_body(repeated_blob_response);
+        });
+        let client = OnlineBeaconClient::new_http(server.base_url());
+        let response = client
+            .filtered_beacon_blobs(
+                slot,
+                &[
+                    IndexedBlobHash { index: 0, hash: FixedBytes::repeat_byte(11) },
+                    IndexedBlobHash { index: 1, hash: FixedBytes::repeat_byte(11) },
+                ],
+            ) // ask for blobs 0 and 1, the hashes are not important / not inspected
+            .await
+            .unwrap();
+        blobs_mock.assert();
+        assert_eq!(response.len(), 2); // We expect to filter two of the three blobs, by the indices passed above.
+        assert_eq!(response[0].blob, Box::new(blob_data.clone()));
+        assert_eq!(response[1].blob, Box::new(blob_data.clone()));
+    }
+}
