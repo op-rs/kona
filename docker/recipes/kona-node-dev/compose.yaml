@@ -83,10 +83,6 @@ services:
       context: .
       dockerfile: kona-node/kona-node.dockerfile
     ports:
-      #- "9223:9223/tcp" # p2p
-      #- "9223:9223/udp" # p2p
-      #- "9431:9431" # metrics
-      #- "5060:5060" # rpc
       - "${KONA_NODE_DISCOVERY_PORT:-9223}:${KONA_NODE_DISCOVERY_PORT:-9223}/tcp"
       - "${KONA_NODE_DISCOVERY_PORT:-9223}:${KONA_NODE_DISCOVERY_PORT:-9223}/udp"
       - "${KONA_NODE_METRICS_PORT:-9002}:${KONA_NODE_METRICS_PORT:-9002}"
@@ -120,10 +116,6 @@ volumes:
     driver: local
   grafana_data:
     driver: local
-  #  reth_data:
-  #    driver: local
-  #  kona_data:
-  #    driver: local
   logs:
     driver: local
 
