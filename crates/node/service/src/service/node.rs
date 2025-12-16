@@ -14,6 +14,7 @@ use alloy_eips::BlockNumberOrTag;
 use alloy_provider::RootProvider;
 use kona_derive::StatefulAttributesBuilder;
 use kona_genesis::{L1ChainConfig, RollupConfig};
+use kona_protocol::L2BlockInfo;
 use kona_providers_alloy::{AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient};
 use kona_rpc::RpcBuilder;
 use op_alloy_network::Optimism;
@@ -60,6 +61,8 @@ pub struct RollupNode {
     pub(crate) p2p_config: NetworkConfig,
     /// The [`SequencerConfig`] for the node.
     pub(crate) sequencer_config: SequencerConfig,
+    /// The follow client configuration for querying another L2 CL for sync status.
+    pub(crate) follow_client_config: Option<crate::FollowClientConfig>,
 }
 
 impl RollupNode {
@@ -144,7 +147,7 @@ impl RollupNode {
         // Create a global cancellation token for graceful shutdown of tasks.
         let cancellation = CancellationToken::new();
 
-        // Create the derivation actor.
+        // Create the derivation actor (only when follow mode is disabled).
         let (
             DerivationInboundChannels {
                 derivation_signal_tx,
@@ -153,7 +156,27 @@ impl RollupNode {
                 el_sync_complete_tx,
             },
             derivation,
-        ) = DerivationActor::new(self.derivation_builder());
+        ) = if !self.engine_config.follow_enabled {
+            let (channels, actor) = DerivationActor::new(self.derivation_builder());
+            (channels, Some(actor))
+        } else {
+            // In follow mode, create the channels but not the actor
+            use tokio::sync::{mpsc, oneshot, watch};
+            let (l1_head_updates_tx, _) = watch::channel(None);
+            let (engine_l2_safe_head_tx, _) = watch::channel(L2BlockInfo::default());
+            let (el_sync_complete_tx, _) = oneshot::channel();
+            let (derivation_signal_tx, _) = mpsc::channel(1024);
+
+            (
+                DerivationInboundChannels {
+                    l1_head_updates_tx,
+                    engine_l2_safe_head_tx,
+                    el_sync_complete_tx,
+                    derivation_signal_tx,
+                },
+                None,
+            )
+        };
 
         // Create the engine actor.
         let (
@@ -161,6 +184,7 @@ impl RollupNode {
                 attributes_tx,
                 build_request_tx,
                 finalized_l1_block_tx,
+                follow_status_tx,
                 inbound_queries_tx: engine_rpc,
                 reset_request_tx,
                 rollup_boost_admin_query_tx: rollup_boost_admin_rpc,
@@ -270,6 +294,47 @@ impl RollupNode {
             (None, None)
         };
 
+        // Create the follow actor if configured
+        let follow_actor = if let Some(follow_config) = &self.follow_client_config {
+            info!(
+                target: "rollup_node",
+                l2_url = %follow_config.l2_url,
+                l1_url = %follow_config.l1_url,
+                "Initializing follow actor"
+            );
+            match crate::HttpFollowClient::new(
+                follow_config.l2_url.clone(),
+                follow_config.l1_url.clone(),
+            ) {
+                Ok(follow_client) => {
+                    // Get the follow_status_tx sender from engine inbound data
+                    match follow_status_tx.clone() {
+                        Some(status_tx) => {
+                            Some(crate::FollowActor::new(
+                                follow_client,
+                                status_tx,
+                                cancellation.clone(),
+                            ))
+                        }
+                        None => {
+                            error!(target: "rollup_node", "Follow status channel not available");
+                            None
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!(
+                        target: "rollup_node",
+                        error = ?e,
+                        "Failed to initialize follow client, follow actor will not be started"
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         crate::service::spawn_and_wait!(
             cancellation,
             actors = [
@@ -287,16 +352,17 @@ impl RollupNode {
                     }
                 )),
                 sequencer_actor.map(|s| (s, ())),
+                follow_actor.map(|f| (f, ())),
                 Some((
                     network,
                     NetworkContext { blocks: unsafe_block_tx, cancellation: cancellation.clone() }
                 )),
                 Some((l1_watcher, ())),
-                Some((
-                    derivation,
+                derivation.map(|d| (
+                    d,
                     DerivationContext {
                         reset_request_tx: reset_request_tx.clone(),
-                        derived_attributes_tx: attributes_tx,
+                        derived_attributes_tx: attributes_tx.expect("attributes_tx must be Some when derivation is enabled"),
                         cancellation: cancellation.clone(),
                     }
                 )),

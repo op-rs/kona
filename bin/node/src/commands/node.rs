@@ -2,8 +2,8 @@
 
 use crate::{
     flags::{
-        BuilderClientArgs, GlobalArgs, L1ClientArgs, L2ClientArgs, P2PArgs, RollupBoostFlags,
-        RpcArgs, SequencerArgs,
+        BuilderClientArgs, FollowClientArgs, GlobalArgs, L1ClientArgs, L2ClientArgs, P2PArgs,
+        RollupBoostFlags, RpcArgs, SequencerArgs,
     },
     metrics::{CliMetrics, init_rollup_config_metrics},
 };
@@ -16,7 +16,7 @@ use clap::Parser;
 use kona_cli::{LogConfig, MetricsArgs};
 use kona_engine::{HyperAuthClient, OpEngineClient};
 use kona_genesis::{L1ChainConfig, RollupConfig};
-use kona_node_service::{EngineConfig, L1ConfigBuilder, NodeMode, RollupNodeBuilder};
+use kona_node_service::{EngineConfig, FollowClientConfig, L1ConfigBuilder, NodeMode, RollupNodeBuilder};
 use kona_registry::{L1Config, scr_rollup_config_by_alloy_ident};
 use op_alloy_network::Optimism;
 use op_alloy_provider::ext::engine::OpEngineApi;
@@ -98,6 +98,10 @@ pub struct NodeCommand {
     #[clap(flatten)]
     pub builder_client_args: BuilderClientArgs,
 
+    /// Optional follow client for L2 CL sync status.
+    #[clap(flatten)]
+    pub follow_client_args: FollowClientArgs,
+
     /// Path to a custom L2 rollup configuration file
     /// (overrides the default rollup configuration from the registry)
     #[arg(long, visible_alias = "rollup-cfg", env = "KONA_NODE_ROLLUP_CONFIG")]
@@ -127,6 +131,7 @@ impl Default for NodeCommand {
             l1_rpc_args: L1ClientArgs::default(),
             l2_client_args: L2ClientArgs::default(),
             builder_client_args: BuilderClientArgs::default(),
+            follow_client_args: FollowClientArgs::default(),
             l2_config_file: None,
             l1_config_file: None,
             node_mode: NodeMode::Validator,
@@ -311,8 +316,27 @@ impl NodeCommand {
             l2_timeout: Duration::from_millis(self.l2_client_args.l2_engine_timeout),
             l1_url: self.l1_rpc_args.l1_eth_rpc.clone(),
             mode: self.node_mode,
+            follow_enabled: self.follow_client_args.l2_follow_source.is_some(),
             rollup_boost: self.rollup_boost_flags.as_rollup_boost_args(),
         };
+
+        // Create the follow client config if a follow source URL is provided
+        let follow_client_config = self.follow_client_args.l2_follow_source.as_ref().map(|l2_follow_url| {
+            info!(
+                target: "rollup_node",
+                l2_follow_url = %l2_follow_url,
+                l1_url = %self.l1_rpc_args.l1_eth_rpc,
+                "Follow client config provided"
+            );
+            FollowClientConfig {
+                l2_url: l2_follow_url.clone(),
+                l1_url: self.l1_rpc_args.l1_eth_rpc.clone(),
+            }
+        });
+
+        if follow_client_config.is_none() {
+            debug!(target: "rollup_node", "No follow source configured");
+        }
 
         RollupNodeBuilder::new(
             cfg,
@@ -321,6 +345,7 @@ impl NodeCommand {
             engine_config,
             p2p_config,
             rpc_config,
+            follow_client_config,
         )
         .with_sequencer_config(self.sequencer_flags.config())
         .build()

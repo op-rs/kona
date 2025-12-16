@@ -59,6 +59,8 @@ impl Metrics {
     pub const BUILD_TASK_LABEL: &str = "build";
     /// Seal task label.
     pub const SEAL_TASK_LABEL: &str = "seal";
+    /// Follow task label.
+    pub const FOLLOW_TASK_LABEL: &str = "follow";
     /// Finalize task label.
     pub const FINALIZE_TASK_LABEL: &str = "finalize";
 

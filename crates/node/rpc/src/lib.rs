@@ -38,6 +38,9 @@ pub use jsonrpsee::{
     OpP2PApiServer, RollupBoostHealthzApiServer, RollupNodeApiServer, WsServer,
 };
 
+#[cfg(feature = "client")]
+pub use jsonrpsee::RollupNodeApiClient;
+
 mod rollup;
 pub use rollup::RollupRpc;
 

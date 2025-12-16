@@ -131,3 +131,18 @@ impl Default for L2ClientArgs {
         }
     }
 }
+
+/// L2 follow client arguments.
+#[derive(Clone, Debug, clap::Args)]
+pub struct FollowClientArgs {
+    /// URL of the L2 follow source RPC API.
+    /// The source must be the L2 CL RPC.
+    #[arg(long, visible_alias = "l2.follow.source", env = "KONA_NODE_L2_FOLLOW_SOURCE")]
+    pub l2_follow_source: Option<Url>,
+}
+
+impl Default for FollowClientArgs {
+    fn default() -> Self {
+        Self { l2_follow_source: None }
+    }
+}

@@ -23,5 +23,8 @@ pub use consolidate::{ConsolidateTask, ConsolidateTaskError};
 mod finalize;
 pub use finalize::{FinalizeTask, FinalizeTaskError};
 
+mod follow;
+pub use follow::{FollowTask, FollowTaskError};
+
 mod util;
 pub(super) use util::{BuildAndSealError, build_and_seal};

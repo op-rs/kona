@@ -5044,6 +5044,7 @@ name = "kona-node"
 version = "1.0.0-rc.1"
 dependencies = [
  "alloy-chains",
+ "alloy-eips",
  "alloy-genesis",
  "alloy-primitives",
  "alloy-provider",
@@ -5053,6 +5054,7 @@ dependencies = [
  "alloy-transport",
  "alloy-transport-http",
  "anyhow",
+ "async-trait",
  "backon",
  "clap",
  "derive_more",

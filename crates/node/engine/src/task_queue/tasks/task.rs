@@ -2,10 +2,10 @@
 //!
 //! [`Engine`]: crate::Engine
 
-use super::{BuildTask, ConsolidateTask, FinalizeTask, InsertTask};
+use super::{BuildTask, ConsolidateTask, FinalizeTask, FollowTask, InsertTask};
 use crate::{
     BuildTaskError, ConsolidateTaskError, EngineClient, EngineState, FinalizeTaskError,
-    InsertTaskError,
+    FollowTaskError, InsertTaskError,
     task_queue::{SealTask, SealTaskError},
 };
 use async_trait::async_trait;
@@ -73,6 +73,9 @@ pub enum EngineTaskErrors {
     /// An error that occurred while finalizing an L2 block.
     #[error(transparent)]
     Finalize(#[from] FinalizeTaskError),
+    /// An error that occurred while synchronizing with an external follow source.
+    #[error(transparent)]
+    Follow(#[from] FollowTaskError),
 }
 
 impl EngineTaskError for EngineTaskErrors {
@@ -83,6 +86,7 @@ impl EngineTaskError for EngineTaskErrors {
             Self::Seal(inner) => inner.severity(),
             Self::Consolidate(inner) => inner.severity(),
             Self::Finalize(inner) => inner.severity(),
+            Self::Follow(inner) => inner.severity(),
         }
     }
 }
@@ -104,6 +108,8 @@ pub enum EngineTask<EngineClient_: EngineClient> {
     Consolidate(Box<ConsolidateTask<EngineClient_>>),
     /// Finalizes an L2 block
     Finalize(Box<FinalizeTask<EngineClient_>>),
+    /// Synchronizes engine state with an external follow source
+    Follow(Box<FollowTask<EngineClient_>>),
 }
 
 impl<EngineClient_: EngineClient> EngineTask<EngineClient_> {
@@ -114,6 +120,7 @@ impl<EngineClient_: EngineClient> EngineTask<EngineClient_> {
             Self::Seal(task) => task.execute(state).await?,
             Self::Consolidate(task) => task.execute(state).await?,
             Self::Finalize(task) => task.execute(state).await?,
+            Self::Follow(task) => task.execute(state).await?,
             Self::Build(task) => {
                 task.execute(state).await?;
             }
@@ -128,6 +135,7 @@ impl<EngineClient_: EngineClient> EngineTask<EngineClient_> {
             Self::Consolidate(_) => crate::Metrics::CONSOLIDATE_TASK_LABEL,
             Self::Build(_) => crate::Metrics::BUILD_TASK_LABEL,
             Self::Seal(_) => crate::Metrics::SEAL_TASK_LABEL,
+            Self::Follow(_) => crate::Metrics::FOLLOW_TASK_LABEL,
             Self::Finalize(_) => crate::Metrics::FINALIZE_TASK_LABEL,
         }
     }
@@ -141,6 +149,7 @@ impl<EngineClient_: EngineClient> PartialEq for EngineTask<EngineClient_> {
                 (Self::Build(_), Self::Build(_)) |
                 (Self::Seal(_), Self::Seal(_)) |
                 (Self::Consolidate(_), Self::Consolidate(_)) |
+                (Self::Follow(_), Self::Follow(_)) |
                 (Self::Finalize(_), Self::Finalize(_))
         )
     }
@@ -156,36 +165,45 @@ impl<EngineClient_: EngineClient> PartialOrd for EngineTask<EngineClient_> {
 
 impl<EngineClient_: EngineClient> Ord for EngineTask<EngineClient_> {
     fn cmp(&self, other: &Self) -> Ordering {
-        // Order (descending): BuildBlock -> InsertUnsafe -> Consolidate -> Finalize
+        // Order (descending): Seal -> Build -> Insert -> Follow -> Consolidate -> Finalize
         //
         // https://specs.optimism.io/protocol/derivation.html#forkchoice-synchronization
         //
+        // - Seal tasks are prioritized highest, as they complete block building.
         // - Block building jobs are prioritized above all other tasks, to give priority to the
         //   sequencer. BuildTask handles forkchoice updates automatically.
-        // - InsertUnsafe tasks are prioritized over Consolidate tasks, to ensure that unsafe block
-        //   gossip is imported promptly.
-        // - Consolidate tasks are prioritized over Finalize tasks, as they advance the safe chain
-        //   via derivation.
-        // - Finalize tasks have the lowest priority, as they only update finalized status.
+        // - InsertUnsafe tasks are prioritized over Follow, to ensure that unsafe block
+        //   gossip is imported promptly (important for sequencer + follow mode).
+        // - Follow tasks update safe/finalized from external sources (follow mode only).
+        // - Consolidate tasks advance safe chain via derivation (not used when follow mode enabled).
+        // - Finalize tasks have the lowest priority (not used when follow mode enabled).
+        //
+        // Note: Consolidate and Finalize tasks are mutually exclusive with Follow tasks in
+        // practice (follow mode disables derivation), but priorities are defined for completeness.
         match (self, other) {
             // Same variant cases
             (Self::Insert(_), Self::Insert(_)) => Ordering::Equal,
-            (Self::Consolidate(_), Self::Consolidate(_)) => Ordering::Equal,
             (Self::Build(_), Self::Build(_)) => Ordering::Equal,
             (Self::Seal(_), Self::Seal(_)) => Ordering::Equal,
+            (Self::Follow(_), Self::Follow(_)) => Ordering::Equal,
+            (Self::Consolidate(_), Self::Consolidate(_)) => Ordering::Equal,
             (Self::Finalize(_), Self::Finalize(_)) => Ordering::Equal,
 
             // SealBlock tasks are prioritized over all others
             (Self::Seal(_), _) => Ordering::Greater,
             (_, Self::Seal(_)) => Ordering::Less,
 
-            // BuildBlock tasks are prioritized over InsertUnsafe and Consolidate tasks
+            // BuildBlock tasks are prioritized over all other tasks except Seal
             (Self::Build(_), _) => Ordering::Greater,
             (_, Self::Build(_)) => Ordering::Less,
 
-            // InsertUnsafe tasks are prioritized over Consolidate and Finalize tasks
+            // InsertUnsafe tasks are prioritized over Follow, Consolidate, and Finalize
             (Self::Insert(_), _) => Ordering::Greater,
             (_, Self::Insert(_)) => Ordering::Less,
+
+            // Follow tasks are prioritized over Consolidate and Finalize
+            (Self::Follow(_), _) => Ordering::Greater,
+            (_, Self::Follow(_)) => Ordering::Less,
 
             // Consolidate tasks are prioritized over Finalize tasks
             (Self::Consolidate(_), _) => Ordering::Greater,

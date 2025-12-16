@@ -38,6 +38,9 @@ pub use sequencer::{
     SequencerActor, SequencerActorError, SequencerAdminQuery, SequencerConfig,
 };
 
+mod follow;
+pub use follow::{FollowActor, FollowActorError};
+
 #[cfg(test)]
 pub use engine::MockBlockBuildingClient;
 #[cfg(test)]

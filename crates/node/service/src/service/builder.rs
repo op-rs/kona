@@ -36,6 +36,15 @@ pub struct L1ConfigBuilder {
     pub slot_duration_override: Option<u64>,
 }
 
+/// Configuration for initializing a follow client.
+#[derive(Debug, Clone)]
+pub struct FollowClientConfig {
+    /// The L2 consensus layer RPC URL.
+    pub l2_url: Url,
+    /// The L1 execution layer RPC URL.
+    pub l1_url: Url,
+}
+
 /// The [`RollupNodeBuilder`] is used to construct a [`RollupNode`] service.
 #[derive(Debug)]
 pub struct RollupNodeBuilder {
@@ -55,6 +64,8 @@ pub struct RollupNodeBuilder {
     pub sequencer_config: Option<SequencerConfig>,
     /// Whether to run the node in interop mode.
     pub interop_mode: InteropMode,
+    /// Optional follow client configuration for querying another L2 CL for sync status.
+    pub follow_client_config: Option<FollowClientConfig>,
 }
 
 impl RollupNodeBuilder {
@@ -66,6 +77,7 @@ impl RollupNodeBuilder {
         engine_config: EngineConfig,
         p2p_config: NetworkConfig,
         rpc_config: Option<RpcBuilder>,
+        follow_client_config: Option<FollowClientConfig>,
     ) -> Self {
         Self {
             config,
@@ -76,6 +88,7 @@ impl RollupNodeBuilder {
             rpc_config,
             interop_mode: InteropMode::default(),
             sequencer_config: None,
+            follow_client_config,
         }
     }
 
@@ -145,6 +158,7 @@ impl RollupNodeBuilder {
             rpc_builder: self.rpc_config,
             p2p_config,
             sequencer_config,
+            follow_client_config: self.follow_client_config,
         }
     }
 }

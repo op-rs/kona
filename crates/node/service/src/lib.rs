@@ -11,8 +11,12 @@ extern crate tracing;
 
 mod service;
 pub use service::{
-    InteropMode, L1Config, L1ConfigBuilder, NodeMode, RollupNode, RollupNodeBuilder,
+    FollowClientConfig, InteropMode, L1Config, L1ConfigBuilder, NodeMode, RollupNode,
+    RollupNodeBuilder,
 };
+
+mod follow;
+pub use follow::{FollowClient, FollowClientError, FollowStatus, HttpFollowClient};
 
 mod actors;
 pub use actors::{
@@ -20,15 +24,15 @@ pub use actors::{
     CancellableContext, Conductor, ConductorClient, ConductorError,
     DelayedL1OriginSelectorProvider, DerivationActor, DerivationBuilder, DerivationContext,
     DerivationError, DerivationInboundChannels, DerivationState, EngineActor, EngineConfig,
-    EngineContext, EngineError, EngineInboundData, InboundDerivationMessage, L1OriginSelector,
-    L1OriginSelectorError, L1OriginSelectorProvider, L1WatcherActor, L1WatcherActorError,
-    L2Finalizer, NetworkActor, NetworkActorError, NetworkBuilder, NetworkBuilderError,
-    NetworkConfig, NetworkContext, NetworkDriver, NetworkDriverError, NetworkHandler,
-    NetworkInboundData, NodeActor, OriginSelector, PipelineBuilder, QueuedBlockBuildingClient,
-    QueuedSequencerAdminAPIClient, QueuedUnsafePayloadGossipClient, ResetRequest, RpcActor,
-    RpcActorError, RpcContext, SealRequest, SequencerActor, SequencerActorError,
-    SequencerAdminQuery, SequencerConfig, UnsafePayloadGossipClient,
-    UnsafePayloadGossipClientError,
+    EngineContext, EngineError, EngineInboundData, FollowActor, FollowActorError,
+    InboundDerivationMessage, L1OriginSelector, L1OriginSelectorError, L1OriginSelectorProvider,
+    L1WatcherActor, L1WatcherActorError, L2Finalizer, NetworkActor, NetworkActorError,
+    NetworkBuilder, NetworkBuilderError, NetworkConfig, NetworkContext, NetworkDriver,
+    NetworkDriverError, NetworkHandler, NetworkInboundData, NodeActor, OriginSelector,
+    PipelineBuilder, QueuedBlockBuildingClient, QueuedSequencerAdminAPIClient,
+    QueuedUnsafePayloadGossipClient, ResetRequest, RpcActor, RpcActorError, RpcContext,
+    SealRequest, SequencerActor, SequencerActorError, SequencerAdminQuery, SequencerConfig,
+    UnsafePayloadGossipClient, UnsafePayloadGossipClientError,
 };
 
 mod metrics;
