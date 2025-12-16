@@ -223,6 +223,7 @@ impl EngineConfig {
             rollup: self.config,
             client,
             engine: Engine::new(state, engine_state_send, engine_queue_length_send),
+            follow_enabled: self.follow_enabled,
         })
     }
 }
@@ -236,6 +237,8 @@ pub(super) struct EngineActorState<EngineClient_: EngineClient> {
     pub(super) client: Arc<EngineClient_>,
     /// The [`Engine`] task queue.
     pub(super) engine: Engine<EngineClient_>,
+    /// Whether follow mode is enabled (for conditional derivation signal sending).
+    pub(super) follow_enabled: bool,
 }
 
 /// The communication context used by the engine actor.
@@ -251,6 +254,10 @@ pub struct EngineContext {
     /// sync is re-triggered can occur, but we will not block derivation on it.
     pub sync_complete_tx: oneshot::Sender<()>,
     /// A way for the engine actor to send a [`Signal`] back to the derivation actor.
+    ///
+    /// ## Note
+    /// In follow mode, this channel's receiver is dropped, so sends will fail.
+    /// EngineActor checks `follow_enabled` before sending to avoid errors.
     pub derivation_signal_tx: mpsc::Sender<Signal>,
 }
 
@@ -439,13 +446,16 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
         // condition where the derivation actor receives the pre-reset safe head.
         self.maybe_update_safe_head(engine_l2_safe_head_tx);
 
-        // Signal the derivation actor to reset.
-        let signal = ResetSignal { l2_safe_head, l1_origin, system_config: Some(system_config) };
-        match derivation_signal_tx.send(signal.signal()).await {
-            Ok(_) => info!(target: "engine", "Sent reset signal to derivation actor"),
-            Err(err) => {
-                error!(target: "engine", ?err, "Failed to send reset signal to the derivation actor");
-                return Err(EngineError::ChannelClosed);
+        // Signal the derivation actor to reset (only when derivation is enabled).
+        // In follow mode, skip sending because derivation actor doesn't exist.
+        if !self.follow_enabled {
+            let signal = ResetSignal { l2_safe_head, l1_origin, system_config: Some(system_config) };
+            match derivation_signal_tx.send(signal.signal()).await {
+                Ok(_) => info!(target: "engine", "Sent reset signal to derivation actor"),
+                Err(err) => {
+                    error!(target: "engine", ?err, "Failed to send reset signal to the derivation actor");
+                    return Err(EngineError::ChannelClosed);
+                }
             }
         }
 
@@ -756,44 +766,121 @@ impl NodeActor for EngineActor {
                         continue;
                     };
 
+                    // Skip follow source injection until initial EL sync completes
+                    if !state.engine.state().el_sync_finished {
+                        continue;
+                    }
+
                     // Get current local state
                     let local_unsafe = state.engine.state().sync_state.unsafe_head();
+                    let local_safe = state.engine.state().sync_state.safe_head();
                     let external_safe = status.safe_l2;
                     let external_finalized = status.finalized_l2;
 
+                    // Log current state with full context (matches op-node logging)
                     info!(
                         target: "engine",
                         local_unsafe_number = local_unsafe.block_info.number,
+                        local_unsafe_hash = %local_unsafe.block_info.hash,
+                        local_safe_number = local_safe.block_info.number,
+                        local_safe_hash = %local_safe.block_info.hash,
                         external_safe_number = external_safe.block_info.number,
+                        external_safe_hash = %external_safe.block_info.hash,
                         external_finalized_number = external_finalized.block_info.number,
-                        "Received external safe/finalized heads from follow source"
+                        "Follow Source: Processing external refs"
                     );
 
-                    // Determine target unsafe head:
-                    // - If local unsafe is ahead of external safe: keep local unsafe
-                    // - Otherwise: promote external safe to unsafe
-                    let target_unsafe = if local_unsafe.block_info.number > external_safe.block_info.number {
-                        local_unsafe
-                    } else {
-                        external_safe
-                    };
-
-                    // Create sync state update with external safe/finalized and determined unsafe
-                    let update = EngineSyncStateUpdate {
-                        unsafe_head: Some(target_unsafe),
-                        cross_unsafe_head: Some(target_unsafe),
+                    // Helper: Create update that promotes all heads (unsafe, safe, finalized)
+                    let create_full_update = || EngineSyncStateUpdate {
+                        unsafe_head: Some(external_safe),
+                        cross_unsafe_head: Some(external_safe),
                         safe_head: Some(external_safe),
                         local_safe_head: Some(external_safe),
                         finalized_head: Some(external_finalized),
                     };
 
-                    // Enqueue a FollowTask to synchronize the engine state with external heads
-                    let task = EngineTask::Follow(Box::new(FollowTask::new(
-                        state.client.clone(),
-                        state.rollup.clone(),
-                        update,
-                    )));
-                    state.engine.enqueue(task);
+                    // Helper: Create update that only updates safe and finalized (preserves unsafe)
+                    let create_safe_only_update = || EngineSyncStateUpdate {
+                        unsafe_head: None,
+                        cross_unsafe_head: None,
+                        safe_head: Some(external_safe),
+                        local_safe_head: Some(external_safe),
+                        finalized_head: Some(external_finalized),
+                    };
+
+                    // Helper: Enqueue a FollowTask with the given update
+                    let mut enqueue_update = |update: EngineSyncStateUpdate| {
+                        let task = EngineTask::Follow(Box::new(FollowTask::new(
+                            state.client.clone(),
+                            state.rollup.clone(),
+                            update,
+                        )));
+                        state.engine.enqueue(task);
+                    };
+
+                    // Case 1: External safe ahead of local unsafe
+                    if local_unsafe.block_info.number < external_safe.block_info.number {
+                        info!(
+                            target: "engine",
+                            local_unsafe_number = local_unsafe.block_info.number,
+                            external_safe_number = external_safe.block_info.number,
+                            "Follow Source: External safe ahead of current unsafe"
+                        );
+                        enqueue_update(create_full_update());
+                        continue;
+                    }
+
+                    // Query local EL for block at external safe number
+                    let local_block_result = state.client
+                        .l2_block_info_by_label(alloy_eips::BlockNumberOrTag::Number(external_safe.block_info.number))
+                        .await;
+
+                    match local_block_result {
+                        // Case 2b: Query error
+                        Err(err) => {
+                            debug!(
+                                target: "engine",
+                                ?err,
+                                external_safe_number = external_safe.block_info.number,
+                                "Follow Source: Failed to fetch external safe from local EL"
+                            );
+                            // Skip update on error
+                        }
+                        // Case 2a: Block not found (EL still syncing)
+                        Ok(None) => {
+                            debug!(
+                                target: "engine",
+                                external_safe_number = external_safe.block_info.number,
+                                local_unsafe_number = local_unsafe.block_info.number,
+                                "Follow Source: EL Sync in progress"
+                            );
+                            enqueue_update(create_safe_only_update());
+                        }
+                        // Block found locally
+                        Ok(Some(local_block)) => {
+                            if local_block.block_info.hash == external_safe.block_info.hash {
+                                // Case 3: Hashes match (consolidation)
+                                debug!(
+                                    target: "engine",
+                                    external_safe_number = external_safe.block_info.number,
+                                    external_safe_hash = %external_safe.block_info.hash,
+                                    "Follow Source: Consolidation"
+                                );
+                                enqueue_update(create_safe_only_update());
+                            } else {
+                                // Case 4: Hashes differ (reorg required)
+                                warn!(
+                                    target: "engine",
+                                    external_safe_number = external_safe.block_info.number,
+                                    external_safe_hash = %external_safe.block_info.hash,
+                                    local_block_number = local_block.block_info.number,
+                                    local_block_hash = %local_block.block_info.hash,
+                                    "Follow Source: Reorg detected. May trigger EL sync"
+                                );
+                                enqueue_update(create_full_update());
+                            }
+                        }
+                    }
                 }
             }
         }
