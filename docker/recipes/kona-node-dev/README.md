@@ -5,7 +5,7 @@ This is intended to run on x86-64 architecture.
 # Purpose
 
 This recipe, `kona-node-dev`, is different from the `kona-node` recipe in that
-it builds a local container image of `kona-node` instaed of pulling a nightly
+it builds a local container image of `kona-node` instead of pulling a nightly
 image of `main`.  This is useful, because it allows developers to checkout a
 development branch and see how it behaves on a network.
 
