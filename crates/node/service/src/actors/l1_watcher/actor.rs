@@ -50,37 +50,6 @@ where
     /// A stream over the finalized block accepted as canonical.
     finalized_stream: BS,
 }
-impl<BS, L1P> L1WatcherActor<BS, L1P>
-where
-    BS: Stream<Item = BlockInfo> + Unpin + Send,
-    L1P: Provider,
-{
-    /// Instantiate a new [`L1WatcherActor`].
-    #[allow(clippy::too_many_arguments)]
-    pub const fn new(
-        rollup_config: Arc<RollupConfig>,
-        l1_provider: L1P,
-        l1_query_rx: mpsc::Receiver<L1WatcherQueries>,
-        l1_head_updates_tx: watch::Sender<Option<BlockInfo>>,
-        finalized_l1_block_tx: watch::Sender<Option<BlockInfo>>,
-        signer: mpsc::Sender<Address>,
-        cancellation: CancellationToken,
-        head_stream: BS,
-        finalized_stream: BS,
-    ) -> Self {
-        Self {
-            rollup_config,
-            l1_provider,
-            inbound_queries: l1_query_rx,
-            latest_head: l1_head_updates_tx,
-            latest_finalized: finalized_l1_block_tx,
-            block_signer_sender: signer,
-            cancellation,
-            head_stream,
-            finalized_stream,
-        }
-    }
-}
 
 #[async_trait]
 impl<BS, L1P> NodeActor for L1WatcherActor<BS, L1P>
