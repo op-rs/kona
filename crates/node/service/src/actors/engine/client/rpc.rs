@@ -1,0 +1,220 @@
+use crate::{EngineActorRequest, EngineRpcRequest};
+use alloy_eips::BlockNumberOrTag;
+use async_trait::async_trait;
+use derive_more::Constructor;
+use jsonrpsee::{
+    core::RpcResult,
+    types::{ErrorCode, ErrorObject},
+};
+use kona_engine::{EngineQueries, EngineState};
+use kona_genesis::RollupConfig;
+use kona_protocol::{L2BlockInfo, OutputRoot};
+use kona_rpc::{
+    EngineRpcClient, RollupBoostAdminClient, RollupBoostHealthzApiServer,
+    RollupBoostHealthzResponse,
+};
+use rollup_boost::{GetExecutionModeResponse, SetExecutionModeRequest, SetExecutionModeResponse};
+use std::fmt::Debug;
+use tokio::sync::{mpsc, oneshot, watch};
+
+/// [`RollupBoostHealthzApiServer`] implementation to send the request to EngineActor's request
+/// channel.
+#[derive(Debug)]
+pub struct RollupBoostHealthRpcClient {
+    /// A channel to use to send the EngineActor requests.
+    pub engine_actor_request_tx: mpsc::Sender<EngineActorRequest>,
+}
+
+#[async_trait]
+impl RollupBoostHealthzApiServer for RollupBoostHealthRpcClient {
+    async fn rollup_boost_healthz(&self) -> RpcResult<RollupBoostHealthzResponse> {
+        let (health_tx, health_rx) = oneshot::channel();
+
+        if self
+            .engine_actor_request_tx
+            .send(EngineActorRequest::RpcRequest(EngineRpcRequest::RollupBoostHealthRequest(
+                kona_rpc::RollupBoostHealthQuery { sender: health_tx },
+            )))
+            .await
+            .is_err()
+        {
+            return Err(ErrorObject::from(ErrorCode::InternalError));
+        }
+
+        health_rx.await.map_err(|_| {
+            error!(target: "block_engine", "Failed to receive rollup boost health from engine rpc");
+            ErrorObject::from(ErrorCode::InternalError)
+        }).map(|resp| RollupBoostHealthzResponse{rollup_boost_health: resp})
+    }
+}
+
+/// [`RollupBoostAdminClient`] implementation to send the request to EngineActor's request channel.
+#[derive(Debug)]
+pub struct RollupBoostAdminApiClient {
+    /// A channel to use to send the EngineActor requests.
+    pub engine_actor_request_tx: mpsc::Sender<EngineActorRequest>,
+}
+
+impl RollupBoostAdminClient for RollupBoostAdminApiClient {
+    fn set_execution_mode(
+        &self,
+        request: SetExecutionModeRequest,
+    ) -> impl Future<Output = RpcResult<SetExecutionModeResponse>> + Send {
+        let engine_actor_request_tx = self.engine_actor_request_tx.clone();
+        async move {
+            let (mode_tx, mode_rx) = oneshot::channel();
+
+            engine_actor_request_tx
+                .send(EngineActorRequest::RpcRequest(EngineRpcRequest::RollupBoostAdminRequest(
+                    kona_rpc::RollupBoostAdminQuery::SetExecutionMode {
+                        execution_mode: request.execution_mode,
+                        sender: mode_tx,
+                    },
+                )))
+                .await
+                .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+            mode_rx
+                .await
+                .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+                .map(|_| SetExecutionModeResponse { execution_mode: request.execution_mode })
+        }
+    }
+
+    fn get_execution_mode(
+        &self,
+    ) -> impl Future<Output = RpcResult<GetExecutionModeResponse>> + Send {
+        let engine_actor_request_tx = self.engine_actor_request_tx.clone();
+        async move {
+            let (mode_tx, mode_rx) = oneshot::channel();
+
+            engine_actor_request_tx
+                .send(EngineActorRequest::RpcRequest(EngineRpcRequest::RollupBoostAdminRequest(
+                    kona_rpc::RollupBoostAdminQuery::GetExecutionMode { sender: mode_tx },
+                )))
+                .await
+                .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+            mode_rx
+                .await
+                .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+                .map(|execution_mode| GetExecutionModeResponse { execution_mode })
+        }
+    }
+}
+
+/// Queue-based implementation of the [`EngineRpcClient`] trait. This handles all channel-based
+/// operations, providing a nice facade for callers. This also exposes only a subset of the
+/// supported [`EngineActorRequest`] operations to limit the power of callers to RPC-type requests.
+#[derive(Clone, Constructor, Debug)]
+pub struct QueuedEngineRpcClient {
+    /// A channel to use to send the EngineActor requests.
+    pub engine_actor_request_tx: mpsc::Sender<EngineActorRequest>,
+}
+
+#[async_trait]
+impl EngineRpcClient for QueuedEngineRpcClient {
+    async fn get_config(&self) -> RpcResult<RollupConfig> {
+        let (config_tx, config_rx) = oneshot::channel();
+
+        let _ = self
+            .engine_actor_request_tx
+            .send(EngineActorRequest::RpcRequest(EngineRpcRequest::EngineQuery(
+                EngineQueries::Config(config_tx),
+            )))
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        config_rx.await.map_err(|_| {
+            error!(target: "block_engine", "Failed to receive config from engine rpc");
+            ErrorObject::from(ErrorCode::InternalError)
+        })
+    }
+
+    async fn get_state(&self) -> RpcResult<EngineState> {
+        let (state_tx, state_rx) = oneshot::channel();
+
+        let _ = self
+            .engine_actor_request_tx
+            .send(EngineActorRequest::RpcRequest(EngineRpcRequest::EngineQuery(
+                EngineQueries::State(state_tx),
+            )))
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        state_rx.await.map_err(|_| {
+            error!(target: "block_engine", "Failed to receive state from engine rpc");
+            ErrorObject::from(ErrorCode::InternalError)
+        })
+    }
+
+    async fn get_task_queue_length(&self) -> RpcResult<usize> {
+        let (length_tx, length_rx) = oneshot::channel();
+
+        let _ = self
+            .engine_actor_request_tx
+            .send(EngineActorRequest::RpcRequest(EngineRpcRequest::EngineQuery(
+                EngineQueries::TaskQueueLength(length_tx),
+            )))
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        length_rx.await.map_err(|_| {
+            error!(target: "block_engine", "Failed to receive task queue length from engine rpc");
+            ErrorObject::from(ErrorCode::InternalError)
+        })
+    }
+
+    async fn output_at_block(
+        &self,
+        block: BlockNumberOrTag,
+    ) -> RpcResult<(L2BlockInfo, OutputRoot, EngineState)> {
+        let (output_tx, output_rx) = oneshot::channel();
+
+        let _ = self
+            .engine_actor_request_tx
+            .send(EngineActorRequest::RpcRequest(EngineRpcRequest::EngineQuery(
+                EngineQueries::OutputAtBlock { block, sender: output_tx },
+            )))
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        output_rx.await.map_err(|_| {
+            error!(target: "block_engine", "Failed to receive output at block from engine rpc");
+            ErrorObject::from(ErrorCode::InternalError)
+        })
+    }
+
+    async fn dev_subscribe_to_engine_queue_length(&self) -> RpcResult<watch::Receiver<usize>> {
+        let (sub_tx, sub_rx) = oneshot::channel();
+
+        let _ = self
+            .engine_actor_request_tx
+            .send(EngineActorRequest::RpcRequest(EngineRpcRequest::EngineQuery(
+                EngineQueries::QueueLengthReceiver(sub_tx),
+            )))
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        sub_rx.await.map_err(|_| {
+            error!(target: "block_engine", "Failed to receive queue length receiver from engine rpc");
+            ErrorObject::from(ErrorCode::InternalError)
+        })
+    }
+    async fn dev_subscribe_to_engine_state(&self) -> RpcResult<watch::Receiver<EngineState>> {
+        let (sub_tx, sub_rx) = oneshot::channel();
+
+        let _ = self
+            .engine_actor_request_tx
+            .send(EngineActorRequest::RpcRequest(EngineRpcRequest::EngineQuery(
+                EngineQueries::StateReceiver(sub_tx),
+            )))
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        sub_rx.await.map_err(|_| {
+            error!(target: "block_engine", "Failed to receive state receiver from engine rpc");
+            ErrorObject::from(ErrorCode::InternalError)
+        })
+    }
+}

@@ -1,5 +1,5 @@
 use crate::{
-    BlockEngineError, ConductorError, SequencerAdminQuery,
+    ConductorError, EngineClientError, SequencerAdminQuery,
     actors::{MockBlockBuildingClient, MockConductor, sequencer::tests::test_util::test_actor},
 };
 use alloy_primitives::B256;
@@ -172,7 +172,7 @@ async fn test_stop_sequencer_error_fetching_unsafe_head(#[values(true, false)] v
     client
         .expect_get_unsafe_head()
         .times(1)
-        .return_once(|| Err(BlockEngineError::RequestError("whoops!".to_string())));
+        .return_once(|| Err(EngineClientError::RequestError("whoops!".to_string())));
 
     let mut actor = test_actor();
     actor.block_building_client = client;
@@ -322,7 +322,7 @@ async fn test_reset_derivation_pipeline_error(#[values(true, false)] via_channel
     client
         .expect_reset_engine_forkchoice()
         .times(1)
-        .return_once(|| Err(BlockEngineError::RequestError("reset failed".to_string())));
+        .return_once(|| Err(EngineClientError::RequestError("reset failed".to_string())));
 
     let mut actor = test_actor();
     actor.block_building_client = client;

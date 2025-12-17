@@ -4,7 +4,7 @@ use crate::{
     CancellableContext, NodeActor, UnsafePayloadGossipClient,
     actors::{
         BlockBuildingClient,
-        engine::BlockEngineError,
+        engine::EngineClientError,
         sequencer::{
             admin_api_client::SequencerAdminQuery,
             conductor::Conductor,
@@ -430,11 +430,11 @@ where
                             next_payload_to_seal = res.unsealed_payload_handle;
                             last_seal_duration = res.seal_duration;
                         },
-                        Err(SequencerActorError::BlockEngine(BlockEngineError::SealError(err))) => {
+                        Err(SequencerActorError::BlockEngine(EngineClientError::SealError(err))) => {
                             if is_seal_task_err_fatal(&err) {
                                 error!(target: "sequencer", err=?err, "Critical seal task error occurred");
                                 self.cancellation_token.cancel();
-                                return Err(SequencerActorError::BlockEngine(BlockEngineError::SealError(err)));
+                                return Err(SequencerActorError::BlockEngine(EngineClientError::SealError(err)));
                             } else {
                                 next_payload_to_seal = None;
                             }
