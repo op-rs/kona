@@ -23,6 +23,6 @@ pub use signer::{SignerArgs, SignerArgsParseError};
 
 mod engine;
 pub use engine::{
-    BuilderClientArgs, FlashblocksFlags, FlashblocksWebsocketFlags, FollowClientArgs,
-    L1ClientArgs, L2ClientArgs, RollupBoostFlags,
+    BuilderClientArgs, FlashblocksFlags, FlashblocksWebsocketFlags, FollowClientArgs, L1ClientArgs,
+    L2ClientArgs, RollupBoostFlags,
 };

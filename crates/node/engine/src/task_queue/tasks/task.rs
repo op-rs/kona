@@ -172,10 +172,11 @@ impl<EngineClient_: EngineClient> Ord for EngineTask<EngineClient_> {
         // - Seal tasks are prioritized highest, as they complete block building.
         // - Block building jobs are prioritized above all other tasks, to give priority to the
         //   sequencer. BuildTask handles forkchoice updates automatically.
-        // - InsertUnsafe tasks are prioritized over Follow, to ensure that unsafe block
-        //   gossip is imported promptly (important for sequencer + follow mode).
+        // - InsertUnsafe tasks are prioritized over Follow, to ensure that unsafe block gossip is
+        //   imported promptly (important for sequencer + follow mode).
         // - Follow tasks update safe/finalized from external sources (follow mode only).
-        // - Consolidate tasks advance safe chain via derivation (not used when follow mode enabled).
+        // - Consolidate tasks advance safe chain via derivation (not used when follow mode
+        //   enabled).
         // - Finalize tasks have the lowest priority (not used when follow mode enabled).
         //
         // Note: Consolidate and Finalize tasks are mutually exclusive with Follow tasks in

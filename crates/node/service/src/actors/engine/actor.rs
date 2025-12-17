@@ -449,7 +449,8 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
         // Signal the derivation actor to reset (only when derivation is enabled).
         // In follow mode, skip sending because derivation actor doesn't exist.
         if !self.follow_enabled {
-            let signal = ResetSignal { l2_safe_head, l1_origin, system_config: Some(system_config) };
+            let signal =
+                ResetSignal { l2_safe_head, l1_origin, system_config: Some(system_config) };
             match derivation_signal_tx.send(signal.signal()).await {
                 Ok(_) => info!(target: "engine", "Sent reset signal to derivation actor"),
                 Err(err) => {

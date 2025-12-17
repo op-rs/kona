@@ -5,10 +5,7 @@ use crate::{
     L1WatcherActor, NetworkActor, NetworkBuilder, NetworkConfig, NetworkContext, NodeActor,
     NodeMode, QueuedBlockBuildingClient, QueuedSequencerAdminAPIClient, RpcActor, RpcContext,
     SequencerActor, SequencerConfig,
-    actors::{
-        BlockStream, EngineInboundData, NetworkInboundData,
-        QueuedUnsafePayloadGossipClient,
-    },
+    actors::{BlockStream, EngineInboundData, NetworkInboundData, QueuedUnsafePayloadGossipClient},
 };
 use alloy_eips::BlockNumberOrTag;
 use alloy_provider::RootProvider;
@@ -149,7 +146,14 @@ impl RollupNode {
 
         // Create the derivation actor (only when follow mode is disabled).
         // In follow mode, create dummy channels and save el_sync_complete_rx for FollowActor.
-        let (derivation_signal_tx, l1_head_updates_tx, engine_l2_safe_head_tx, el_sync_complete_tx, derivation, el_sync_complete_rx);
+        let (
+            derivation_signal_tx,
+            l1_head_updates_tx,
+            engine_l2_safe_head_tx,
+            el_sync_complete_tx,
+            derivation,
+            el_sync_complete_rx,
+        );
 
         if !self.engine_config.follow_enabled {
             // Normal mode: Create derivation actor which creates all channels
@@ -362,7 +366,8 @@ impl RollupNode {
                     d,
                     DerivationContext {
                         reset_request_tx: reset_request_tx.clone(),
-                        derived_attributes_tx: attributes_tx.expect("attributes_tx must be Some when derivation is enabled"),
+                        derived_attributes_tx: attributes_tx
+                            .expect("attributes_tx must be Some when derivation is enabled"),
                         cancellation: cancellation.clone(),
                     }
                 )),

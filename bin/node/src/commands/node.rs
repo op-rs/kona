@@ -16,7 +16,9 @@ use clap::Parser;
 use kona_cli::{LogConfig, MetricsArgs};
 use kona_engine::{HyperAuthClient, OpEngineClient};
 use kona_genesis::{L1ChainConfig, RollupConfig};
-use kona_node_service::{EngineConfig, FollowClientConfig, L1ConfigBuilder, NodeMode, RollupNodeBuilder};
+use kona_node_service::{
+    EngineConfig, FollowClientConfig, L1ConfigBuilder, NodeMode, RollupNodeBuilder,
+};
 use kona_registry::{L1Config, scr_rollup_config_by_alloy_ident};
 use op_alloy_network::Optimism;
 use op_alloy_provider::ext::engine::OpEngineApi;
@@ -321,18 +323,19 @@ impl NodeCommand {
         };
 
         // Create the follow client config if a follow source URL is provided
-        let follow_client_config = self.follow_client_args.l2_follow_source.as_ref().map(|l2_follow_url| {
-            info!(
-                target: "rollup_node",
-                l2_follow_url = %l2_follow_url,
-                l1_url = %self.l1_rpc_args.l1_eth_rpc,
-                "Follow client config provided"
-            );
-            FollowClientConfig {
-                l2_url: l2_follow_url.clone(),
-                l1_url: self.l1_rpc_args.l1_eth_rpc.clone(),
-            }
-        });
+        let follow_client_config =
+            self.follow_client_args.l2_follow_source.as_ref().map(|l2_follow_url| {
+                info!(
+                    target: "rollup_node",
+                    l2_follow_url = %l2_follow_url,
+                    l1_url = %self.l1_rpc_args.l1_eth_rpc,
+                    "Follow client config provided"
+                );
+                FollowClientConfig {
+                    l2_url: l2_follow_url.clone(),
+                    l1_url: self.l1_rpc_args.l1_eth_rpc.clone(),
+                }
+            });
 
         if follow_client_config.is_none() {
             debug!(target: "rollup_node", "No follow source configured");
