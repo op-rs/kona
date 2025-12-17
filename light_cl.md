@@ -1007,6 +1007,168 @@ let local_block_result = state.client
 ✅ **Logging**: Rich structured logging with full context
 ✅ **All Cases**: All 5 cases implemented with correct behavior
 
+## Timing Behavior Analysis
+
+### Observable Behavior During Initial Sync
+
+When starting a node in follow mode and querying `optimism_syncStatus` RPC during initial sync, two timing behaviors are observed:
+
+1. **Safe head updates before finalized head**: Safe head shows the external value immediately, while finalized head stays at genesis for a few seconds before updating
+2. **Delay between FollowActor logs and EngineActor processing**: ~10 second delay between "Received follow status update" (FollowActor) and "Follow Source: Processing external ref" (EngineActor)
+
+**Both behaviors are normal and expected** - they result from the deliberate architectural design of the engine actor.
+
+### Why Safe Updates Before Finalized
+
+#### Sequence of Events
+
+1. **EL finishes initial sync**
+   - Execution layer reports: `unsafe=1000, safe=1000, finalized=0` (genesis)
+   - EL hasn't finalized any blocks yet during initial sync
+
+2. **`check_el_sync()` triggers engine reset** (`actor.rs:526-551`)
+   - Calls `find_starting_forkchoice()` which queries EL for current state
+   - Gets: `unsafe=1000, safe=1000, finalized=0` (from EL's perspective)
+
+3. **`Engine.reset()` applies this state** (`task_queue/core.rs:91-96`)
+   ```rust
+   EngineSyncStateUpdate {
+       unsafe_head: Some(start.un_safe),  // 1000
+       safe_head: Some(start.safe),       // 1000
+       finalized_head: Some(start.finalized), // 0 ← From EL!
+   }
+   ```
+
+4. **`maybe_update_safe_head()` broadcasts safe** (`actor.rs:447`)
+   - Safe head = 1000 is now visible in RPC responses
+
+5. **Meanwhile, FollowTask is executing** (slow, few seconds)
+   - Waiting for `fork_choice_updated_v3()` call to complete
+   - Will update finalized to external source's value (e.g., 900)
+
+6. **User queries RPC first time**: Sees `safe=1000, finalized=0` (genesis)
+
+7. **FollowTask completes**: Updates `finalized=900` from external source
+
+8. **User queries RPC again**: Sees `safe=1000, finalized=900`
+
+#### Root Cause
+
+**File**: `crates/node/engine/src/sync/mod.rs`
+- Line 120: `// Leave the finalized block as-is, and return the current forkchoice.`
+- `find_starting_forkchoice()` returns finalized value **as reported by the EL**
+- During initial sync, EL reports `finalized=genesis`
+- Engine reset uses this value, making it visible immediately
+- FollowTask completes later and updates finalized to the external value
+
+This is **expected behavior** - the reset sets all heads based on EL state (which has finalized at genesis), then FollowTask updates finalized once it completes processing.
+
+### Why 10s Delay Between FollowActor and EngineActor
+
+#### The Two-Phase Select Architecture
+
+**File**: `crates/node/service/src/actors/engine/actor.rs`
+
+The engine actor's main loop has **two separate `tokio::select!` blocks**:
+
+```rust
+loop {
+    // Phase 1: Drain tasks
+    tokio::select! {
+        _ = cancellation.cancelled() => { ... }
+        drain_result = state.drain(...) => {  // ← Blocks here
+            // Process drain result
+        }
+    }
+
+    // Phase 2: Accept new work
+    tokio::select! {
+        biased;
+        ...
+        // Line 761: follow_status received HERE
+        Some(follow_status) = OptionFuture::from(
+            self.follow_status_rx.as_mut().map(|rx| rx.recv())
+        ), if self.follow_status_rx.is_some() => {
+            // "Follow Source: Processing external ref" logged here
+        }
+    }
+}
+```
+
+#### Sequence Causing Delay
+
+1. **FollowActor sends status** → channel buffer (instant)
+   - Log: "Received follow status update" (`follow/actor.rs:244`)
+
+2. **EngineActor is in Phase 1** waiting for `drain()` to complete
+   - `drain()` executes queued tasks (e.g., engine reset, forkchoice updates)
+   - Tasks take ~10 seconds to complete during initial sync
+
+3. **Phase 1 completes** after drain finishes
+
+4. **Loop continues to Phase 2**
+
+5. **Phase 2 receives follow_status** from channel
+   - Log: "Follow Source: Processing external ref" (`actor.rs:778-788`)
+   - **10 seconds after step 1**
+
+#### Root Cause
+
+The `follow_status_rx` is **only in Phase 2** (second select!), not in Phase 1. When `drain()` is busy processing tasks, the follow status message waits in the channel buffer until drain completes.
+
+#### Design Rationale
+
+This two-phase design is **intentional**:
+- **Phase 1**: Drain all pending tasks to completion (ensures consistency)
+- **Phase 2**: Accept new work (follow status, unsafe blocks, attributes, etc.)
+
+This ensures tasks are processed to completion before accepting new inputs, maintaining state consistency. The delay is a natural consequence of this architecture.
+
+### Task Queue Monitoring
+
+To observe this behavior in real-time, use the development RPC API:
+
+**File**: `crates/node/rpc/src/dev.rs`
+
+#### Query Current Queue Length
+```bash
+curl -X POST http://localhost:9545 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "dev_task_queue_length",
+    "params": [],
+    "id": 1
+  }'
+```
+
+Response: `{"jsonrpc":"2.0","result":1,"id":1}` (1 task pending)
+
+#### Subscribe to Queue Updates (WebSocket)
+```javascript
+{
+  "jsonrpc": "2.0",
+  "method": "dev_subscribe_engine_queue_length",
+  "params": [],
+  "id": 1
+}
+```
+
+Sends real-time updates when queue length changes:
+```
+Queue: 1 → FollowTask executing, finalized still at genesis
+Queue: 0 → FollowTask completed, finalized updated!
+```
+
+### Summary
+
+Both timing behaviors are **normal and expected**:
+
+1. **Safe before finalized**: Engine reset uses EL's state (finalized=genesis), FollowTask updates finalized later
+2. **10s delay**: EngineActor drains tasks before processing follow status from channel
+
+These are not bugs - they're consequences of the deliberate architectural design that prioritizes consistency and task completion over immediate responsiveness during initial sync. Once steady-state is reached, these delays become much shorter as there's no heavy work like engine resets happening.
+
 ## Next Steps
 
 1. ✅ **~~Implement Step 2~~**: ~~Actual injection logic in EngineActor~~ (COMPLETED)
