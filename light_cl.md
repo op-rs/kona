@@ -1182,10 +1182,18 @@ These are not bugs - they're consequences of the deliberate architectural design
    - ✅ Implementation location: `actor.rs:759-868` (5-case algorithm with helper closures)
    - ✅ Verification: Code compiles successfully, all cases implemented
 3. **Mirror external current_l1 to local state**:
-   - With derivation disabled, `current_l1` in RPC responses (`optimism_syncStatus`) is not updated
-   - External services like op-batcher query this field to track L1 processing progress
-   - Need to use `FollowStatus.current_l1` to update L1WatcherActor's `latest_head` channel
-   - Deferred: existing codebase may have issues with how `current_l1` is tracked; needs investigation
+   - Status: **Blocked by pre-existing issue**
+   - **Problem**: With derivation disabled, `current_l1` in RPC responses (`optimism_syncStatus`) is not updated
+   - **Impact**: External services like op-batcher query this field to track L1 processing progress
+   - **Blocker**: Existing codebase has issues with how `current_l1` is tracked (documented in `current_l1.md`)
+   - **Plan**:
+     1. Fix current_l1 tracking issues in **separate PR** (affects all modes, not just follow)
+     2. After fix is merged, integrate with follow mode in **follow-up PR**
+     3. Use `FollowStatus.current_l1` to update L1WatcherActor's `latest_head` channel
+   - **Rationale**: Pre-existing issue should be fixed independently before adding follow mode integration
+     - Keeps PRs focused and reviewable
+     - Fixes problem for normal derivation mode too
+     - Cleaner separation of concerns
 4. **End-to-end testing**: Test follow mode with real external L2 CL source
 5. **Edge case handling**:
    - Handle reorgs (external safe/finalized rewinds)
