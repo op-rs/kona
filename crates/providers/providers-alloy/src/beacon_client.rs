@@ -5,11 +5,12 @@ use crate::Metrics;
 use crate::blobs::BoxedBlobWithIndex;
 use alloy_eips::eip4844::{IndexedBlobHash, env_settings::EnvKzgSettings, kzg_to_versioned_hash};
 use alloy_primitives::{B256, FixedBytes};
+use alloy_provider::ReqwestProvider;
 use alloy_rpc_types_beacon::sidecar::{BeaconBlobBundle, GetBlobsResponse};
 use async_trait::async_trait;
 use c_kzg::Blob;
 use reqwest::Client;
-use std::{boxed::Box, format, string::String, vec::Vec};
+use std::{boxed::Box, format, io, string::String, vec::Vec};
 
 /// The config spec engine api method.
 const SPEC_METHOD: &str = "eth/v1/config/spec";
@@ -143,51 +144,50 @@ impl OnlineBeaconClient {
     ) -> Result<Vec<BoxedBlobWithIndex>, reqwest::Error> {
         let blob_indexes = blob_hashes.iter().map(|blob| blob.index).collect::<Vec<_>>();
         let params = blob_hashes.iter().map(|blob| blob.hash.to_string()).collect::<Vec<_>>();
+        match self
+            .inner
+            .get(format!("{}/{}/{}", self.base, BLOBS_METHOD_PREFIX, slot))
+            .query(&[("versioned_hashes", &params.join(",").as_str())])
+            .send()
+            .await
+        {
+            Ok(response) if response.status().is_success() => {
+                let bundle = response.json::<GetBlobsResponse>().await?;
 
-        Ok(
-            match self
-                .inner
-                .get(format!("{}/{}/{}", self.base, BLOBS_METHOD_PREFIX, slot))
-                .query(&[("versioned_hashes", &params.join(",").as_str())])
-                .send()
-                .await
-            {
-                Ok(response) if response.status().is_success() => {
-                    let bundle = response.json::<GetBlobsResponse>().await?;
+                // Map blobs into versioned hashes for validation and
+                // matching against input:
+                let response_blob_hashes =
+                    bundle.data.iter().map(blob_versioned_hash).collect::<Vec<_>>();
 
-                    // Map blobs into versioned hashes for validation and
-                    // matching against input:
-                    let mut response_blob_hashes = bundle.data.iter().map(blob_versioned_hash);
-
-                    // Map the input into the output, finding the blob from the response
-                    // whose hash matches the input:
-                    blob_hashes
-                        .iter()
-                        .map(|blob_hash| {
-                            let idx = response_blob_hashes
-                                .position(|response_blob_hash| response_blob_hash == blob_hash.hash)
-                                .unwrap(); // TODO handle this error "blob for blob hash not found"
-                            BoxedBlobWithIndex {
-                                blob: Box::new(*bundle.data.get(idx).unwrap()),
-                                index: blob_hash.index,
-                            }
+                // Map the input into the output, finding the blob from the response
+                // whose hash matches the input:
+                blob_hashes
+                    .iter()
+                    .map(|blob_hash| -> Result<BoxedBlobWithIndex, reqwest::Error> {
+                        let idx = response_blob_hashes
+                            .iter()
+                            .position(|response_blob_hash| *response_blob_hash == blob_hash.hash)
+                            .unwrap();
+                        Ok(BoxedBlobWithIndex {
+                            blob: Box::new(*bundle.data.get(idx).unwrap()),
+                            index: blob_hash.index,
                         })
-                        .collect::<Vec<_>>()
-                }
-                Ok(response) => {
-                    panic!(
-                        "got a response, but not success, {}, {}",
-                        response.status(),
-                        response.text().await.unwrap()
-                    )
-                }
-                // If the blobs endpoint fails, try the deprecated sidecars endpoint. CL Clients
-                // only support the blobs endpoint from Fusaka (Fulu) onwards.
-                Err(err) => {
-                    panic!("Failed to fetch blobs from the blobs endpoint, {}", err)
-                }
-            },
-        )
+                    })
+                    .collect::<Result<Vec<_>, reqwest::Error>>()
+            }
+            Ok(response) => {
+                panic!(
+                    "got a response, but not success, {}, {}",
+                    response.status(),
+                    response.text().await.unwrap()
+                )
+            }
+            // If the blobs endpoint fails, try the deprecated sidecars endpoint. CL Clients
+            // only support the blobs endpoint from Fusaka (Fulu) onwards.
+            Err(err) => {
+                panic!("Failed to fetch blobs from the blobs endpoint, {}", err)
+            }
+        }
     }
 }
 
