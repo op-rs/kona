@@ -1169,6 +1169,100 @@ Both timing behaviors are **normal and expected**:
 
 These are not bugs - they're consequences of the deliberate architectural design that prioritizes consistency and task completion over immediate responsiveness during initial sync. Once steady-state is reached, these delays become much shorter as there's no heavy work like engine resets happening.
 
+## Component Behavior in Follow Mode
+
+### L2Finalizer Becomes Inactive
+
+The `L2Finalizer` is a component responsible for finalizing L2 blocks derived from finalized L1 blocks. In follow mode, this component effectively becomes **inactive** but remains safely enabled.
+
+#### How L2Finalizer Works in Normal Mode
+
+**File**: `crates/node/service/src/actors/engine/finalizer.rs`
+
+The finalizer maintains a queue of derived L2 blocks awaiting finalization:
+
+1. **Enqueue** (`actor.rs:735-750`): When `OpAttributesWithParent` are received from DerivationActor:
+   ```rust
+   Some(attributes) = OptionFuture::from(self.attributes_rx.as_mut()...) => {
+       self.finalizer.enqueue_for_finalization(&attributes);  // Enqueues derived blocks
+       // Creates ConsolidateTask
+   }
+   ```
+
+2. **Finalize** (`actor.rs:751-759`): When L1 finalized block updates arrive:
+   ```rust
+   msg = self.finalizer.new_finalized_block() => {
+       self.finalizer.try_finalize_next(&mut state).await;  // Finalizes enqueued blocks
+   }
+   ```
+
+The finalizer tracks `L1 block number → highest derived L2 block number` mappings. When a new finalized L1 block is observed, it finalizes all L2 blocks derived from that L1 epoch.
+
+#### What Changes in Follow Mode
+
+**File**: `crates/node/service/src/actors/engine/actor.rs`
+
+1. **`attributes_rx` is `None`** (line 288-293):
+   - Set during initialization when `follow_enabled=true`
+   - Guard condition `if self.attributes_rx.is_some()` is false
+
+2. **Line 735-750 never executes**: Branch skipped due to guard condition
+
+3. **`enqueue_for_finalization()` never called**: No derived attributes to enqueue
+
+4. **`awaiting_finalization` map stays empty**: Nothing in the finalization queue
+
+5. **Line 751-759 still executes**: L1 finalized block updates are received, but:
+   ```rust
+   let highest_safe = self.awaiting_finalization.range(...).next_back();
+   // Returns None because awaiting_finalization is empty
+   // No FinalizeTask is enqueued
+   ```
+
+#### How Finalization Works in Follow Mode
+
+**Finalization happens via FollowTask instead** (`actor.rs:796, 805`):
+
+```rust
+let create_safe_only_update = || EngineSyncStateUpdate {
+    unsafe_head: None,
+    cross_unsafe_head: None,
+    safe_head: Some(external_safe),
+    local_safe_head: Some(external_safe),
+    finalized_head: Some(external_finalized),  // ← Direct finalization from external source
+};
+```
+
+The `FollowTask` → `SynchronizeTask` → `apply_update()` flow sets `finalized_head` directly based on the external source's finalized value, bypassing the derivation-based finalization mechanism.
+
+#### Why This Design Works
+
+**L2Finalizer safely becomes a no-op in follow mode:**
+
+✅ **Safe to leave enabled**:
+- No side effects when queue is empty
+- `try_finalize_next()` returns early when `awaiting_finalization` is empty
+- No unnecessary FinalizeTask creation
+
+✅ **Clean separation**:
+- L2Finalizer is tied to derivation (derives from L1, finalizes when L1 finalizes)
+- Follow mode doesn't derive - trusts external finalized head directly
+- Component naturally becomes inactive without explicit disabling
+
+✅ **Consistent architecture**:
+- Derivation-specific components gracefully become no-ops when derivation disabled
+- No need for follow-mode-specific conditionals in L2Finalizer itself
+- Existing code paths remain unchanged
+
+#### Summary
+
+The L2Finalizer demonstrates the clean separation between derivation and follow modes:
+- **Normal mode**: Finalizer tracks derived L2 blocks and finalizes them when L1 finalizes
+- **Follow mode**: Finalizer receives L1 updates but has nothing to finalize (queue empty)
+- **Result**: Component is inactive but harmless, finalization handled by FollowTask instead
+
+This is **expected behavior** - not a bug or inefficiency, but a natural consequence of disabling derivation while keeping the engine actor's structure intact.
+
 ## Next Steps
 
 1. ✅ **~~Implement Step 2~~**: ~~Actual injection logic in EngineActor~~ (COMPLETED)
