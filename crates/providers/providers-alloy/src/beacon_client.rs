@@ -10,7 +10,13 @@ use alloy_rpc_types_beacon::sidecar::{BeaconBlobBundle, GetBlobsResponse};
 use async_trait::async_trait;
 use c_kzg::Blob;
 use reqwest::Client;
-use std::{boxed::Box, format, io, string::String, vec::Vec};
+use std::{
+    boxed::Box,
+    format,
+    io::{self, Error},
+    string::String,
+    vec::Vec,
+};
 
 /// The config spec engine api method.
 const SPEC_METHOD: &str = "eth/v1/config/spec";
@@ -100,6 +106,17 @@ fn blob_versioned_hash(blob: &FixedBytes<131072>) -> B256 {
     kzg_to_versioned_hash(commitment.as_slice())
 }
 
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum BeaconClientError {
+    #[error("HTTP request failed: {0}")]
+    Http(#[from] reqwest::Error),
+
+    #[error("Blob hash not found in beacon response {0}")]
+    BlobNotFound(String),
+}
+
 /// An online implementation of the [BeaconClient] trait.
 #[derive(Debug, Clone)]
 pub struct OnlineBeaconClient {
@@ -141,7 +158,7 @@ impl OnlineBeaconClient {
         &self,
         slot: u64,
         blob_hashes: &[IndexedBlobHash],
-    ) -> Result<Vec<BoxedBlobWithIndex>, reqwest::Error> {
+    ) -> Result<Vec<BoxedBlobWithIndex>, BeaconClientError> {
         let blob_indexes = blob_hashes.iter().map(|blob| blob.index).collect::<Vec<_>>();
         let params = blob_hashes.iter().map(|blob| blob.hash.to_string()).collect::<Vec<_>>();
         match self
@@ -163,17 +180,17 @@ impl OnlineBeaconClient {
                 // whose hash matches the input:
                 blob_hashes
                     .iter()
-                    .map(|blob_hash| -> Result<BoxedBlobWithIndex, reqwest::Error> {
+                    .map(|blob_hash| -> Result<BoxedBlobWithIndex, BeaconClientError> {
                         let idx = response_blob_hashes
                             .iter()
                             .position(|response_blob_hash| *response_blob_hash == blob_hash.hash)
-                            .unwrap();
+                            .ok_or(BeaconClientError::BlobNotFound(blob_hash.hash.to_string()))?;
                         Ok(BoxedBlobWithIndex {
                             blob: Box::new(*bundle.data.get(idx).unwrap()),
                             index: blob_hash.index,
                         })
                     })
-                    .collect::<Result<Vec<_>, reqwest::Error>>()
+                    .collect::<Result<Vec<_>, BeaconClientError>>()
             }
             Ok(response) => {
                 panic!(
@@ -193,7 +210,7 @@ impl OnlineBeaconClient {
 
 #[async_trait]
 impl BeaconClient for OnlineBeaconClient {
-    type Error = reqwest::Error;
+    type Error = BeaconClientError;
 
     async fn slot_interval(&self) -> Result<APIConfigResponse, Self::Error> {
         kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_REQUESTS, "method" => "spec");
@@ -213,7 +230,7 @@ impl BeaconClient for OnlineBeaconClient {
             kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_ERRORS, "method" => "spec");
         }
 
-        result
+        result.map_err(|err| BeaconClientError::Http(err))
     }
 
     async fn genesis_time(&self) -> Result<APIGenesisResponse, Self::Error> {
@@ -229,14 +246,14 @@ impl BeaconClient for OnlineBeaconClient {
             kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_ERRORS, "method" => "genesis");
         }
 
-        result
+        result.map_err(|err| BeaconClientError::Http(err))
     }
 
     async fn filtered_beacon_blobs(
         &self,
         slot: u64,
         blob_hashes: &[IndexedBlobHash],
-    ) -> Result<Vec<BoxedBlobWithIndex>, Self::Error> {
+    ) -> Result<Vec<BoxedBlobWithIndex>, BeaconClientError> {
         kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_REQUESTS, "method" => "blobs");
 
         // Try to get the blobs from the blobs endpoint.
