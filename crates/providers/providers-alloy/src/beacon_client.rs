@@ -5,27 +5,17 @@ use crate::Metrics;
 use crate::blobs::BoxedBlobWithIndex;
 use alloy_eips::eip4844::{IndexedBlobHash, env_settings::EnvKzgSettings, kzg_to_versioned_hash};
 use alloy_primitives::{B256, FixedBytes};
-use alloy_provider::ReqwestProvider;
-use alloy_rpc_types_beacon::sidecar::{BeaconBlobBundle, GetBlobsResponse};
+use alloy_rpc_types_beacon::sidecar::GetBlobsResponse;
 use async_trait::async_trait;
 use c_kzg::Blob;
 use reqwest::Client;
-use std::{
-    boxed::Box,
-    format,
-    io::{self, Error},
-    string::String,
-    vec::Vec,
-};
+use std::{boxed::Box, format, string::String, vec::Vec};
 
 /// The config spec engine api method.
 const SPEC_METHOD: &str = "eth/v1/config/spec";
 
 /// The beacon genesis engine api method.
 const GENESIS_METHOD: &str = "eth/v1/beacon/genesis";
-
-/// The blob sidecars engine api method prefix.
-const SIDECARS_METHOD_PREFIX_DEPRECATED: &str = "eth/v1/beacon/blob_sidecars";
 
 /// THe blobs engine api method prefix.
 const BLOBS_METHOD_PREFIX: &str = "eth/v1/beacon/blobs";
@@ -159,7 +149,6 @@ impl OnlineBeaconClient {
         slot: u64,
         blob_hashes: &[IndexedBlobHash],
     ) -> Result<Vec<BoxedBlobWithIndex>, BeaconClientError> {
-        let blob_indexes = blob_hashes.iter().map(|blob| blob.index).collect::<Vec<_>>();
         let params = blob_hashes.iter().map(|blob| blob.hash.to_string()).collect::<Vec<_>>();
         match self
             .inner
