@@ -4,6 +4,7 @@
 use crate::Metrics;
 use crate::blobs::BoxedBlobWithIndex;
 use alloy_eips::eip4844::{IndexedBlobHash, env_settings::EnvKzgSettings, kzg_to_versioned_hash};
+use alloy_primitives::{B256, FixedBytes};
 use alloy_rpc_types_beacon::sidecar::{BeaconBlobBundle, GetBlobsResponse};
 use async_trait::async_trait;
 use c_kzg::Blob;
@@ -89,6 +90,15 @@ pub trait BeaconClient {
     ) -> Result<Vec<BoxedBlobWithIndex>, Self::Error>;
 }
 
+/// blob_versioned_hash computes the versioned hash of a blob.
+fn blob_versioned_hash(blob: &FixedBytes<131072>) -> B256 {
+    let kzg_settings = EnvKzgSettings::Default;
+    let kzg_blob = Blob::new(blob.0);
+    let commitment =
+        kzg_settings.get().blob_to_kzg_commitment(&kzg_blob).map(|blob| blob.to_bytes()).unwrap();
+    kzg_to_versioned_hash(commitment.as_slice())
+}
+
 /// An online implementation of the [BeaconClient] trait.
 #[derive(Debug, Clone)]
 pub struct OnlineBeaconClient {
@@ -122,9 +132,10 @@ impl OnlineBeaconClient {
         self
     }
 
-    // Fetches blobs from the /eth/v1/beacon/blobs endpoint using the provided (versioned)blob hashes.
-    // Blobs are validated against the supplied versioned hashes
-    // and returned in the same order as the input.
+    /// Fetches only the blobs corresponding to the provided (versioned) blob hashes
+    /// from the beacon /eth/v1/beacon/blobs endpoint.
+    /// Blobs are validated against the supplied versioned hashes
+    /// and returned in the same order as the input.
     async fn filtered_beacon_blobs(
         &self,
         slot: u64,
@@ -132,7 +143,7 @@ impl OnlineBeaconClient {
     ) -> Result<Vec<BoxedBlobWithIndex>, reqwest::Error> {
         let blob_indexes = blob_hashes.iter().map(|blob| blob.index).collect::<Vec<_>>();
         let params = blob_hashes.iter().map(|blob| blob.hash.to_string()).collect::<Vec<_>>();
-        let kzg_settings = EnvKzgSettings::Default;
+
         Ok(
             match self
                 .inner
@@ -146,15 +157,7 @@ impl OnlineBeaconClient {
 
                     // Map blobs into versioned hashes for validation and
                     // matching against input:
-                    let mut response_blob_hashes = bundle.data.iter().map(|blob| {
-                        let kzg_blob = Blob::new(blob.0);
-                        let commitment = kzg_settings
-                            .get()
-                            .blob_to_kzg_commitment(&kzg_blob)
-                            .map(|blob| blob.to_bytes())
-                            .unwrap();
-                        kzg_to_versioned_hash(commitment.as_slice())
-                    });
+                    let mut response_blob_hashes = bundle.data.iter().map(blob_versioned_hash);
 
                     // Map the input into the output, finding the blob from the response
                     // whose hash matches the input:
@@ -251,28 +254,45 @@ impl BeaconClient for OnlineBeaconClient {
 mod tests {
     use super::*;
     use alloy_consensus::Blob;
-    use alloy_primitives::FixedBytes;
+    use alloy_primitives::{FixedBytes, hex::FromHex};
     use httpmock::prelude::*;
     use serde_json::json;
+
+    #[test]
+    fn test_blob_versioned_hash() {
+        let input: Blob = FixedBytes::repeat_byte(1);
+        let want: FixedBytes<32> = FixedBytes::from_hex(
+            "0x016c357b8b3a6b3fd82386e7bebf77143d537cdb1c856509661c412602306a04",
+        )
+        .unwrap();
+        assert_eq!(want, blob_versioned_hash(&input));
+    }
 
     #[tokio::test]
     async fn test_filtered_beacon_blobs() {
         let slot = 987654321;
         let slot_string = slot.to_string();
         let blob_data: Blob = FixedBytes::repeat_byte(1);
-        let repeated_blob_data: Vec<Blob> =
-            vec![blob_data.clone(), blob_data.clone(), blob_data.clone()];
+        let repeated_blob_data: Vec<Blob> = vec![blob_data.clone(), blob_data.clone()];
         let repeated_blob_response = json!({
             "execution_optimistic": false,
             "finalized": false,
             "data": repeated_blob_data
         });
 
+        // The following hash corresponds to the all 1s blob (see test above):
+        let blob_hash_of_interest_hex =
+            "0x016c357b8b3a6b3fd82386e7bebf77143d537cdb1c856509661c412602306a04";
+        let blob_hash_of_interest = FixedBytes::from_hex(blob_hash_of_interest_hex).unwrap();
+        let required_query_param =
+            format!("{},{}", blob_hash_of_interest_hex, blob_hash_of_interest_hex);
+
+        // This server mocks a single, specific query on a beacon node,
         let server = MockServer::start();
         let blobs_mock = server.mock(|when, then| {
             when.method(GET)
                 .path(format!("/eth/v1/beacon/blobs/{}", slot_string))
-                .query_param_exists("versioned_hashes");
+                .query_param("versioned_hashes", required_query_param);
             then.status(200).json_body(repeated_blob_response);
         });
 
@@ -281,15 +301,17 @@ mod tests {
             .filtered_beacon_blobs(
                 slot,
                 &[
-                    IndexedBlobHash { index: 0, hash: FixedBytes::repeat_byte(00) },
-                    IndexedBlobHash { index: 1, hash: FixedBytes::repeat_byte(11) },
+                    IndexedBlobHash { index: 0, hash: blob_hash_of_interest },
+                    IndexedBlobHash { index: 2, hash: blob_hash_of_interest },
                 ],
-            ) // ask for blobs 0 and 1, the hashes are not important / not inspected
+            ) // ask for blobs 0 and 2, which happen to have identical data and hashes
             .await
             .unwrap();
         blobs_mock.assert();
-        assert_eq!(response.len(), 2); // We expect to filter two of the three blobs, by the indices passed above.
-        assert_eq!(response[0].blob, Box::new(blob_data.clone()));
-        assert_eq!(response[1].blob, Box::new(blob_data.clone()));
+        let want: Vec<BoxedBlobWithIndex> = vec![
+            BoxedBlobWithIndex { index: 0, blob: Box::new(blob_data.clone()) },
+            BoxedBlobWithIndex { index: 2, blob: Box::new(blob_data.clone()) },
+        ];
+        assert_eq!(response, want)
     }
 }
