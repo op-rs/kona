@@ -3,9 +3,10 @@
 #[cfg(feature = "metrics")]
 use crate::Metrics;
 use crate::blobs::BoxedBlobWithIndex;
-use alloy_eips::eip4844::IndexedBlobHash;
+use alloy_eips::eip4844::{IndexedBlobHash, env_settings::EnvKzgSettings, kzg_to_versioned_hash};
 use alloy_rpc_types_beacon::sidecar::{BeaconBlobBundle, GetBlobsResponse};
 use async_trait::async_trait;
+use c_kzg::Blob;
 use reqwest::Client;
 use std::{boxed::Box, format, string::String, vec::Vec};
 
@@ -121,51 +122,67 @@ impl OnlineBeaconClient {
         self
     }
 
+    // Fetches blobs from the /eth/v1/beacon/blobs endpoint using the provided (versioned)blob hashes.
+    // Blobs are validated against the supplied versioned hashes
+    // and returned in the same order as the input.
     async fn filtered_beacon_blobs(
         &self,
         slot: u64,
         blob_hashes: &[IndexedBlobHash],
     ) -> Result<Vec<BoxedBlobWithIndex>, reqwest::Error> {
         let blob_indexes = blob_hashes.iter().map(|blob| blob.index).collect::<Vec<_>>();
-
+        let params = blob_hashes.iter().map(|blob| blob.hash.to_string()).collect::<Vec<_>>();
+        let kzg_settings = EnvKzgSettings::Default;
         Ok(
             match self
                 .inner
                 .get(format!("{}/{}/{}", self.base, BLOBS_METHOD_PREFIX, slot))
+                .query(&[("versioned_hashes", &params.join(",").as_str())])
                 .send()
                 .await
             {
                 Ok(response) if response.status().is_success() => {
                     let bundle = response.json::<GetBlobsResponse>().await?;
 
-                    bundle
-                        .data
-                        .into_iter()
-                        .enumerate()
-                        .filter_map(|(index, blob)| {
-                            let index = index as u64;
-                            blob_indexes
-                                .contains(&index)
-                                .then_some(BoxedBlobWithIndex { index, blob: Box::new(blob) })
+                    // Map blobs into versioned hashes for validation and
+                    // matching against input:
+                    let mut response_blob_hashes = bundle.data.iter().map(|blob| {
+                        let kzg_blob = Blob::new(blob.0);
+                        let commitment = kzg_settings
+                            .get()
+                            .blob_to_kzg_commitment(&kzg_blob)
+                            .map(|blob| blob.to_bytes())
+                            .unwrap();
+                        kzg_to_versioned_hash(commitment.as_slice())
+                    });
+
+                    // Map the input into the output, finding the blob from the response
+                    // whose hash matches the input:
+                    blob_hashes
+                        .iter()
+                        .map(|blob_hash| {
+                            let idx = response_blob_hashes
+                                .position(|response_blob_hash| response_blob_hash == blob_hash.hash)
+                                .unwrap(); // TODO handle this error "blob for blob hash not found"
+                            BoxedBlobWithIndex {
+                                blob: Box::new(*bundle.data.get(idx).unwrap()),
+                                index: blob_hash.index,
+                            }
                         })
                         .collect::<Vec<_>>()
                 }
+                Ok(response) => {
+                    panic!(
+                        "got a response, but not success, {}, {}",
+                        response.status(),
+                        response.text().await.unwrap()
+                    )
+                }
                 // If the blobs endpoint fails, try the deprecated sidecars endpoint. CL Clients
                 // only support the blobs endpoint from Fusaka (Fulu) onwards.
-                _ => self
-                    .inner
-                    .get(format!("{}/{}/{}", self.base, SIDECARS_METHOD_PREFIX_DEPRECATED, slot))
-                    .send()
-                    .await?
-                    .json::<BeaconBlobBundle>()
-                    .await?
-                    .into_iter()
-                    .filter_map(|blob| {
-                        blob_indexes
-                            .contains(&blob.index)
-                            .then_some(BoxedBlobWithIndex { index: blob.index, blob: blob.blob })
-                    })
-                    .collect::<Vec<_>>(),
+                Err(err) => {
+                    panic!("Failed to fetch blobs from the blobs endpoint, {}", err)
+                }
             },
         )
     }
@@ -253,15 +270,18 @@ mod tests {
 
         let server = MockServer::start();
         let blobs_mock = server.mock(|when, then| {
-            when.method(GET).path(format!("/eth/v1/beacon/blobs/{}", slot_string));
+            when.method(GET)
+                .path(format!("/eth/v1/beacon/blobs/{}", slot_string))
+                .query_param_exists("versioned_hashes");
             then.status(200).json_body(repeated_blob_response);
         });
+
         let client = OnlineBeaconClient::new_http(server.base_url());
         let response = client
             .filtered_beacon_blobs(
                 slot,
                 &[
-                    IndexedBlobHash { index: 0, hash: FixedBytes::repeat_byte(11) },
+                    IndexedBlobHash { index: 0, hash: FixedBytes::repeat_byte(00) },
                     IndexedBlobHash { index: 1, hash: FixedBytes::repeat_byte(11) },
                 ],
             ) // ask for blobs 0 and 1, the hashes are not important / not inspected
