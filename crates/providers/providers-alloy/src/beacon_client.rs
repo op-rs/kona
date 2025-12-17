@@ -297,7 +297,7 @@ mod tests {
             "data": repeated_blob_data
         });
 
-        // The following hash corresponds to the all 1s blob (see test above):
+        // The following hash corresponds to the all 01s blob_data (see test above):
         let blob_hash_of_interest_hex =
             "0x016c357b8b3a6b3fd82386e7bebf77143d537cdb1c856509661c412602306a04";
         let blob_hash_of_interest = FixedBytes::from_hex(blob_hash_of_interest_hex).unwrap();
@@ -306,10 +306,10 @@ mod tests {
 
         // This server mocks a single, specific query on a beacon node,
         let server = MockServer::start();
-        let blobs_mock = server.mock(|when, then| {
+        let mut blobs_mock = server.mock(|when, then| {
             when.method(GET)
                 .path(format!("/eth/v1/beacon/blobs/{}", slot_string))
-                .query_param("versioned_hashes", required_query_param);
+                .query_param("versioned_hashes", required_query_param.clone());
             then.status(200).json_body(repeated_blob_response);
         });
 
@@ -325,10 +325,38 @@ mod tests {
             .await
             .unwrap();
         blobs_mock.assert();
+
         let want: Vec<BoxedBlobWithIndex> = vec![
             BoxedBlobWithIndex { index: 0, blob: Box::new(blob_data.clone()) },
             BoxedBlobWithIndex { index: 2, blob: Box::new(blob_data.clone()) },
         ];
-        assert_eq!(response, want)
+        assert_eq!(response, want);
+
+        // Replace the mock with one which will provide an incorrect response
+        blobs_mock.delete();
+        let garbage_blob_data: Blob = FixedBytes::repeat_byte(2);
+        let incorrect_blob_response = json!({
+            "execution_optimistic": false,
+            "finalized": false,
+            "data": garbage_blob_data
+        });
+        let incorrect_blobs_mock = server.mock(|when, then| {
+            when.method(GET)
+                .path(format!("/eth/v1/beacon/blobs/{}", slot_string))
+                .query_param("versioned_hashes", required_query_param.clone());
+            then.status(200).json_body(incorrect_blob_response);
+        });
+
+        client
+            .filtered_beacon_blobs(
+                slot,
+                &[
+                    IndexedBlobHash { index: 0, hash: blob_hash_of_interest },
+                    IndexedBlobHash { index: 2, hash: blob_hash_of_interest },
+                ],
+            ) // ask for blobs 0 and 2, which happen to have identical data and hashes
+            .await
+            .expect_err("Expected error when mocking an incorrect response from the beacon server");
+        incorrect_blobs_mock.assert();
     }
 }
