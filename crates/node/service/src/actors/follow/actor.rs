@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use std::time::Duration;
 use tokio::{
     select,
-    sync::mpsc,
+    sync::{mpsc, oneshot},
     time::interval,
 };
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
@@ -21,6 +21,9 @@ const DEFAULT_FOLLOW_POLL_INTERVAL: u64 = 2;
 ///
 /// The [`FollowActor`] queries another L2 consensus layer node's sync status at regular
 /// intervals and sends the results to the engine actor.
+///
+/// Similar to the derivation actor, the follow actor waits for the initial EL sync to
+/// complete before starting to poll the external source.
 #[derive(Debug)]
 pub struct FollowActor<FC>
 where
@@ -30,6 +33,9 @@ where
     follow_client: FC,
     /// Channel to send follow status updates to the engine.
     follow_status_tx: mpsc::Sender<FollowStatus>,
+    /// Receiver for the initial EL sync completion signal.
+    /// The actor will not poll the external source until this signal is received.
+    el_sync_complete_rx: oneshot::Receiver<()>,
     /// The polling interval for querying the follow source.
     poll_interval: Duration,
     /// The cancellation token, shared between all tasks.
@@ -46,15 +52,18 @@ where
     ///
     /// * `follow_client` - The follow client for querying sync status
     /// * `follow_status_tx` - Channel to send follow status updates to the engine
+    /// * `el_sync_complete_rx` - Receiver for initial EL sync completion signal
     /// * `cancellation` - Cancellation token for graceful shutdown
     pub fn new(
         follow_client: FC,
         follow_status_tx: mpsc::Sender<FollowStatus>,
+        el_sync_complete_rx: oneshot::Receiver<()>,
         cancellation: CancellationToken,
     ) -> Self {
         Self::new_with_interval(
             follow_client,
             follow_status_tx,
+            el_sync_complete_rx,
             cancellation,
             Duration::from_secs(DEFAULT_FOLLOW_POLL_INTERVAL),
         )
@@ -66,15 +75,17 @@ where
     ///
     /// * `follow_client` - The follow client for querying sync status
     /// * `follow_status_tx` - Channel to send follow status updates to the engine
+    /// * `el_sync_complete_rx` - Receiver for initial EL sync completion signal
     /// * `cancellation` - Cancellation token for graceful shutdown
     /// * `poll_interval` - Custom polling interval
     pub const fn new_with_interval(
         follow_client: FC,
         follow_status_tx: mpsc::Sender<FollowStatus>,
+        el_sync_complete_rx: oneshot::Receiver<()>,
         cancellation: CancellationToken,
         poll_interval: Duration,
     ) -> Self {
-        Self { follow_client, follow_status_tx, poll_interval, cancellation }
+        Self { follow_client, follow_status_tx, el_sync_complete_rx, poll_interval, cancellation }
     }
 
     /// Validates L1 block canonicality and sends the status to the engine if valid.
@@ -182,9 +193,9 @@ where
 
     /// Start the main processing loop.
     ///
-    /// Periodically polls the follow client for sync status and logs the results.
-    /// Continues until cancellation is requested.
-    async fn start(self, _: Self::StartData) -> Result<(), Self::Error> {
+    /// Waits for the initial EL sync to complete, then periodically polls the follow client
+    /// for sync status. Continues until cancellation is requested.
+    async fn start(mut self, _: Self::StartData) -> Result<(), Self::Error> {
         let cancel = self.cancellation.clone();
         let mut ticker = interval(self.poll_interval);
 
@@ -203,7 +214,22 @@ where
                     );
                     return Ok(());
                 },
+                _ = &mut self.el_sync_complete_rx, if !self.el_sync_complete_rx.is_terminated() => {
+                    info!(
+                        target: "follow_actor",
+                        "Initial EL sync complete, starting to poll external source"
+                    );
+                },
                 _ = ticker.tick() => {
+                    // Skip polling until initial EL sync completes (similar to derivation actor)
+                    if !self.el_sync_complete_rx.is_terminated() {
+                        trace!(
+                            target: "follow_actor",
+                            "Engine not ready, skipping follow poll"
+                        );
+                        continue;
+                    }
+
                     // Query the follow client for sync status
                     match self.follow_client.get_follow_status().await {
                         Ok(status) => {

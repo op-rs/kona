@@ -15,8 +15,8 @@ Implementation of "follow mode" for the Kona rollup node, allowing it to sync sa
   - External ahead detection
   - Reorg detection via hash comparison
   - EL sync awareness (respects ongoing sync)
-  - Initial EL sync gating
   - Rich structured logging
+- **Initial EL sync gating**: FollowActor waits for EL sync signal before polling (matches DerivationActor pattern)
 - **L1 block validation**: External data verified against canonical L1 chain before acceptance
 - **Bug fixes**: Reset SendError in follow mode fixed
 - All code compiles successfully
@@ -103,6 +103,63 @@ For each L1 block:
   - Lines 157-173: `HttpFollowClient` implementation using L1 RPC
 
 **Result**: ✅ External data validated against canonical L1 before acceptance
+
+## Initial EL Sync Gating
+
+**Purpose**: Prevent FollowActor from polling external source until the initial execution layer (EL) sync completes, matching the pattern used by DerivationActor.
+
+**Pattern**: FollowActor uses the same gating mechanism as DerivationActor - waiting on the `el_sync_complete` oneshot signal before starting to poll.
+
+### Signal Flow
+
+```
+EngineActor detects el_sync_finished
+    ↓
+check_el_sync() called
+    ↓
+reset() called (with follow_enabled check for derivation signal)
+    ↓
+sync_complete_tx.send(()) - sends signal
+    ↓
+FollowActor receives on el_sync_complete_rx
+    ↓
+FollowActor starts polling external source
+```
+
+### Implementation
+
+**FollowActor** (`follow/actor.rs:217-231`):
+```rust
+loop {
+    select! {
+        _ = cancel.cancelled() => { ... }
+        _ = &mut self.el_sync_complete_rx, if !self.el_sync_complete_rx.is_terminated() => {
+            info!("Initial EL sync complete, starting to poll external source");
+        }
+        _ = ticker.tick() => {
+            // Skip polling until initial EL sync completes
+            if !self.el_sync_complete_rx.is_terminated() {
+                trace!("Engine not ready, skipping follow poll");
+                continue;
+            }
+            // Poll external source...
+        }
+    }
+}
+```
+
+**Channel Routing** (`node.rs:150-174`):
+- **Normal mode**: `el_sync_complete_rx` → DerivationActor
+- **Follow mode**: `el_sync_complete_rx` → FollowActor
+- Same signal, different recipient based on mode
+
+**Why This Matters**:
+- Prevents wasted queries to external source during initial sync
+- Consistent with DerivationActor behavior (both wait for EL readiness)
+- Cleaner architecture - gating at source rather than at destination
+- No redundant checks in EngineActor
+
+**Result**: ✅ FollowActor efficiently waits for initial EL sync before polling
 
 ## Backward Compatibility Verification
 

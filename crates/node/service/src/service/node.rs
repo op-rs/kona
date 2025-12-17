@@ -6,7 +6,7 @@ use crate::{
     NodeMode, QueuedBlockBuildingClient, QueuedSequencerAdminAPIClient, RpcActor, RpcContext,
     SequencerActor, SequencerConfig,
     actors::{
-        BlockStream, DerivationInboundChannels, EngineInboundData, NetworkInboundData,
+        BlockStream, EngineInboundData, NetworkInboundData,
         QueuedUnsafePayloadGossipClient,
     },
 };
@@ -148,35 +148,30 @@ impl RollupNode {
         let cancellation = CancellationToken::new();
 
         // Create the derivation actor (only when follow mode is disabled).
-        let (
-            DerivationInboundChannels {
-                derivation_signal_tx,
-                l1_head_updates_tx,
-                engine_l2_safe_head_tx,
-                el_sync_complete_tx,
-            },
-            derivation,
-        ) = if !self.engine_config.follow_enabled {
-            let (channels, actor) = DerivationActor::new(self.derivation_builder());
-            (channels, Some(actor))
-        } else {
-            // In follow mode, create the channels but not the actor
-            use tokio::sync::{mpsc, oneshot, watch};
-            let (l1_head_updates_tx, _) = watch::channel(None);
-            let (engine_l2_safe_head_tx, _) = watch::channel(L2BlockInfo::default());
-            let (el_sync_complete_tx, _) = oneshot::channel();
-            let (derivation_signal_tx, _) = mpsc::channel(1024);
+        // In follow mode, create dummy channels and save el_sync_complete_rx for FollowActor.
+        let (derivation_signal_tx, l1_head_updates_tx, engine_l2_safe_head_tx, el_sync_complete_tx, derivation, el_sync_complete_rx);
 
-            (
-                DerivationInboundChannels {
-                    l1_head_updates_tx,
-                    engine_l2_safe_head_tx,
-                    el_sync_complete_tx,
-                    derivation_signal_tx,
-                },
-                None,
-            )
-        };
+        if !self.engine_config.follow_enabled {
+            // Normal mode: Create derivation actor which creates all channels
+            let (channels, actor) = DerivationActor::new(self.derivation_builder());
+            derivation_signal_tx = channels.derivation_signal_tx;
+            l1_head_updates_tx = channels.l1_head_updates_tx;
+            engine_l2_safe_head_tx = channels.engine_l2_safe_head_tx;
+            el_sync_complete_tx = channels.el_sync_complete_tx;
+            derivation = Some(actor);
+            el_sync_complete_rx = None;
+        } else {
+            // Follow mode: Create dummy channels (no derivation actor).
+            // Save el_sync_complete_rx to pass to FollowActor.
+            use tokio::sync::{mpsc, oneshot, watch};
+            (l1_head_updates_tx, _) = watch::channel(None);
+            (engine_l2_safe_head_tx, _) = watch::channel(L2BlockInfo::default());
+            let (tx, rx) = oneshot::channel();
+            el_sync_complete_tx = tx;
+            el_sync_complete_rx = Some(rx);
+            (derivation_signal_tx, _) = mpsc::channel(1024);
+            derivation = None;
+        }
 
         // Create the engine actor.
         let (
@@ -307,17 +302,22 @@ impl RollupNode {
                 follow_config.l1_url.clone(),
             ) {
                 Ok(follow_client) => {
-                    // Get the follow_status_tx sender from engine inbound data
-                    match follow_status_tx.clone() {
-                        Some(status_tx) => {
+                    // Get the follow_status_tx sender and el_sync_complete_rx from earlier setup
+                    match (follow_status_tx.clone(), el_sync_complete_rx) {
+                        (Some(status_tx), Some(el_sync_complete_rx)) => {
                             Some(crate::FollowActor::new(
                                 follow_client,
                                 status_tx,
+                                el_sync_complete_rx,
                                 cancellation.clone(),
                             ))
                         }
-                        None => {
+                        (None, _) => {
                             error!(target: "rollup_node", "Follow status channel not available");
+                            None
+                        }
+                        (_, None) => {
+                            error!(target: "rollup_node", "EL sync complete receiver not available for follow actor");
                             None
                         }
                     }

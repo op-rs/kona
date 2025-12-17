@@ -766,12 +766,9 @@ impl NodeActor for EngineActor {
                         continue;
                     };
 
-                    // Skip follow source injection until initial EL sync completes
-                    if !state.engine.state().el_sync_finished {
-                        continue;
-                    }
-
                     // Get current local state
+                    // Note: FollowActor gates on el_sync_complete signal, so it won't send
+                    // updates until initial EL sync completes
                     let local_unsafe = state.engine.state().sync_state.unsafe_head();
                     let local_safe = state.engine.state().sync_state.safe_head();
                     let external_safe = status.safe_l2;
