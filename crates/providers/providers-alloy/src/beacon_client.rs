@@ -150,50 +150,35 @@ impl OnlineBeaconClient {
         blob_hashes: &[IndexedBlobHash],
     ) -> Result<Vec<BoxedBlobWithIndex>, BeaconClientError> {
         let params = blob_hashes.iter().map(|blob| blob.hash.to_string()).collect::<Vec<_>>();
-        match self
+        let response = self
             .inner
             .get(format!("{}/{}/{}", self.base, BLOBS_METHOD_PREFIX, slot))
             .query(&[("versioned_hashes", &params.join(",").as_str())])
             .send()
-            .await
-        {
-            Ok(response) if response.status().is_success() => {
-                let bundle = response.json::<GetBlobsResponse>().await?;
+            .await?
+            .error_for_status()?;
 
-                // Map blobs into versioned hashes for validation and
-                // matching against input:
-                let response_blob_hashes =
-                    bundle.data.iter().map(blob_versioned_hash).collect::<Vec<_>>();
+        let bundle = response.json::<GetBlobsResponse>().await?;
 
-                // Map the input into the output, finding the blob from the response
-                // whose hash matches the input:
-                blob_hashes
+        // Map blobs into versioned hashes for validation and
+        // matching against input:
+        let response_blob_hashes = bundle.data.iter().map(blob_versioned_hash).collect::<Vec<_>>();
+
+        // Map the input into the output, finding the blob from the response
+        // whose hash matches the input:
+        blob_hashes
+            .iter()
+            .map(|blob_hash| -> Result<BoxedBlobWithIndex, BeaconClientError> {
+                let idx = response_blob_hashes
                     .iter()
-                    .map(|blob_hash| -> Result<BoxedBlobWithIndex, BeaconClientError> {
-                        let idx = response_blob_hashes
-                            .iter()
-                            .position(|response_blob_hash| *response_blob_hash == blob_hash.hash)
-                            .ok_or(BeaconClientError::BlobNotFound(blob_hash.hash.to_string()))?;
-                        Ok(BoxedBlobWithIndex {
-                            blob: Box::new(*bundle.data.get(idx).unwrap()),
-                            index: blob_hash.index,
-                        })
-                    })
-                    .collect::<Result<Vec<_>, BeaconClientError>>()
-            }
-            Ok(response) => {
-                panic!(
-                    "got a response, but not success, {}, {}",
-                    response.status(),
-                    response.text().await.unwrap()
-                )
-            }
-            // If the blobs endpoint fails, try the deprecated sidecars endpoint. CL Clients
-            // only support the blobs endpoint from Fusaka (Fulu) onwards.
-            Err(err) => {
-                panic!("Failed to fetch blobs from the blobs endpoint, {}", err)
-            }
-        }
+                    .position(|response_blob_hash| *response_blob_hash == blob_hash.hash)
+                    .ok_or(BeaconClientError::BlobNotFound(blob_hash.hash.to_string()))?;
+                Ok(BoxedBlobWithIndex {
+                    blob: Box::new(*bundle.data.get(idx).unwrap()),
+                    index: blob_hash.index,
+                })
+            })
+            .collect::<Result<Vec<_>, BeaconClientError>>()
     }
 }
 
