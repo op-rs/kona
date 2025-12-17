@@ -1,4 +1,4 @@
-//! The [`AttributesBuilder`] and it's default implementation.
+//! The [`AttributesBuilder`] and its default implementation.
 
 use crate::{
     AttributesBuilder, BuilderError, ChainProvider, L2ChainProvider, PipelineEncodingError,
