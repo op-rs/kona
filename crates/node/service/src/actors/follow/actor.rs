@@ -54,6 +54,7 @@ where
     /// * `follow_status_tx` - Channel to send follow status updates to the engine
     /// * `el_sync_complete_rx` - Receiver for initial EL sync completion signal
     /// * `cancellation` - Cancellation token for graceful shutdown
+    #[allow(clippy::missing_const_for_fn)]
     pub fn new(
         follow_client: FC,
         follow_status_tx: mpsc::Sender<FollowStatus>,

@@ -103,7 +103,7 @@ pub struct EngineActor {
     /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
     /// mode.
     unsafe_head_tx: Option<watch::Sender<L2BlockInfo>>,
-    /// A channel to receive [`FollowStatus`] updates from the follow actor.
+    /// A channel to receive [`crate::FollowStatus`] updates from the follow actor.
     /// ## Note
     /// This is `Some` when the follow source is configured, and `None` when not.
     follow_status_rx: Option<mpsc::Receiver<crate::FollowStatus>>,
@@ -149,7 +149,7 @@ pub struct EngineInboundData {
     /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
     /// mode.
     pub unsafe_head_rx: Option<watch::Receiver<L2BlockInfo>>,
-    /// A channel to send [`FollowStatus`] updates from the follow actor.
+    /// A channel to send [`crate::FollowStatus`] updates from the follow actor.
     ///
     /// This is `Some` when the follow source is configured, and `None` when not.
     pub follow_status_tx: Option<mpsc::Sender<crate::FollowStatus>>,

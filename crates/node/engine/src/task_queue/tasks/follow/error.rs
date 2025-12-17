@@ -1,4 +1,4 @@
-//! Errors for the [`FollowTask`].
+//! Errors for the [`FollowTask`](super::FollowTask).
 
 use crate::{EngineTaskErrorSeverity, SynchronizeTaskError};
 

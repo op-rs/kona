@@ -294,7 +294,7 @@ impl RollupNode {
         };
 
         // Create the follow actor if configured
-        let follow_actor = if let Some(follow_config) = &self.follow_client_config {
+        let follow_actor = self.follow_client_config.as_ref().map_or_else(|| None, |follow_config| {
             info!(
                 target: "rollup_node",
                 l2_url = %follow_config.l2_url,
@@ -335,9 +335,7 @@ impl RollupNode {
                     None
                 }
             }
-        } else {
-            None
-        };
+        });
 
         crate::service::spawn_and_wait!(
             cancellation,

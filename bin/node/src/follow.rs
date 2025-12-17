@@ -100,7 +100,7 @@ impl FollowClientBuilder {
     ///
     /// * `l2_url` - The L2 consensus layer RPC endpoint URL
     /// * `l1_url` - The L1 execution layer RPC endpoint URL
-    pub fn new(l2_url: Url, l1_url: Url) -> Self {
+    pub const fn new(l2_url: Url, l1_url: Url) -> Self {
         Self { l2_url, l1_url, timeout: Duration::from_millis(DEFAULT_FOLLOW_TIMEOUT) }
     }
 
@@ -109,7 +109,7 @@ impl FollowClientBuilder {
     /// # Arguments
     ///
     /// * `timeout` - The timeout duration
-    pub fn timeout(mut self, timeout: Duration) -> Self {
+    pub const fn timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self
     }
