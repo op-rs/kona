@@ -76,6 +76,100 @@ where
     ) -> Self {
         Self { follow_client, follow_status_tx, poll_interval, cancellation }
     }
+
+    /// Validates L1 block canonicality and sends the status to the engine if valid.
+    ///
+    /// Checks that the L1 blocks referenced in the follow status (external safe L1 origin,
+    /// external finalized L1 origin, and current L1) are canonical on the L1 chain.
+    ///
+    /// # Arguments
+    ///
+    /// * `status` - The follow status to validate and send
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if validation passes and status is sent successfully, or an error
+    /// if validation fails or the send fails.
+    async fn validate_and_send(&self, status: FollowStatus) -> Result<(), FollowActorError> {
+        // Validate external safe L1 origin
+        if !self
+            .validate_l1_block(status.safe_l2.l1_origin.number, status.safe_l2.l1_origin.hash)
+            .await?
+        {
+            warn!(
+                target: "follow_actor",
+                l1_number = status.safe_l2.l1_origin.number,
+                l1_hash = ?status.safe_l2.l1_origin.hash,
+                "Invalid L1 origin for external safe block, dropping update"
+            );
+            return Ok(());
+        }
+
+        // Validate external finalized L1 origin
+        if !self
+            .validate_l1_block(
+                status.finalized_l2.l1_origin.number,
+                status.finalized_l2.l1_origin.hash,
+            )
+            .await?
+        {
+            warn!(
+                target: "follow_actor",
+                l1_number = status.finalized_l2.l1_origin.number,
+                l1_hash = ?status.finalized_l2.l1_origin.hash,
+                "Invalid L1 origin for external finalized block, dropping update"
+            );
+            return Ok(());
+        }
+
+        // Validate current L1 block
+        if !self.validate_l1_block(status.current_l1.number, status.current_l1.hash).await? {
+            warn!(
+                target: "follow_actor",
+                l1_number = status.current_l1.number,
+                l1_hash = ?status.current_l1.hash,
+                "Invalid current L1 block, dropping update"
+            );
+            return Ok(());
+        }
+
+        // All validations passed, send to engine
+        self.follow_status_tx
+            .send(status)
+            .await
+            .map_err(|e| FollowActorError::ChannelClosed(e.to_string()))?;
+
+        Ok(())
+    }
+
+    /// Validates that an L1 block is canonical on the L1 chain.
+    ///
+    /// Fetches the canonical block at the given number and compares the hash.
+    ///
+    /// # Arguments
+    ///
+    /// * `number` - The L1 block number
+    /// * `hash` - The expected L1 block hash
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(true)` if the block is canonical, `Ok(false)` if it's not canonical,
+    /// or an error if the L1 RPC call fails.
+    async fn validate_l1_block(
+        &self,
+        number: u64,
+        hash: alloy_primitives::B256,
+    ) -> Result<bool, FollowActorError> {
+        // Fetch the canonical block at this number from L1
+        let canonical_block = self
+            .follow_client
+            .l1_block_info_by_number(number)
+            .await
+            .map_err(|e| FollowActorError::L1ValidationError(e.to_string()))?;
+
+        // Compare hashes
+        Ok(canonical_block.hash == hash)
+    }
 }
 
 #[async_trait]
@@ -124,12 +218,12 @@ where
                                 "Received follow status update"
                             );
 
-                            // Send the status to the engine
-                            if let Err(e) = self.follow_status_tx.send(status).await {
-                                error!(
+                            // Validate L1 block canonicality before sending to engine
+                            if let Err(e) = self.validate_and_send(status).await {
+                                warn!(
                                     target: "follow_actor",
                                     error = ?e,
-                                    "Failed to send follow status to engine, channel may be closed"
+                                    "Failed to validate or send follow status"
                                 );
                             }
                         }

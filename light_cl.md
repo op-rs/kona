@@ -17,6 +17,7 @@ Implementation of "follow mode" for the Kona rollup node, allowing it to sync sa
   - EL sync awareness (respects ongoing sync)
   - Initial EL sync gating
   - Rich structured logging
+- **L1 block validation**: External data verified against canonical L1 chain before acceptance
 - **Bug fixes**: Reset SendError in follow mode fixed
 - All code compiles successfully
 - **Backward compatible**: Normal derivation flow preserved when flag not provided
@@ -50,6 +51,58 @@ Implementation of "follow mode" for the Kona rollup node, allowing it to sync sa
   - Lines 255-258: Documentation about closed channel in follow mode
 
 **Result**: ✅ Engine no longer crashes on reset in follow mode
+
+## Security Features
+
+### L1 Block Canonicality Validation
+
+**Purpose**: Prevent following out-of-sync external sources by verifying that all L1 blocks referenced in external data are canonical on our local L1 chain.
+
+**What is Validated**:
+Before accepting and forwarding external `FollowStatus` data to the engine, the `FollowActor` validates three L1 blocks:
+1. **External safe L1 origin** (`status.safe_l2.l1_origin`) - L1 block that the external safe L2 block derives from
+2. **External finalized L1 origin** (`status.finalized_l2.l1_origin`) - L1 block that the external finalized L2 block derives from
+3. **Current L1 block** (`status.current_l1`) - The external source's current L1 head
+
+**Validation Process** (`follow/actor.rs:158-172`):
+```rust
+async fn validate_l1_block(number: u64, hash: B256) -> Result<bool> {
+    // Fetch the canonical block at this number from our L1 RPC
+    let canonical_block = self.follow_client.l1_block_info_by_number(number).await?;
+
+    // Compare hashes
+    Ok(canonical_block.hash == hash)
+}
+```
+
+For each L1 block:
+1. Query our local L1 RPC for the canonical block at the given number
+2. Compare the hash from external data with the canonical hash
+3. If hashes don't match → block is not canonical → **drop the update**
+4. If L1 RPC call fails (network error, block not found) → **drop the update**
+
+**Failure Handling**:
+- Invalid blocks: Log warning with block number/hash, drop update, continue polling
+- L1 RPC errors: Log warning, drop update, continue polling
+- Updates are dropped silently without crashing or stopping the follow mode
+
+**Why This Matters**:
+- Prevents following an external source on a different L1 fork
+- Detects out-of-sync external sources providing invalid L1 references
+- Ensures L1 origin consistency with our local view of L1
+- No trust assumption on external L2 CL source for L1 data
+
+**Files**:
+- `crates/node/service/src/actors/follow/actor.rs`:
+  - Lines 93-143: `validate_and_send()` - Validates all three L1 blocks before sending
+  - Lines 158-172: `validate_l1_block()` - Core validation logic
+- `crates/node/service/src/actors/follow/error.rs`:
+  - Lines 14-16: `L1ValidationError` variant for validation failures
+- `crates/node/service/src/follow.rs`:
+  - Lines 69-82: `FollowClient::l1_block_info_by_number()` trait method
+  - Lines 157-173: `HttpFollowClient` implementation using L1 RPC
+
+**Result**: ✅ External data validated against canonical L1 before acceptance
 
 ## Backward Compatibility Verification
 
