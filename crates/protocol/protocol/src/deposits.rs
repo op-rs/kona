@@ -172,7 +172,7 @@ pub fn decode_deposit(block_hash: B256, index: usize, log: &Log) -> Result<Bytes
         });
     };
 
-    if !(opaque_content_len % 32 == 0 ||
+    if !(opaque_content_len.is_multiple_of(32) ||
         log.data
             .data
             .get((64 + opaque_content_len) as usize..padding_end as usize)
