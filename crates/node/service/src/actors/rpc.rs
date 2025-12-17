@@ -4,8 +4,8 @@ use crate::{NodeActor, actors::CancellableContext};
 use async_trait::async_trait;
 use kona_gossip::P2pRpcRequest;
 use kona_rpc::{
-    AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzApiServer, HealthzRpc,
-    NetworkAdminQuery, OpP2PApiServer, RollupBoostAdminQuery, RollupBoostHealthQuery,
+    AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, EngineRpcClient, HealthzApiServer,
+    HealthzRpc, NetworkAdminQuery, OpP2PApiServer, RollupBoostAdminClient,
     RollupBoostHealthzApiServer, RollupNodeApiServer, SequencerAdminAPIClient, WsRPC, WsServer,
 };
 use std::time::Duration;
@@ -15,7 +15,6 @@ use jsonrpsee::{
     core::RegisterMethodError,
     server::{Server, ServerHandle, middleware::http::ProxyGetRequestLayer},
 };
-use kona_engine::EngineQueries;
 use kona_rpc::{L1WatcherQueries, P2pRpc, RollupRpc, RpcBuilder};
 use tokio::sync::mpsc;
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
@@ -39,42 +38,86 @@ pub enum RpcActorError {
 
 /// An actor that handles the RPC server for the rollup node.
 #[derive(Debug)]
-pub struct RpcActor<S: SequencerAdminAPIClient> {
+pub struct RpcActor<
+    EngineRpcClient_,
+    RollupBoostAdminClient_,
+    RollupBoostHealth,
+    SequencerAdminApiClient_,
+> where
+    EngineRpcClient_: EngineRpcClient,
+    RollupBoostAdminClient_: RollupBoostAdminClient,
+    RollupBoostHealth: RollupBoostHealthzApiServer,
+    SequencerAdminApiClient_: SequencerAdminAPIClient,
+{
     /// A launcher for the rpc.
     config: RpcBuilder,
 
-    phantom: std::marker::PhantomData<S>,
+    phantom_engine_client: std::marker::PhantomData<EngineRpcClient_>,
+    phantom_rollup_boost_admin_client: std::marker::PhantomData<RollupBoostAdminClient_>,
+    phantom_rollup_boost_health: std::marker::PhantomData<RollupBoostHealth>,
+    phantom_sequencer_client: std::marker::PhantomData<SequencerAdminApiClient_>,
 }
 
-impl<S: SequencerAdminAPIClient> RpcActor<S> {
+impl<EngineRpcClient_, RollupBoostAdminClient_, RollupBoostHealth, SequencerAdminApiClient_>
+    RpcActor<EngineRpcClient_, RollupBoostAdminClient_, RollupBoostHealth, SequencerAdminApiClient_>
+where
+    EngineRpcClient_: EngineRpcClient,
+    RollupBoostAdminClient_: RollupBoostAdminClient,
+    RollupBoostHealth: RollupBoostHealthzApiServer,
+    SequencerAdminApiClient_: SequencerAdminAPIClient,
+{
     /// Constructs a new [`RpcActor`] given the [`RpcBuilder`].
     pub const fn new(config: RpcBuilder) -> Self {
-        Self { config, phantom: std::marker::PhantomData }
+        Self {
+            config,
+            phantom_sequencer_client: std::marker::PhantomData,
+            phantom_rollup_boost_admin_client: std::marker::PhantomData,
+            phantom_rollup_boost_health: std::marker::PhantomData,
+            phantom_engine_client: std::marker::PhantomData,
+        }
     }
 }
 
 /// The communication context used by the RPC actor.
 #[derive(Debug)]
-pub struct RpcContext<SequencerAdminApiClient> {
+pub struct RpcContext<
+    EngineRpcClient_,
+    RollupBoostAdminClient_,
+    RollupBoostHealth,
+    SequencerAdminApiClient_,
+> {
+    /// The engine actor request sender.
+    pub engine_actor_rpc_client: EngineRpcClient_,
+    /// The rollup boost health client.
+    pub rollup_boost_health_client: RollupBoostHealth,
+    /// The rollup boost admin client.
+    pub rollup_boost_admin_client: RollupBoostAdminClient_,
     /// The network p2p rpc sender.
     pub p2p_network: mpsc::Sender<P2pRpcRequest>,
     /// The network admin rpc sender.
     pub network_admin: mpsc::Sender<NetworkAdminQuery>,
     /// The sequencer admin rpc sender.
-    pub sequencer_admin: Option<SequencerAdminApiClient>,
+    pub sequencer_admin: Option<SequencerAdminApiClient_>,
     /// The l1 watcher queries sender.
     pub l1_watcher_queries: mpsc::Sender<L1WatcherQueries>,
-    /// The engine query sender.
-    pub engine_query: mpsc::Sender<EngineQueries>,
     /// The cancellation token, shared between all tasks.
     pub cancellation: CancellationToken,
-    /// The rollup boost admin rpc sender.
-    pub rollup_boost_admin: mpsc::Sender<RollupBoostAdminQuery>,
-    /// The rollup boost health rpc sender.
-    pub rollup_boost_health: mpsc::Sender<RollupBoostHealthQuery>,
 }
 
-impl<S: SequencerAdminAPIClient> CancellableContext for RpcContext<S> {
+impl<EngineRpcClient_, RollupBoostAdminClient_, RollupBoostHealth, SequencerAdminApiClient_>
+    CancellableContext
+    for RpcContext<
+        EngineRpcClient_,
+        RollupBoostAdminClient_,
+        RollupBoostHealth,
+        SequencerAdminApiClient_,
+    >
+where
+    EngineRpcClient_: EngineRpcClient,
+    RollupBoostAdminClient_: RollupBoostAdminClient,
+    RollupBoostHealth: RollupBoostHealthzApiServer,
+    SequencerAdminApiClient_: SequencerAdminAPIClient,
+{
     fn cancelled(&self) -> WaitForCancellationFuture<'_> {
         self.cancellation.cancelled()
     }
@@ -112,49 +155,67 @@ async fn launch(
 }
 
 #[async_trait]
-impl<S: SequencerAdminAPIClient + 'static> NodeActor for RpcActor<S> {
+impl<EngineRpcClient_, RollupBoostAdminClient_, RollupBoostHealth, SequencerAdminApiClient_>
+    NodeActor
+    for RpcActor<
+        EngineRpcClient_,
+        RollupBoostAdminClient_,
+        RollupBoostHealth,
+        SequencerAdminApiClient_,
+    >
+where
+    EngineRpcClient_: EngineRpcClient + 'static,
+    RollupBoostAdminClient_: RollupBoostAdminClient + 'static,
+    RollupBoostHealth: RollupBoostHealthzApiServer + 'static,
+    SequencerAdminApiClient_: SequencerAdminAPIClient + 'static,
+{
     type Error = RpcActorError;
-    type StartData = RpcContext<S>;
+    type StartData = RpcContext<
+        EngineRpcClient_,
+        RollupBoostAdminClient_,
+        RollupBoostHealth,
+        SequencerAdminApiClient_,
+    >;
 
     async fn start(
         mut self,
         RpcContext {
             cancellation,
+            engine_actor_rpc_client,
+            rollup_boost_health_client,
+            rollup_boost_admin_client,
             p2p_network,
             l1_watcher_queries,
-            engine_query,
             network_admin,
             sequencer_admin,
-            rollup_boost_admin,
-            rollup_boost_health,
         }: Self::StartData,
     ) -> Result<(), Self::Error> {
         let mut modules = RpcModule::new(());
 
-        let healthz_rpc = HealthzRpc::new(rollup_boost_health);
-        modules.merge(HealthzApiServer::into_rpc(healthz_rpc.clone()))?;
-        modules.merge(RollupBoostHealthzApiServer::into_rpc(healthz_rpc))?;
+        modules.merge(HealthzApiServer::into_rpc(HealthzRpc {}))?;
+        modules.merge(RollupBoostHealthzApiServer::into_rpc(rollup_boost_health_client))?;
 
         // Build the p2p rpc module.
         modules.merge(P2pRpc::new(p2p_network).into_rpc())?;
 
         // Build the admin rpc module.
         modules.merge(
-            AdminRpc::new(sequencer_admin, network_admin, Some(rollup_boost_admin)).into_rpc(),
+            AdminRpc::new(sequencer_admin, network_admin, Some(rollup_boost_admin_client))
+                .into_rpc(),
         )?;
 
         // Create context for communication between actors.
-        let rollup_rpc = RollupRpc::new(engine_query.clone(), l1_watcher_queries);
+        let rollup_rpc = RollupRpc::new(engine_actor_rpc_client.clone(), l1_watcher_queries);
         modules.merge(rollup_rpc.into_rpc())?;
 
         // Add development RPC module for engine state introspection if enabled
         if self.config.dev_enabled() {
-            let dev_rpc = DevEngineRpc::new(engine_query.clone());
+            let dev_rpc = DevEngineRpc::new(engine_actor_rpc_client.clone());
             modules.merge(dev_rpc.into_rpc())?;
         }
 
         if self.config.ws_enabled() {
-            modules.merge(WsRPC::new(engine_query).into_rpc())?;
+            modules.merge(WsRPC::new(engine_actor_rpc_client.clone()).into_rpc())?;
         }
 
         let restarts = self.config.restart_count();

@@ -5,12 +5,13 @@ use kona_rpc::NetworkAdminQuery;
 use kona_sources::BlockSignerError;
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::{OpExecutionPayloadEnvelope, OpNetworkPayloadEnvelope};
+use std::marker::PhantomData;
 use thiserror::Error;
 use tokio::{self, select, sync::mpsc};
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
 use crate::{
-    CancellableContext, NodeActor,
+    CancellableContext, NetworkEngineClient, NodeActor,
     actors::network::{
         builder::NetworkBuilder, driver::NetworkDriverError, error::NetworkBuilderError,
     },
@@ -44,7 +45,7 @@ use crate::{
 /// // let actor = NetworkActor::new(driver);
 /// ```
 #[derive(Debug)]
-pub struct NetworkActor {
+pub struct NetworkActor<E: NetworkEngineClient> {
     /// Network driver
     pub(super) builder: NetworkBuilder,
     /// A channel to receive the unsafe block signer address.
@@ -55,6 +56,8 @@ pub struct NetworkActor {
     pub(super) admin_rpc: mpsc::Receiver<NetworkAdminQuery>,
     /// A channel to receive unsafe blocks and send them through the gossip layer.
     pub(super) publish_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
+
+    phantom_client: PhantomData<E>,
 }
 
 /// The inbound data for the network actor.
@@ -72,7 +75,7 @@ pub struct NetworkInboundData {
     pub gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
 }
 
-impl NetworkActor {
+impl<E: NetworkEngineClient> NetworkActor<E> {
     /// Constructs a new [`NetworkActor`] given the [`NetworkBuilder`]
     pub fn new(driver: NetworkBuilder) -> (NetworkInboundData, Self) {
         let (signer_tx, signer_rx) = mpsc::channel(16);
@@ -85,6 +88,7 @@ impl NetworkActor {
             p2p_rpc: rpc_rx,
             admin_rpc: admin_rpc_rx,
             publish_rx,
+            phantom_client: PhantomData,
         };
         let outbound_data = NetworkInboundData {
             signer: signer_tx,
@@ -98,14 +102,14 @@ impl NetworkActor {
 
 /// The communication context used by the network actor.
 #[derive(Debug)]
-pub struct NetworkContext {
+pub struct NetworkContext<E: NetworkEngineClient> {
     /// The channel used by the sequencer actor for sending unsafe blocks to the network.
-    pub blocks: mpsc::Sender<OpExecutionPayloadEnvelope>,
+    pub engine_client: E,
     /// Cancels the network actor.
     pub cancellation: CancellationToken,
 }
 
-impl CancellableContext for NetworkContext {
+impl<E: NetworkEngineClient> CancellableContext for NetworkContext<E> {
     fn cancelled(&self) -> WaitForCancellationFuture<'_> {
         self.cancellation.cancelled()
     }
@@ -138,13 +142,13 @@ pub enum NetworkActorError {
 }
 
 #[async_trait]
-impl NodeActor for NetworkActor {
+impl<E: NetworkEngineClient + 'static> NodeActor for NetworkActor<E> {
     type Error = NetworkActorError;
-    type StartData = NetworkContext;
+    type StartData = NetworkContext<E>;
 
     async fn start(
         mut self,
-        NetworkContext { blocks, cancellation }: Self::StartData,
+        NetworkContext { engine_client, cancellation }: Self::StartData,
     ) -> Result<(), Self::Error> {
         let mut handler = self.builder.build()?.start().await?;
 
@@ -166,8 +170,8 @@ impl NodeActor for NetworkActor {
                         return Err(NetworkActorError::ChannelClosed);
                     };
 
-                    if blocks.send(block).await.is_err() {
-                        warn!(target: "network", "Failed to forward unsafe block");
+                    if engine_client.insert_unsafe_block(block).await.is_err() {
+                        warn!(target: "network", "Failed to forward unsafe block to engine");
                         return Err(NetworkActorError::ChannelClosed);
                     }
                 }

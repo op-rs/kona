@@ -33,6 +33,8 @@ pub enum RollupBoostAdminQuery {
     SetExecutionMode {
         /// The execution mode to set.
         execution_mode: ExecutionMode,
+        /// The sender to send the response confirming the execution mode was updated.
+        sender: oneshot::Sender<()>,
     },
     /// An admin rpc request to get the execution mode.
     GetExecutionMode {
@@ -41,46 +43,69 @@ pub enum RollupBoostAdminQuery {
     },
 }
 
+/// Client trait for interacting with the rollup boost admin API.
+pub trait RollupBoostAdminClient: Send + Sync + Debug {
+    /// Sets the execution mode for the rollup boost server.
+    fn set_execution_mode(
+        &self,
+        request: SetExecutionModeRequest,
+    ) -> impl Future<Output = RpcResult<SetExecutionModeResponse>> + Send;
+
+    /// Gets the current execution mode from the rollup boost server.
+    fn get_execution_mode(
+        &self,
+    ) -> impl Future<Output = RpcResult<GetExecutionModeResponse>> + Send;
+}
+
 type NetworkAdminQuerySender = tokio::sync::mpsc::Sender<NetworkAdminQuery>;
-type RollupBoostAdminQuerySender = tokio::sync::mpsc::Sender<RollupBoostAdminQuery>;
 
 /// The admin rpc server.
 #[derive(Debug)]
-pub struct AdminRpc<SequencerAdminAPIClient> {
+pub struct AdminRpc<RollupBoostAdminClient, SequencerAdminAPIClient> {
     /// The sequencer admin API client.
     pub sequencer_admin_client: Option<SequencerAdminAPIClient>,
     /// The sender to the network actor.
     pub network_sender: NetworkAdminQuerySender,
     /// The sender to the rollup boost component of the engine actor.
     /// Only set when rollup boost is enabled.
-    pub rollup_boost_sender: Option<RollupBoostAdminQuerySender>,
+    pub rollup_boost_client: Option<RollupBoostAdminClient>,
 }
 
-impl<S: SequencerAdminAPIClient> AdminRpc<S> {
+impl<RollupBoostAdminClient_, SequencerAdminAPIClient_>
+    AdminRpc<RollupBoostAdminClient_, SequencerAdminAPIClient_>
+where
+    RollupBoostAdminClient_: RollupBoostAdminClient,
+    SequencerAdminAPIClient_: SequencerAdminAPIClient,
+{
     /// Constructs a new [`AdminRpc`] given the sequencer sender, network sender, and execution
     /// mode.
     ///
     /// # Parameters
     ///
-    /// - `sequencer_sender`: The sender to the sequencer actor.
+    /// - `sequencer_sender`: The [`SequencerAdminAPIClient`] used to fulfill sequencer admin
+    ///   queries.
     /// - `network_sender`: The sender to the network actor.
-    /// - `rollup_boost_sender`: Sender of admin queries to the rollup boost component of the engine
-    ///   actor.
-    ///
+    /// - `rollup_boost_sender`: The [`RollupBoostAdminClient`] used to fulfill rollup boost admin
+    ///   queries.
     /// # Returns
     ///
     /// A new [`AdminRpc`] instance.
     pub const fn new(
-        sequencer_admin_client: Option<S>,
+        sequencer_admin_client: Option<SequencerAdminAPIClient_>,
         network_sender: NetworkAdminQuerySender,
-        rollup_boost_sender: Option<RollupBoostAdminQuerySender>,
+        rollup_boost_client: Option<RollupBoostAdminClient_>,
     ) -> Self {
-        Self { sequencer_admin_client, network_sender, rollup_boost_sender }
+        Self { sequencer_admin_client, network_sender, rollup_boost_client }
     }
 }
 
 #[async_trait]
-impl<S: SequencerAdminAPIClient + 'static> AdminApiServer for AdminRpc<S> {
+impl<RollupBoostAdminClient_, SequencerAdminAPIClient_> AdminApiServer
+    for AdminRpc<RollupBoostAdminClient_, SequencerAdminAPIClient_>
+where
+    RollupBoostAdminClient_: RollupBoostAdminClient + 'static + Send + Sync,
+    SequencerAdminAPIClient_: SequencerAdminAPIClient + 'static + Send + Sync,
+{
     async fn admin_post_unsafe_payload(
         &self,
         payload: OpExecutionPayloadEnvelope,
@@ -180,34 +205,19 @@ impl<S: SequencerAdminAPIClient + 'static> AdminApiServer for AdminRpc<S> {
         &self,
         request: SetExecutionModeRequest,
     ) -> RpcResult<SetExecutionModeResponse> {
-        let Some(ref rollup_boost_sender) = self.rollup_boost_sender else {
+        let Some(ref client) = self.rollup_boost_client else {
             return Err(ErrorObject::from(ErrorCode::MethodNotFound));
         };
 
-        rollup_boost_sender
-            .send(RollupBoostAdminQuery::SetExecutionMode {
-                execution_mode: request.execution_mode,
-            })
-            .await
-            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
-        Ok(SetExecutionModeResponse { execution_mode: request.execution_mode })
+        client.set_execution_mode(request).await
     }
 
     async fn get_execution_mode(&self) -> RpcResult<GetExecutionModeResponse> {
-        let Some(ref rollup_boost_sender) = self.rollup_boost_sender else {
+        let Some(ref client) = self.rollup_boost_client else {
             return Err(ErrorObject::from(ErrorCode::MethodNotFound));
         };
 
-        let (tx, rx) = oneshot::channel();
-
-        rollup_boost_sender
-            .send(RollupBoostAdminQuery::GetExecutionMode { sender: tx })
-            .await
-            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
-
-        rx.await
-            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
-            .map(|execution_mode| GetExecutionModeResponse { execution_mode })
+        client.get_execution_mode().await
     }
 
     async fn admin_reset_derivation_pipeline(&self) -> RpcResult<()> {

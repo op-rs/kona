@@ -4,18 +4,23 @@ use alloy_chains::Chain;
 use alloy_signer::k256;
 use discv5::{ConfigBuilder, Enr, ListenConfig};
 
+use crate::actors::network::TestNetwork;
 use alloy_primitives::Address;
+use async_trait::async_trait;
 use kona_disc::LocalNode;
 use kona_genesis::RollupConfig;
-use kona_node_service::{NetworkActor, NetworkBuilder, NetworkContext, NodeActor};
+use kona_node_service::{
+    EngineClientResult, NetworkActor, NetworkBuilder, NetworkContext, NetworkEngineClient,
+    NodeActor,
+};
 use kona_peers::BootNode;
 use kona_sources::BlockSigner;
 use libp2p::{Multiaddr, identity::Keypair, multiaddr::Protocol};
+use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use rand::RngCore;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-
-use crate::actors::network::TestNetwork;
+use tracing::error;
 
 pub(crate) struct TestNetworkBuilder {
     chain_id: u64,
@@ -98,10 +103,34 @@ impl TestNetworkBuilder {
         let (blocks_tx, blocks_rx) = mpsc::channel(1024);
         let cancellation = CancellationToken::new();
 
-        let context = NetworkContext { blocks: blocks_tx, cancellation };
+        let context = NetworkContext {
+            engine_client: ForwardingNetworkEngineClient { blocks_tx },
+            cancellation,
+        };
 
         let handle = tokio::spawn(async move { actor.start(context).await });
 
         TestNetwork { inbound_data, blocks_rx, handle }
+    }
+}
+
+#[derive(Debug)]
+struct ForwardingNetworkEngineClient {
+    blocks_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
+}
+
+#[async_trait]
+impl NetworkEngineClient for ForwardingNetworkEngineClient {
+    async fn insert_unsafe_block(
+        &self,
+        block: OpExecutionPayloadEnvelope,
+    ) -> EngineClientResult<()> {
+        match self.blocks_tx.send(block).await {
+            Err(e) => {
+                error!(target: "net", "Failed to send block: {:?}", e);
+                Ok(())
+            }
+            Ok(_) => Ok(()),
+        }
     }
 }

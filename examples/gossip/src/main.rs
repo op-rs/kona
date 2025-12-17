@@ -17,19 +17,46 @@
 
 #![warn(unused_crate_dependencies)]
 
+use async_trait::async_trait;
 use clap::Parser;
 use discv5::enr::CombinedKey;
 use kona_cli::{LogArgs, LogConfig};
 use kona_disc::LocalNode;
-use kona_node_service::{NetworkActor, NetworkConfig, NetworkContext, NodeActor};
+use kona_node_service::{
+    EngineClientResult, NetworkActor, NetworkConfig, NetworkContext, NetworkEngineClient, NodeActor,
+};
 use kona_registry::ROLLUP_CONFIGS;
 use libp2p::{Multiaddr, identity::Keypair};
+use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     time::Duration,
 };
+use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
+use tracing::error;
 use tracing_subscriber::EnvFilter;
+
+#[derive(Debug)]
+struct ForwardingNetworkEngineClient {
+    block_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
+}
+
+#[async_trait]
+impl NetworkEngineClient for ForwardingNetworkEngineClient {
+    async fn insert_unsafe_block(
+        &self,
+        block: OpExecutionPayloadEnvelope,
+    ) -> EngineClientResult<()> {
+        match self.block_tx.send(block).await {
+            Err(e) => {
+                error!(target: "net", "Failed to send block: {:?}", e);
+                Ok(())
+            }
+            Ok(_) => Ok(()),
+        }
+    }
+}
 
 /// The gossip command.
 #[derive(Parser, Debug, Clone)]
@@ -108,11 +135,11 @@ impl GossipCommand {
             .into(),
         );
 
-        let (unsafe_blocks_tx, mut unsafe_blocks_rx) = tokio::sync::mpsc::channel(1024);
+        let (unsafe_blocks_tx, mut unsafe_blocks_rx) = mpsc::channel(1024);
 
         network
             .start(NetworkContext {
-                blocks: unsafe_blocks_tx,
+                engine_client: ForwardingNetworkEngineClient { block_tx: unsafe_blocks_tx },
                 cancellation: CancellationToken::new(),
             })
             .await?;
