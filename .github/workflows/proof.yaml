@@ -20,8 +20,6 @@ jobs:
         kind: ["single", "interop"]
         parallel: [4]
         index: [0, 1, 2, 3]  # Remember to update step 'Merge reports' as well.
-        exclude:
-          - kind: "interop"  # See https://github.com/op-rs/kona/issues/3010
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6
