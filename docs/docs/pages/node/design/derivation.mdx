@@ -52,12 +52,18 @@ The derivation pipeline is constructed using the `DerivationBuilder` which imple
 pub struct DerivationBuilder {
     /// The L1 provider.
     pub l1_provider: RootProvider,
+    /// Whether to trust the L1 RPC.
+    pub l1_trust_rpc: bool,
     /// The L1 beacon client.
     pub l1_beacon: OnlineBeaconClient,
     /// The L2 provider.
     pub l2_provider: RootProvider<Optimism>,
+    /// Whether to trust the L2 RPC.
+    pub l2_trust_rpc: bool,
     /// The rollup config.
     pub rollup_config: Arc<RollupConfig>,
+    /// The L1 chain configuration.
+    pub l1_config: Arc<L1ChainConfig>,
     /// The interop mode.
     pub interop_mode: InteropMode,
 }
@@ -69,15 +75,30 @@ The builder creates an `OnlinePipeline` which can operate in two modes:
 2. **Indexed Mode**: Uses `IndexedTraversal` for more efficient L1 block handling
 
 ```rust
+// Create the caching L1/L2 EL providers for derivation.
+let l1_derivation_provider = AlloyChainProvider::new_with_trust(
+    self.l1_provider.clone(),
+    DERIVATION_PROVIDER_CACHE_SIZE,
+    self.l1_trust_rpc,
+);
+let l2_derivation_provider = AlloyL2ChainProvider::new_with_trust(
+    self.l2_provider.clone(),
+    self.rollup_config.clone(),
+    DERIVATION_PROVIDER_CACHE_SIZE,
+    self.l2_trust_rpc,
+);
+
 let pipeline = match self.interop_mode {
     InteropMode::Polled => OnlinePipeline::new_polled(
         self.rollup_config.clone(),
+        self.l1_config.clone(),
         OnlineBlobProvider::init(self.l1_beacon.clone()).await,
         l1_derivation_provider,
         l2_derivation_provider,
     ),
     InteropMode::Indexed => OnlinePipeline::new_indexed(
         self.rollup_config.clone(),
+        self.l1_config.clone(),
         OnlineBlobProvider::init(self.l1_beacon.clone()).await,
         l1_derivation_provider,
         l2_derivation_provider,
