@@ -55,7 +55,7 @@ jobs:
         with:
           total: ${{ matrix.parallel }}
           index: ${{ matrix.index }}
-          working-directory: ./tests/optimism/op-e2e/actions/proofs
+          working-directory: ./tests/optimism/op-e2e/actions/${{ matrix.kind == 'single' && 'proofs' || 'interop' }}
 
       - name: Build and Run Action Tests
         run: |
