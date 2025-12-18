@@ -39,8 +39,8 @@ impl KeyValueStore for InteropLocalInputs {
                 serde_json::to_vec(&rollup_configs).ok()
             }
             L1_CONFIG_KEY => {
-                let l1_configs = self.cfg.read_l1_configs()?.ok()?;
-                serde_json::to_vec(&l1_configs).ok()
+                let l1_config = self.cfg.read_l1_config().ok()?;
+                serde_json::to_vec(&l1_config).ok()
             }
             _ => None,
         }
