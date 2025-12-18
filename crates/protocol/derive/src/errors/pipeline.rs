@@ -134,6 +134,9 @@ pub enum PipelineError {
     /// require waiting for new L1 blocks to provide additional frame data.
     #[error("EOF")]
     Eof,
+    /// Missing min_base_fee while Jovian fork is active.
+    #[error("missing min_base_fee in system config while Jovian is active")]
+    MissingMinBaseFee,
     /// Insufficient data available to complete the current processing stage.
     ///
     /// This error indicates that the current operation requires more data than

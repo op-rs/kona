@@ -215,11 +215,21 @@ where
                 l2_parent.block_info.timestamp,
                 next_l2_time,
             ),
-            min_base_fee: self
-                .rollup_cfg
-                .is_jovian_active(next_l2_time)
-                .then(|| sys_config.min_base_fee.unwrap_or_default()), /* Default to zero if not
-                                                                        * set at Jovian */
+            min_base_fee: if self.rollup_cfg.is_jovian_active(next_l2_time) {
+                match sys_config.min_base_fee {
+                    Some(v) => Some(v),
+                    None => {
+                        return Err(
+                            PipelineErrorKind::Critical(
+                                PipelineError::MissingMinBaseFee,
+                            )
+                        );
+                    }
+                }
+            } else {
+                None
+            },
+            
         })
     }
 }
