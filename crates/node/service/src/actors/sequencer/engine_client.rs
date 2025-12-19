@@ -10,9 +10,9 @@ use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::fmt::Debug;
 use tokio::sync::{mpsc, watch};
 
-/// Trait to be referenced by those interacting with EngineActor for block building
-/// operations. The EngineActor requires the use of channels for communication, but
-/// this interface allows that to be abstracted from callers and allows easy testing.
+/// Trait to be referenced by the Sequencer for block building operations. The EngineActor requires
+/// the use of channels for communication, but this interface allows that to be abstracted from
+/// callers and allows easy testing.
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait SequencerEngineClient: Debug + Send + Sync {
