@@ -1,12 +1,11 @@
 //! The [`SequencerActor`].
 
 use crate::{
-    CancellableContext, NodeActor, UnsafePayloadGossipClient,
+    CancellableContext, NodeActor, SequencerAdminQuery, UnsafePayloadGossipClient,
     actors::{
         SequencerEngineClient,
         engine::EngineClientError,
         sequencer::{
-            admin_api_client::SequencerAdminQuery,
             conductor::Conductor,
             error::SequencerActorError,
             metrics::{

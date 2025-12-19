@@ -9,12 +9,14 @@ mod engine;
 pub use engine::{
     BuildRequest, EngineActor, EngineActorRequest, EngineClientError, EngineClientResult,
     EngineConfig, EngineContext, EngineError, EngineInboundData, EngineRpcRequest, L2Finalizer,
-    QueuedEngineRpcClient, ResetRequest, RollupBoostAdminApiClient, RollupBoostHealthRpcClient,
-    SealRequest,
+    ResetRequest, SealRequest,
 };
 
 mod rpc;
-pub use rpc::{RpcActor, RpcActorError, RpcContext};
+pub use rpc::{
+    QueuedEngineRpcClient, QueuedSequencerAdminAPIClient, RollupBoostAdminApiClient,
+    RollupBoostHealthRpcClient, RpcActor, RpcActorError, RpcContext,
+};
 
 mod derivation;
 pub use derivation::{
@@ -38,9 +40,9 @@ mod sequencer;
 
 pub use sequencer::{
     Conductor, ConductorClient, ConductorError, DelayedL1OriginSelectorProvider, L1OriginSelector,
-    L1OriginSelectorError, L1OriginSelectorProvider, OriginSelector, QueuedSequencerAdminAPIClient,
-    QueuedSequencerEngineClient, SequencerActor, SequencerActorError, SequencerAdminQuery,
-    SequencerConfig, SequencerEngineClient,
+    L1OriginSelectorError, L1OriginSelectorProvider, OriginSelector, QueuedSequencerEngineClient,
+    SequencerActor, SequencerActorError, SequencerAdminQuery, SequencerConfig,
+    SequencerEngineClient,
 };
 
 #[cfg(test)]

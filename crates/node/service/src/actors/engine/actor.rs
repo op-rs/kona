@@ -1,7 +1,9 @@
 //! The [`EngineActor`].
 
-use super::{EngineClientResult, EngineError, L2Finalizer};
-use crate::{EngineClientError, NodeActor, NodeMode, actors::CancellableContext};
+use crate::{
+    EngineClientError, EngineClientResult, EngineError, L2Finalizer, NodeActor, NodeMode,
+    actors::CancellableContext,
+};
 use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::{JwtSecret, PayloadId};
 use async_trait::async_trait;
