@@ -1,7 +1,7 @@
 //! Network Actor
 
 mod actor;
-pub use actor::{NetworkActor, NetworkActorError, NetworkContext, NetworkInboundData};
+pub use actor::{NetworkActor, NetworkActorError, NetworkInboundData};
 
 mod builder;
 pub use builder::NetworkBuilder;
@@ -15,8 +15,11 @@ pub use error::NetworkBuilderError;
 mod handler;
 pub use handler::NetworkHandler;
 
+mod client;
 mod config;
 mod gossip;
+pub use client::{NetworkEngineClient, QueuedNetworkEngineClient};
+
 pub use gossip::{
     QueuedUnsafePayloadGossipClient, UnsafePayloadGossipClient, UnsafePayloadGossipClientError,
 };

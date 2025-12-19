@@ -1,23 +1,24 @@
 //! The [`EngineActor`].
 
-use super::{BlockEngineResult, EngineError, L2Finalizer};
-use crate::{BlockEngineError, NodeActor, NodeMode, actors::CancellableContext};
+use crate::{
+    BuildRequest, EngineActorRequest, EngineClientError, EngineError, EngineRpcRequest,
+    L2Finalizer, NodeActor, NodeMode, ResetRequest, SealRequest, actors::CancellableContext,
+};
 use alloy_provider::RootProvider;
-use alloy_rpc_types_engine::{JwtSecret, PayloadId};
+use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
-use futures::{FutureExt, future::OptionFuture};
+use futures::FutureExt;
 use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
     BuildTask, ConsolidateTask, Engine, EngineClient, EngineClientBuilder,
-    EngineClientBuilderError, EngineQueries, EngineState as InnerEngineState, EngineTask,
-    EngineTaskError, EngineTaskErrorSeverity, InsertTask, OpEngineClient, RollupBoostServer,
-    RollupBoostServerArgs, SealTask, SealTaskError,
+    EngineClientBuilderError, EngineState as InnerEngineState, EngineTask, EngineTaskError,
+    EngineTaskErrorSeverity, InsertTask, OpEngineClient, RollupBoostServer, RollupBoostServerArgs,
+    SealTask,
 };
 use kona_genesis::RollupConfig;
-use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
-use kona_rpc::{RollupBoostAdminQuery, RollupBoostHealthQuery};
+use kona_protocol::L2BlockInfo;
+use kona_rpc::RollupBoostAdminQuery;
 use op_alloy_network::Optimism;
-use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{fmt::Debug, sync::Arc, time::Duration};
 use tokio::{
     sync::{mpsc, oneshot, watch},
@@ -29,73 +30,17 @@ use tokio_util::{
 };
 use url::Url;
 
-/// A request to build a payload.
-/// Contains the attributes to build and a channel to send back the resulting `PayloadId`.
-#[derive(Debug)]
-pub struct BuildRequest {
-    /// The [`OpAttributesWithParent`] from which the block build should be started.
-    pub attributes: OpAttributesWithParent,
-    /// The channel on which the result, successful or not, will be sent.
-    pub result_tx: mpsc::Sender<PayloadId>,
-}
-
-/// A request to reset the engine forkchoice.
-/// Optionally contains a channel to send back the response if the caller would like to know that
-/// the request was successfully processed.
-#[derive(Debug)]
-pub struct ResetRequest {
-    /// response will be sent to this channel, if `Some`.
-    pub result_tx: Option<mpsc::Sender<BlockEngineResult<()>>>,
-}
-
-/// A request to seal and canonicalize a payload.
-/// Contains the `PayloadId`, attributes, and a channel to send back the result.
-#[derive(Debug)]
-pub struct SealRequest {
-    /// The `PayloadId` to seal and canonicalize.
-    pub payload_id: PayloadId,
-    /// The attributes necessary for the seal operation.
-    pub attributes: OpAttributesWithParent,
-    /// The channel on which the result, successful or not, will be sent.
-    pub result_tx: mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>,
-}
-
 /// The [`EngineActor`] is responsible for managing the operations sent to the execution layer's
 /// Engine API. To accomplish this, it uses the [`Engine`] task queue to order Engine API
 /// interactions based off of the [`Ord`] implementation of [`EngineTask`].
 #[derive(Debug)]
 pub struct EngineActor {
-    /// A channel to receive [`OpAttributesWithParent`] from the derivation actor.
-    attributes_rx: mpsc::Receiver<OpAttributesWithParent>,
+    inbound_request_rx: mpsc::Receiver<EngineActorRequest>,
     /// The [`EngineConfig`] used to build the actor.
     builder: EngineConfig,
-    /// A channel to receive build requests.
-    /// Upon successful processing of the provided attributes, a `PayloadId` will be sent via the
-    /// provided sender.
-    /// ## Note
-    /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
-    /// mode.
-    build_request_rx: Option<mpsc::Receiver<BuildRequest>>,
     /// The [`L2Finalizer`], used to finalize L2 blocks.
     finalizer: L2Finalizer,
-    /// Handler for inbound queries to the engine.
-    inbound_queries: mpsc::Receiver<EngineQueries>,
-    /// A channel to receive reset requests.
-    reset_request_rx: mpsc::Receiver<ResetRequest>,
-    /// Shared admin query handle (from rollup-boost), exposed for RPC wiring.
-    /// Only set when rollup boost is enabled.
-    pub rollup_boost_admin_query_rx: mpsc::Receiver<RollupBoostAdminQuery>,
-    /// Shared health handle (from rollup-boost), exposed for RPC wiring.
-    /// Only set when rollup boost is enabled.
-    pub rollup_boost_health_query_rx: mpsc::Receiver<RollupBoostHealthQuery>,
-    /// A channel to receive seal requests.
-    /// The success/fail result of the sealing operation will be sent via the provided sender.
-    /// ## Note
-    /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
-    /// mode.
-    seal_request_rx: Option<mpsc::Receiver<SealRequest>>,
-    /// A channel to receive [`OpExecutionPayloadEnvelope`] from the network actor.
-    unsafe_block_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
+
     /// A channel to use to relay the current unsafe head.
     /// ## Note
     /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
@@ -106,36 +51,8 @@ pub struct EngineActor {
 /// The outbound data for the [`EngineActor`].
 #[derive(Debug)]
 pub struct EngineInboundData {
-    /// A channel to send [`OpAttributesWithParent`] to the engine actor.
-    pub attributes_tx: mpsc::Sender<OpAttributesWithParent>,
-    /// A channel to use to send [`BuildRequest`] payloads to the engine actor.
-    ///
-    /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
-    /// mode.
-    pub build_request_tx: Option<mpsc::Sender<BuildRequest>>,
-    /// A channel that sends new finalized L1 blocks intermittently.
-    pub finalized_l1_block_tx: watch::Sender<Option<BlockInfo>>,
-    /// Handler to send inbound queries to the engine.
-    pub inbound_queries_tx: mpsc::Sender<EngineQueries>,
-    /// A channel to send reset requests.
-    pub reset_request_tx: mpsc::Sender<ResetRequest>,
-    /// A channel to send rollup boost admin queries to the engine actor.
-    pub rollup_boost_admin_query_tx: mpsc::Sender<RollupBoostAdminQuery>,
-    /// A channel to send rollup boost health queries to the engine actor.
-    pub rollup_boost_health_query_tx: mpsc::Sender<RollupBoostHealthQuery>,
-    /// A channel to use to send [`SealRequest`] payloads to the engine actor.
-    ///
-    /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
-    /// mode.
-    pub seal_request_tx: Option<mpsc::Sender<SealRequest>>,
-    /// A channel to send [`OpExecutionPayloadEnvelope`] to the engine actor.
-    ///
-    /// ## Note
-    /// The sequencer actor should not need to send [`OpExecutionPayloadEnvelope`]s to the engine
-    /// actor through that channel. Instead, it should use the `build_request_tx` channel to
-    /// trigger [`BuildTask`] tasks which should insert the block newly built to the engine
-    /// state upon completion.
-    pub unsafe_block_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
+    /// A channel that sends requests to the EngineActor.
+    pub inbound_request_tx: mpsc::Sender<EngineActorRequest>,
     /// A receiver to use to view the latest unsafe head [`L2BlockInfo`] and await its changes.
     ///
     /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
@@ -243,77 +160,27 @@ impl CancellableContext for EngineContext {
     }
 }
 
-struct SequencerChannels {
-    build_request_rx: Option<mpsc::Receiver<BuildRequest>>,
-    build_request_tx: Option<mpsc::Sender<BuildRequest>>,
-    seal_request_rx: Option<mpsc::Receiver<SealRequest>>,
-    seal_request_tx: Option<mpsc::Sender<SealRequest>>,
-    unsafe_head_rx: Option<watch::Receiver<L2BlockInfo>>,
-    unsafe_head_tx: Option<watch::Sender<L2BlockInfo>>,
-}
-
 impl EngineActor {
     /// Constructs a new [`EngineActor`] from the params.
     pub fn new(config: EngineConfig) -> (EngineInboundData, Self) {
-        let (finalized_l1_block_tx, finalized_l1_block_rx) = watch::channel(None);
-        let (inbound_queries_tx, inbound_queries_rx) = mpsc::channel(1024);
-        let (attributes_tx, attributes_rx) = mpsc::channel(1024);
-        let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
-        let (reset_request_tx, reset_request_rx) = mpsc::channel(1024);
+        let (inbound_request_tx, inbound_request_rx) = mpsc::channel(1024);
 
-        let sequencer_channels = if config.mode.is_sequencer() {
-            let (build_request_tx, build_request_rx) = mpsc::channel(1024);
-            let (seal_request_tx, seal_request_rx) = mpsc::channel(1024);
+        let (unsafe_head_tx, unsafe_head_rx) = if config.mode.is_sequencer() {
             let (unsafe_head_tx, unsafe_head_rx) = watch::channel(L2BlockInfo::default());
 
-            SequencerChannels {
-                build_request_rx: Some(build_request_rx),
-                build_request_tx: Some(build_request_tx),
-                seal_request_rx: Some(seal_request_rx),
-                seal_request_tx: Some(seal_request_tx),
-                unsafe_head_rx: Some(unsafe_head_rx),
-                unsafe_head_tx: Some(unsafe_head_tx),
-            }
+            (Some(unsafe_head_tx), Some(unsafe_head_rx))
         } else {
-            SequencerChannels {
-                build_request_rx: None,
-                build_request_tx: None,
-                seal_request_rx: None,
-                seal_request_tx: None,
-                unsafe_head_rx: None,
-                unsafe_head_tx: None,
-            }
+            (None, None)
         };
-
-        let (rollup_boost_admin_query_tx, rollup_boost_admin_query_rx) = mpsc::channel(1024);
-        let (rollup_boost_health_query_tx, rollup_boost_health_query_rx) = mpsc::channel(1024);
 
         let actor = Self {
             builder: config,
-            attributes_rx,
-            unsafe_block_rx,
-            unsafe_head_tx: sequencer_channels.unsafe_head_tx,
-            reset_request_rx,
-            inbound_queries: inbound_queries_rx,
-            build_request_rx: sequencer_channels.build_request_rx,
-            seal_request_rx: sequencer_channels.seal_request_rx,
-            finalizer: L2Finalizer::new(finalized_l1_block_rx),
-            rollup_boost_admin_query_rx,
-            rollup_boost_health_query_rx,
+            inbound_request_rx,
+            unsafe_head_tx,
+            finalizer: L2Finalizer::default(),
         };
 
-        let outbound_data = EngineInboundData {
-            attributes_tx,
-            build_request_tx: sequencer_channels.build_request_tx,
-            finalized_l1_block_tx,
-            inbound_queries_tx,
-            reset_request_tx,
-            rollup_boost_admin_query_tx,
-            rollup_boost_health_query_tx,
-            seal_request_tx: sequencer_channels.seal_request_tx,
-            unsafe_block_tx,
-            unsafe_head_rx: sequencer_channels.unsafe_head_rx,
-        };
+        let outbound_data = EngineInboundData { inbound_request_tx, unsafe_head_rx };
 
         (outbound_data, actor)
     }
@@ -323,9 +190,7 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
     /// Starts a task to handle engine queries.
     fn start_query_task(
         &self,
-        mut inbound_query_channel: tokio::sync::mpsc::Receiver<EngineQueries>,
-        mut rollup_boost_admin_query_rx: tokio::sync::mpsc::Receiver<RollupBoostAdminQuery>,
-        mut rollup_boost_health_query_rx: tokio::sync::mpsc::Receiver<RollupBoostHealthQuery>,
+        mut inbound_rpc_channel: mpsc::Receiver<EngineRpcRequest>,
         rollup_boost: Arc<RollupBoostServer>,
     ) -> JoinHandle<Result<(), EngineError>> {
         let state_recv = self.engine.state_subscribe();
@@ -336,51 +201,48 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
         tokio::spawn(async move {
             loop {
                 tokio::select! {
-                    req = inbound_query_channel.recv(), if !inbound_query_channel.is_closed() => {
-                        {
-                            let Some(req) = req else {
-                                error!(target: "engine", "Engine query receiver closed unexpectedly");
-                                return Err(EngineError::ChannelClosed);
-                            };
-
-                            trace!(target: "engine", ?req, "Received engine query.");
-
-                            if let Err(e) = req
-                                .handle(&state_recv, &queue_length_recv, &engine_client, &rollup_config)
-                                .await
-                            {
-                                warn!(target: "engine", err = ?e, "Failed to handle engine query.");
-                            }
-                        }
-                    }
-                    admin_query = rollup_boost_admin_query_rx.recv(), if !rollup_boost_admin_query_rx.is_closed() => {
-                        trace!(target: "engine", ?admin_query, "Received rollup boost admin query.");
-
-                        let Some(admin_query) = admin_query else {
-                            warn!(target: "engine", "Received a rollup boost query but no rollup-boost config found");
-                            continue;
-                        };
-
-                        match admin_query {
-                            RollupBoostAdminQuery::SetExecutionMode { execution_mode } => {
-                                rollup_boost.server.set_execution_mode(execution_mode);
-                            }
-                            RollupBoostAdminQuery::GetExecutionMode { sender } => {
-                                let execution_mode = rollup_boost.server.get_execution_mode();
-                                sender.send(execution_mode).unwrap();
-                            }
-                        }
-                    }
-                    health_query = rollup_boost_health_query_rx.recv(), if !rollup_boost_health_query_rx.is_closed() => {
-                        trace!(target: "engine", ?health_query, "Received rollup boost health query.");
-
-                        let Some(health_query) = health_query else {
-                            error!(target: "engine", "Rollup boost health query receiver closed unexpectedly");
+                    query = inbound_rpc_channel.recv(), if !inbound_rpc_channel.is_closed() => {
+                        let Some(query) = query else {
+                            error!(target: "engine", "Engine rpc request receiver closed unexpectedly");
                             return Err(EngineError::ChannelClosed);
                         };
+                        match query {
+                            EngineRpcRequest::EngineQuery(req) => {
+                                trace!(target: "engine", ?req, "Received engine query.");
 
-                        let health = rollup_boost.get_health();
-                        health_query.sender.send(health.into()).unwrap();
+                                if let Err(e) = req
+                                    .handle(&state_recv, &queue_length_recv, &engine_client, &rollup_config)
+                                    .await
+                                {
+                                    warn!(target: "engine", err = ?e, "Failed to handle engine query.");
+                                }
+                            },
+                            EngineRpcRequest::RollupBoostAdminRequest(admin_query) => {
+                                trace!(target: "engine", ?admin_query, "Received rollup boost admin query.");
+
+                                match admin_query {
+                                    RollupBoostAdminQuery::SetExecutionMode { execution_mode, sender } => {
+                                        rollup_boost.server.set_execution_mode(execution_mode);
+                                        let _ = sender.send(()).map_err(|_| {
+                                            warn!(target: "engine", "set execution mode response channel closed when trying to send");
+                                        });
+                                    }
+                                    RollupBoostAdminQuery::GetExecutionMode { sender } => {
+                                        let execution_mode = rollup_boost.server.get_execution_mode();
+                                        let _ = sender.send(execution_mode).map_err(|_| {
+                                            warn!(target: "engine", "get execution mode response channel closed when trying to send");
+                                        });
+                                    }
+                                }
+                            },
+                            EngineRpcRequest::RollupBoostHealthRequest(health_query) => {
+                                trace!(target: "engine", ?health_query, "Received rollup boost health query.");
+
+                                let health = rollup_boost.get_health();
+                                health_query.sender.send(health.into()).unwrap();
+                            },
+
+                        }
                     }
                 }
             }
@@ -537,14 +399,11 @@ impl NodeActor for EngineActor {
     ) -> Result<(), Self::Error> {
         let mut state = self.builder.build_state()?;
 
+        let (rpc_tx, rpc_rx) = mpsc::channel(1024);
+
         // Start the engine query server in a separate task to avoid blocking the main task.
         let handle = state
-            .start_query_task(
-                self.inbound_queries,
-                self.rollup_boost_admin_query_rx,
-                self.rollup_boost_health_query_rx,
-                state.client.rollup_boost.clone(),
-            )
+            .start_query_task(rpc_rx, state.client.rollup_boost.clone())
             .with_cancellation_token(&cancellation)
             .then(async |result| {
                 cancellation.cancel();
@@ -618,101 +477,86 @@ impl NodeActor for EngineActor {
 
                     return Ok(());
                 }
-                reset = self.reset_request_rx.recv() => {
-                    let Some(ResetRequest{result_tx: result_tx_option}) = reset else {
-                        error!(target: "engine", "Reset request receiver closed unexpectedly");
+
+                req = self.inbound_request_rx.recv() => {
+                    let Some(request_type) = req else {
+                        error!(target: "engine", "Engine inbound request receiver closed unexpectedly");
                         cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
                     };
 
-                    warn!(target: "engine", "Received reset request");
+                    match request_type {
+                        EngineActorRequest::BuildRequest(BuildRequest{attributes, result_tx}) => {
+                            let task = EngineTask::Build(Box::new(BuildTask::new(
+                                state.client.clone(),
+                                state.rollup.clone(),
+                                attributes,
+                                Some(result_tx),
+                            )));
+                            state.engine.enqueue(task);
+                        },
+                        EngineActorRequest::ProcessDerivedL2AttributesRequest(attributes) => {
+                            self.finalizer.enqueue_for_finalization(&attributes);
 
-                    let reset_res = state
-                        .reset(&derivation_signal_tx, &engine_l2_safe_head_tx, &mut self.finalizer)
-                        .await;
+                            let task = EngineTask::Consolidate(Box::new(ConsolidateTask::new(
+                                state.client.clone(),
+                                state.rollup.clone(),
+                                attributes,
+                                true,
+                            )));
+                            state.engine.enqueue(task);
+                        },
+                        EngineActorRequest::ProcessFinalizedL1BlockRequest(finalized_l1_block) => {
+                            // Attempt to finalize any L2 blocks that are contained within the finalized L1
+                            // chain.
+                            self.finalizer.try_finalize_next(&mut state, finalized_l1_block).await;
+                        },
+                        EngineActorRequest::ProcessUnsafeL2BlockRequest(envelope) => {
+                            let task = EngineTask::Insert(Box::new(InsertTask::new(
+                                state.client.clone(),
+                                state.rollup.clone(),
+                                envelope,
+                                false, // The payload is not derived in this case. This is an unsafe block.
+                            )));
+                            state.engine.enqueue(task);
+                        },
+                        EngineActorRequest::ResetRequest(ResetRequest{result_tx}) => {
+                            warn!(target: "engine", "Received reset request");
 
-                    // Send the result if there is a channel on which to do so.
-                    if let Some(tx) = result_tx_option {
-                        let response_payload = reset_res.as_ref().map(|_| ()).map_err(|e| BlockEngineError::ResetForkchoiceError(e.to_string()));
-                        if tx.send(response_payload).await.is_err() {
-                            warn!(target: "engine", "Sending reset response failed");
-                        }
+                            let reset_res = state
+                                .reset(&derivation_signal_tx, &engine_l2_safe_head_tx, &mut self.finalizer)
+                                .await;
+
+                            // Send the result if there is a channel on which to do so.
+                            if let Some(tx) = result_tx {
+                                let response_payload = reset_res.as_ref().map(|_| ()).map_err(|e| EngineClientError::ResetForkchoiceError(e.to_string()));
+                                if tx.send(response_payload).await.is_err() {
+                                    warn!(target: "engine", "Sending reset response failed");
+                                }
+                            }
+
+                            reset_res?;
+                        },
+                        EngineActorRequest::RpcRequest(req) => {
+                            let _ = rpc_tx.send(req).await.map_err(|_| {
+                                error!(target: "engine", "Engine RPC request handler channel closed unexpectedly");
+                                cancellation.cancel();
+                                EngineError::ChannelClosed
+                            })?;
+                        },
+                        EngineActorRequest::SealRequest(SealRequest{payload_id, attributes, result_tx}) => {
+                            let task = EngineTask::Seal(Box::new(SealTask::new(
+                                state.client.clone(),
+                                state.rollup.clone(),
+                                payload_id,
+                                attributes,
+                                // The payload is not derived in this case.
+                                false,
+                                Some(result_tx),
+                            )));
+                            state.engine.enqueue(task);
+                        },
                     }
-
-                    reset_res?;
-                }
-                Some(req) = OptionFuture::from(self.seal_request_rx.as_mut().map(|rx| rx.recv())), if self.seal_request_rx.is_some() => {
-                    let Some(SealRequest{payload_id, attributes, result_tx}) = req else {
-                        error!(target: "engine", "Seal request receiver closed unexpectedly while in sequencer mode");
-                        cancellation.cancel();
-                        return Err(EngineError::ChannelClosed);
-                    };
-
-                    let task = EngineTask::Seal(Box::new(SealTask::new(
-                        state.client.clone(),
-                        state.rollup.clone(),
-                        payload_id,
-                        attributes,
-                        // The payload is not derived in this case.
-                        false,
-                        Some(result_tx),
-                    )));
-                    state.engine.enqueue(task);
-                }
-                Some(req) = OptionFuture::from(self.build_request_rx.as_mut().map(|rx| rx.recv())), if self.build_request_rx.is_some() => {
-                    let Some(BuildRequest{attributes, result_tx}) = req else {
-                        error!(target: "engine", "Build request receiver closed unexpectedly while in sequencer mode");
-                        cancellation.cancel();
-                        return Err(EngineError::ChannelClosed);
-                    };
-
-                    let task = EngineTask::Build(Box::new(BuildTask::new(
-                        state.client.clone(),
-                        state.rollup.clone(),
-                        attributes,
-                        Some(result_tx),
-                    )));
-                    state.engine.enqueue(task);
-                }
-                unsafe_block = self.unsafe_block_rx.recv() => {
-                    let Some(envelope) = unsafe_block else {
-                        error!(target: "engine", "Unsafe block receiver closed unexpectedly");
-                        cancellation.cancel();
-                        return Err(EngineError::ChannelClosed);
-                    };
-                    let task = EngineTask::Insert(Box::new(InsertTask::new(
-                        state.client.clone(),
-                        state.rollup.clone(),
-                        envelope,
-                        false, // The payload is not derived in this case. This is an unsafe block.
-                    )));
-                    state.engine.enqueue(task);
-                }
-                attributes = self.attributes_rx.recv() => {
-                    let Some(attributes) = attributes else {
-                        error!(target: "engine", "Attributes receiver closed unexpectedly");
-                        cancellation.cancel();
-                        return Err(EngineError::ChannelClosed);
-                    };
-                    self.finalizer.enqueue_for_finalization(&attributes);
-
-                    let task = EngineTask::Consolidate(Box::new(ConsolidateTask::new(
-                        state.client.clone(),
-                        state.rollup.clone(),
-                        attributes,
-                        true,
-                    )));
-                    state.engine.enqueue(task);
-                }
-                msg = self.finalizer.new_finalized_block() => {
-                    if let Err(err) = msg {
-                        error!(target: "engine", ?err, "L1 finalized block receiver closed unexpectedly");
-                        cancellation.cancel();
-                        return Err(EngineError::ChannelClosed);
-                    }
-                    // Attempt to finalize any L2 blocks that are contained within the finalized L1
-                    // chain.
-                    self.finalizer.try_finalize_next(&mut state).await;
                 }
             }
         }
