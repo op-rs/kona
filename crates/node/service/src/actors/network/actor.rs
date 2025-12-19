@@ -47,6 +47,8 @@ use crate::{
 pub struct NetworkActor<E: NetworkEngineClient> {
     /// Network driver
     pub(super) builder: NetworkBuilder,
+    /// The cancellation token, shared between all tasks.
+    pub(super) cancellation_token: CancellationToken,
     /// A channel to receive the unsafe block signer address.
     pub(super) signer: mpsc::Receiver<Address>,
     /// Handler for p2p RPC Requests.
@@ -76,13 +78,18 @@ pub struct NetworkInboundData {
 
 impl<E: NetworkEngineClient> NetworkActor<E> {
     /// Constructs a new [`NetworkActor`] given the [`NetworkBuilder`]
-    pub fn new(engine_client: E, driver: NetworkBuilder) -> (NetworkInboundData, Self) {
+    pub fn new(
+        engine_client: E,
+        cancellation_token: CancellationToken,
+        driver: NetworkBuilder,
+    ) -> (NetworkInboundData, Self) {
         let (signer_tx, signer_rx) = mpsc::channel(16);
         let (rpc_tx, rpc_rx) = mpsc::channel(1024);
         let (admin_rpc_tx, admin_rpc_rx) = mpsc::channel(1024);
         let (publish_tx, publish_rx) = tokio::sync::mpsc::channel(256);
         let actor = Self {
             builder: driver,
+            cancellation_token,
             signer: signer_rx,
             p2p_rpc: rpc_rx,
             admin_rpc: admin_rpc_rx,
@@ -99,16 +106,9 @@ impl<E: NetworkEngineClient> NetworkActor<E> {
     }
 }
 
-/// The communication context used by the network actor.
-#[derive(Debug)]
-pub struct NetworkContext {
-    /// Cancels the network actor.
-    pub cancellation: CancellationToken,
-}
-
-impl CancellableContext for NetworkContext {
+impl<E: NetworkEngineClient> CancellableContext for NetworkActor<E> {
     fn cancelled(&self) -> WaitForCancellationFuture<'_> {
-        self.cancellation.cancelled()
+        self.cancellation_token.cancelled()
     }
 }
 
@@ -141,12 +141,9 @@ pub enum NetworkActorError {
 #[async_trait]
 impl<E: NetworkEngineClient + 'static> NodeActor for NetworkActor<E> {
     type Error = NetworkActorError;
-    type StartData = NetworkContext;
+    type StartData = ();
 
-    async fn start(
-        mut self,
-        NetworkContext { cancellation }: Self::StartData,
-    ) -> Result<(), Self::Error> {
+    async fn start(mut self, _: Self::StartData) -> Result<(), Self::Error> {
         let mut handler = self.builder.build()?.start().await?;
 
         // New unsafe block channel.
@@ -154,7 +151,7 @@ impl<E: NetworkEngineClient + 'static> NodeActor for NetworkActor<E> {
 
         loop {
             select! {
-                _ = cancellation.cancelled() => {
+                _ = self.cancellation_token.cancelled() => {
                     info!(
                         target: "network",
                         "Received shutdown signal. Exiting network task."

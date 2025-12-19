@@ -1,7 +1,7 @@
 //! Network Actor
 
 mod actor;
-pub use actor::{NetworkActor, NetworkActorError, NetworkContext, NetworkInboundData};
+pub use actor::{NetworkActor, NetworkActorError, NetworkInboundData};
 
 mod builder;
 pub use builder::NetworkBuilder;

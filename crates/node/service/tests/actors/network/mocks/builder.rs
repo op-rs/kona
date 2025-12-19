@@ -10,8 +10,7 @@ use async_trait::async_trait;
 use kona_disc::LocalNode;
 use kona_genesis::RollupConfig;
 use kona_node_service::{
-    EngineClientResult, NetworkActor, NetworkBuilder, NetworkContext, NetworkEngineClient,
-    NodeActor,
+    EngineClientResult, NetworkActor, NetworkBuilder, NetworkEngineClient, NodeActor,
 };
 use kona_peers::BootNode;
 use kona_sources::BlockSigner;
@@ -99,14 +98,13 @@ impl TestNetworkBuilder {
         .with_bootnodes(bootnodes.into_iter().map(Into::into).collect::<Vec<BootNode>>().into());
 
         let (blocks_tx, blocks_rx) = mpsc::channel(1024);
-        let (inbound_data, actor) =
-            NetworkActor::new(ForwardingNetworkEngineClient { blocks_tx }, builder);
+        let (inbound_data, actor) = NetworkActor::new(
+            ForwardingNetworkEngineClient { blocks_tx },
+            CancellationToken::new(),
+            builder,
+        );
 
-        let cancellation = CancellationToken::new();
-
-        let context = NetworkContext { cancellation };
-
-        let handle = tokio::spawn(async move { actor.start(context).await });
+        let handle = tokio::spawn(async move { actor.start(()).await });
 
         TestNetwork { inbound_data, blocks_rx, handle }
     }

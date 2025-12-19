@@ -2,8 +2,8 @@
 use crate::{
     ConductorClient, DelayedL1OriginSelectorProvider, DerivationActor, DerivationBuilder,
     DerivationContext, EngineActor, EngineConfig, EngineContext, InteropMode, L1OriginSelector,
-    L1WatcherActor, NetworkActor, NetworkBuilder, NetworkConfig, NetworkContext, NodeActor,
-    NodeMode, QueuedDerivationEngineClient, QueuedEngineRpcClient, QueuedL1WatcherEngineClient,
+    L1WatcherActor, NetworkActor, NetworkBuilder, NetworkConfig, NodeActor, NodeMode,
+    QueuedDerivationEngineClient, QueuedEngineRpcClient, QueuedL1WatcherEngineClient,
     QueuedNetworkEngineClient, QueuedSequencerAdminAPIClient, QueuedSequencerEngineClient,
     RollupBoostAdminApiClient, RollupBoostHealthRpcClient, RpcActor, RpcContext, SequencerActor,
     SequencerConfig,
@@ -179,6 +179,7 @@ impl RollupNode {
             network,
         ) = NetworkActor::new(
             QueuedNetworkEngineClient { engine_actor_request_tx: engine_actor_request_tx.clone() },
+            cancellation.clone(),
             self.network_builder(),
         );
 
@@ -288,7 +289,7 @@ impl RollupNode {
                     }
                 )),
                 sequencer_actor.map(|s| (s, ())),
-                Some((network, NetworkContext { cancellation: cancellation.clone() })),
+                Some((network, ())),
                 Some((l1_watcher, ())),
                 Some((derivation, DerivationContext { cancellation: cancellation.clone() })),
                 Some((
