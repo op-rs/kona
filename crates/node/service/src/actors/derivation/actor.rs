@@ -36,9 +36,10 @@ where
     DerivationEngineClient_: DerivationEngineClient,
     PipelineBuilder_: PipelineBuilder<DerivationEngineClient_>,
 {
+    /// The cancellation token, shared between all tasks.
+    cancellation_token: CancellationToken,
     /// The state for the derivation actor.
     state: PipelineBuilder_,
-
     /// The receiver for L1 head update notifications.
     l1_head_updates: watch::Receiver<Option<BlockInfo>>,
     /// The receiver for L2 safe head update notifications.
@@ -184,16 +185,14 @@ pub struct DerivationInboundChannels {
     pub derivation_signal_tx: mpsc::Sender<Signal>,
 }
 
-/// The communication context used by the derivation actor.
-#[derive(Debug)]
-pub struct DerivationContext {
-    /// The cancellation token, shared between all tasks.
-    pub cancellation: CancellationToken,
-}
-
-impl CancellableContext for DerivationContext {
+impl<DerivationEngineClient_, PipelineBuilder_> CancellableContext
+    for DerivationActor<DerivationEngineClient_, PipelineBuilder_>
+where
+    DerivationEngineClient_: DerivationEngineClient,
+    PipelineBuilder_: PipelineBuilder<DerivationEngineClient_>,
+{
     fn cancelled(&self) -> WaitForCancellationFuture<'_> {
-        self.cancellation.cancelled()
+        self.cancellation_token.cancelled()
     }
 }
 
@@ -415,6 +414,7 @@ where
     /// Creates a new instance of the [DerivationActor].
     pub fn new(
         engine_client: DerivationEngineClient_,
+        cancellation_token: CancellationToken,
         state: PipelineBuilder_,
     ) -> (DerivationInboundChannels, Self) {
         let (l1_head_updates_tx, l1_head_updates_rx) = watch::channel(None);
@@ -423,6 +423,7 @@ where
         let (el_sync_complete_tx, el_sync_complete_rx) = oneshot::channel();
         let (derivation_signal_tx, derivation_signal_rx) = mpsc::channel(16);
         let actor = Self {
+            cancellation_token,
             state,
             l1_head_updates: l1_head_updates_rx,
             engine_l2_safe_head: engine_l2_safe_head_rx,
@@ -451,19 +452,16 @@ where
     PipelineBuilder_: PipelineBuilder<DerivationEngineClient_>,
 {
     type Error = DerivationError;
-    type StartData = DerivationContext;
+    type StartData = ();
 
-    async fn start(
-        mut self,
-        DerivationContext { cancellation }: Self::StartData,
-    ) -> Result<(), Self::Error> {
+    async fn start(mut self, _: Self::StartData) -> Result<(), Self::Error> {
         let mut state = self.state.build().await;
 
         loop {
             select! {
                 biased;
 
-                _ = cancellation.cancelled() => {
+                _ = self.cancellation_token.cancelled() => {
                     info!(
                         target: "derivation",
                         "Received shutdown signal. Exiting derivation task."
