@@ -71,13 +71,13 @@ where
 
 /// The state for the derivation actor.
 #[derive(Debug)]
-pub struct DerivationState<DerivationEngineClient_, P>
+pub struct DerivationState<DerivationEngineClient_, PipelineSignalReceiver>
 where
     DerivationEngineClient_: DerivationEngineClient,
-    P: Pipeline + SignalReceiver,
+    PipelineSignalReceiver: Pipeline + SignalReceiver,
 {
     /// The derivation pipeline.
-    pub pipeline: P,
+    pub pipeline: PipelineSignalReceiver,
     /// A flag indicating whether or not derivation is idle. Derivation is considered idle when it
     /// has yielded to wait for more data on the DAL.
     pub derivation_idle: bool,
@@ -197,13 +197,14 @@ impl CancellableContext for DerivationContext {
     }
 }
 
-impl<DerivationEngineClient_, P> DerivationState<DerivationEngineClient_, P>
+impl<DerivationEngineClient_, PipelineSignalReceiver>
+    DerivationState<DerivationEngineClient_, PipelineSignalReceiver>
 where
     DerivationEngineClient_: DerivationEngineClient + 'static,
-    P: Pipeline + SignalReceiver,
+    PipelineSignalReceiver: Pipeline + SignalReceiver,
 {
     /// Creates a new instance of the [DerivationState].
-    pub const fn new(pipeline: P) -> Self {
+    pub const fn new(pipeline: PipelineSignalReceiver) -> Self {
         Self { pipeline, derivation_idle: true, waiting_for_signal: false, phantom: PhantomData }
     }
 
