@@ -9,6 +9,7 @@
 pub mod cli;
 pub mod commands;
 pub mod flags;
+pub mod follow;
 pub mod metrics;
 
 pub(crate) mod version;

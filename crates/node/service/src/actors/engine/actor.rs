@@ -9,9 +9,9 @@ use futures::{FutureExt, future::OptionFuture};
 use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
     BuildTask, ConsolidateTask, Engine, EngineClient, EngineClientBuilder,
-    EngineClientBuilderError, EngineQueries, EngineState as InnerEngineState, EngineTask,
-    EngineTaskError, EngineTaskErrorSeverity, InsertTask, OpEngineClient, RollupBoostServer,
-    RollupBoostServerArgs, SealTask, SealTaskError,
+    EngineClientBuilderError, EngineQueries, EngineState as InnerEngineState,
+    EngineSyncStateUpdate, EngineTask, EngineTaskError, EngineTaskErrorSeverity, FollowTask,
+    InsertTask, OpEngineClient, RollupBoostServer, RollupBoostServerArgs, SealTask, SealTaskError,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
@@ -66,7 +66,9 @@ pub struct SealRequest {
 #[derive(Debug)]
 pub struct EngineActor {
     /// A channel to receive [`OpAttributesWithParent`] from the derivation actor.
-    attributes_rx: mpsc::Receiver<OpAttributesWithParent>,
+    /// ## Note
+    /// This is `Some` when derivation is enabled, and `None` when follow mode is used instead.
+    attributes_rx: Option<mpsc::Receiver<OpAttributesWithParent>>,
     /// The [`EngineConfig`] used to build the actor.
     builder: EngineConfig,
     /// A channel to receive build requests.
@@ -101,13 +103,19 @@ pub struct EngineActor {
     /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
     /// mode.
     unsafe_head_tx: Option<watch::Sender<L2BlockInfo>>,
+    /// A channel to receive [`crate::FollowStatus`] updates from the follow actor.
+    /// ## Note
+    /// This is `Some` when the follow source is configured, and `None` when not.
+    follow_status_rx: Option<mpsc::Receiver<crate::FollowStatus>>,
 }
 
 /// The outbound data for the [`EngineActor`].
 #[derive(Debug)]
 pub struct EngineInboundData {
     /// A channel to send [`OpAttributesWithParent`] to the engine actor.
-    pub attributes_tx: mpsc::Sender<OpAttributesWithParent>,
+    /// ## Note
+    /// This is `Some` when derivation is enabled, and `None` when follow mode is used instead.
+    pub attributes_tx: Option<mpsc::Sender<OpAttributesWithParent>>,
     /// A channel to use to send [`BuildRequest`] payloads to the engine actor.
     ///
     /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
@@ -141,6 +149,10 @@ pub struct EngineInboundData {
     /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
     /// mode.
     pub unsafe_head_rx: Option<watch::Receiver<L2BlockInfo>>,
+    /// A channel to send [`crate::FollowStatus`] updates from the follow actor.
+    ///
+    /// This is `Some` when the follow source is configured, and `None` when not.
+    pub follow_status_tx: Option<mpsc::Sender<crate::FollowStatus>>,
 }
 
 /// Configuration for the Engine Actor.
@@ -170,6 +182,11 @@ pub struct EngineConfig {
     /// When the node is in sequencer mode, the engine actor will receive requests to build blocks
     /// from the sequencer actor.
     pub mode: NodeMode,
+
+    /// Whether follow mode is enabled.
+    /// When enabled, the node will use external safe/finalized heads from a follow source
+    /// instead of deriving them from L1.
+    pub follow_enabled: bool,
 
     /// The rollup boost arguments.
     pub rollup_boost: RollupBoostServerArgs,
@@ -206,6 +223,7 @@ impl EngineConfig {
             rollup: self.config,
             client,
             engine: Engine::new(state, engine_state_send, engine_queue_length_send),
+            follow_enabled: self.follow_enabled,
         })
     }
 }
@@ -219,6 +237,8 @@ pub(super) struct EngineActorState<EngineClient_: EngineClient> {
     pub(super) client: Arc<EngineClient_>,
     /// The [`Engine`] task queue.
     pub(super) engine: Engine<EngineClient_>,
+    /// Whether follow mode is enabled (for conditional derivation signal sending).
+    pub(super) follow_enabled: bool,
 }
 
 /// The communication context used by the engine actor.
@@ -234,6 +254,10 @@ pub struct EngineContext {
     /// sync is re-triggered can occur, but we will not block derivation on it.
     pub sync_complete_tx: oneshot::Sender<()>,
     /// A way for the engine actor to send a [`Signal`] back to the derivation actor.
+    ///
+    /// ## Note
+    /// In follow mode, this channel's receiver is dropped, so sends will fail.
+    /// EngineActor checks `follow_enabled` before sending to avoid errors.
     pub derivation_signal_tx: mpsc::Sender<Signal>,
 }
 
@@ -257,9 +281,24 @@ impl EngineActor {
     pub fn new(config: EngineConfig) -> (EngineInboundData, Self) {
         let (finalized_l1_block_tx, finalized_l1_block_rx) = watch::channel(None);
         let (inbound_queries_tx, inbound_queries_rx) = mpsc::channel(1024);
-        let (attributes_tx, attributes_rx) = mpsc::channel(1024);
         let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
         let (reset_request_tx, reset_request_rx) = mpsc::channel(1024);
+
+        // Only create attributes channel when follow mode is disabled
+        let (attributes_tx, attributes_rx) = if !config.follow_enabled {
+            let (tx, rx) = mpsc::channel(1024);
+            (Some(tx), Some(rx))
+        } else {
+            (None, None)
+        };
+
+        // Only create follow_status channel when follow mode is enabled
+        let (follow_status_tx, follow_status_rx) = if config.follow_enabled {
+            let (tx, rx) = mpsc::channel(1024);
+            (Some(tx), Some(rx))
+        } else {
+            (None, None)
+        };
 
         let sequencer_channels = if config.mode.is_sequencer() {
             let (build_request_tx, build_request_rx) = mpsc::channel(1024);
@@ -300,6 +339,7 @@ impl EngineActor {
             finalizer: L2Finalizer::new(finalized_l1_block_rx),
             rollup_boost_admin_query_rx,
             rollup_boost_health_query_rx,
+            follow_status_rx,
         };
 
         let outbound_data = EngineInboundData {
@@ -313,6 +353,7 @@ impl EngineActor {
             seal_request_tx: sequencer_channels.seal_request_tx,
             unsafe_block_tx,
             unsafe_head_rx: sequencer_channels.unsafe_head_rx,
+            follow_status_tx,
         };
 
         (outbound_data, actor)
@@ -405,13 +446,17 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
         // condition where the derivation actor receives the pre-reset safe head.
         self.maybe_update_safe_head(engine_l2_safe_head_tx);
 
-        // Signal the derivation actor to reset.
-        let signal = ResetSignal { l2_safe_head, l1_origin, system_config: Some(system_config) };
-        match derivation_signal_tx.send(signal.signal()).await {
-            Ok(_) => info!(target: "engine", "Sent reset signal to derivation actor"),
-            Err(err) => {
-                error!(target: "engine", ?err, "Failed to send reset signal to the derivation actor");
-                return Err(EngineError::ChannelClosed);
+        // Signal the derivation actor to reset (only when derivation is enabled).
+        // In follow mode, skip sending because derivation actor doesn't exist.
+        if !self.follow_enabled {
+            let signal =
+                ResetSignal { l2_safe_head, l1_origin, system_config: Some(system_config) };
+            match derivation_signal_tx.send(signal.signal()).await {
+                Ok(_) => info!(target: "engine", "Sent reset signal to derivation actor"),
+                Err(err) => {
+                    error!(target: "engine", ?err, "Failed to send reset signal to the derivation actor");
+                    return Err(EngineError::ChannelClosed);
+                }
             }
         }
 
@@ -688,7 +733,7 @@ impl NodeActor for EngineActor {
                     )));
                     state.engine.enqueue(task);
                 }
-                attributes = self.attributes_rx.recv() => {
+                Some(attributes) = OptionFuture::from(self.attributes_rx.as_mut().map(|rx| rx.recv())), if self.attributes_rx.is_some() => {
                     let Some(attributes) = attributes else {
                         error!(target: "engine", "Attributes receiver closed unexpectedly");
                         cancellation.cancel();
@@ -713,6 +758,127 @@ impl NodeActor for EngineActor {
                     // Attempt to finalize any L2 blocks that are contained within the finalized L1
                     // chain.
                     self.finalizer.try_finalize_next(&mut state).await;
+                }
+                Some(follow_status) = OptionFuture::from(self.follow_status_rx.as_mut().map(|rx| rx.recv())), if self.follow_status_rx.is_some() => {
+                    let Some(status) = follow_status else {
+                        warn!(target: "engine", "Follow status receiver closed unexpectedly");
+                        // Don't cancel the whole engine if follow fails, just log and continue
+                        self.follow_status_rx = None;
+                        continue;
+                    };
+
+                    // Get current local state
+                    // Note: FollowActor gates on el_sync_complete signal, so it won't send
+                    // updates until initial EL sync completes
+                    let local_unsafe = state.engine.state().sync_state.unsafe_head();
+                    let local_safe = state.engine.state().sync_state.safe_head();
+                    let external_safe = status.safe_l2;
+                    let external_finalized = status.finalized_l2;
+
+                    // Log current state with full context (matches op-node logging)
+                    info!(
+                        target: "engine",
+                        local_unsafe_number = local_unsafe.block_info.number,
+                        local_unsafe_hash = %local_unsafe.block_info.hash,
+                        local_safe_number = local_safe.block_info.number,
+                        local_safe_hash = %local_safe.block_info.hash,
+                        external_safe_number = external_safe.block_info.number,
+                        external_safe_hash = %external_safe.block_info.hash,
+                        external_finalized_number = external_finalized.block_info.number,
+                        "Follow Source: Processing external refs"
+                    );
+
+                    // Helper: Create update that promotes all heads (unsafe, safe, finalized)
+                    let create_full_update = || EngineSyncStateUpdate {
+                        unsafe_head: Some(external_safe),
+                        cross_unsafe_head: Some(external_safe),
+                        safe_head: Some(external_safe),
+                        local_safe_head: Some(external_safe),
+                        finalized_head: Some(external_finalized),
+                    };
+
+                    // Helper: Create update that only updates safe and finalized (preserves unsafe)
+                    let create_safe_only_update = || EngineSyncStateUpdate {
+                        unsafe_head: None,
+                        cross_unsafe_head: None,
+                        safe_head: Some(external_safe),
+                        local_safe_head: Some(external_safe),
+                        finalized_head: Some(external_finalized),
+                    };
+
+                    // Helper: Enqueue a FollowTask with the given update
+                    let mut enqueue_update = |update: EngineSyncStateUpdate| {
+                        let task = EngineTask::Follow(Box::new(FollowTask::new(
+                            state.client.clone(),
+                            state.rollup.clone(),
+                            update,
+                        )));
+                        state.engine.enqueue(task);
+                    };
+
+                    // Case 1: External safe ahead of local unsafe
+                    if local_unsafe.block_info.number < external_safe.block_info.number {
+                        info!(
+                            target: "engine",
+                            local_unsafe_number = local_unsafe.block_info.number,
+                            external_safe_number = external_safe.block_info.number,
+                            "Follow Source: External safe ahead of current unsafe"
+                        );
+                        enqueue_update(create_full_update());
+                        continue;
+                    }
+
+                    // Query local EL for block at external safe number
+                    let local_block_result = state.client
+                        .l2_block_info_by_label(alloy_eips::BlockNumberOrTag::Number(external_safe.block_info.number))
+                        .await;
+
+                    match local_block_result {
+                        // Case 2b: Query error
+                        Err(err) => {
+                            debug!(
+                                target: "engine",
+                                ?err,
+                                external_safe_number = external_safe.block_info.number,
+                                "Follow Source: Failed to fetch external safe from local EL"
+                            );
+                            // Skip update on error
+                        }
+                        // Case 2a: Block not found (EL still syncing)
+                        Ok(None) => {
+                            debug!(
+                                target: "engine",
+                                external_safe_number = external_safe.block_info.number,
+                                local_unsafe_number = local_unsafe.block_info.number,
+                                "Follow Source: EL Sync in progress"
+                            );
+                            enqueue_update(create_safe_only_update());
+                        }
+                        // Block found locally
+                        Ok(Some(local_block)) => {
+                            if local_block.block_info.hash == external_safe.block_info.hash {
+                                // Case 3: Hashes match (consolidation)
+                                debug!(
+                                    target: "engine",
+                                    external_safe_number = external_safe.block_info.number,
+                                    external_safe_hash = %external_safe.block_info.hash,
+                                    "Follow Source: Consolidation"
+                                );
+                                enqueue_update(create_safe_only_update());
+                            } else {
+                                // Case 4: Hashes differ (reorg required)
+                                warn!(
+                                    target: "engine",
+                                    external_safe_number = external_safe.block_info.number,
+                                    external_safe_hash = %external_safe.block_info.hash,
+                                    local_block_number = local_block.block_info.number,
+                                    local_block_hash = %local_block.block_info.hash,
+                                    "Follow Source: Reorg detected. May trigger EL sync"
+                                );
+                                enqueue_update(create_full_update());
+                            }
+                        }
+                    }
                 }
             }
         }
