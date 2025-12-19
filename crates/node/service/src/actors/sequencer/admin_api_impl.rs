@@ -1,6 +1,7 @@
 use super::SequencerActor;
 use crate::{
-    BlockBuildingClient, Conductor, OriginSelector, SequencerAdminQuery, UnsafePayloadGossipClient,
+    Conductor, OriginSelector, SequencerAdminQuery, SequencerEngineClient,
+    UnsafePayloadGossipClient,
 };
 use alloy_primitives::B256;
 use kona_derive::AttributesBuilder;
@@ -23,7 +24,7 @@ impl<
     >
 where
     AttributesBuilder_: AttributesBuilder,
-    BlockBuildingClient_: BlockBuildingClient,
+    BlockBuildingClient_: SequencerEngineClient,
     Conductor_: Conductor,
     OriginSelector_: OriginSelector,
     UnsafePayloadGossipClient_: UnsafePayloadGossipClient,

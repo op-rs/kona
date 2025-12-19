@@ -3,8 +3,8 @@ use crate::{
     ConductorClient, DelayedL1OriginSelectorProvider, DerivationActor, DerivationBuilder,
     DerivationContext, EngineActor, EngineConfig, EngineContext, InteropMode, L1OriginSelector,
     L1WatcherActor, NetworkActor, NetworkBuilder, NetworkConfig, NetworkContext, NodeActor,
-    NodeMode, QueuedBlockBuildingClient, QueuedDerivationEngineClient, QueuedEngineRpcClient,
-    QueuedNetworkEngineClient, QueuedSequencerAdminAPIClient, RollupBoostAdminApiClient,
+    NodeMode, QueuedDerivationEngineClient, QueuedEngineRpcClient, QueuedNetworkEngineClient,
+    QueuedSequencerAdminAPIClient, QueuedSequencerEngineClient, RollupBoostAdminApiClient,
     RollupBoostHealthRpcClient, RpcActor, RpcContext, SequencerActor, SequencerConfig,
     actors::{
         BlockStream, DerivationInboundChannels, EngineInboundData, NetworkInboundData,
@@ -229,7 +229,7 @@ impl RollupNode {
 
         // Create the sequencer if needed
         let (sequencer_actor, sequencer_admin_api_tx) = if self.mode().is_sequencer() {
-            let block_building_client = QueuedBlockBuildingClient {
+            let sequencer_engine_client = QueuedSequencerEngineClient {
                 engine_actor_request_tx: engine_actor_request_tx.clone(),
                 unsafe_head_rx: unsafe_head_rx.ok_or(
                     "unsafe_head_rx is None in sequencer mode. This should never happen."
@@ -246,7 +246,7 @@ impl RollupNode {
                 Some(SequencerActor {
                     admin_api_rx: sequencer_admin_api_rx,
                     attributes_builder: self.create_attributes_builder(),
-                    block_building_client,
+                    block_building_client: sequencer_engine_client,
                     cancellation_token: cancellation.clone(),
                     conductor,
                     is_active: self.sequencer_config.sequencer_stopped.not(),

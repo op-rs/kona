@@ -1,7 +1,7 @@
 use crate::{
     SequencerActor,
     actors::{
-        MockBlockBuildingClient, MockConductor, MockOriginSelector, MockUnsafePayloadGossipClient,
+        MockConductor, MockOriginSelector, MockSequencerEngineClient, MockUnsafePayloadGossipClient,
     },
 };
 use kona_derive::test_utils::TestAttributesBuilder;
@@ -13,7 +13,7 @@ use tokio_util::sync::CancellationToken;
 // Returns a test SequencerActor with mocks that can be used or overridden.
 pub(crate) fn test_actor() -> SequencerActor<
     TestAttributesBuilder,
-    MockBlockBuildingClient,
+    MockSequencerEngineClient,
     MockConductor,
     MockOriginSelector,
     MockUnsafePayloadGossipClient,
@@ -24,7 +24,7 @@ pub(crate) fn test_actor() -> SequencerActor<
     SequencerActor {
         admin_api_rx,
         attributes_builder: TestAttributesBuilder { attributes: vec![] },
-        block_building_client: MockBlockBuildingClient::new(),
+        block_building_client: MockSequencerEngineClient::new(),
         cancellation_token: CancellationToken::new(),
         conductor: None,
         is_active: true,

@@ -17,9 +17,6 @@ mod rollup_boost;
 
 mod client;
 pub use client::{
-    BlockBuildingClient, EngineClientError, EngineClientResult, QueuedBlockBuildingClient,
-    QueuedEngineRpcClient, RollupBoostAdminApiClient, RollupBoostHealthRpcClient,
+    EngineClientError, EngineClientResult, QueuedEngineRpcClient, RollupBoostAdminApiClient,
+    RollupBoostHealthRpcClient,
 };
-
-#[cfg(test)]
-pub use client::MockBlockBuildingClient;

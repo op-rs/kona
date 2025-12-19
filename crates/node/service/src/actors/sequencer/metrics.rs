@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::{
-    BlockBuildingClient, Conductor, OriginSelector, SequencerActor, UnsafePayloadGossipClient,
+    Conductor, OriginSelector, SequencerActor, SequencerEngineClient, UnsafePayloadGossipClient,
 };
 use kona_derive::AttributesBuilder;
 
@@ -22,7 +22,7 @@ impl<
     >
 where
     AttributesBuilder_: AttributesBuilder,
-    BlockBuildingClient_: BlockBuildingClient,
+    BlockBuildingClient_: SequencerEngineClient,
     Conductor_: Conductor,
     OriginSelector_: OriginSelector,
     UnsafePayloadGossipClient_: UnsafePayloadGossipClient,

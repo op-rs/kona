@@ -1,9 +1,6 @@
 use crate::{
     EngineClientError, EngineClientResult,
-    actors::engine::{
-        BuildRequest, SealRequest,
-        actor::{EngineActorRequest, ResetRequest},
-    },
+    actors::engine::{BuildRequest, EngineActorRequest, ResetRequest, SealRequest},
 };
 use alloy_rpc_types_engine::PayloadId;
 use async_trait::async_trait;
@@ -18,7 +15,7 @@ use tokio::sync::{mpsc, watch};
 /// this interface allows that to be abstracted from callers and allows easy testing.
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
-pub trait BlockBuildingClient: Debug + Send + Sync {
+pub trait SequencerEngineClient: Debug + Send + Sync {
     /// Resets the engine's forkchoice, awaiting confirmation that it succeeded or returning the
     /// error in performing the reset.
     async fn reset_engine_forkchoice(&self) -> EngineClientResult<()>;
@@ -45,10 +42,10 @@ pub trait BlockBuildingClient: Debug + Send + Sync {
     async fn get_unsafe_head(&self) -> EngineClientResult<L2BlockInfo>;
 }
 
-/// Queue-based implementation of the [`BlockBuildingClient`] trait. This handles all channel-based
-/// operations, providing a nice facade for callers.
+/// Queue-based implementation of the [`SequencerEngineClient`] trait. This handles all
+/// channel-based operations, providing a nice facade for callers.
 #[derive(Constructor, Debug)]
-pub struct QueuedBlockBuildingClient {
+pub struct QueuedSequencerEngineClient {
     /// A channel to use to send the EngineActor requests.
     pub engine_actor_request_tx: mpsc::Sender<EngineActorRequest>,
     /// A channel to receive the latest unsafe head [`L2BlockInfo`].
@@ -56,7 +53,7 @@ pub struct QueuedBlockBuildingClient {
 }
 
 #[async_trait]
-impl BlockBuildingClient for QueuedBlockBuildingClient {
+impl SequencerEngineClient for QueuedSequencerEngineClient {
     async fn get_unsafe_head(&self) -> EngineClientResult<L2BlockInfo> {
         Ok(*self.unsafe_head_rx.borrow())
     }
