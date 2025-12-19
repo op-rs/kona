@@ -1,25 +1,24 @@
 //! The [`EngineActor`].
 
 use crate::{
-    EngineClientError, EngineClientResult, EngineError, L2Finalizer, NodeActor, NodeMode,
-    actors::CancellableContext,
+    BuildRequest, EngineActorRequest, EngineClientError, EngineError, EngineRpcRequest,
+    L2Finalizer, NodeActor, NodeMode, ResetRequest, SealRequest, actors::CancellableContext,
 };
 use alloy_provider::RootProvider;
-use alloy_rpc_types_engine::{JwtSecret, PayloadId};
+use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
 use futures::FutureExt;
 use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
     BuildTask, ConsolidateTask, Engine, EngineClient, EngineClientBuilder,
-    EngineClientBuilderError, EngineQueries, EngineState as InnerEngineState, EngineTask,
-    EngineTaskError, EngineTaskErrorSeverity, InsertTask, OpEngineClient, RollupBoostServer,
-    RollupBoostServerArgs, SealTask, SealTaskError,
+    EngineClientBuilderError, EngineState as InnerEngineState, EngineTask, EngineTaskError,
+    EngineTaskErrorSeverity, InsertTask, OpEngineClient, RollupBoostServer, RollupBoostServerArgs,
+    SealTask,
 };
 use kona_genesis::RollupConfig;
-use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
-use kona_rpc::{RollupBoostAdminQuery, RollupBoostHealthQuery};
+use kona_protocol::{BlockInfo, L2BlockInfo};
+use kona_rpc::RollupBoostAdminQuery;
 use op_alloy_network::Optimism;
-use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{fmt::Debug, sync::Arc, time::Duration};
 use tokio::{
     sync::{mpsc, oneshot, watch},
@@ -30,66 +29,6 @@ use tokio_util::{
     sync::{CancellationToken, WaitForCancellationFuture},
 };
 use url::Url;
-
-/// Inbound requests that the [`EngineActor`] can process.
-#[derive(Debug)]
-#[allow(clippy::large_enum_variant)]
-pub enum EngineActorRequest {
-    /// Request to build.
-    BuildRequest(BuildRequest),
-    /// Request to consolidate based on the provided attributes.
-    ConsolidateRequest(OpAttributesWithParent),
-    /// Request to insert the provided unsafe block.
-    InsertUnsafeBlockRequest(OpExecutionPayloadEnvelope),
-    /// Request to reset engine forkchoice.
-    ResetRequest(ResetRequest),
-    /// Request for the engine to process the provided RPC request.
-    RpcRequest(EngineRpcRequest),
-    /// Request to seal the block with the provided details.
-    SealRequest(SealRequest),
-}
-
-/// RPC Request for the engine to handle.
-#[derive(Debug)]
-pub enum EngineRpcRequest {
-    /// Engine RPC query.
-    EngineQuery(EngineQueries),
-    /// Rollup boost admin request.
-    RollupBoostAdminRequest(RollupBoostAdminQuery),
-    /// Rollup boost health request.
-    RollupBoostHealthRequest(RollupBoostHealthQuery),
-}
-
-/// A request to build a payload.
-/// Contains the attributes to build and a channel to send back the resulting `PayloadId`.
-#[derive(Debug)]
-pub struct BuildRequest {
-    /// The [`OpAttributesWithParent`] from which the block build should be started.
-    pub attributes: OpAttributesWithParent,
-    /// The channel on which the result, successful or not, will be sent.
-    pub result_tx: mpsc::Sender<PayloadId>,
-}
-
-/// A request to reset the engine forkchoice.
-/// Optionally contains a channel to send back the response if the caller would like to know that
-/// the request was successfully processed.
-#[derive(Debug)]
-pub struct ResetRequest {
-    /// response will be sent to this channel, if `Some`.
-    pub result_tx: Option<mpsc::Sender<EngineClientResult<()>>>,
-}
-
-/// A request to seal and canonicalize a payload.
-/// Contains the `PayloadId`, attributes, and a channel to send back the result.
-#[derive(Debug)]
-pub struct SealRequest {
-    /// The `PayloadId` to seal and canonicalize.
-    pub payload_id: PayloadId,
-    /// The attributes necessary for the seal operation.
-    pub attributes: OpAttributesWithParent,
-    /// The channel on which the result, successful or not, will be sent.
-    pub result_tx: mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>,
-}
 
 /// The [`EngineActor`] is responsible for managing the operations sent to the execution layer's
 /// Engine API. To accomplish this, it uses the [`Engine`] task queue to order Engine API
