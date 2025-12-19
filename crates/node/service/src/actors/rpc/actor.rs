@@ -1,6 +1,6 @@
 //! RPC Server Actor
 
-use crate::{NodeActor, actors::CancellableContext};
+use crate::{NodeActor, RpcActorError, actors::CancellableContext};
 use async_trait::async_trait;
 use kona_gossip::P2pRpcRequest;
 use kona_rpc::{
@@ -12,29 +12,11 @@ use std::time::Duration;
 
 use jsonrpsee::{
     RpcModule,
-    core::RegisterMethodError,
     server::{Server, ServerHandle, middleware::http::ProxyGetRequestLayer},
 };
 use kona_rpc::{L1WatcherQueries, P2pRpc, RollupRpc, RpcBuilder};
 use tokio::sync::mpsc;
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
-
-/// An error returned by the [`RpcActor`].
-#[derive(Debug, thiserror::Error)]
-pub enum RpcActorError {
-    /// Failed to register the healthz endpoint.
-    #[error("Failed to register the healthz endpoint")]
-    RegisterHealthz(#[from] RegisterMethodError),
-    /// Failed to launch the RPC server.
-    #[error(transparent)]
-    LaunchFailed(#[from] std::io::Error),
-    /// The [`RpcActor`]'s RPC server stopped unexpectedly.
-    #[error("RPC server stopped unexpectedly")]
-    ServerStopped,
-    /// Failed to stop the RPC server.
-    #[error("Failed to stop the RPC server")]
-    StopFailed,
-}
 
 /// An actor that handles the RPC server for the rollup node.
 #[derive(Debug)]

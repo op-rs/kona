@@ -6,17 +6,11 @@ pub use actor::{
     EngineRpcRequest, ResetRequest, SealRequest,
 };
 
+mod client;
+pub use client::{EngineClientError, EngineClientResult};
+
 mod error;
 pub use error::EngineError;
 
 mod finalizer;
-
 pub use finalizer::L2Finalizer;
-
-mod rollup_boost;
-
-mod client;
-pub use client::{
-    EngineClientError, EngineClientResult, QueuedEngineRpcClient, RollupBoostAdminApiClient,
-    RollupBoostHealthRpcClient,
-};

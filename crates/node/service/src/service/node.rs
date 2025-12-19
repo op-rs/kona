@@ -228,7 +228,7 @@ impl RollupNode {
         );
 
         // Create the sequencer if needed
-        let (sequencer_actor, sequencer_admin_api_tx) = if self.mode().is_sequencer() {
+        let (sequencer_actor, sequencer_admin_client) = if self.mode().is_sequencer() {
             let sequencer_engine_client = QueuedSequencerEngineClient {
                 engine_actor_request_tx: engine_actor_request_tx.clone(),
                 unsafe_head_rx: unsafe_head_rx.ok_or(
@@ -270,7 +270,7 @@ impl RollupNode {
                         cancellation: cancellation.clone(),
                         p2p_network: network_rpc,
                         network_admin: net_admin_rpc,
-                        sequencer_admin: sequencer_admin_api_tx,
+                        sequencer_admin: sequencer_admin_client,
                         l1_watcher_queries: l1_query_tx,
                         engine_actor_rpc_client: QueuedEngineRpcClient::new(
                             engine_actor_request_tx.clone()

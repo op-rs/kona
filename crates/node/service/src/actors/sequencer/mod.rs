@@ -12,10 +12,8 @@ pub use origin_selector::{
 mod actor;
 pub use actor::SequencerActor;
 
-mod admin_api_client;
-pub use admin_api_client::{QueuedSequencerAdminAPIClient, SequencerAdminQuery};
-
 mod admin_api_impl;
+pub use admin_api_impl::SequencerAdminQuery;
 
 mod metrics;
 
