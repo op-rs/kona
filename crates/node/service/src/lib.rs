@@ -16,21 +16,21 @@ pub use service::{
 
 mod actors;
 pub use actors::{
-    BlockBuildingClient, BlockStream, BuildRequest, CancellableContext, Conductor, ConductorClient,
-    ConductorError, DelayedL1OriginSelectorProvider, DerivationActor, DerivationBuilder,
-    DerivationContext, DerivationEngineClient, DerivationError, DerivationInboundChannels,
-    DerivationState, EngineActor, EngineActorRequest, EngineClientError, EngineClientResult,
-    EngineConfig, EngineContext, EngineError, EngineInboundData, EngineRpcRequest,
-    InboundDerivationMessage, L1OriginSelector, L1OriginSelectorError, L1OriginSelectorProvider,
-    L1WatcherActor, L1WatcherActorError, L2Finalizer, NetworkActor, NetworkActorError,
-    NetworkBuilder, NetworkBuilderError, NetworkConfig, NetworkContext, NetworkDriver,
-    NetworkDriverError, NetworkEngineClient, NetworkHandler, NetworkInboundData, NodeActor,
-    OriginSelector, PipelineBuilder, QueuedBlockBuildingClient, QueuedDerivationEngineClient,
-    QueuedEngineRpcClient, QueuedNetworkEngineClient, QueuedSequencerAdminAPIClient,
+    BlockStream, BuildRequest, CancellableContext, Conductor, ConductorClient, ConductorError,
+    DelayedL1OriginSelectorProvider, DerivationActor, DerivationBuilder, DerivationContext,
+    DerivationEngineClient, DerivationError, DerivationInboundChannels, DerivationState,
+    EngineActor, EngineActorRequest, EngineClientError, EngineClientResult, EngineConfig,
+    EngineContext, EngineError, EngineInboundData, EngineRpcRequest, InboundDerivationMessage,
+    L1OriginSelector, L1OriginSelectorError, L1OriginSelectorProvider, L1WatcherActor,
+    L1WatcherActorError, L2Finalizer, NetworkActor, NetworkActorError, NetworkBuilder,
+    NetworkBuilderError, NetworkConfig, NetworkContext, NetworkDriver, NetworkDriverError,
+    NetworkEngineClient, NetworkHandler, NetworkInboundData, NodeActor, OriginSelector,
+    PipelineBuilder, QueuedDerivationEngineClient, QueuedEngineRpcClient,
+    QueuedNetworkEngineClient, QueuedSequencerAdminAPIClient, QueuedSequencerEngineClient,
     QueuedUnsafePayloadGossipClient, ResetRequest, RollupBoostAdminApiClient,
     RollupBoostHealthRpcClient, RpcActor, RpcActorError, RpcContext, SealRequest, SequencerActor,
-    SequencerActorError, SequencerAdminQuery, SequencerConfig, UnsafePayloadGossipClient,
-    UnsafePayloadGossipClientError,
+    SequencerActorError, SequencerAdminQuery, SequencerConfig, SequencerEngineClient,
+    UnsafePayloadGossipClient, UnsafePayloadGossipClientError,
 };
 
 mod metrics;
@@ -38,5 +38,5 @@ pub use metrics::Metrics;
 
 #[cfg(test)]
 pub use actors::{
-    MockBlockBuildingClient, MockConductor, MockOriginSelector, MockUnsafePayloadGossipClient,
+    MockConductor, MockOriginSelector, MockSequencerEngineClient, MockUnsafePayloadGossipClient,
 };

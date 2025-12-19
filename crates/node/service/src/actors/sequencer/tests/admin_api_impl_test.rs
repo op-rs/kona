@@ -1,6 +1,6 @@
 use crate::{
     ConductorError, EngineClientError, SequencerAdminQuery,
-    actors::{MockBlockBuildingClient, MockConductor, sequencer::tests::test_util::test_actor},
+    actors::{MockConductor, MockSequencerEngineClient, sequencer::tests::test_util::test_actor},
 };
 use alloy_primitives::B256;
 use alloy_transport::RpcError;
@@ -132,7 +132,7 @@ async fn test_stop_sequencer_success(
     };
     let expected_hash = unsafe_head.hash();
 
-    let mut client = MockBlockBuildingClient::new();
+    let mut client = MockSequencerEngineClient::new();
     client.expect_get_unsafe_head().times(1).return_once(move || Ok(unsafe_head));
 
     let mut actor = test_actor();
@@ -168,7 +168,7 @@ async fn test_stop_sequencer_success(
 #[rstest]
 #[tokio::test]
 async fn test_stop_sequencer_error_fetching_unsafe_head(#[values(true, false)] via_channel: bool) {
-    let mut client = MockBlockBuildingClient::new();
+    let mut client = MockSequencerEngineClient::new();
     client
         .expect_get_unsafe_head()
         .times(1)
@@ -294,7 +294,7 @@ async fn test_override_leader(
 #[rstest]
 #[tokio::test]
 async fn test_reset_derivation_pipeline_success(#[values(true, false)] via_channel: bool) {
-    let mut client = MockBlockBuildingClient::new();
+    let mut client = MockSequencerEngineClient::new();
     client.expect_reset_engine_forkchoice().times(1).return_once(|| Ok(()));
 
     let mut actor = test_actor();
@@ -318,7 +318,7 @@ async fn test_reset_derivation_pipeline_success(#[values(true, false)] via_chann
 #[rstest]
 #[tokio::test]
 async fn test_reset_derivation_pipeline_error(#[values(true, false)] via_channel: bool) {
-    let mut client = MockBlockBuildingClient::new();
+    let mut client = MockSequencerEngineClient::new();
     client
         .expect_reset_engine_forkchoice()
         .times(1)
@@ -353,7 +353,7 @@ async fn test_handle_admin_query_resilient_to_dropped_receiver() {
         block_info: BlockInfo { hash: B256::from([1u8; 32]), ..Default::default() },
         ..Default::default()
     };
-    let mut client = MockBlockBuildingClient::new();
+    let mut client = MockSequencerEngineClient::new();
     client.expect_get_unsafe_head().times(1).returning(move || Ok(unsafe_head));
     client.expect_reset_engine_forkchoice().times(1).returning(|| Ok(()));
 

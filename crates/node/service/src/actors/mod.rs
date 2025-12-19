@@ -7,10 +7,10 @@ pub use traits::{CancellableContext, NodeActor};
 
 mod engine;
 pub use engine::{
-    BlockBuildingClient, BuildRequest, EngineActor, EngineActorRequest, EngineClientError,
-    EngineClientResult, EngineConfig, EngineContext, EngineError, EngineInboundData,
-    EngineRpcRequest, L2Finalizer, QueuedBlockBuildingClient, QueuedEngineRpcClient, ResetRequest,
-    RollupBoostAdminApiClient, RollupBoostHealthRpcClient, SealRequest,
+    BuildRequest, EngineActor, EngineActorRequest, EngineClientError, EngineClientResult,
+    EngineConfig, EngineContext, EngineError, EngineInboundData, EngineRpcRequest, L2Finalizer,
+    QueuedEngineRpcClient, ResetRequest, RollupBoostAdminApiClient, RollupBoostHealthRpcClient,
+    SealRequest,
 };
 
 mod rpc;
@@ -39,12 +39,11 @@ mod sequencer;
 pub use sequencer::{
     Conductor, ConductorClient, ConductorError, DelayedL1OriginSelectorProvider, L1OriginSelector,
     L1OriginSelectorError, L1OriginSelectorProvider, OriginSelector, QueuedSequencerAdminAPIClient,
-    SequencerActor, SequencerActorError, SequencerAdminQuery, SequencerConfig,
+    QueuedSequencerEngineClient, SequencerActor, SequencerActorError, SequencerAdminQuery,
+    SequencerConfig, SequencerEngineClient,
 };
 
 #[cfg(test)]
-pub use engine::MockBlockBuildingClient;
-#[cfg(test)]
 pub use network::MockUnsafePayloadGossipClient;
 #[cfg(test)]
-pub use sequencer::{MockConductor, MockOriginSelector};
+pub use sequencer::{MockConductor, MockOriginSelector, MockSequencerEngineClient};

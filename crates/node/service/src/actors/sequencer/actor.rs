@@ -3,7 +3,7 @@
 use crate::{
     CancellableContext, NodeActor, UnsafePayloadGossipClient,
     actors::{
-        BlockBuildingClient,
+        SequencerEngineClient,
         engine::EngineClientError,
         sequencer::{
             admin_api_client::SequencerAdminQuery,
@@ -62,7 +62,7 @@ pub struct SequencerActor<
     UnsafePayloadGossipClient_,
 > where
     AttributesBuilder_: AttributesBuilder,
-    BlockBuildingClient_: BlockBuildingClient,
+    BlockBuildingClient_: SequencerEngineClient,
     Conductor_: Conductor,
     OriginSelector_: OriginSelector,
     UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
@@ -105,7 +105,7 @@ impl<
     >
 where
     AttributesBuilder_: AttributesBuilder,
-    BlockBuildingClient_: BlockBuildingClient,
+    BlockBuildingClient_: SequencerEngineClient,
     Conductor_: Conductor,
     OriginSelector_: OriginSelector,
     UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
@@ -381,7 +381,7 @@ impl<
     >
 where
     AttributesBuilder_: AttributesBuilder + Sync + 'static,
-    BlockBuildingClient_: BlockBuildingClient + Sync + 'static,
+    BlockBuildingClient_: SequencerEngineClient + Sync + 'static,
     Conductor_: Conductor + Sync + 'static,
     OriginSelector_: OriginSelector + Sync + 'static,
     UnsafePayloadGossipClient_: UnsafePayloadGossipClient + Sync + 'static,
@@ -479,7 +479,7 @@ impl<
     >
 where
     AttributesBuilder_: AttributesBuilder,
-    BlockBuildingClient_: BlockBuildingClient,
+    BlockBuildingClient_: SequencerEngineClient,
     Conductor_: Conductor,
     OriginSelector_: OriginSelector,
     UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
