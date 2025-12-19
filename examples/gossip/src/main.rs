@@ -44,10 +44,7 @@ struct ForwardingNetworkEngineClient {
 
 #[async_trait]
 impl NetworkEngineClient for ForwardingNetworkEngineClient {
-    async fn insert_unsafe_block(
-        &self,
-        block: OpExecutionPayloadEnvelope,
-    ) -> EngineClientResult<()> {
+    async fn send_unsafe_block(&self, block: OpExecutionPayloadEnvelope) -> EngineClientResult<()> {
         match self.block_tx.send(block).await {
             Err(e) => {
                 error!(target: "net", "Failed to send block: {:?}", e);
@@ -108,7 +105,9 @@ impl GossipCommand {
         let disc_addr =
             LocalNode::new(secret_key, IpAddr::V4(disc_ip), self.disc_port, self.disc_port);
 
+        let (unsafe_blocks_tx, mut unsafe_blocks_rx) = mpsc::channel(1024);
         let (_, network) = NetworkActor::new(
+            ForwardingNetworkEngineClient { block_tx: unsafe_blocks_tx },
             NetworkConfig {
                 discovery_address: disc_addr,
                 gossip_address: gossip_addr,
@@ -135,14 +134,7 @@ impl GossipCommand {
             .into(),
         );
 
-        let (unsafe_blocks_tx, mut unsafe_blocks_rx) = mpsc::channel(1024);
-
-        network
-            .start(NetworkContext {
-                engine_client: ForwardingNetworkEngineClient { block_tx: unsafe_blocks_tx },
-                cancellation: CancellationToken::new(),
-            })
-            .await?;
+        network.start(NetworkContext { cancellation: CancellationToken::new() }).await?;
 
         tracing::info!(target: "gossip", "Gossip driver started, receiving blocks.");
         loop {

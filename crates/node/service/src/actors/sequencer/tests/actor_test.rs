@@ -36,7 +36,7 @@ async fn test_build_unsealed_payload_prepare_payload_attributes_error(
 
     let mut actor = test_actor();
     actor.origin_selector = origin_selector;
-    actor.block_building_client = client;
+    actor.engine_client = client;
     actor.attributes_builder = attributes_builder;
 
     let result = actor.build_unsealed_payload().await;

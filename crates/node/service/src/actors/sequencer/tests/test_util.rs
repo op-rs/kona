@@ -13,9 +13,9 @@ use tokio_util::sync::CancellationToken;
 // Returns a test SequencerActor with mocks that can be used or overridden.
 pub(crate) fn test_actor() -> SequencerActor<
     TestAttributesBuilder,
-    MockSequencerEngineClient,
     MockConductor,
     MockOriginSelector,
+    MockSequencerEngineClient,
     MockUnsafePayloadGossipClient,
 > {
     // The sender is intentionally dropped, so the channel starts closed.
@@ -24,9 +24,9 @@ pub(crate) fn test_actor() -> SequencerActor<
     SequencerActor {
         admin_api_rx,
         attributes_builder: TestAttributesBuilder { attributes: vec![] },
-        block_building_client: MockSequencerEngineClient::new(),
         cancellation_token: CancellationToken::new(),
         conductor: None,
+        engine_client: MockSequencerEngineClient::new(),
         is_active: true,
         in_recovery_mode: false,
         origin_selector: MockOriginSelector::new(),

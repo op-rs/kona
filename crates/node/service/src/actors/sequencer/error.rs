@@ -16,9 +16,9 @@ pub enum SequencerActorError {
     /// An error occurred while selecting the next L1 origin.
     #[error(transparent)]
     L1OriginSelector(#[from] L1OriginSelectorError),
-    /// An error occurred while attempting to seal a payload.
+    /// An error occurred communicating with the engine.
     #[error(transparent)]
-    BlockEngine(#[from] EngineClientError),
+    EngineError(#[from] EngineClientError),
     /// An error occurred while attempting to build a payload.
     #[error(transparent)]
     BuildError(#[from] BuildTaskError),

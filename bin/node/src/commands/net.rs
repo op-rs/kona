@@ -71,16 +71,13 @@ impl NetCommand {
         self.p2p.check_ports()?;
         let p2p_config = self.p2p.config(rollup_config, args, self.l1_eth_rpc).await?;
 
-        let (NetworkInboundData { p2p_rpc: rpc, .. }, network) =
-            NetworkActor::new(NetworkBuilder::from(p2p_config));
-
         let (blocks, mut blocks_rx) = mpsc::channel(1024);
-        network
-            .start(NetworkContext {
-                engine_client: ForwardingNetworkEngineClient { block_tx: blocks },
-                cancellation: CancellationToken::new(),
-            })
-            .await?;
+        let (NetworkInboundData { p2p_rpc: rpc, .. }, network) = NetworkActor::new(
+            ForwardingNetworkEngineClient { block_tx: blocks },
+            NetworkBuilder::from(p2p_config),
+        );
+
+        network.start(NetworkContext { cancellation: CancellationToken::new() }).await?;
 
         info!(target: "net", "Network started, receiving blocks.");
 
@@ -146,10 +143,7 @@ struct ForwardingNetworkEngineClient {
 
 #[async_trait]
 impl NetworkEngineClient for ForwardingNetworkEngineClient {
-    async fn insert_unsafe_block(
-        &self,
-        block: OpExecutionPayloadEnvelope,
-    ) -> EngineClientResult<()> {
+    async fn send_unsafe_block(&self, block: OpExecutionPayloadEnvelope) -> EngineClientResult<()> {
         match self.block_tx.send(block).await {
             Err(e) => {
                 error!(target: "net", "Failed to send block: {:?}", e);

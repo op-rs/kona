@@ -19,10 +19,10 @@ pub trait DerivationEngineClient: Debug + Send + Sync {
     ) -> EngineClientResult<()>;
 }
 
-/// Client to use to send messages to the Engine's inbound channel.
+/// Client to use to send messages to the Engine Actor's inbound channel.
 #[derive(Debug)]
 pub struct QueuedDerivationEngineClient {
-    /// A channel to use to send the EngineActor requests.
+    /// A channel to use to send the [`EngineActorRequest`]s to the EngineActor.
     pub engine_actor_request_tx: mpsc::Sender<EngineActorRequest>,
 }
 
@@ -47,7 +47,7 @@ impl DerivationEngineClient for QueuedDerivationEngineClient {
         attributes: OpAttributesWithParent,
     ) -> EngineClientResult<()> {
         self.engine_actor_request_tx
-            .send(EngineActorRequest::ConsolidateRequest(attributes))
+            .send(EngineActorRequest::ProcessDerivedL2AttributesRequest(attributes))
             .await
             .map_err(|_| EngineClientError::RequestError("request channel closed.".to_string()))?;
 

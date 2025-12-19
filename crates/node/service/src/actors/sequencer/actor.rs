@@ -55,27 +55,27 @@ struct SealLastStartNextResult {
 #[derive(Debug)]
 pub struct SequencerActor<
     AttributesBuilder_,
-    BlockBuildingClient_,
     Conductor_,
     OriginSelector_,
+    SequencerEngineClient_,
     UnsafePayloadGossipClient_,
 > where
     AttributesBuilder_: AttributesBuilder,
-    BlockBuildingClient_: SequencerEngineClient,
     Conductor_: Conductor,
     OriginSelector_: OriginSelector,
+    SequencerEngineClient_: SequencerEngineClient,
     UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
 {
     /// Receiver for admin API requests.
     pub admin_api_rx: mpsc::Receiver<SequencerAdminQuery>,
     /// The attributes builder used for block building.
     pub attributes_builder: AttributesBuilder_,
-    /// The struct used to build blocks.
-    pub block_building_client: BlockBuildingClient_,
     /// The cancellation token, shared between all tasks.
     pub cancellation_token: CancellationToken,
     /// The optional conductor RPC client.
     pub conductor: Option<Conductor_>,
+    /// The struct used to interact with the engine.
+    pub engine_client: SequencerEngineClient_,
     /// Whether the sequencer is active.
     pub is_active: bool,
     /// Whether the sequencer is in recovery mode.
@@ -90,23 +90,23 @@ pub struct SequencerActor<
 
 impl<
     AttributesBuilder_,
-    BlockBuildingClient_,
     Conductor_,
     OriginSelector_,
+    SequencerEngineClient_,
     UnsafePayloadGossipClient_,
 >
     SequencerActor<
         AttributesBuilder_,
-        BlockBuildingClient_,
         Conductor_,
         OriginSelector_,
+        SequencerEngineClient_,
         UnsafePayloadGossipClient_,
     >
 where
     AttributesBuilder_: AttributesBuilder,
-    BlockBuildingClient_: SequencerEngineClient,
     Conductor_: Conductor,
     OriginSelector_: OriginSelector,
+    SequencerEngineClient_: SequencerEngineClient,
     UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
 {
     /// Seals and commits the last pending block, if one exists and starts the build job for the
@@ -142,7 +142,7 @@ where
 
         // Send the seal request to the engine to seal the unsealed block.
         let payload = self
-            .block_building_client
+            .engine_client
             .seal_and_canonicalize_block(
                 unsealed_payload_handle.payload_id,
                 unsealed_payload_handle.attributes_with_parent.clone(),
@@ -172,7 +172,7 @@ where
     pub(super) async fn build_unsealed_payload(
         &mut self,
     ) -> Result<Option<UnsealedPayloadHandle>, SequencerActorError> {
-        let unsafe_head = self.block_building_client.get_unsafe_head().await?;
+        let unsafe_head = self.engine_client.get_unsafe_head().await?;
 
         let Some(l1_origin) = self.get_next_payload_l1_origin(unsafe_head).await? else {
             // Temporary error - retry on next tick.
@@ -201,7 +201,7 @@ where
         let build_request_start = Instant::now();
 
         let payload_id =
-            self.block_building_client.start_build_block(attributes_with_parent.clone()).await?;
+            self.engine_client.start_build_block(attributes_with_parent.clone()).await?;
 
         update_block_build_duration_metrics(build_request_start.elapsed());
 
@@ -240,7 +240,7 @@ where
                 unsafe_head_l1_origin = ?unsafe_head.l1_origin,
                 "Cannot build new L2 block on inconsistent L1 origin, resetting engine"
             );
-            self.block_building_client.reset_engine_forkchoice().await?;
+            self.engine_client.reset_engine_forkchoice().await?;
             return Ok(None);
         }
         Ok(Some(l1_origin))
@@ -264,7 +264,7 @@ where
                 return Ok(None);
             }
             Err(PipelineErrorKind::Reset(_)) => {
-                if let Err(err) = self.block_building_client.reset_engine_forkchoice().await {
+                if let Err(err) = self.engine_client.reset_engine_forkchoice().await {
                     error!(target: "sequencer", ?err, "Failed to reset engine");
                     return Err(SequencerActorError::ChannelClosed);
                 }
@@ -356,7 +356,7 @@ where
         // Reset the engine, in order to initialize the engine state.
         // NB: this call waits for confirmation that the reset succeeded and we can proceed with
         // post-reset logic.
-        self.block_building_client.reset_engine_forkchoice().await.map_err(|err| {
+        self.engine_client.reset_engine_forkchoice().await.map_err(|err| {
             error!(target: "sequencer", ?err, "Failed to send reset request to engine");
             err.into()
         })
@@ -366,23 +366,23 @@ where
 #[async_trait]
 impl<
     AttributesBuilder_,
-    BlockBuildingClient_,
     Conductor_,
     OriginSelector_,
+    SequencerEngineClient_,
     UnsafePayloadGossipClient_,
 > NodeActor
     for SequencerActor<
         AttributesBuilder_,
-        BlockBuildingClient_,
         Conductor_,
         OriginSelector_,
+        SequencerEngineClient_,
         UnsafePayloadGossipClient_,
     >
 where
     AttributesBuilder_: AttributesBuilder + Sync + 'static,
-    BlockBuildingClient_: SequencerEngineClient + Sync + 'static,
     Conductor_: Conductor + Sync + 'static,
     OriginSelector_: OriginSelector + Sync + 'static,
+    SequencerEngineClient_: SequencerEngineClient + Sync + 'static,
     UnsafePayloadGossipClient_: UnsafePayloadGossipClient + Sync + 'static,
 {
     type Error = SequencerActorError;
@@ -429,11 +429,11 @@ where
                             next_payload_to_seal = res.unsealed_payload_handle;
                             last_seal_duration = res.seal_duration;
                         },
-                        Err(SequencerActorError::BlockEngine(EngineClientError::SealError(err))) => {
+                        Err(SequencerActorError::EngineError(EngineClientError::SealError(err))) => {
                             if is_seal_task_err_fatal(&err) {
                                 error!(target: "sequencer", err=?err, "Critical seal task error occurred");
                                 self.cancellation_token.cancel();
-                                return Err(SequencerActorError::BlockEngine(EngineClientError::SealError(err)));
+                                return Err(SequencerActorError::EngineError(EngineClientError::SealError(err)));
                             } else {
                                 next_payload_to_seal = None;
                             }
@@ -464,23 +464,23 @@ where
 
 impl<
     AttributesBuilder_,
-    BlockBuildingClient_,
     Conductor_,
     OriginSelector_,
+    SequencerEngineClient_,
     UnsafePayloadGossipClient_,
 > CancellableContext
     for SequencerActor<
         AttributesBuilder_,
-        BlockBuildingClient_,
         Conductor_,
         OriginSelector_,
+        SequencerEngineClient_,
         UnsafePayloadGossipClient_,
     >
 where
     AttributesBuilder_: AttributesBuilder,
-    BlockBuildingClient_: SequencerEngineClient,
     Conductor_: Conductor,
     OriginSelector_: OriginSelector,
+    SequencerEngineClient_: SequencerEngineClient,
     UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
 {
     fn cancelled(&self) -> WaitForCancellationFuture<'_> {

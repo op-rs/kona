@@ -98,15 +98,13 @@ impl TestNetworkBuilder {
         )
         .with_bootnodes(bootnodes.into_iter().map(Into::into).collect::<Vec<BootNode>>().into());
 
-        let (inbound_data, actor) = NetworkActor::new(builder);
-
         let (blocks_tx, blocks_rx) = mpsc::channel(1024);
+        let (inbound_data, actor) =
+            NetworkActor::new(ForwardingNetworkEngineClient { blocks_tx }, builder);
+
         let cancellation = CancellationToken::new();
 
-        let context = NetworkContext {
-            engine_client: ForwardingNetworkEngineClient { blocks_tx },
-            cancellation,
-        };
+        let context = NetworkContext { cancellation };
 
         let handle = tokio::spawn(async move { actor.start(context).await });
 
@@ -121,10 +119,7 @@ struct ForwardingNetworkEngineClient {
 
 #[async_trait]
 impl NetworkEngineClient for ForwardingNetworkEngineClient {
-    async fn insert_unsafe_block(
-        &self,
-        block: OpExecutionPayloadEnvelope,
-    ) -> EngineClientResult<()> {
+    async fn send_unsafe_block(&self, block: OpExecutionPayloadEnvelope) -> EngineClientResult<()> {
         match self.blocks_tx.send(block).await {
             Err(e) => {
                 error!(target: "net", "Failed to send block: {:?}", e);

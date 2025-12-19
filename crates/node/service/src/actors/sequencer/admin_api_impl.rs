@@ -29,23 +29,23 @@ pub enum SequencerAdminQuery {
 /// Handler for the Sequencer Admin API.
 impl<
     AttributesBuilder_,
-    BlockBuildingClient_,
     Conductor_,
     OriginSelector_,
+    SequencerEngineClient_,
     UnsafePayloadGossipClient_,
 >
     SequencerActor<
         AttributesBuilder_,
-        BlockBuildingClient_,
         Conductor_,
         OriginSelector_,
+        SequencerEngineClient_,
         UnsafePayloadGossipClient_,
     >
 where
     AttributesBuilder_: AttributesBuilder,
-    BlockBuildingClient_: SequencerEngineClient,
     Conductor_: Conductor,
     OriginSelector_: OriginSelector,
+    SequencerEngineClient_: SequencerEngineClient,
     UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
 {
     /// Handles the provided [`SequencerAdminQuery`], sending the response via the provided sender.
@@ -132,7 +132,7 @@ where
 
         self.update_metrics();
 
-        self.block_building_client.get_unsafe_head().await
+        self.engine_client.get_unsafe_head().await
             .map(|h| h.hash())
             .map_err(|e| {
                 error!(target: "sequencer", err=?e, "Error fetching unsafe head after stopping sequencer, which should never happen.");
@@ -175,7 +175,7 @@ where
 
     pub(super) async fn reset_derivation_pipeline(&mut self) -> Result<(), SequencerAdminAPIError> {
         info!(target: "sequencer", "Resetting derivation pipeline");
-        self.block_building_client.reset_engine_forkchoice().await.map_err(|e| {
+        self.engine_client.reset_engine_forkchoice().await.map_err(|e| {
             error!(target: "sequencer", err=?e, "Failed to reset engine forkchoice");
             SequencerAdminAPIError::RequestError(format!("Failed to reset engine: {e}"))
         })

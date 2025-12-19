@@ -41,11 +41,11 @@ pub enum EngineActorRequest {
     /// Request to build.
     BuildRequest(BuildRequest),
     /// Request to consolidate based on the provided attributes.
-    ConsolidateRequest(OpAttributesWithParent),
-    /// Request to insert the provided unsafe block.
-    InsertUnsafeBlockRequest(OpExecutionPayloadEnvelope),
+    ProcessDerivedL2AttributesRequest(OpAttributesWithParent),
     /// Request to process the provided finalized L1 block.
     ProcessFinalizedL1BlockRequest(BlockInfo),
+    /// Request to insert the provided unsafe block.
+    ProcessUnsafeL2BlockRequest(OpExecutionPayloadEnvelope),
     /// Request to reset engine forkchoice.
     ResetRequest(ResetRequest),
     /// Request for the engine to process the provided RPC request.
