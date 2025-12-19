@@ -23,7 +23,7 @@ use discv5::enr::CombinedKey;
 use kona_cli::{LogArgs, LogConfig};
 use kona_disc::LocalNode;
 use kona_node_service::{
-    EngineClientResult, NetworkActor, NetworkConfig, NetworkContext, NetworkEngineClient, NodeActor,
+    EngineClientResult, NetworkActor, NetworkConfig, NetworkEngineClient, NodeActor,
 };
 use kona_registry::ROLLUP_CONFIGS;
 use libp2p::{Multiaddr, identity::Keypair};
@@ -108,6 +108,7 @@ impl GossipCommand {
         let (unsafe_blocks_tx, mut unsafe_blocks_rx) = mpsc::channel(1024);
         let (_, network) = NetworkActor::new(
             ForwardingNetworkEngineClient { block_tx: unsafe_blocks_tx },
+            CancellationToken::new(),
             NetworkConfig {
                 discovery_address: disc_addr,
                 gossip_address: gossip_addr,
@@ -134,7 +135,7 @@ impl GossipCommand {
             .into(),
         );
 
-        network.start(NetworkContext { cancellation: CancellationToken::new() }).await?;
+        network.start(()).await?;
 
         tracing::info!(target: "gossip", "Gossip driver started, receiving blocks.");
         loop {

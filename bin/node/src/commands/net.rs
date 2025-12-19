@@ -7,8 +7,8 @@ use jsonrpsee::{RpcModule, core::async_trait, server::Server};
 use kona_cli::LogConfig;
 use kona_gossip::P2pRpcRequest;
 use kona_node_service::{
-    EngineClientResult, NetworkActor, NetworkBuilder, NetworkContext, NetworkEngineClient,
-    NetworkInboundData, NodeActor,
+    EngineClientResult, NetworkActor, NetworkBuilder, NetworkEngineClient, NetworkInboundData,
+    NodeActor,
 };
 use kona_registry::scr_rollup_config_by_alloy_ident;
 use kona_rpc::{OpP2PApiServer, P2pRpc, RpcBuilder};
@@ -74,10 +74,11 @@ impl NetCommand {
         let (blocks, mut blocks_rx) = mpsc::channel(1024);
         let (NetworkInboundData { p2p_rpc: rpc, .. }, network) = NetworkActor::new(
             ForwardingNetworkEngineClient { block_tx: blocks },
+            CancellationToken::new(),
             NetworkBuilder::from(p2p_config),
         );
 
-        network.start(NetworkContext { cancellation: CancellationToken::new() }).await?;
+        network.start(()).await?;
 
         info!(target: "net", "Network started, receiving blocks.");
 
