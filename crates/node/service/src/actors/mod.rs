@@ -20,7 +20,7 @@ pub use rpc::{
 
 mod derivation;
 pub use derivation::{
-    DerivationActor, DerivationBuilder, DerivationContext, DerivationEngineClient, DerivationError,
+    DerivationActor, DerivationBuilder, DerivationEngineClient, DerivationError,
     DerivationInboundChannels, DerivationState, InboundDerivationMessage, PipelineBuilder,
     QueuedDerivationEngineClient,
 };

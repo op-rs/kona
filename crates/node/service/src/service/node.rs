@@ -1,12 +1,11 @@
 //! Contains the [`RollupNode`] implementation.
 use crate::{
     ConductorClient, DelayedL1OriginSelectorProvider, DerivationActor, DerivationBuilder,
-    DerivationContext, EngineActor, EngineConfig, EngineContext, InteropMode, L1OriginSelector,
-    L1WatcherActor, NetworkActor, NetworkBuilder, NetworkConfig, NodeActor, NodeMode,
-    QueuedDerivationEngineClient, QueuedEngineRpcClient, QueuedL1WatcherEngineClient,
-    QueuedNetworkEngineClient, QueuedSequencerAdminAPIClient, QueuedSequencerEngineClient,
-    RollupBoostAdminApiClient, RollupBoostHealthRpcClient, RpcActor, RpcContext, SequencerActor,
-    SequencerConfig,
+    EngineActor, EngineConfig, EngineContext, InteropMode, L1OriginSelector, L1WatcherActor,
+    NetworkActor, NetworkBuilder, NetworkConfig, NodeActor, NodeMode, QueuedDerivationEngineClient,
+    QueuedEngineRpcClient, QueuedL1WatcherEngineClient, QueuedNetworkEngineClient,
+    QueuedSequencerAdminAPIClient, QueuedSequencerEngineClient, RollupBoostAdminApiClient,
+    RollupBoostHealthRpcClient, RpcActor, RpcContext, SequencerActor, SequencerConfig,
     actors::{
         BlockStream, DerivationInboundChannels, EngineInboundData, NetworkInboundData,
         QueuedUnsafePayloadGossipClient,
@@ -165,6 +164,7 @@ impl RollupNode {
             QueuedDerivationEngineClient {
                 engine_actor_request_tx: engine_actor_request_tx.clone(),
             },
+            cancellation.clone(),
             self.derivation_builder(),
         );
 
@@ -291,7 +291,7 @@ impl RollupNode {
                 sequencer_actor.map(|s| (s, ())),
                 Some((network, ())),
                 Some((l1_watcher, ())),
-                Some((derivation, DerivationContext { cancellation: cancellation.clone() })),
+                Some((derivation, ())),
                 Some((
                     engine,
                     EngineContext {

@@ -1,7 +1,7 @@
 mod actor;
 pub use actor::{
-    DerivationActor, DerivationBuilder, DerivationContext, DerivationError,
-    DerivationInboundChannels, DerivationState, InboundDerivationMessage, PipelineBuilder,
+    DerivationActor, DerivationBuilder, DerivationError, DerivationInboundChannels,
+    DerivationState, InboundDerivationMessage, PipelineBuilder,
 };
 
 mod client;
