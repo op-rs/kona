@@ -49,12 +49,12 @@ impl BootNodes {
 lazy_static! {
     /// Default op bootnodes to use.
     static ref OP_BOOTNODES: Vec<BootNode> = OP_RAW_BOOTNODES.iter()
-        .map(|raw| BootNode::parse_bootnode(raw))
+        .filter_map(|raw| BootNode::parse_bootnode(raw).ok())
         .collect();
 
     /// Default op testnet bootnodes to use.
     static ref OP_TESTNET_BOOTNODES: Vec<BootNode> = OP_RAW_TESTNET_BOOTNODES.iter()
-        .map(|raw| BootNode::parse_bootnode(raw))
+        .filter_map(|raw| BootNode::parse_bootnode(raw).ok())
         .collect();
 }
 
@@ -126,11 +126,11 @@ mod tests {
     #[test]
     fn test_parse_raw_bootnodes() {
         for raw in OP_RAW_BOOTNODES.iter() {
-            BootNode::parse_bootnode(raw);
+            BootNode::parse_bootnode(raw).unwrap();
         }
 
         for raw in OP_RAW_TESTNET_BOOTNODES.iter() {
-            BootNode::parse_bootnode(raw);
+            BootNode::parse_bootnode(raw).unwrap();
         }
     }
 
