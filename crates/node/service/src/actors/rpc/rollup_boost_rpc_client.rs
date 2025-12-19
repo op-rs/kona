@@ -22,16 +22,12 @@ impl RollupBoostHealthzApiServer for RollupBoostHealthRpcClient {
     async fn rollup_boost_healthz(&self) -> RpcResult<RollupBoostHealthzResponse> {
         let (health_tx, health_rx) = oneshot::channel();
 
-        if self
-            .engine_actor_request_tx
+        self.engine_actor_request_tx
             .send(EngineActorRequest::RpcRequest(EngineRpcRequest::RollupBoostHealthRequest(
                 kona_rpc::RollupBoostHealthQuery { sender: health_tx },
             )))
             .await
-            .is_err()
-        {
-            return Err(ErrorObject::from(ErrorCode::InternalError));
-        }
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
 
         health_rx.await.map_err(|_| {
             error!(target: "block_engine", "Failed to receive rollup boost health from engine rpc");

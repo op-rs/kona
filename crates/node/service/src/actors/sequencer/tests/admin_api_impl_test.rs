@@ -136,7 +136,7 @@ async fn test_stop_sequencer_success(
     client.expect_get_unsafe_head().times(1).return_once(move || Ok(unsafe_head));
 
     let mut actor = test_actor();
-    actor.block_building_client = client;
+    actor.engine_client = client;
     actor.is_active = !already_stopped;
 
     // verify starting state
@@ -175,7 +175,7 @@ async fn test_stop_sequencer_error_fetching_unsafe_head(#[values(true, false)] v
         .return_once(|| Err(EngineClientError::RequestError("whoops!".to_string())));
 
     let mut actor = test_actor();
-    actor.block_building_client = client;
+    actor.engine_client = client;
 
     let result = async {
         match via_channel {
@@ -298,7 +298,7 @@ async fn test_reset_derivation_pipeline_success(#[values(true, false)] via_chann
     client.expect_reset_engine_forkchoice().times(1).return_once(|| Ok(()));
 
     let mut actor = test_actor();
-    actor.block_building_client = client;
+    actor.engine_client = client;
 
     let result = async {
         match via_channel {
@@ -325,7 +325,7 @@ async fn test_reset_derivation_pipeline_error(#[values(true, false)] via_channel
         .return_once(|| Err(EngineClientError::RequestError("reset failed".to_string())));
 
     let mut actor = test_actor();
-    actor.block_building_client = client;
+    actor.engine_client = client;
 
     let result = async {
         match via_channel {
@@ -359,7 +359,7 @@ async fn test_handle_admin_query_resilient_to_dropped_receiver() {
 
     let mut actor = test_actor();
     actor.conductor = Some(conductor);
-    actor.block_building_client = client;
+    actor.engine_client = client;
 
     let mut queries: Vec<SequencerAdminQuery> = Vec::new();
     {

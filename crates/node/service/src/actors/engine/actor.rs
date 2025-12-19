@@ -495,7 +495,7 @@ impl NodeActor for EngineActor {
                             )));
                             state.engine.enqueue(task);
                         },
-                        EngineActorRequest::ConsolidateRequest(attributes) => {
+                        EngineActorRequest::ProcessDerivedL2AttributesRequest(attributes) => {
                             self.finalizer.enqueue_for_finalization(&attributes);
 
                             let task = EngineTask::Consolidate(Box::new(ConsolidateTask::new(
@@ -506,7 +506,12 @@ impl NodeActor for EngineActor {
                             )));
                             state.engine.enqueue(task);
                         },
-                        EngineActorRequest::InsertUnsafeBlockRequest(envelope) => {
+                        EngineActorRequest::ProcessFinalizedL1BlockRequest(finalized_l1_block) => {
+                            // Attempt to finalize any L2 blocks that are contained within the finalized L1
+                            // chain.
+                            self.finalizer.try_finalize_next(&mut state, finalized_l1_block).await;
+                        },
+                        EngineActorRequest::ProcessUnsafeL2BlockRequest(envelope) => {
                             let task = EngineTask::Insert(Box::new(InsertTask::new(
                                 state.client.clone(),
                                 state.rollup.clone(),
@@ -514,11 +519,6 @@ impl NodeActor for EngineActor {
                                 false, // The payload is not derived in this case. This is an unsafe block.
                             )));
                             state.engine.enqueue(task);
-                        },
-                        EngineActorRequest::ProcessFinalizedL1BlockRequest(finalized_l1_block) => {
-                            // Attempt to finalize any L2 blocks that are contained within the finalized L1
-                            // chain.
-                            self.finalizer.try_finalize_next(&mut state, finalized_l1_block).await;
                         },
                         EngineActorRequest::ResetRequest(ResetRequest{result_tx}) => {
                             warn!(target: "engine", "Received reset request");
