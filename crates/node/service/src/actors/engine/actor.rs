@@ -16,7 +16,7 @@ use kona_engine::{
     SealTask,
 };
 use kona_genesis::RollupConfig;
-use kona_protocol::{BlockInfo, L2BlockInfo};
+use kona_protocol::L2BlockInfo;
 use kona_rpc::RollupBoostAdminQuery;
 use op_alloy_network::Optimism;
 use std::{fmt::Debug, sync::Arc, time::Duration};
@@ -51,8 +51,6 @@ pub struct EngineActor {
 /// The outbound data for the [`EngineActor`].
 #[derive(Debug)]
 pub struct EngineInboundData {
-    /// A channel that sends new finalized L1 blocks intermittently.
-    pub finalized_l1_block_tx: watch::Sender<Option<BlockInfo>>,
     /// A channel that sends requests to the EngineActor.
     pub inbound_request_tx: mpsc::Sender<EngineActorRequest>,
     /// A receiver to use to view the latest unsafe head [`L2BlockInfo`] and await its changes.
@@ -167,8 +165,6 @@ impl EngineActor {
     pub fn new(config: EngineConfig) -> (EngineInboundData, Self) {
         let (inbound_request_tx, inbound_request_rx) = mpsc::channel(1024);
 
-        let (finalized_l1_block_tx, finalized_l1_block_rx) = watch::channel(None);
-
         let (unsafe_head_tx, unsafe_head_rx) = if config.mode.is_sequencer() {
             let (unsafe_head_tx, unsafe_head_rx) = watch::channel(L2BlockInfo::default());
 
@@ -181,11 +177,10 @@ impl EngineActor {
             builder: config,
             inbound_request_rx,
             unsafe_head_tx,
-            finalizer: L2Finalizer::new(finalized_l1_block_rx),
+            finalizer: L2Finalizer::default(),
         };
 
-        let outbound_data =
-            EngineInboundData { finalized_l1_block_tx, inbound_request_tx, unsafe_head_rx };
+        let outbound_data = EngineInboundData { inbound_request_tx, unsafe_head_rx };
 
         (outbound_data, actor)
     }
@@ -483,19 +478,6 @@ impl NodeActor for EngineActor {
                     return Ok(());
                 }
 
-                // TODO: pull finalize channel into inbound_request_rx, adding a EngineActorRequest for it.
-                msg = self.finalizer.new_finalized_block() => {
-                    if let Err(err) = msg {
-                        error!(target: "engine", ?err, "L1 finalized block receiver closed unexpectedly");
-                        cancellation.cancel();
-                        return Err(EngineError::ChannelClosed);
-                    }
-
-                    // Attempt to finalize any L2 blocks that are contained within the finalized L1
-                    // chain.
-                    self.finalizer.try_finalize_next(&mut state).await;
-                }
-
                 req = self.inbound_request_rx.recv() => {
                     let Some(request_type) = req else {
                         error!(target: "engine", "Engine inbound request receiver closed unexpectedly");
@@ -504,35 +486,6 @@ impl NodeActor for EngineActor {
                     };
 
                     match request_type {
-                        EngineActorRequest::ResetRequest(ResetRequest{result_tx}) => {
-                            warn!(target: "engine", "Received reset request");
-
-                            let reset_res = state
-                                .reset(&derivation_signal_tx, &engine_l2_safe_head_tx, &mut self.finalizer)
-                                .await;
-
-                            // Send the result if there is a channel on which to do so.
-                            if let Some(tx) = result_tx {
-                                let response_payload = reset_res.as_ref().map(|_| ()).map_err(|e| EngineClientError::ResetForkchoiceError(e.to_string()));
-                                if tx.send(response_payload).await.is_err() {
-                                    warn!(target: "engine", "Sending reset response failed");
-                                }
-                            }
-
-                            reset_res?;
-                        },
-                        EngineActorRequest::SealRequest(SealRequest{payload_id, attributes, result_tx}) => {
-                            let task = EngineTask::Seal(Box::new(SealTask::new(
-                                state.client.clone(),
-                                state.rollup.clone(),
-                                payload_id,
-                                attributes,
-                                // The payload is not derived in this case.
-                                false,
-                                Some(result_tx),
-                            )));
-                            state.engine.enqueue(task);
-                        },
                         EngineActorRequest::BuildRequest(BuildRequest{attributes, result_tx}) => {
                             let task = EngineTask::Build(Box::new(BuildTask::new(
                                 state.client.clone(),
@@ -562,12 +515,46 @@ impl NodeActor for EngineActor {
                             )));
                             state.engine.enqueue(task);
                         },
+                        EngineActorRequest::ProcessFinalizedL1BlockRequest(finalized_l1_block) => {
+                            // Attempt to finalize any L2 blocks that are contained within the finalized L1
+                            // chain.
+                            self.finalizer.try_finalize_next(&mut state, finalized_l1_block).await;
+                        },
+                        EngineActorRequest::ResetRequest(ResetRequest{result_tx}) => {
+                            warn!(target: "engine", "Received reset request");
+
+                            let reset_res = state
+                                .reset(&derivation_signal_tx, &engine_l2_safe_head_tx, &mut self.finalizer)
+                                .await;
+
+                            // Send the result if there is a channel on which to do so.
+                            if let Some(tx) = result_tx {
+                                let response_payload = reset_res.as_ref().map(|_| ()).map_err(|e| EngineClientError::ResetForkchoiceError(e.to_string()));
+                                if tx.send(response_payload).await.is_err() {
+                                    warn!(target: "engine", "Sending reset response failed");
+                                }
+                            }
+
+                            reset_res?;
+                        },
                         EngineActorRequest::RpcRequest(req) => {
                             let _ = rpc_tx.send(req).await.map_err(|_| {
                                 error!(target: "engine", "Engine RPC request handler channel closed unexpectedly");
                                 cancellation.cancel();
                                 EngineError::ChannelClosed
                             })?;
+                        },
+                        EngineActorRequest::SealRequest(SealRequest{payload_id, attributes, result_tx}) => {
+                            let task = EngineTask::Seal(Box::new(SealTask::new(
+                                state.client.clone(),
+                                state.rollup.clone(),
+                                payload_id,
+                                attributes,
+                                // The payload is not derived in this case.
+                                false,
+                                Some(result_tx),
+                            )));
+                            state.engine.enqueue(task);
                         },
                     }
                 }

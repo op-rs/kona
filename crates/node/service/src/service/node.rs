@@ -3,9 +3,10 @@ use crate::{
     ConductorClient, DelayedL1OriginSelectorProvider, DerivationActor, DerivationBuilder,
     DerivationContext, EngineActor, EngineConfig, EngineContext, InteropMode, L1OriginSelector,
     L1WatcherActor, NetworkActor, NetworkBuilder, NetworkConfig, NetworkContext, NodeActor,
-    NodeMode, QueuedDerivationEngineClient, QueuedEngineRpcClient, QueuedNetworkEngineClient,
-    QueuedSequencerAdminAPIClient, QueuedSequencerEngineClient, RollupBoostAdminApiClient,
-    RollupBoostHealthRpcClient, RpcActor, RpcContext, SequencerActor, SequencerConfig,
+    NodeMode, QueuedDerivationEngineClient, QueuedEngineRpcClient, QueuedL1WatcherEngineClient,
+    QueuedNetworkEngineClient, QueuedSequencerAdminAPIClient, QueuedSequencerEngineClient,
+    RollupBoostAdminApiClient, RollupBoostHealthRpcClient, RpcActor, RpcContext, SequencerActor,
+    SequencerConfig,
     actors::{
         BlockStream, DerivationInboundChannels, EngineInboundData, NetworkInboundData,
         QueuedUnsafePayloadGossipClient,
@@ -147,11 +148,7 @@ impl RollupNode {
 
         // Create the engine actor.
         let (
-            EngineInboundData {
-                inbound_request_tx: engine_actor_request_tx,
-                finalized_l1_block_tx,
-                unsafe_head_rx,
-            },
+            EngineInboundData { inbound_request_tx: engine_actor_request_tx, unsafe_head_rx },
             engine,
         ) = EngineActor::new(self.engine_config());
 
@@ -220,7 +217,9 @@ impl RollupNode {
             self.l1_config.engine_provider.clone(),
             l1_query_rx,
             l1_head_updates_tx.clone(),
-            finalized_l1_block_tx.clone(),
+            QueuedL1WatcherEngineClient {
+                engine_actor_request_tx: engine_actor_request_tx.clone(),
+            },
             signer,
             cancellation.clone(),
             head_stream,
