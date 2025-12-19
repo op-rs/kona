@@ -26,7 +26,11 @@
 
 # 🚧 Important information
 
-`Kona` is being moved to `https://github.com/ethereum-optimism/optimism`. Once `https://github.com/ethereum-optimism/optimism/pull/18569` gets merged, `op-rs` operations are going to be transferred over `ethereum-optimism/optimism`.
+We have taken the decision to move `Kona` to `https://github.com/ethereum-optimism/optimism`. Once `https://github.com/ethereum-optimism/optimism/pull/18569` gets merged, `op-rs` operations are going to be transferred to `ethereum-optimism/optimism`.
+
+This repository will get archived mid January 2026.
+
+See you in https://github.com/ethereum-optimism/optimism!
 
 The commit/contribution history will be maintained, thanks for contributing to `op-rs/kona` and we can't wait to see you in `https://github.com/ethereum-optimism/optimism`!
 
