@@ -57,7 +57,7 @@ The engine uses a priority-based task queue where tasks are ordered according to
 
 ### Task Priority (Highest to Lowest)
 
-1. **ForkchoiceUpdate** - Synchronizes forkchoice state
+1. **Seal** - Seals blocks with payload ID and inserts them into the execution engine
 2. **Build** - Builds new blocks (sequencer mode)
 3. **Insert** - Inserts unsafe blocks from gossip
 4. **Consolidate** - Advances safe chain via derivation
@@ -67,21 +67,21 @@ The engine uses a priority-based task queue where tasks are ordered according to
 
 #### SynchronizeTask
 
-Updates the execution layer's forkchoice state:
+Internal task for execution layer forkchoice synchronization. This task is primarily used internally by other engine tasks rather than being directly enqueued via the `EngineTask` enum.
 
 ```rust
 pub struct SynchronizeTask {
     pub client: Arc<EngineClient>,
     pub rollup: Arc<RollupConfig>,
-    pub envelope: Option<OpAttributesWithParent>,
     pub state_update: EngineSyncStateUpdate,
 }
 ```
 
 Handles:
 - Forkchoice synchronization without payload attributes
-- Payload building initiation with attributes
 - EL sync status management
+
+**Note**: Forkchoice updates during block building are automatically handled within `BuildTask`. The `SynchronizeTask` is called internally by `InsertTask`, `ConsolidateTask`, and `FinalizeTask` to synchronize forkchoice state.
 
 #### BuildTask
 
@@ -225,15 +225,14 @@ let engine = Engine::new(state, state_sender);
 ### Adding Tasks
 
 ```rust
-// Add a forkchoice update task
-let task = EngineTask::ForkchoiceUpdate(SynchronizeTask::new(
+// Add an insert task for unsafe blocks from gossip
+let task = EngineTask::Insert(Box::new(InsertTask::new(
     client.clone(),
     rollup_config.clone(),
-    state_update,
-    None, // No payload attributes
-));
+    envelope,
+)));
 
-engine.add_task(task);
+engine.enqueue(task);
 ```
 
 ### Draining the Queue
