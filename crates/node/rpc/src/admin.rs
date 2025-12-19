@@ -1,6 +1,6 @@
 //! Admin RPC Module
 
-use crate::AdminApiServer;
+use crate::{AdminApiServer, RollupBoostAdminClient, SequencerAdminAPIClient};
 use alloy_primitives::B256;
 use async_trait::async_trait;
 use core::fmt::Debug;
@@ -12,7 +12,6 @@ use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use rollup_boost::{
     ExecutionMode, GetExecutionModeResponse, SetExecutionModeRequest, SetExecutionModeResponse,
 };
-use thiserror::Error;
 use tokio::sync::oneshot;
 
 /// The query types to the network actor for the admin api.
@@ -41,20 +40,6 @@ pub enum RollupBoostAdminQuery {
         /// The sender to send the execution mode to.
         sender: oneshot::Sender<ExecutionMode>,
     },
-}
-
-/// Client trait for interacting with the rollup boost admin API.
-pub trait RollupBoostAdminClient: Send + Sync + Debug {
-    /// Sets the execution mode for the rollup boost server.
-    fn set_execution_mode(
-        &self,
-        request: SetExecutionModeRequest,
-    ) -> impl Future<Output = RpcResult<SetExecutionModeResponse>> + Send;
-
-    /// Gets the current execution mode from the rollup boost server.
-    fn get_execution_mode(
-        &self,
-    ) -> impl Future<Output = RpcResult<GetExecutionModeResponse>> + Send;
 }
 
 type NetworkAdminQuerySender = tokio::sync::mpsc::Sender<NetworkAdminQuery>;
@@ -231,60 +216,4 @@ where
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
-}
-
-/// The admin API client for the sequencer actor.
-#[async_trait]
-pub trait SequencerAdminAPIClient: Send + Sync + Debug {
-    /// Check if the sequencer is active.
-    async fn is_sequencer_active(&self) -> Result<bool, SequencerAdminAPIError>;
-
-    /// Check if the conductor is enabled.
-    async fn is_conductor_enabled(&self) -> Result<bool, SequencerAdminAPIError>;
-
-    /// Check if in recovery mode.
-    async fn is_recovery_mode(&self) -> Result<bool, SequencerAdminAPIError>;
-
-    /// Start the sequencer.
-    async fn start_sequencer(&self) -> Result<(), SequencerAdminAPIError>;
-
-    /// Stop the sequencer.
-    async fn stop_sequencer(&self) -> Result<B256, SequencerAdminAPIError>;
-
-    /// Set recovery mode.
-    async fn set_recovery_mode(&self, mode: bool) -> Result<(), SequencerAdminAPIError>;
-
-    /// Override the leader.
-    async fn override_leader(&self) -> Result<(), SequencerAdminAPIError>;
-
-    /// Reset the derivation pipeline.
-    async fn reset_derivation_pipeline(&self) -> Result<(), SequencerAdminAPIError>;
-}
-
-/// Errors that can occur when using the sequencer admin API.
-#[derive(Debug, Error)]
-pub enum SequencerAdminAPIError {
-    /// Error sending request.
-    #[error("Error sending request: {0}.")]
-    RequestError(String),
-
-    /// Error receiving response.
-    #[error("Error receiving response: {0}.")]
-    ResponseError(String),
-
-    /// Error stopping sequencer.
-    #[error("Error stopping sequencer: {0}.")]
-    StopError(#[from] StopSequencerError),
-
-    /// Error overriding leader.
-    #[error("Error overriding leader: {0}.")]
-    LeaderOverrideError(String),
-}
-
-/// Errors that can occur when using the sequencer admin API.
-#[derive(Debug, Error)]
-pub enum StopSequencerError {
-    /// Sequencer stopped successfully, followed by some error.
-    #[error("Sequencer stopped successfully, followed by error: {0}.")]
-    ErrorAfterSequencerWasStopped(String),
 }

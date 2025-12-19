@@ -10,38 +10,13 @@ use jsonrpsee::{
 };
 use kona_engine::EngineState;
 use kona_genesis::RollupConfig;
-use kona_protocol::{L2BlockInfo, OutputRoot, SyncStatus};
+use kona_protocol::SyncStatus;
 use std::fmt::Debug;
-use tokio::sync::watch;
 
 use crate::{
-    L1State, L1WatcherQueries, OutputResponse, RollupNodeApiServer, SafeHeadResponse,
-    l1_watcher::L1WatcherQuerySender,
+    EngineRpcClient, L1State, L1WatcherQueries, OutputResponse, RollupNodeApiServer,
+    SafeHeadResponse, l1_watcher::L1WatcherQuerySender,
 };
-
-/// Trait to be referenced by those interacting with EngineActor for RPC
-/// operations. The EngineActor requires the use of channels for communication, but
-/// this interface allows that to be abstracted from callers and allows easy testing.
-#[async_trait]
-pub trait EngineRpcClient: Debug + Send + Sync + Clone {
-    /// Request the current rollup configuration.
-    async fn get_config(&self) -> RpcResult<RollupConfig>;
-    /// Request the current [`EngineState`] snapshot.
-    async fn get_state(&self) -> RpcResult<EngineState>;
-    /// Development API: Get the current number of pending tasks in the queue.
-    async fn get_task_queue_length(&self) -> RpcResult<usize>;
-    /// Request the L2 output root for a specific block.
-    ///
-    /// Returns a tuple of block info, output root, and engine state at the requested block.
-    async fn output_at_block(
-        &self,
-        block: BlockNumberOrTag,
-    ) -> RpcResult<(L2BlockInfo, OutputRoot, EngineState)>;
-    /// Subscribes to engine queue length updates managed by the returned [`watch::Receiver`].
-    async fn dev_subscribe_to_engine_queue_length(&self) -> RpcResult<watch::Receiver<usize>>;
-    /// Subscribes to engine state updates managed by the returned [`watch::Receiver`].
-    async fn dev_subscribe_to_engine_state(&self) -> RpcResult<watch::Receiver<EngineState>>;
-}
 
 /// RollupRpc
 ///

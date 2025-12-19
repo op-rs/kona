@@ -10,9 +10,12 @@
 extern crate tracing;
 
 mod admin;
-pub use admin::{
-    AdminRpc, NetworkAdminQuery, RollupBoostAdminClient, RollupBoostAdminQuery,
-    SequencerAdminAPIClient, SequencerAdminAPIError, StopSequencerError,
+pub use admin::{AdminRpc, NetworkAdminQuery, RollupBoostAdminQuery};
+
+mod client;
+pub use client::{
+    EngineRpcClient, RollupBoostAdminClient, SequencerAdminAPIClient, SequencerAdminAPIError,
+    StopSequencerError,
 };
 
 mod config;
@@ -39,7 +42,7 @@ pub use jsonrpsee::{
 };
 
 mod rollup;
-pub use rollup::{EngineRpcClient, RollupRpc};
+pub use rollup::RollupRpc;
 
 mod l1_watcher;
 pub use l1_watcher::{L1State, L1WatcherQueries, L1WatcherQuerySender};
