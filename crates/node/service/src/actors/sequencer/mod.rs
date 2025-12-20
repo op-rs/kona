@@ -17,8 +17,6 @@ pub use admin_api_client::{QueuedSequencerAdminAPIClient, SequencerAdminQuery};
 
 mod admin_api_impl;
 
-mod builder;
-pub use builder::SequencerActorBuilder;
 mod metrics;
 
 mod error;
@@ -35,4 +33,4 @@ pub use conductor::MockConductor;
 pub use origin_selector::MockOriginSelector;
 
 #[cfg(test)]
-mod admin_api_impl_test;
+mod tests;

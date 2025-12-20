@@ -16,12 +16,8 @@ workspace = true
 
 [dependencies]
 # Workspace
-kona-genesis.workspace = true
-kona-protocol.workspace = true
 
 # Alloy
-alloy-eips.workspace = true
-alloy-provider = { workspace = true, features = ["reqwest", "reqwest-rustls-tls", "hyper", "hyper-tls"] }
 alloy-transport.workspace = true
 alloy-primitives.workspace = true
 alloy-rpc-client.workspace = true
@@ -31,7 +27,6 @@ alloy-signer.workspace = true
 alloy-signer-local.workspace = true
 
 # OP Alloy
-op-alloy-network.workspace = true
 op-alloy-rpc-types-engine.workspace = true
 
 # Misc
@@ -53,6 +48,4 @@ default = []
 
 [dev-dependencies]
 tokio.workspace = true
-kona-registry.workspace = true
 serde_json.workspace = true
-alloy-rpc-types = { workspace = true, features = ["eth"] }

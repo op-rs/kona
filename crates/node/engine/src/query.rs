@@ -7,7 +7,6 @@
 use std::sync::Arc;
 
 use alloy_eips::BlockNumberOrTag;
-use alloy_provider::Provider;
 use alloy_transport::{RpcError, TransportErrorKind};
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OutputRoot, Predeploys};
@@ -68,11 +67,11 @@ pub enum EngineQueriesError {
 
 impl EngineQueries {
     /// Handles the engine query request.
-    pub async fn handle(
+    pub async fn handle<EngineClient_: EngineClient>(
         self,
         state_recv: &tokio::sync::watch::Receiver<EngineState>,
         queue_length_recv: &tokio::sync::watch::Receiver<usize>,
-        client: &Arc<EngineClient>,
+        client: &Arc<EngineClient_>,
         rollup_config: &Arc<RollupConfig>,
     ) -> Result<(), EngineQueriesError> {
         let state = *state_recv.borrow();

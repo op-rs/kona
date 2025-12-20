@@ -33,7 +33,7 @@ use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
 /// The handle to a block that has been started but not sealed.
 #[derive(Debug)]
-struct UnsealedPayloadHandle {
+pub(super) struct UnsealedPayloadHandle {
     /// The [`PayloadId`] of the unsealed payload.
     pub payload_id: PayloadId,
     /// The [`OpAttributesWithParent`] used to start block building.
@@ -87,32 +87,6 @@ pub struct SequencerActor<
     pub rollup_config: Arc<RollupConfig>,
     /// A client to asynchronously sign and gossip built payloads to the network actor.
     pub unsafe_payload_gossip_client: UnsafePayloadGossipClient_,
-}
-
-impl<
-    AttributesBuilder_,
-    BlockBuildingClient_,
-    Conductor_,
-    OriginSelector_,
-    UnsafePayloadGossipClient_,
-> CancellableContext
-    for SequencerActor<
-        AttributesBuilder_,
-        BlockBuildingClient_,
-        Conductor_,
-        OriginSelector_,
-        UnsafePayloadGossipClient_,
-    >
-where
-    AttributesBuilder_: AttributesBuilder,
-    BlockBuildingClient_: BlockBuildingClient,
-    Conductor_: Conductor,
-    OriginSelector_: OriginSelector,
-    UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
-{
-    fn cancelled(&self) -> WaitForCancellationFuture<'_> {
-        self.cancellation_token.cancelled()
-    }
 }
 
 impl<
@@ -196,7 +170,7 @@ where
 
     /// Starts building an L2 block by creating and populating payload attributes referencing the
     /// correct L1 origin block and sending them to the block engine.
-    async fn build_unsealed_payload(
+    pub(super) async fn build_unsealed_payload(
         &mut self,
     ) -> Result<Option<UnsealedPayloadHandle>, SequencerActorError> {
         let unsafe_head = self.block_building_client.get_unsafe_head().await?;
@@ -486,6 +460,32 @@ where
                 }
             }
         }
+    }
+}
+
+impl<
+    AttributesBuilder_,
+    BlockBuildingClient_,
+    Conductor_,
+    OriginSelector_,
+    UnsafePayloadGossipClient_,
+> CancellableContext
+    for SequencerActor<
+        AttributesBuilder_,
+        BlockBuildingClient_,
+        Conductor_,
+        OriginSelector_,
+        UnsafePayloadGossipClient_,
+    >
+where
+    AttributesBuilder_: AttributesBuilder,
+    BlockBuildingClient_: BlockBuildingClient,
+    Conductor_: Conductor,
+    OriginSelector_: OriginSelector,
+    UnsafePayloadGossipClient_: UnsafePayloadGossipClient,
+{
+    fn cancelled(&self) -> WaitForCancellationFuture<'_> {
+        self.cancellation_token.cancelled()
     }
 }
 

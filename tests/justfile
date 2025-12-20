@@ -13,31 +13,6 @@ build-devnet BINARY:
     export BUILD_PROFILE="release"
     cd {{SOURCE}}/../docker/apps && just build-local "kona-{{BINARY}}" "kona-{{BINARY}}:local"
 
-# Spins up kurtosis with the `kona-node` docker image
-# The CUSTOM_DEVNET_PATH variable can be used to specify a custom devnet path.
-# If not specified, the default devnet path will be used.
-# The ENCLAVE variable can be used to specify a custom enclave name to use for kurtosis.
-devnet DEVNET CUSTOM_DEVNET_PATH="":
-  #!/bin/bash
-  export DEVNET="--enclave {{DEVNET}}"
-
-  export DEVNET_PATH="{{CUSTOM_DEVNET_PATH}}"
-  if [ -z "{{CUSTOM_DEVNET_PATH}}" ]; then
-    export DEVNET_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
-  fi
-
-  export OP_PACKAGE_PATH="{{DEFAULT_OP_PACKAGE_PATH}}"
-
-  # Run the kurtosis test
-  kurtosis run $OP_PACKAGE_PATH --args-file $DEVNET_PATH $DEVNET
-
-  # Fix Traefik Routes
-  cd {{SOURCE}} && go run cmd/main.go
-
-# Winds down kurtosis, cleaning up the network
-cleanup-kurtosis:
-  kurtosis clean -a
-
 build-reth:
   #!/bin/bash
   cd {{SOURCE}}/reth && cargo build --bin op-reth -p op-reth
@@ -171,31 +146,6 @@ test-e2e-sysgo-run BINARY="node" GO_PKG_NAME="node/common" DEVNET="simple-kona" 
     # Run the test with count=1 to avoid caching the test results.
     cd {{SOURCE}} && go test -count=1 -timeout 40m -v ./$GO_PKG_NAME $FILTER
 
-test-e2e-kurtosis DEVNET GO_PKG_NAME="" FILTER="" DEVNET_CUSTOM_PATH="" :
-    #!/bin/bash
-    if [ -z "{{GO_PKG_NAME}}" ]; then
-        export GO_PKG_NAME="..."
-    else
-        export GO_PKG_NAME="{{GO_PKG_NAME}}"
-    fi
-
-    if ! [ -z "{{FILTER}}" ]; then
-        export FILTER="-run {{FILTER}}"
-    fi
-
-    export DEVNET_CUSTOM_PATH="{{DEVNET_CUSTOM_PATH}}"
-    if [ -z "{{DEVNET_CUSTOM_PATH}}" ]; then
-        export DEVNET_CUSTOM_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
-    fi
-
-    export OP_DEPLOYER_ARTIFACTS="{{SOURCE}}/artifacts"
-    export DEVNET_ENV_URL="ktnative://{{DEVNET}}$DEVNET_CUSTOM_PATH"
-    export DISABLE_OP_E2E_LEGACY=true
-    export DEVSTACK_ORCHESTRATOR=sysext
-
-    # Run the test with count=1 to avoid caching the test results.
-    cd {{SOURCE}} && go test -count=1 -timeout 40m -v ./$GO_PKG_NAME $FILTER
-
 long-running-test FILTER="" OUTPUT_LOGS_DIR="":
     #!/bin/bash
     if ! [ -z "{{FILTER}}" ]; then
@@ -234,10 +184,10 @@ long-running-test FILTER="" OUTPUT_LOGS_DIR="":
     cd {{SOURCE}} && go test -count=1 -timeout 0 -v ./node/long-running $FILTER
 
 # Run action tests for the single-chain client program on the native target
-action-tests-single test_name='Test_ProgramAction' *args='': action-tests-single-build (action-tests-single-run test_name args)
+action-tests-single test_name='Test_ProgramAction' *args='': action-tests-build (action-tests-single-run test_name args)
 
-# Build action tests for the single-chain client program on the native target
-action-tests-single-build:
+# Build action tests for host program
+action-tests-build:
   #!/bin/bash
   echo "Building contract artifacts for the optimism"
   just unzip-contract-artifacts {{SOURCE}}/optimism/packages/contracts-bedrock
@@ -256,53 +206,16 @@ action-tests-single-run test_name='Test_ProgramAction' *args='':
   cd {{SOURCE}}/optimism/op-e2e/actions/proofs && GITHUB_ACTIONS=false gotestsum --format=short-verbose -- -count=1 -timeout 60m -run "{{test_name}}" {{args}}
 
 # Run action tests for the interop client program on the native target
-action-tests-interop test_name='TestInteropFaultProofs' *args='':
+action-tests-interop test_name='TestInteropFaultProofs' *args='': action-tests-build (action-tests-interop-run test_name args)
+
+action-tests-interop-run test_name='TestInteropFaultProofs' *args='':
   #!/bin/bash
-  echo "Building contract artifacts for the optimism"
-  just unzip-contract-artifacts {{SOURCE}}/optimism/packages/contracts-bedrock
-
-  echo "Building host program for the native target"
-  just build-native --bin kona-host
-  export KONA_HOST_PATH="{{justfile_directory()}}/target/debug/kona-host"
-
+  export KONA_HOST_PATH="{{SOURCE}}/../target/debug/kona-host"
   # GitHub actions patch - do not print logs.
   # https://github.com/gotestyourself/gotestsum/blob/b4b13345fee56744d80016a20b760d3599c13504/testjson/format.go#L442-L444
   echo "Running action tests for the client program on the native target"
 
-  cd {{SOURCE}}/optimism/op-e2e/actions/interop && GITHUB_ACTIONS=false gotestsum --format=testname -- -run "{{test_name}}" {{args}} -count=1 ./...
-
-action-tests-interop-build test_name='TestInteropFaultProofs' *args='':
-  #!/bin/bash
-  echo "Not implemented. See https://github.com/op-rs/kona/issues/3010"
-
-action-tests-interop-run test_name='TestInteropFaultProofs' *args='':
-  #!/bin/bash
-  echo "Not implemented.  See https://github.com/op-rs/kona/issues/3010"
-
-build-deploy-devnet BINARY DEVNET CUSTOM_DEVNET_PATH="": (build-devnet BINARY) (devnet DEVNET CUSTOM_DEVNET_PATH)
-
-deploy-devnet-and-test-e2e DEVNET GO_PKG_NAME CUSTOM_DEVNET_PATH="": (devnet DEVNET CUSTOM_DEVNET_PATH) (test-e2e-kurtosis DEVNET GO_PKG_NAME)
-
-build-devnet-and-test-e2e BINARY DEVNET GO_PKG_NAME CUSTOM_DEVNET_PATH="": (build-devnet BINARY) (deploy-devnet-and-test-e2e DEVNET GO_PKG_NAME CUSTOM_DEVNET_PATH)
-
-# Updates the devnet with the latest local changes. This is useful to
-# rapidly iterate on the devnet without having to redeploy the whole kurtosis network.
-update-node-devnet DEVNET OP_PACKAGE_PATH="": (build-devnet "node")
-    #!/bin/bash
-
-    # Ensure there is a kurtosis enclave running with the name {{DEVNET}}
-    ENCLAVE_EXISTS=$(kurtosis enclave ls | grep {{DEVNET}} || true)
-    if [ -z "$ENCLAVE_EXISTS" ]; then
-        echo "No kurtosis enclave found with name {{DEVNET}}"
-        exit 1
-    fi
-
-    # Get all the services that contain the words "cl" and "kona"
-    SERVICES=$(kurtosis enclave inspect {{DEVNET}} | grep "cl" | grep "kona" | awk '{print $2}')
-
-    for service in $SERVICES; do
-        kurtosis service update {{DEVNET}} $service --image kona-node:local
-    done
+  cd {{SOURCE}}/optimism/op-e2e/actions/interop && GITHUB_ACTIONS=false gotestsum --format=short-verbose -- -count=1 -timeout 60m -run "{{test_name}}" {{args}}
 
 unzip-contract-artifacts DEST_DIR="":
     #!/bin/bash
@@ -315,7 +228,6 @@ unzip-contract-artifacts DEST_DIR="":
     mkdir -p $DEST_DIR
 
     tar --zstd -xf {{SOURCE}}/artifacts/compressed/artifacts.tzst -C $DEST_DIR
-
 
 update-packages:
     #!/bin/bash

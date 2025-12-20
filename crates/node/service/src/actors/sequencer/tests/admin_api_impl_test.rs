@@ -1,40 +1,13 @@
 use crate::{
-    BlockEngineError, ConductorError, SequencerActorBuilder, SequencerAdminQuery,
-    actors::{
-        MockBlockBuildingClient, MockConductor, MockOriginSelector, MockUnsafePayloadGossipClient,
-    },
+    BlockEngineError, ConductorError, SequencerAdminQuery,
+    actors::{MockBlockBuildingClient, MockConductor, sequencer::tests::test_util::test_actor},
 };
 use alloy_primitives::B256;
 use alloy_transport::RpcError;
-use kona_derive::test_utils::TestAttributesBuilder;
-use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo};
 use kona_rpc::{SequencerAdminAPIError, StopSequencerError};
 use rstest::rstest;
-use std::{sync::Arc, vec};
-use tokio::sync::{mpsc, oneshot};
-use tokio_util::sync::CancellationToken;
-
-// Returns a test SequencerActorBuilder with mocks that can be used or overridden.
-fn test_builder() -> SequencerActorBuilder<
-    TestAttributesBuilder,
-    MockBlockBuildingClient,
-    MockConductor,
-    MockOriginSelector,
-    MockUnsafePayloadGossipClient,
-> {
-    let (_admin_api_tx, admin_api_rx) = mpsc::channel(20);
-    SequencerActorBuilder::new()
-        .with_active_status(true)
-        .with_admin_api_receiver(admin_api_rx)
-        .with_attributes_builder(TestAttributesBuilder { attributes: vec![] })
-        .with_block_building_client(MockBlockBuildingClient::new())
-        .with_cancellation_token(CancellationToken::new())
-        .with_origin_selector(MockOriginSelector::new())
-        .with_recovery_mode_status(false)
-        .with_rollup_config(Arc::new(RollupConfig::default()))
-        .with_unsafe_payload_gossip_client(MockUnsafePayloadGossipClient::new())
-}
+use tokio::sync::oneshot;
 
 #[rstest]
 #[tokio::test]
@@ -42,7 +15,8 @@ async fn test_is_sequencer_active(
     #[values(true, false)] active: bool,
     #[values(true, false)] via_channel: bool,
 ) {
-    let mut actor = test_builder().with_active_status(active).build().unwrap();
+    let mut actor = test_actor();
+    actor.is_active = active;
 
     let result = async {
         match via_channel {
@@ -66,15 +40,10 @@ async fn test_is_conductor_enabled(
     #[values(true, false)] conductor_exists: bool,
     #[values(true, false)] via_channel: bool,
 ) {
-    let mut actor = {
-        if conductor_exists {
-            test_builder().with_conductor(MockConductor::new())
-        } else {
-            test_builder()
-        }
-    }
-    .build()
-    .unwrap();
+    let mut actor = test_actor();
+    if conductor_exists {
+        actor.conductor = Some(MockConductor::new())
+    };
 
     let result = async {
         match via_channel {
@@ -98,7 +67,8 @@ async fn test_in_recovery_mode(
     #[values(true, false)] recovery_mode: bool,
     #[values(true, false)] via_channel: bool,
 ) {
-    let mut actor = test_builder().with_recovery_mode_status(recovery_mode).build().unwrap();
+    let mut actor = test_actor();
+    actor.in_recovery_mode = recovery_mode;
 
     let result = async {
         match via_channel {
@@ -122,7 +92,8 @@ async fn test_start_sequencer(
     #[values(true, false)] already_started: bool,
     #[values(true, false)] via_channel: bool,
 ) {
-    let mut actor = test_builder().with_active_status(already_started).build().unwrap();
+    let mut actor = test_actor();
+    actor.is_active = already_started;
 
     // verify starting state
     let result = actor.is_sequencer_active().await;
@@ -164,11 +135,9 @@ async fn test_stop_sequencer_success(
     let mut client = MockBlockBuildingClient::new();
     client.expect_get_unsafe_head().times(1).return_once(move || Ok(unsafe_head));
 
-    let mut actor = test_builder()
-        .with_block_building_client(client)
-        .with_active_status(!already_stopped)
-        .build()
-        .unwrap();
+    let mut actor = test_actor();
+    actor.block_building_client = client;
+    actor.is_active = !already_stopped;
 
     // verify starting state
     let result = actor.is_sequencer_active().await;
@@ -205,7 +174,8 @@ async fn test_stop_sequencer_error_fetching_unsafe_head(#[values(true, false)] v
         .times(1)
         .return_once(|| Err(BlockEngineError::RequestError("whoops!".to_string())));
 
-    let mut actor = test_builder().with_block_building_client(client).build().unwrap();
+    let mut actor = test_actor();
+    actor.block_building_client = client;
 
     let result = async {
         match via_channel {
@@ -234,7 +204,8 @@ async fn test_set_recovery_mode(
     #[values(true, false)] mode_to_set: bool,
     #[values(true, false)] via_channel: bool,
 ) {
-    let mut actor = test_builder().with_recovery_mode_status(starting_mode).build().unwrap();
+    let mut actor = test_actor();
+    actor.in_recovery_mode = starting_mode;
 
     // verify starting state
     let result = actor.in_recovery_mode().await;
@@ -277,21 +248,23 @@ async fn test_override_leader(
     let mut actor = {
         // wire up conductor absence/presence and response error/success
         if !conductor_configured {
-            test_builder()
+            test_actor()
         } else if conductor_error {
             let mut conductor = MockConductor::new();
             conductor.expect_override_leader().times(1).return_once(move || {
                 Err(ConductorError::Rpc(RpcError::local_usage_str(conductor_error_string)))
             });
-            test_builder().with_conductor(conductor)
+            let mut actor = test_actor();
+            actor.conductor = Some(conductor);
+            actor
         } else {
             let mut conductor = MockConductor::new();
             conductor.expect_override_leader().times(1).return_once(|| Ok(()));
-            test_builder().with_conductor(conductor)
+            let mut actor = test_actor();
+            actor.conductor = Some(conductor);
+            actor
         }
-    }
-    .build()
-    .unwrap();
+    };
 
     // call to override leader
     let result = async {
@@ -324,7 +297,8 @@ async fn test_reset_derivation_pipeline_success(#[values(true, false)] via_chann
     let mut client = MockBlockBuildingClient::new();
     client.expect_reset_engine_forkchoice().times(1).return_once(|| Ok(()));
 
-    let mut actor = test_builder().with_block_building_client(client).build().unwrap();
+    let mut actor = test_actor();
+    actor.block_building_client = client;
 
     let result = async {
         match via_channel {
@@ -350,7 +324,8 @@ async fn test_reset_derivation_pipeline_error(#[values(true, false)] via_channel
         .times(1)
         .return_once(|| Err(BlockEngineError::RequestError("reset failed".to_string())));
 
-    let mut actor = test_builder().with_block_building_client(client).build().unwrap();
+    let mut actor = test_actor();
+    actor.block_building_client = client;
 
     let result = async {
         match via_channel {
@@ -382,11 +357,9 @@ async fn test_handle_admin_query_resilient_to_dropped_receiver() {
     client.expect_get_unsafe_head().times(1).returning(move || Ok(unsafe_head));
     client.expect_reset_engine_forkchoice().times(1).returning(|| Ok(()));
 
-    let mut actor = test_builder()
-        .with_conductor(conductor)
-        .with_block_building_client(client)
-        .build()
-        .unwrap();
+    let mut actor = test_actor();
+    actor.conductor = Some(conductor);
+    actor.block_building_client = client;
 
     let mut queries: Vec<SequencerAdminQuery> = Vec::new();
     {
