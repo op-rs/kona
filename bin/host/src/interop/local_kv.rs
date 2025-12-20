@@ -2,9 +2,8 @@
 //! using the [InteropHost] config.
 
 use super::InteropHost;
-use crate::KeyValueStore;
+use crate::{KeyValueStore, Result};
 use alloy_primitives::{B256, keccak256};
-use anyhow::Result;
 use kona_preimage::PreimageKey;
 use kona_proof_interop::boot::{
     L1_CONFIG_KEY, L1_HEAD_KEY, L2_AGREED_PRE_STATE_KEY, L2_CLAIMED_POST_STATE_KEY,
