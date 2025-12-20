@@ -166,7 +166,7 @@ pub enum LogIndexerError {
     #[error(transparent)]
     StateWrite(#[from] StorageError),
 
-    /// Failed to fetch logs for a block from the state manager.   
+    /// Failed to fetch receipts for a block from the managed node.
     #[error(transparent)]
     FetchReceipt(#[from] ManagedNodeError),
 }
