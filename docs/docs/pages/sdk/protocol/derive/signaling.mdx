@@ -1,14 +1,14 @@
 # Signals
 
-Understanding signals first require a more in-depth review of the result
+Understanding signals first requires a more in-depth review of the result
 returned by stepping on the derivation pipeline.
 
 
 ## The [`StepResult`][step-result]
 
 As briefly outlined in the [intro](./intro.mdx), stepping on the derivation
-pipeline returns a [`StepResult`][step-result]. Step results provide a
-an extensible way for pipeline stages to signal different results to the
+pipeline returns a [`StepResult`][step-result]. Step results provide an
+extensible way for pipeline stages to signal different results to the
 pipeline driver. The variants of [`StepResult`][step-result] and what they
 signal include the following.
 
@@ -22,7 +22,7 @@ signal include the following.
 - `StepResult::StepFailed(_)` - The step failed.
 
 No action is needed when the prepared attributes step result is received.
-The pipeline driver may chose to consume the payload attributes how it
+The pipeline driver may choose to consume the payload attributes how it
 wishes. Likewise, `StepResult::AdvancedOrigin` simply notifies the driver
 that the pipeline advanced its origin - the driver may continue stepping
 on the pipeline. Now, it becomes more involved with the remaining two
@@ -40,7 +40,7 @@ the [`PipelineErrorKind`][error-kind] and the driver's response.
 ## [`PipelineErrorKind`][error-kind]
 
 There are three variants of the [`PipelineErrorKind`][error-kind], each
-groups the inner error based on severity (or how they should be handled).
+grouping the inner error based on severity (or how they should be handled).
 
 - `PipelineErrorKind::Temporary` - This is an error that's expected, and
    is temporary. For example, not all channel data has been posted to L1
