@@ -29,11 +29,11 @@ pub enum SupervisorError {
     #[error(transparent)]
     SpecError(#[from] SpecError),
 
-    /// Indicates that error occurred while interacting with the storage layer.
+    /// Indicates that an error occurred while interacting with the storage layer.
     #[error(transparent)]
     StorageError(#[from] StorageError),
 
-    /// Indicates that managed node not found for the chain.
+    /// Indicates that the managed node was not found for the chain.
     #[error("managed node not found for chain: {0}")]
     ManagedNodeMissing(u64),
 
