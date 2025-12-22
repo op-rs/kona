@@ -1,42 +1,13 @@
 use crate::{
-    BlockEngineError, ConductorError, SequencerActor, SequencerAdminQuery,
-    actors::{
-        MockBlockBuildingClient, MockConductor, MockOriginSelector, MockUnsafePayloadGossipClient,
-    },
+    BlockEngineError, ConductorError, SequencerAdminQuery,
+    actors::{MockBlockBuildingClient, MockConductor, sequencer::tests::test_util::test_actor},
 };
 use alloy_primitives::B256;
 use alloy_transport::RpcError;
-use kona_derive::test_utils::TestAttributesBuilder;
-use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo};
 use kona_rpc::{SequencerAdminAPIError, StopSequencerError};
 use rstest::rstest;
-use std::{sync::Arc, vec};
-use tokio::sync::{mpsc, oneshot};
-use tokio_util::sync::CancellationToken;
-
-// Returns a test SequencerActorBuilder with mocks that can be used or overridden.
-fn test_actor() -> SequencerActor<
-    TestAttributesBuilder,
-    MockBlockBuildingClient,
-    MockConductor,
-    MockOriginSelector,
-    MockUnsafePayloadGossipClient,
-> {
-    let (_admin_api_tx, admin_api_rx) = mpsc::channel(20);
-    SequencerActor {
-        admin_api_rx,
-        attributes_builder: TestAttributesBuilder { attributes: vec![] },
-        block_building_client: MockBlockBuildingClient::new(),
-        cancellation_token: CancellationToken::new(),
-        conductor: None,
-        is_active: true,
-        in_recovery_mode: false,
-        origin_selector: MockOriginSelector::new(),
-        rollup_config: Arc::new(RollupConfig::default()),
-        unsafe_payload_gossip_client: MockUnsafePayloadGossipClient::new(),
-    }
-}
+use tokio::sync::oneshot;
 
 #[rstest]
 #[tokio::test]

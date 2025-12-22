@@ -33,4 +33,4 @@ pub use conductor::MockConductor;
 pub use origin_selector::MockOriginSelector;
 
 #[cfg(test)]
-mod admin_api_impl_test;
+mod tests;
