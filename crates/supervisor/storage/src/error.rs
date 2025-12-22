@@ -27,11 +27,11 @@ pub enum StorageError {
     #[error("data not yet available")]
     FutureData,
 
-    /// Represents an error that occurred when database is not initialized.
+    /// Represents an error that occurred when the database is not initialized.
     #[error("database not initialized")]
     DatabaseNotInitialised,
 
-    /// Represents a conflict occurred while attempting to write to the database.
+    /// Represents an error that occurred while attempting to write to the database due to a conflict.
     #[error("conflicting data")]
     ConflictError,
 
@@ -39,7 +39,7 @@ pub enum StorageError {
     #[error("latest stored block is not parent of the incoming block")]
     BlockOutOfOrder,
 
-    /// Represents an error that occurred when there is inconsistency in log storage
+    /// Represents an error that occurs when there is inconsistency in log storage
     #[error("reorg required due to inconsistent storage state")]
     ReorgRequired,
 
