@@ -121,22 +121,25 @@ where
         match next_batch.decompress() {
             Ok(()) => {
                 // Record the decompressed size and type.
-                let size = next_batch.decompressed.len() as f64;
-                let ty = if next_batch.brotli_used {
-                    BatchReader::CHANNEL_VERSION_BROTLI
-                } else {
-                    BatchReader::ZLIB_DEFLATE_COMPRESSION_METHOD
-                };
-                kona_macros::set!(
-                    gauge,
-                    crate::metrics::Metrics::PIPELINE_LATEST_DECOMPRESSED_BATCH_SIZE,
-                    size
-                );
-                kona_macros::set!(
-                    gauge,
-                    crate::metrics::Metrics::PIPELINE_LATEST_DECOMPRESSED_BATCH_TYPE,
-                    ty as f64
-                );
+                #[cfg(feature = "metrics")]
+                {
+                    let size = next_batch.decompressed.len() as f64;
+                    let ty = if next_batch.brotli_used {
+                        BatchReader::CHANNEL_VERSION_BROTLI
+                    } else {
+                        BatchReader::ZLIB_DEFLATE_COMPRESSION_METHOD
+                    };
+                    kona_macros::set!(
+                        gauge,
+                        crate::metrics::Metrics::PIPELINE_LATEST_DECOMPRESSED_BATCH_SIZE,
+                        size
+                    );
+                    kona_macros::set!(
+                        gauge,
+                        crate::metrics::Metrics::PIPELINE_LATEST_DECOMPRESSED_BATCH_TYPE,
+                        ty as f64
+                    );
+                }
             }
             Err(err) => {
                 debug!(target: "channel_reader", ?err, "Failed to decompress batch");

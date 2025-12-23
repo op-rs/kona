@@ -94,14 +94,21 @@ where
             self.channel = Some(Channel::new(next_frame.id, origin));
         }
 
-        let count = if self.channel.is_some() { 1 } else { 0 };
-        kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_CHANNEL_BUFFER, count);
+        #[cfg(feature = "metrics")]
+        {
+            let count = if self.channel.is_some() { 1 } else { 0 };
+            kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_CHANNEL_BUFFER, count);
+        }
 
         if let Some(channel) = self.channel.as_mut() {
             // Track the number of blocks until the channel times out.
-            let timeout = channel.open_block_number() + self.cfg.channel_timeout(origin.timestamp);
-            let margin = timeout.saturating_sub(origin.number) as f64;
-            kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_CHANNEL_TIMEOUT, margin);
+            #[cfg(feature = "metrics")]
+            {
+                let timeout =
+                    channel.open_block_number() + self.cfg.channel_timeout(origin.timestamp);
+                let margin = timeout.saturating_sub(origin.number) as f64;
+                kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_CHANNEL_TIMEOUT, margin);
+            }
 
             // Add the frame to the channel. If this fails, return NotEnoughData and discard the
             // frame.
@@ -122,8 +129,11 @@ where
                 return Err(PipelineError::NotEnoughData.temp());
             }
 
-            let size = channel.size() as f64;
-            kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_CHANNEL_MEM, size);
+            #[cfg(feature = "metrics")]
+            {
+                let size = channel.size() as f64;
+                kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_CHANNEL_MEM, size);
+            }
 
             let max_rlp_bytes_per_channel = if self.cfg.is_fjord_active(origin.timestamp) {
                 MAX_RLP_BYTES_PER_CHANNEL_FJORD
