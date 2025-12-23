@@ -23,14 +23,19 @@ use tokio::{
 };
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
-use super::L1WatcherEngineClient;
+use super::{L1WatcherDerivationClient, L1WatcherEngineClient};
 
 /// An L1 chain watcher that checks for L1 block updates over RPC.
 #[derive(Debug)]
-pub struct L1WatcherActor<BlockStream, L1Provider, L1WatcherEngineClient_>
-where
+pub struct L1WatcherActor<
+    BlockStream,
+    L1Provider,
+    L1WatcherDerivationClient_,
+    L1WatcherEngineClient_,
+> where
     BlockStream: Stream<Item = BlockInfo> + Unpin + Send,
     L1Provider: Provider,
+    L1WatcherDerivationClient_: L1WatcherDerivationClient,
     L1WatcherEngineClient_: L1WatcherEngineClient,
 {
     /// The [`RollupConfig`] to tell if ecotone is active.
@@ -42,6 +47,8 @@ where
     inbound_queries: mpsc::Receiver<L1WatcherQueries>,
     /// The latest L1 head block.
     latest_head: watch::Sender<Option<BlockInfo>>,
+    /// Client used to interact with the [`crate::DerivationActor`].
+    derivation_client: L1WatcherDerivationClient_,
     /// Client used to interact with the engine.
     engine_client: L1WatcherEngineClient_,
     /// The block signer sender.
@@ -53,11 +60,12 @@ where
     /// A stream over the finalized block accepted as canonical.
     finalized_stream: BlockStream,
 }
-impl<BlockStream, L1Provider, L1WatcherEngineClient_>
-    L1WatcherActor<BlockStream, L1Provider, L1WatcherEngineClient_>
+impl<BlockStream, L1Provider, L1WatcherDerivationClient_, L1WatcherEngineClient_>
+    L1WatcherActor<BlockStream, L1Provider, L1WatcherDerivationClient_, L1WatcherEngineClient_>
 where
     BlockStream: Stream<Item = BlockInfo> + Unpin + Send,
     L1Provider: Provider,
+    L1WatcherDerivationClient_: L1WatcherDerivationClient,
     L1WatcherEngineClient_: L1WatcherEngineClient,
 {
     /// Instantiate a new [`L1WatcherActor`].
@@ -67,6 +75,7 @@ where
         l1_provider: L1Provider,
         l1_query_rx: mpsc::Receiver<L1WatcherQueries>,
         l1_head_updates_tx: watch::Sender<Option<BlockInfo>>,
+        derivation_client: L1WatcherDerivationClient_,
         engine_client: L1WatcherEngineClient_,
         signer: mpsc::Sender<Address>,
         cancellation: CancellationToken,
@@ -78,6 +87,7 @@ where
             l1_provider,
             inbound_queries: l1_query_rx,
             latest_head: l1_head_updates_tx,
+            derivation_client,
             engine_client,
             block_signer_sender: signer,
             cancellation,
@@ -88,11 +98,12 @@ where
 }
 
 #[async_trait]
-impl<BlockStream, L1Provider, L1WatcherEngineClient_> NodeActor
-    for L1WatcherActor<BlockStream, L1Provider, L1WatcherEngineClient_>
+impl<BlockStream, L1Provider, L1WatcherDerivationClient_, L1WatcherEngineClient_> NodeActor
+    for L1WatcherActor<BlockStream, L1Provider, L1WatcherDerivationClient_, L1WatcherEngineClient_>
 where
     BlockStream: Stream<Item = BlockInfo> + Unpin + Send + 'static,
     L1Provider: Provider + 'static,
+    L1WatcherDerivationClient_: L1WatcherDerivationClient + 'static,
     L1WatcherEngineClient_: L1WatcherEngineClient + 'static,
 {
     type Error = L1WatcherActorError<BlockInfo>;
@@ -121,6 +132,10 @@ where
                     Some(head_block_info) => {
                         // Send the head update event to all consumers.
                         self.latest_head.send_replace(Some(head_block_info));
+                        self.derivation_client.send_new_l1_head(head_block_info).await.map_err(|e| {
+                            warn!(target: "l1_watcher", "Error sending l1 head update to derivation actor: {e}");
+                            L1WatcherActorError::DerivationClientError(e)
+                        })?;
 
                         // For each log, attempt to construct a [`SystemConfigLog`].
                         // Build the [`SystemConfigUpdate`] from the log.
@@ -210,11 +225,12 @@ where
     }
 }
 
-impl<BlockStream, L1Provider, L1WatcherEngineClient_> CancellableContext
-    for L1WatcherActor<BlockStream, L1Provider, L1WatcherEngineClient_>
+impl<BlockStream, L1Provider, L1WatcherDerivationClient_, L1WatcherEngineClient_> CancellableContext
+    for L1WatcherActor<BlockStream, L1Provider, L1WatcherDerivationClient_, L1WatcherEngineClient_>
 where
     BlockStream: Stream<Item = BlockInfo> + Unpin + Send + 'static,
     L1Provider: Provider,
+    L1WatcherDerivationClient_: L1WatcherDerivationClient + 'static,
     L1WatcherEngineClient_: L1WatcherEngineClient,
 {
     fn cancelled(&self) -> WaitForCancellationFuture<'_> {

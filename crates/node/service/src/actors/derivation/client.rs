@@ -1,5 +1,6 @@
 use crate::{EngineActorRequest, EngineClientError, EngineClientResult, ResetRequest};
 use async_trait::async_trait;
+use derive_more::Constructor;
 use kona_protocol::OpAttributesWithParent;
 use std::fmt::Debug;
 use tokio::sync::mpsc;
@@ -20,7 +21,7 @@ pub trait DerivationEngineClient: Debug + Send + Sync {
 }
 
 /// Client to use to send messages to the Engine Actor's inbound channel.
-#[derive(Debug)]
+#[derive(Constructor, Debug)]
 pub struct QueuedDerivationEngineClient {
     /// A channel to use to send the [`EngineActorRequest`]s to the EngineActor.
     pub engine_actor_request_tx: mpsc::Sender<EngineActorRequest>,
