@@ -2,13 +2,18 @@
 
 use alloc::boxed::Box;
 use alloy_consensus::{Header, Sealed};
-use alloy_evm::{EvmFactory, FromRecoveredTx, FromTxWithEncoded, revm::context::BlockEnv};
+use alloy_evm::{
+    EvmFactory, FromRecoveredTx, FromTxWithEncoded,
+    revm::{Inspector, context::BlockEnv, database::State},
+};
 use alloy_op_evm::block::OpTxEnv;
 use alloy_primitives::B256;
 use async_trait::async_trait;
 use core::fmt::Debug;
 use kona_driver::Executor;
-use kona_executor::{BlockBuildingOutcome, StatelessL2Builder, TrieDBProvider};
+use kona_executor::{
+    BlockBuildingOutcome, InspectorFactory, StatelessL2Builder, TrieDB, TrieDBProvider,
+};
 use kona_genesis::RollupConfig;
 use kona_mpt::TrieHinter;
 use op_alloy_consensus::OpTxEnvelope;
@@ -17,11 +22,12 @@ use op_revm::OpSpecId;
 
 /// An executor wrapper type.
 #[derive(Debug)]
-pub struct KonaExecutor<'a, P, H, Evm>
+pub struct KonaExecutor<'a, P, H, Evm, IF>
 where
     P: TrieDBProvider + Send + Sync + Clone,
     H: TrieHinter + Send + Sync + Clone,
     Evm: EvmFactory + Send + Sync + Clone,
+    IF: InspectorFactory,
 {
     /// The rollup config for the executor.
     rollup_config: &'a RollupConfig,
@@ -32,14 +38,17 @@ where
     /// The evm factory for the executor.
     evm_factory: Evm,
     /// The executor.
-    inner: Option<StatelessL2Builder<'a, P, H, Evm>>,
+    inner: Option<StatelessL2Builder<'a, P, H, Evm, IF>>,
+    /// The optional inspector factory for the executor.
+    inspector_factory: Option<IF>,
 }
 
-impl<'a, P, H, Evm> KonaExecutor<'a, P, H, Evm>
+impl<'a, P, H, Evm, IF> KonaExecutor<'a, P, H, Evm, IF>
 where
     P: TrieDBProvider + Send + Sync + Clone,
     H: TrieHinter + Send + Sync + Clone,
     Evm: EvmFactory + Send + Sync + Clone,
+    IF: InspectorFactory + Clone,
 {
     /// Creates a new executor.
     pub const fn new(
@@ -47,20 +56,23 @@ where
         trie_provider: P,
         trie_hinter: H,
         evm_factory: Evm,
-        inner: Option<StatelessL2Builder<'a, P, H, Evm>>,
+        inner: Option<StatelessL2Builder<'a, P, H, Evm, IF>>,
+        inspector_factory: Option<IF>,
     ) -> Self {
-        Self { rollup_config, trie_provider, trie_hinter, evm_factory, inner }
+        Self { rollup_config, trie_provider, trie_hinter, evm_factory, inner, inspector_factory }
     }
 }
 
 #[async_trait]
-impl<P, H, Evm> Executor for KonaExecutor<'_, P, H, Evm>
+impl<P, H, Evm, IF> Executor for KonaExecutor<'_, P, H, Evm, IF>
 where
     P: TrieDBProvider + Debug + Send + Sync + Clone,
     H: TrieHinter + Debug + Send + Sync + Clone,
     Evm: EvmFactory<Spec = OpSpecId, BlockEnv = BlockEnv> + Send + Sync + Clone + 'static,
     <Evm as EvmFactory>::Tx:
         FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope> + OpTxEnv,
+    IF: InspectorFactory + Clone + Send + Sync,
+    for<'b> IF::Inspector: Inspector<Evm::Context<&'b mut State<&'b mut TrieDB<P, H>>>>,
 {
     type Error = kona_executor::ExecutorError;
 
@@ -81,6 +93,7 @@ where
             self.trie_provider.clone(),
             self.trie_hinter.clone(),
             header,
+            self.inspector_factory.clone(),
         ));
     }
 
