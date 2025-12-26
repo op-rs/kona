@@ -4,7 +4,7 @@ use super::{SingleChainHintHandler, SingleChainLocalInputs};
 use crate::{
     DiskKeyValueStore, MemoryKeyValueStore, OfflineHostBackend, OnlineHostBackend,
     OnlineHostBackendCfg, PreimageServer, SharedKeyValueStore, SplitKeyValueStore,
-    eth::rpc_provider, server::PreimageServerError,
+    server::PreimageServerError,
 };
 use alloy_primitives::B256;
 use alloy_provider::RootProvider;
@@ -67,6 +67,10 @@ pub struct SingleChainHost {
     #[serde(skip)]
     #[arg(skip)]
     pub l1_rpc_client: Option<RpcClient>,
+    /// Pre-configured L2 RPC client (not settable via CLI, used internally)
+    #[serde(skip)]
+    #[arg(skip)]
+    pub l2_rpc_client: Option<RpcClient>,
     /// Address of the L1 Beacon API endpoint to use.
     #[arg(
         long,
@@ -293,12 +297,17 @@ impl SingleChainHost {
                 .ok_or(SingleChainHostError::Other("Beacon API URL must be set"))?,
         ))
         .await;
-        let l2_provider = rpc_provider::<Optimism>(
-            self.l2_node_address
-                .as_ref()
-                .ok_or(SingleChainHostError::Other("L2 node address must be set"))?,
-        )
-        .await;
+        let l2_rpc_client = if let Some(client) = &self.l2_rpc_client {
+            client.clone()
+        } else if let Some(url) = &self.l2_node_address {
+            RpcClient::builder()
+                .connect(url)
+                .await
+                .map_err(|_| SingleChainHostError::Other("Failed to connect to L2 RPC endpoint"))?
+        } else {
+            return Err(SingleChainHostError::Other("L2 node address must be set"))
+        };
+        let l2_provider = RootProvider::new(l2_rpc_client);
 
         Ok(SingleChainProviders { l1: l1_provider, blobs: blob_provider, l2: l2_provider })
     }
