@@ -49,6 +49,7 @@ pub async fn run_test_fixture(fixture_path: PathBuf) {
         provider,
         NoopTrieHinter,
         fixture.parent_header.seal_slow(),
+        None::<()>,
     );
 
     let outcome = executor.build_block(fixture.executing_payload).unwrap();
@@ -185,6 +186,7 @@ impl ExecutorTestFixtureCreator {
             self,
             NoopTrieHinter,
             parent_header,
+            None::<()>,
         );
         let outcome = executor.build_block(payload_attrs).expect("Failed to execute block");
 

@@ -550,6 +550,7 @@ impl HintHandler for InteropHintHandler {
                             l2_provider,
                             OpEvmFactory::default(),
                             None,
+                            None::<()>,
                         );
                         let mut driver = Driver::new(cursor, executor, pipeline);
 

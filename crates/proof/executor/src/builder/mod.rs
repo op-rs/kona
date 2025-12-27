@@ -1,7 +1,7 @@
 //! Stateless OP Stack block builder implementation.
 
 mod core;
-pub use core::{BlockBuildingOutcome, StatelessL2Builder};
+pub use core::{BlockBuildingOutcome, InspectorFactory, StatelessL2Builder};
 
 mod assemble;
 pub use assemble::compute_receipts_root;

@@ -213,6 +213,7 @@ impl SingleChainHost {
         let client_task = task::spawn(kona_client::single::run(
             OracleReader::new(preimage.client),
             HintWriter::new(hint.client),
+            None::<()>,
         ));
 
         let (_, client_result) = tokio::try_join!(server_task, client_task)?;
