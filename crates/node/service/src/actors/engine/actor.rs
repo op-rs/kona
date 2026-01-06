@@ -16,9 +16,10 @@ use kona_engine::{
     SealTask,
 };
 use kona_genesis::RollupConfig;
-use kona_protocol::L2BlockInfo;
+use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use kona_rpc::RollupBoostAdminQuery;
 use op_alloy_network::Optimism;
+use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{fmt::Debug, sync::Arc, time::Duration};
 use tokio::{
     sync::{mpsc, oneshot, watch},
@@ -186,9 +187,21 @@ impl EngineActor {
     }
 }
 
+/// A request to process engine tasks.
+#[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
+enum EngineProcessingRequest {
+    Build(BuildRequest),
+    ProcessDerivedL2Attributes(OpAttributesWithParent),
+    ProcessFinalizedL1Block(BlockInfo),
+    ProcessUnsafeL2Block(OpExecutionPayloadEnvelope),
+    Reset(ResetRequest),
+    Seal(SealRequest),
+}
+
 impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
     /// Starts a task to handle engine queries.
-    fn start_query_task(
+    fn start_rpc_handling_task(
         &self,
         mut inbound_rpc_channel: mpsc::Receiver<EngineRpcRequest>,
         rollup_boost: Arc<RollupBoostServer>,
@@ -243,6 +256,124 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
                             },
 
                         }
+                    }
+                }
+            }
+        })
+    }
+
+    /// Starts a task to handle engine processing requests.
+    fn start_engine_processing_task(
+        mut self,
+        mut inbound_processing_channel: mpsc::Receiver<EngineProcessingRequest>,
+        derivation_signal_tx: mpsc::Sender<Signal>,
+        engine_l2_safe_head_tx: watch::Sender<L2BlockInfo>,
+        mut sync_complete_tx: Option<oneshot::Sender<()>>,
+        mut finalizer: L2Finalizer,
+        unsafe_head_tx: Option<watch::Sender<L2BlockInfo>>,
+    ) -> JoinHandle<Result<(), EngineError>> {
+        tokio::spawn(async move {
+            loop {
+                // Attempt to drain all outstanding tasks from the engine queue before adding new
+                // ones.
+                let drain_result = self
+                    .drain(
+                        &derivation_signal_tx,
+                        &mut sync_complete_tx,
+                        &engine_l2_safe_head_tx,
+                        &mut finalizer,
+                    )
+                    .await;
+
+                if let Err(err) = drain_result {
+                    error!(target: "engine", ?err, "Failed to drain engine tasks");
+                    return Err(err);
+                }
+
+                // If the unsafe head has updated, propagate it to the outbound channels.
+                if let Some(unsafe_head_tx) = unsafe_head_tx.as_ref() {
+                    unsafe_head_tx.send_if_modified(|val| {
+                        let new_head = self.engine.state().sync_state.unsafe_head();
+                        (*val != new_head).then(|| *val = new_head).is_some()
+                    });
+                }
+
+                // Wait for the next processing request.
+                let Some(request) = inbound_processing_channel.recv().await else {
+                    error!(target: "engine", "Engine processing request receiver closed unexpectedly");
+                    return Err(EngineError::ChannelClosed);
+                };
+
+                match request {
+                    EngineProcessingRequest::Build(BuildRequest { attributes, result_tx }) => {
+                        let task = EngineTask::Build(Box::new(BuildTask::new(
+                            self.client.clone(),
+                            self.rollup.clone(),
+                            attributes,
+                            Some(result_tx),
+                        )));
+                        self.engine.enqueue(task);
+                    }
+                    EngineProcessingRequest::ProcessDerivedL2Attributes(attributes) => {
+                        finalizer.enqueue_for_finalization(&attributes);
+
+                        let task = EngineTask::Consolidate(Box::new(ConsolidateTask::new(
+                            self.client.clone(),
+                            self.rollup.clone(),
+                            attributes,
+                            true,
+                        )));
+                        self.engine.enqueue(task);
+                    }
+                    EngineProcessingRequest::ProcessFinalizedL1Block(finalized_l1_block) => {
+                        // Attempt to finalize any L2 blocks that are contained within the finalized
+                        // L1 chain.
+                        finalizer.try_finalize_next(&mut self, finalized_l1_block).await;
+                    }
+                    EngineProcessingRequest::ProcessUnsafeL2Block(envelope) => {
+                        let task = EngineTask::Insert(Box::new(InsertTask::new(
+                            self.client.clone(),
+                            self.rollup.clone(),
+                            envelope,
+                            false, /* The payload is not derived in this case. This is an unsafe
+                                    * block. */
+                        )));
+                        self.engine.enqueue(task);
+                    }
+                    EngineProcessingRequest::Reset(ResetRequest { result_tx }) => {
+                        warn!(target: "engine", "Received reset request");
+
+                        let reset_res = self
+                            .reset(&derivation_signal_tx, &engine_l2_safe_head_tx, &mut finalizer)
+                            .await;
+
+                        // Send the result if there is a channel on which to do so.
+                        if let Some(tx) = result_tx {
+                            let response_payload = reset_res.as_ref().map(|_| ()).map_err(|e| {
+                                EngineClientError::ResetForkchoiceError(e.to_string())
+                            });
+                            if tx.send(response_payload).await.is_err() {
+                                warn!(target: "engine", "Sending reset response failed");
+                            }
+                        }
+
+                        reset_res?;
+                    }
+                    EngineProcessingRequest::Seal(SealRequest {
+                        payload_id,
+                        attributes,
+                        result_tx,
+                    }) => {
+                        let task = EngineTask::Seal(Box::new(SealTask::new(
+                            self.client.clone(),
+                            self.rollup.clone(),
+                            payload_id,
+                            attributes,
+                            // The payload is not derived in this case.
+                            false,
+                            Some(result_tx),
+                        )));
+                        self.engine.enqueue(task);
                     }
                 }
             }
@@ -397,165 +528,114 @@ impl NodeActor for EngineActor {
             derivation_signal_tx,
         }: Self::StartData,
     ) -> Result<(), Self::Error> {
-        let mut state = self.builder.build_state()?;
+        let state = self.builder.build_state()?;
 
+        // All requests to the engine are sent to one of two tasks: RPC handling and Engine
+        // processing.
         let (rpc_tx, rpc_rx) = mpsc::channel(1024);
+        let (engine_processing_tx, engine_processing_rx) = mpsc::channel(1024);
 
-        // Start the engine query server in a separate task to avoid blocking the main task.
-        let handle = state
-            .start_query_task(rpc_rx, state.client.rollup_boost.clone())
-            .with_cancellation_token(&cancellation)
-            .then(async |result| {
-                cancellation.cancel();
+        // Helper to DRY task completion handling for RPC & Processing tasks.
+        let handle_task_result = |task_name: &'static str, cancel_token: CancellationToken| {
+            move |result: Option<Result<Result<(), EngineError>, tokio::task::JoinError>>| async move {
+                cancel_token.cancel();
 
                 let Some(result) = result else {
-                    warn!(target: "engine", "Engine query task cancelled");
+                    warn!(target: "engine", "{} task cancelled", task_name);
                     return Ok(());
                 };
 
                 let Ok(result) = result else {
-                    error!(target: "engine", ?result, "Engine query task panicked");
+                    error!(target: "engine", ?result, "{} task panicked", task_name);
                     return Err(EngineError::ChannelClosed);
                 };
 
                 match result {
                     Ok(()) => {
-                        info!(target: "engine", "Engine query task completed successfully");
+                        info!(target: "engine", "{} task completed successfully", task_name);
                         Ok(())
                     }
                     Err(err) => {
-                        error!(target: "engine", ?err, "Engine query task failed");
+                        error!(target: "engine", ?err, "{} task failed", task_name);
                         Err(err)
                     }
                 }
-            });
+            }
+        };
 
-        // The sync complete tx is consumed after the first successful send. Hence we need to wrap
-        // it in an `Option` to ensure we satisfy the borrow checker.
-        let mut sync_complete_tx = Some(sync_complete_tx);
+        // Start the engine query server in a separate task to avoid blocking the main task.
+        let rpc_handle = state
+            .start_rpc_handling_task(rpc_rx, state.client.rollup_boost.clone())
+            .with_cancellation_token(&cancellation)
+            .then(handle_task_result("Engine query", cancellation.clone()));
+
+        // Start the engine processing task.
+        let processing_handle = state
+            .start_engine_processing_task(
+                engine_processing_rx,
+                derivation_signal_tx,
+                engine_l2_safe_head_tx,
+                Some(sync_complete_tx),
+                self.finalizer,
+                self.unsafe_head_tx,
+            )
+            .with_cancellation_token(&cancellation)
+            .then(handle_task_result("Engine processing", cancellation.clone()));
+
+        // Helper to send processing requests with error handling.
+        let send_engine_processing_request = |req: EngineProcessingRequest| async {
+            engine_processing_tx.send(req).await.map_err(|_| {
+                error!(target: "engine", "Engine processing channel closed unexpectedly");
+                cancellation.cancel();
+                EngineError::ChannelClosed
+            })
+        };
 
         loop {
             tokio::select! {
                 _ = cancellation.cancelled() => {
-                    warn!(target: "engine", "EngineActor received shutdown signal. Aborting engine query task.");
+                    warn!(target: "engine", "EngineActor received shutdown signal. Awaiting task completion.");
 
-                    handle.await?;
-
-                    return Ok(());
-                },
-
-                drain_result = // Attempt to drain all outstanding tasks from the engine queue before adding new ones.
-                    state
-                        .drain(
-                            &derivation_signal_tx,
-                            &mut sync_complete_tx,
-                            &engine_l2_safe_head_tx,
-                            &mut self.finalizer,
-                        )
-                         => {
-                        if let Err(err) = drain_result {
-                            error!(target: "engine", ?err, "Failed to drain engine tasks");
-                            cancellation.cancel();
-                            return Err(err);
-                        }
-
-                        // If the unsafe head has updated, propagate it to the outbound channels.
-                        if let Some(unsafe_head_tx) = self.unsafe_head_tx.as_mut() {
-                            unsafe_head_tx.send_if_modified(|val| {
-                                let new_head = state.engine.state().sync_state.unsafe_head();
-                                (*val != new_head).then(|| *val = new_head).is_some()
-                            });
-                        }
-                }
-            }
-
-            tokio::select! {
-                biased;
-
-                _ = cancellation.cancelled() => {
-                    warn!(target: "engine", "EngineActor received shutdown signal. Aborting engine query task.");
+                    rpc_handle.await?;
+                    processing_handle.await?;
 
                     return Ok(());
                 }
 
                 req = self.inbound_request_rx.recv() => {
-                    let Some(request_type) = req else {
+                    let Some(request) = req else {
                         error!(target: "engine", "Engine inbound request receiver closed unexpectedly");
                         cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
                     };
 
-                    match request_type {
-                        EngineActorRequest::BuildRequest(BuildRequest{attributes, result_tx}) => {
-                            let task = EngineTask::Build(Box::new(BuildTask::new(
-                                state.client.clone(),
-                                state.rollup.clone(),
-                                attributes,
-                                Some(result_tx),
-                            )));
-                            state.engine.enqueue(task);
-                        },
-                        EngineActorRequest::ProcessDerivedL2AttributesRequest(attributes) => {
-                            self.finalizer.enqueue_for_finalization(&attributes);
-
-                            let task = EngineTask::Consolidate(Box::new(ConsolidateTask::new(
-                                state.client.clone(),
-                                state.rollup.clone(),
-                                attributes,
-                                true,
-                            )));
-                            state.engine.enqueue(task);
-                        },
-                        EngineActorRequest::ProcessFinalizedL1BlockRequest(finalized_l1_block) => {
-                            // Attempt to finalize any L2 blocks that are contained within the finalized L1
-                            // chain.
-                            self.finalizer.try_finalize_next(&mut state, finalized_l1_block).await;
-                        },
-                        EngineActorRequest::ProcessUnsafeL2BlockRequest(envelope) => {
-                            let task = EngineTask::Insert(Box::new(InsertTask::new(
-                                state.client.clone(),
-                                state.rollup.clone(),
-                                envelope,
-                                false, // The payload is not derived in this case. This is an unsafe block.
-                            )));
-                            state.engine.enqueue(task);
-                        },
-                        EngineActorRequest::ResetRequest(ResetRequest{result_tx}) => {
-                            warn!(target: "engine", "Received reset request");
-
-                            let reset_res = state
-                                .reset(&derivation_signal_tx, &engine_l2_safe_head_tx, &mut self.finalizer)
-                                .await;
-
-                            // Send the result if there is a channel on which to do so.
-                            if let Some(tx) = result_tx {
-                                let response_payload = reset_res.as_ref().map(|_| ()).map_err(|e| EngineClientError::ResetForkchoiceError(e.to_string()));
-                                if tx.send(response_payload).await.is_err() {
-                                    warn!(target: "engine", "Sending reset response failed");
-                                }
-                            }
-
-                            reset_res?;
-                        },
-                        EngineActorRequest::RpcRequest(req) => {
-                            let _ = rpc_tx.send(req).await.map_err(|_| {
+                    // Route the request to the appropriate channel.
+                    match request {
+                        EngineActorRequest::RpcRequest(rpc_req) => {
+                            rpc_tx.send(rpc_req).await.map_err(|_| {
                                 error!(target: "engine", "Engine RPC request handler channel closed unexpectedly");
                                 cancellation.cancel();
                                 EngineError::ChannelClosed
                             })?;
-                        },
-                        EngineActorRequest::SealRequest(SealRequest{payload_id, attributes, result_tx}) => {
-                            let task = EngineTask::Seal(Box::new(SealTask::new(
-                                state.client.clone(),
-                                state.rollup.clone(),
-                                payload_id,
-                                attributes,
-                                // The payload is not derived in this case.
-                                false,
-                                Some(result_tx),
-                            )));
-                            state.engine.enqueue(task);
-                        },
+                        }
+                        EngineActorRequest::BuildRequest(build_req) => {
+                            send_engine_processing_request(EngineProcessingRequest::Build(build_req)).await?;
+                        }
+                        EngineActorRequest::ProcessDerivedL2AttributesRequest(attributes) => {
+                            send_engine_processing_request(EngineProcessingRequest::ProcessDerivedL2Attributes(attributes)).await?;
+                        }
+                        EngineActorRequest::ProcessFinalizedL1BlockRequest(block) => {
+                            send_engine_processing_request(EngineProcessingRequest::ProcessFinalizedL1Block(block)).await?;
+                        }
+                        EngineActorRequest::ProcessUnsafeL2BlockRequest(envelope) => {
+                            send_engine_processing_request(EngineProcessingRequest::ProcessUnsafeL2Block(envelope)).await?;
+                        }
+                        EngineActorRequest::ResetRequest(reset_req) => {
+                            send_engine_processing_request(EngineProcessingRequest::Reset(reset_req)).await?;
+                        }
+                        EngineActorRequest::SealRequest(seal_req) => {
+                            send_engine_processing_request(EngineProcessingRequest::Seal(seal_req)).await?;
+                        }
                     }
                 }
             }
