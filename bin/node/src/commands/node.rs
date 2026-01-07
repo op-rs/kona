@@ -251,7 +251,7 @@ impl NodeCommand {
                         error!(
                             "Ensure that the JWT secret file specified is correct (by default it is `jwt.hex` in the current directory)"
                         );
-                        return Err(JwtValidationError::InvalidSignature.into())
+                        return Err(JwtValidationError::InvalidSignature.into());
                     }
                     Err(JwtValidationError::CapabilityExchange(e.to_string()).into())
                 }
