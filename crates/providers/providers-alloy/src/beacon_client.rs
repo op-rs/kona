@@ -224,7 +224,7 @@ impl BeaconClient for OnlineBeaconClient {
             kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_ERRORS, "method" => "genesis");
         }
 
-        result.map_err(|err| BeaconClientError::Http(err))
+        Ok(result?)
     }
 
     async fn filtered_beacon_blobs(
