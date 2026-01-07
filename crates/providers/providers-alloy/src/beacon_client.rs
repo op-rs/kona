@@ -87,9 +87,9 @@ pub trait BeaconClient {
     ) -> Result<Vec<BoxedBlobWithIndex>, Self::Error>;
 }
 
-/// [`blob_versioned_hash`] computes the versioned hash of a blob.
-pub const BLOB_SIZE: usize = 131072
+const BLOB_SIZE: usize = 131072;
 
+/// [`blob_versioned_hash`] computes the versioned hash of a blob.
 fn blob_versioned_hash(blob: &FixedBytes<BLOB_SIZE>) -> B256 {
     let kzg_settings = EnvKzgSettings::Default;
     let kzg_blob = Blob::new(blob.0);
