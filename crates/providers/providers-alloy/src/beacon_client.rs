@@ -87,8 +87,10 @@ pub trait BeaconClient {
     ) -> Result<Vec<BoxedBlobWithIndex>, Self::Error>;
 }
 
-/// blob_versioned_hash computes the versioned hash of a blob.
-fn blob_versioned_hash(blob: &FixedBytes<131072>) -> B256 {
+/// [`blob_versioned_hash`] computes the versioned hash of a blob.
+pub const BLOB_SIZE: usize = 131072
+
+fn blob_versioned_hash(blob: &FixedBytes<BLOB_SIZE>) -> B256 {
     let kzg_settings = EnvKzgSettings::Default;
     let kzg_blob = Blob::new(blob.0);
     let commitment =
@@ -141,7 +143,7 @@ impl OnlineBeaconClient {
     }
 
     /// Fetches only the blobs corresponding to the provided (versioned) blob hashes
-    /// from the beacon /eth/v1/beacon/blobs endpoint.
+    /// from the beacon [`BLOBS_METHOD_PREFIX`] endpoint.
     /// Blobs are validated against the supplied versioned hashes
     /// and returned in the same order as the input.
     async fn filtered_beacon_blobs(
