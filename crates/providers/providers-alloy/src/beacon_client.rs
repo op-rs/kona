@@ -100,11 +100,14 @@ fn blob_versioned_hash(blob: &FixedBytes<BLOB_SIZE>) -> B256 {
 
 use thiserror::Error;
 
+/// An error that can occur when interacting with the beacon client.
 #[derive(Error, Debug)]
 pub enum BeaconClientError {
+    /// HTTP request failed.
     #[error("HTTP request failed: {0}")]
     Http(#[from] reqwest::Error),
 
+    /// Blob hash not found in beacon response.
     #[error("Blob hash not found in beacon response {0}")]
     BlobNotFound(String),
 }
