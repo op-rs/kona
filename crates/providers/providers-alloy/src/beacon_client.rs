@@ -10,6 +10,7 @@ use async_trait::async_trait;
 use c_kzg::Blob;
 use reqwest::Client;
 use std::{boxed::Box, format, string::String, vec::Vec};
+use thiserror::Error;
 
 /// The config spec engine api method.
 const SPEC_METHOD: &str = "eth/v1/config/spec";
@@ -97,8 +98,6 @@ fn blob_versioned_hash(blob: &FixedBytes<BLOB_SIZE>) -> B256 {
         kzg_settings.get().blob_to_kzg_commitment(&kzg_blob).map(|blob| blob.to_bytes()).unwrap();
     kzg_to_versioned_hash(commitment.as_slice())
 }
-
-use thiserror::Error;
 
 /// An error that can occur when interacting with the beacon client.
 #[derive(Error, Debug)]
@@ -209,7 +208,7 @@ impl BeaconClient for OnlineBeaconClient {
             kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_ERRORS, "method" => "spec");
         }
 
-        result.map_err(|err| BeaconClientError::Http(err))
+        Ok(result?)
     }
 
     async fn genesis_time(&self) -> Result<APIGenesisResponse, Self::Error> {
