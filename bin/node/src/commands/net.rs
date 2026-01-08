@@ -71,9 +71,9 @@ impl NetCommand {
         self.p2p.check_ports()?;
         let p2p_config = self.p2p.config(rollup_config, args, self.l1_eth_rpc).await?;
 
-        let (blocks, mut blocks_rx) = mpsc::channel(1024);
+        let (block_tx, mut block_rx) = mpsc::channel(1024);
         let (NetworkInboundData { p2p_rpc: rpc, .. }, network) = NetworkActor::new(
-            ForwardingNetworkEngineClient { block_tx: blocks },
+            ForwardingNetworkEngineClient { block_tx },
             CancellationToken::new(),
             NetworkBuilder::from(p2p_config),
         );
@@ -101,7 +101,7 @@ impl NetCommand {
 
         loop {
             tokio::select! {
-                Some(payload) = blocks_rx.recv() => {
+                Some(payload) = block_rx.recv() => {
                     info!(target: "net", "Received unsafe payload: {:?}", payload.execution_payload.block_hash());
                 }
                 _ = interval.tick(), if !rpc.is_closed() => {
