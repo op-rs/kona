@@ -3,10 +3,7 @@
 #[cfg(feature = "metrics")]
 use crate::Metrics;
 use crate::blobs::BoxedBlobWithIndex;
-use alloy_eips::eip4844::{
-    IndexedBlobHash, env_settings::EnvKzgSettings, kzg_to_versioned_hash,
-    trusted_setup_points::KzgErrors,
-};
+use alloy_eips::eip4844::{IndexedBlobHash, env_settings::EnvKzgSettings, kzg_to_versioned_hash};
 use alloy_primitives::{B256, FixedBytes};
 use alloy_rpc_types_beacon::sidecar::GetBlobsResponse;
 use async_trait::async_trait;
