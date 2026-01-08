@@ -44,7 +44,7 @@ use crate::{
 /// // let actor = NetworkActor::new(driver);
 /// ```
 #[derive(Debug)]
-pub struct NetworkActor<E: NetworkEngineClient> {
+pub struct NetworkActor<NetworkEngineClient_: NetworkEngineClient> {
     /// Network driver
     pub(super) builder: NetworkBuilder,
     /// The cancellation token, shared between all tasks.
@@ -58,7 +58,7 @@ pub struct NetworkActor<E: NetworkEngineClient> {
     /// A channel to receive unsafe blocks and send them through the gossip layer.
     pub(super) publish_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
     /// A channel to use to interact with the engine actor.
-    pub(super) engine_client: E,
+    pub(super) engine_client: NetworkEngineClient_,
 }
 
 /// The inbound data for the network actor.
@@ -76,10 +76,10 @@ pub struct NetworkInboundData {
     pub gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
 }
 
-impl<E: NetworkEngineClient> NetworkActor<E> {
+impl<NetworkEngineClient_: NetworkEngineClient> NetworkActor<NetworkEngineClient_> {
     /// Constructs a new [`NetworkActor`] given the [`NetworkBuilder`]
     pub fn new(
-        engine_client: E,
+        engine_client: NetworkEngineClient_,
         cancellation_token: CancellationToken,
         driver: NetworkBuilder,
     ) -> (NetworkInboundData, Self) {
@@ -139,7 +139,9 @@ pub enum NetworkActorError {
 }
 
 #[async_trait]
-impl<E: NetworkEngineClient + 'static> NodeActor for NetworkActor<E> {
+impl<NetworkEngineClient_: NetworkEngineClient + 'static> NodeActor
+    for NetworkActor<NetworkEngineClient_>
+{
     type Error = NetworkActorError;
     type StartData = ();
 

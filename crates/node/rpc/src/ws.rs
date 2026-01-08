@@ -25,7 +25,7 @@ impl<EngineRpcClient_: EngineRpcClient> WsRPC<EngineRpcClient_> {
     async fn engine_state_watcher(
         &self,
     ) -> Result<tokio::sync::watch::Receiver<EngineState>, jsonrpsee::core::SubscriptionError> {
-        self.engine_client.dev_subscribe_to_engine_state().await.map_err(|_| jsonrpsee::core::SubscriptionError::from("Internal error. Failed to receive engine state receiver query. The engine query handler is likely closed."))
+        self.engine_client.dev_subscribe_to_engine_state().await.map_err(|_| jsonrpsee::core::SubscriptionError::from("Internal error. Failed to subscribe to engine state updates. The engine query handler is likely closed."))
     }
 
     async fn send_state_update(
