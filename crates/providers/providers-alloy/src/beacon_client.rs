@@ -164,30 +164,29 @@ impl OnlineBeaconClient {
             .send()
             .await?
             .error_for_status()?;
-
         let bundle = response.json::<GetBlobsResponse>().await?;
 
-        // Map blobs into versioned hashes for validation and
-        // matching against input:
-        let response_blob_hashes = bundle
+        let bundle_with_hashes = bundle
             .data
             .iter()
-            .map(blob_versioned_hash)
+            .map(|data| -> Result<_, BeaconClientError> {
+                let recomputed_hash = blob_versioned_hash(data)?;
+                Ok((data, recomputed_hash))
+            })
             .collect::<Result<Vec<_>, BeaconClientError>>()?;
 
-        // Map the input into the output, finding the blob from the response
+        // Map the input (blob_hashes) into the output,
+        // finding the blob from the response
         // whose hash matches the input:
         blob_hashes
             .iter()
             .map(|blob_hash| -> Result<BoxedBlobWithIndex, BeaconClientError> {
-                let idx = response_blob_hashes
+                let (_, (matching_data, _)) = bundle_with_hashes
                     .iter()
-                    .position(|response_blob_hash| *response_blob_hash == blob_hash.hash)
+                    .enumerate()
+                    .find(|(_, (_, recomputed_hash))| *recomputed_hash == blob_hash.hash)
                     .ok_or(BeaconClientError::BlobNotFound(blob_hash.hash.to_string()))?;
-                Ok(BoxedBlobWithIndex {
-                    blob: Box::new(*bundle.data.get(idx).unwrap()),
-                    index: blob_hash.index,
-                })
+                Ok(BoxedBlobWithIndex { blob: Box::new(**matching_data), index: blob_hash.index })
             })
             .collect::<Result<Vec<_>, BeaconClientError>>()
     }
