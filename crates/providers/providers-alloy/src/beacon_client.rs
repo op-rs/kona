@@ -9,7 +9,7 @@ use alloy_rpc_types_beacon::sidecar::GetBlobsResponse;
 use async_trait::async_trait;
 use c_kzg::Blob;
 use reqwest::Client;
-use std::{boxed::Box, format, string::String, vec::Vec};
+use std::{boxed::Box, collections::HashMap, format, string::String, vec::Vec};
 use thiserror::Error;
 
 /// The config spec engine api method.
@@ -166,14 +166,14 @@ impl OnlineBeaconClient {
             .error_for_status()?;
         let bundle = response.json::<GetBlobsResponse>().await?;
 
-        let bundle_with_hashes = bundle
+        let returned_blobs_mapped_by_hash = bundle
             .data
             .iter()
             .map(|data| -> Result<_, BeaconClientError> {
                 let recomputed_hash = blob_versioned_hash(data)?;
-                Ok((data, recomputed_hash))
+                Ok((recomputed_hash, data))
             })
-            .collect::<Result<Vec<_>, BeaconClientError>>()?;
+            .collect::<Result<HashMap<_, _>, BeaconClientError>>()?;
 
         // Map the input (blob_hashes) into the output,
         // finding the blob from the response
@@ -181,10 +181,8 @@ impl OnlineBeaconClient {
         blob_hashes
             .iter()
             .map(|blob_hash| -> Result<BoxedBlobWithIndex, BeaconClientError> {
-                let (_, (matching_data, _)) = bundle_with_hashes
-                    .iter()
-                    .enumerate()
-                    .find(|(_, (_, recomputed_hash))| *recomputed_hash == blob_hash.hash)
+                let matching_data = returned_blobs_mapped_by_hash
+                    .get(&blob_hash.hash)
                     .ok_or(BeaconClientError::BlobNotFound(blob_hash.hash.to_string()))?;
                 Ok(BoxedBlobWithIndex { blob: Box::new(**matching_data), index: blob_hash.index })
             })
