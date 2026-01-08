@@ -3,7 +3,10 @@
 #[cfg(feature = "metrics")]
 use crate::Metrics;
 use crate::blobs::BoxedBlobWithIndex;
-use alloy_eips::eip4844::{IndexedBlobHash, env_settings::EnvKzgSettings, kzg_to_versioned_hash};
+use alloy_eips::eip4844::{
+    IndexedBlobHash, env_settings::EnvKzgSettings, kzg_to_versioned_hash,
+    trusted_setup_points::KzgErrors,
+};
 use alloy_primitives::{B256, FixedBytes};
 use alloy_rpc_types_beacon::sidecar::GetBlobsResponse;
 use async_trait::async_trait;
@@ -91,12 +94,11 @@ pub trait BeaconClient {
 const BLOB_SIZE: usize = 131072;
 
 /// [`blob_versioned_hash`] computes the versioned hash of a blob.
-fn blob_versioned_hash(blob: &FixedBytes<BLOB_SIZE>) -> B256 {
+fn blob_versioned_hash(blob: &FixedBytes<BLOB_SIZE>) -> Result<B256, BeaconClientError> {
     let kzg_settings = EnvKzgSettings::Default;
     let kzg_blob = Blob::new(blob.0);
-    let commitment =
-        kzg_settings.get().blob_to_kzg_commitment(&kzg_blob).map(|blob| blob.to_bytes()).unwrap();
-    kzg_to_versioned_hash(commitment.as_slice())
+    let commitment = kzg_settings.get().blob_to_kzg_commitment(&kzg_blob)?;
+    Ok(kzg_to_versioned_hash(commitment.as_slice()))
 }
 
 /// An error that can occur when interacting with the beacon client.
@@ -109,6 +111,10 @@ pub enum BeaconClientError {
     /// Blob hash not found in beacon response.
     #[error("Blob hash not found in beacon response {0}")]
     BlobNotFound(String),
+
+    /// KZG error.
+    #[error("KZG error: {0}")]
+    KZG(#[from] c_kzg::Error),
 }
 
 /// An online implementation of the [BeaconClient] trait.
@@ -166,7 +172,11 @@ impl OnlineBeaconClient {
 
         // Map blobs into versioned hashes for validation and
         // matching against input:
-        let response_blob_hashes = bundle.data.iter().map(blob_versioned_hash).collect::<Vec<_>>();
+        let response_blob_hashes = bundle
+            .data
+            .iter()
+            .map(blob_versioned_hash)
+            .collect::<Result<Vec<_>, BeaconClientError>>()?;
 
         // Map the input into the output, finding the blob from the response
         // whose hash matches the input:
@@ -260,7 +270,7 @@ mod tests {
             "0x016c357b8b3a6b3fd82386e7bebf77143d537cdb1c856509661c412602306a04",
         )
         .unwrap();
-        assert_eq!(want, blob_versioned_hash(&input));
+        assert_eq!(want, blob_versioned_hash(&input).unwrap());
     }
 
     #[tokio::test]
