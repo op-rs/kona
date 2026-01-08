@@ -36,13 +36,20 @@ impl L2Finalizer {
     /// Enqueues a derived [`OpAttributesWithParent`] for finalization. When a new finalized L1
     /// block is observed that is `>=` the height of [`OpAttributesWithParent::derived_from`], the
     /// L2 block associated with the payload attributes will be finalized.
+    ///
+    /// If the attributes were not derived (i.e., `derived_from` is `None`), they are not enqueued.
     pub fn enqueue_for_finalization(&mut self, attributes: &OpAttributesWithParent) {
+        let Some(derived_from) = attributes.derived_from else {
+            tracing::warn!(
+                target: "engine",
+                block_number = attributes.block_number(),
+                "Skipping finalization enqueue for attributes without derivation origin"
+            );
+            return;
+        };
+
         self.awaiting_finalization
-            .entry(
-                attributes.derived_from.map(|b| b.number).expect(
-                    "Fatal: Cannot enqueue attributes for finalization that weren't derived",
-                ),
-            )
+            .entry(derived_from.number)
             .and_modify(|n| *n = (*n).max(attributes.block_number()))
             .or_insert(attributes.block_number());
     }

@@ -176,11 +176,17 @@ impl BootStore {
     /// Returns all available bootstores for the given data directory.
     pub fn available(datadir: Option<PathBuf>) -> Vec<u64> {
         let mut bootstores = Vec::new();
-        let path = datadir.unwrap_or_else(|| {
-            let mut home = dirs::home_dir().expect("Failed to get home directory");
-            home.push(".kona");
-            home
-        });
+        let path = match datadir {
+            Some(p) => p,
+            None => {
+                let Some(mut home) = dirs::home_dir() else {
+                    tracing::warn!(target: "peers", "Failed to get home directory, returning empty bootstore list");
+                    return bootstores;
+                };
+                home.push(".kona");
+                home
+            }
+        };
         if let Ok(entries) = std::fs::read_dir(path) {
             for entry in entries.flatten() {
                 if let Ok(chain_id) = entry.file_name().to_string_lossy().parse::<u64>() {

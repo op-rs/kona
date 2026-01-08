@@ -1,6 +1,6 @@
 //! Contains the [`BootNode`] type which is used to represent a boot node in the network.
 
-use crate::{NodeRecord, enr_to_multiaddr};
+use crate::{NodeRecord, NodeRecordParseError, enr_to_multiaddr};
 use derive_more::{Display, From};
 use discv5::{
     Enr,
@@ -10,6 +10,20 @@ use serde::{Deserialize, Serialize};
 use std::{net::IpAddr, str::FromStr};
 
 use super::utils::{PeerIdConversionError, local_id_to_p2p_id};
+
+/// An error that can occur when parsing a bootnode.
+#[derive(Debug, thiserror::Error)]
+pub enum BootNodeParseError {
+    /// Failed to parse ENR record.
+    #[error("failed to parse ENR record: {0}")]
+    EnrParse(String),
+    /// Failed to parse node record.
+    #[error("failed to parse node record: {0}")]
+    NodeRecordParse(#[from] NodeRecordParseError),
+    /// Failed to convert peer ID.
+    #[error("failed to convert peer ID: {0}")]
+    PeerIdConversion(#[from] PeerIdConversionError),
+}
 
 /// A boot node can be added either as a string in either 'enode' URL scheme or serialized from
 /// [`Enr`] type.
@@ -50,15 +64,21 @@ impl BootNode {
     }
 
     /// Helper method to parse a bootnode from a string.
-    pub fn parse_bootnode(raw: &str) -> Self {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the bootnode string cannot be parsed as either an ENR or enode record.
+    pub fn parse_bootnode(raw: &str) -> Result<Self, BootNodeParseError> {
         // If the string starts with "enr:" it is an ENR record.
         if raw.starts_with("enr:") {
-            let enr = Enr::from_str(raw).unwrap();
-            return Self::from(enr);
+            #[allow(clippy::redundant_clone)]
+            let enr =
+                Enr::from_str(raw).map_err(|e| BootNodeParseError::EnrParse(e.to_string()))?;
+            return Ok(Self::from(enr));
         }
         // Otherwise, attempt to use the Node Record format.
-        let record = NodeRecord::from_str(raw).unwrap();
-        Self::from_unsigned(record).unwrap()
+        let record = NodeRecord::from_str(raw)?;
+        Ok(Self::from_unsigned(record)?)
     }
 }
 
