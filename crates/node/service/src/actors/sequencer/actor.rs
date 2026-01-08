@@ -11,6 +11,7 @@ use crate::{
             metrics::{
                 update_attributes_build_duration_metrics, update_block_build_duration_metrics,
                 update_conductor_commitment_duration_metrics, update_seal_duration_metrics,
+                update_total_transactions_sequenced,
             },
             origin_selector::OriginSelector,
         },
@@ -150,6 +151,10 @@ where
             .await?;
 
         update_seal_duration_metrics(seal_request_start.elapsed());
+
+        let payload_transaction_count =
+            unsealed_payload_handle.attributes_with_parent.count_transactions();
+        update_total_transactions_sequenced(payload_transaction_count);
 
         // If the conductor is available, commit the payload to it.
         if let Some(conductor) = &self.conductor {
