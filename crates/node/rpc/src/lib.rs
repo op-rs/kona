@@ -15,7 +15,6 @@ pub use admin::{AdminRpc, NetworkAdminQuery, RollupBoostAdminQuery};
 mod client;
 pub use client::{
     EngineRpcClient, RollupBoostAdminClient, SequencerAdminAPIClient, SequencerAdminAPIError,
-    StopSequencerError,
 };
 
 mod config;

@@ -23,8 +23,10 @@ impl RollupBoostHealthzApiServer for RollupBoostHealthRpcClient {
         let (health_tx, health_rx) = oneshot::channel();
 
         self.engine_actor_request_tx
-            .send(EngineActorRequest::RpcRequest(EngineRpcRequest::RollupBoostHealthRequest(
-                kona_rpc::RollupBoostHealthQuery { sender: health_tx },
+            .send(EngineActorRequest::RpcRequest(Box::new(
+                EngineRpcRequest::RollupBoostHealthRequest(kona_rpc::RollupBoostHealthQuery {
+                    sender: health_tx,
+                }),
             )))
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
@@ -43,50 +45,49 @@ pub struct RollupBoostAdminApiClient {
     pub engine_actor_request_tx: mpsc::Sender<EngineActorRequest>,
 }
 
+#[async_trait]
 impl RollupBoostAdminClient for RollupBoostAdminApiClient {
-    fn set_execution_mode(
+    async fn set_execution_mode(
         &self,
         request: SetExecutionModeRequest,
-    ) -> impl Future<Output = RpcResult<SetExecutionModeResponse>> + Send {
+    ) -> RpcResult<SetExecutionModeResponse> {
         let engine_actor_request_tx = self.engine_actor_request_tx.clone();
-        async move {
-            let (mode_tx, mode_rx) = oneshot::channel();
+        let (mode_tx, mode_rx) = oneshot::channel();
 
-            engine_actor_request_tx
-                .send(EngineActorRequest::RpcRequest(EngineRpcRequest::RollupBoostAdminRequest(
+        engine_actor_request_tx
+            .send(EngineActorRequest::RpcRequest(Box::new(
+                EngineRpcRequest::RollupBoostAdminRequest(
                     kona_rpc::RollupBoostAdminQuery::SetExecutionMode {
                         execution_mode: request.execution_mode,
                         sender: mode_tx,
                     },
-                )))
-                .await
-                .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+                ),
+            )))
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
 
-            mode_rx
-                .await
-                .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
-                .map(|_| SetExecutionModeResponse { execution_mode: request.execution_mode })
-        }
+        mode_rx
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+            .map(|_| SetExecutionModeResponse { execution_mode: request.execution_mode })
     }
 
-    fn get_execution_mode(
-        &self,
-    ) -> impl Future<Output = RpcResult<GetExecutionModeResponse>> + Send {
+    async fn get_execution_mode(&self) -> RpcResult<GetExecutionModeResponse> {
         let engine_actor_request_tx = self.engine_actor_request_tx.clone();
-        async move {
-            let (mode_tx, mode_rx) = oneshot::channel();
+        let (mode_tx, mode_rx) = oneshot::channel();
 
-            engine_actor_request_tx
-                .send(EngineActorRequest::RpcRequest(EngineRpcRequest::RollupBoostAdminRequest(
+        engine_actor_request_tx
+            .send(EngineActorRequest::RpcRequest(Box::new(
+                EngineRpcRequest::RollupBoostAdminRequest(
                     kona_rpc::RollupBoostAdminQuery::GetExecutionMode { sender: mode_tx },
-                )))
-                .await
-                .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+                ),
+            )))
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
 
-            mode_rx
-                .await
-                .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
-                .map(|execution_mode| GetExecutionModeResponse { execution_mode })
-        }
+        mode_rx
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+            .map(|execution_mode| GetExecutionModeResponse { execution_mode })
     }
 }

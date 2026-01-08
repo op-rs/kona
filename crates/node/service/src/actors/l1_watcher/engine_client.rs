@@ -10,8 +10,8 @@ use tokio::sync::mpsc;
 #[async_trait]
 pub trait L1WatcherEngineClient: Debug + Send + Sync {
     /// Sends the engine the provided finalized L1 block.
-    /// Note: this function just guarantees that it is received by the engine but does not have
-    /// any insight into whether it was processed or processed successfully.
+    /// Note: this function just guarantees that the finalized L1 block is received by the engine
+    /// but does not have any insight into whether the engine successfully finalized the block.
     async fn send_finalized_l1_block(&self, block: BlockInfo) -> EngineClientResult<()>;
 }
 
@@ -25,12 +25,10 @@ pub struct QueuedL1WatcherEngineClient {
 #[async_trait]
 impl L1WatcherEngineClient for QueuedL1WatcherEngineClient {
     async fn send_finalized_l1_block(&self, block: BlockInfo) -> EngineClientResult<()> {
-        let _ = self
+        Ok(self
             .engine_actor_request_tx
-            .send(EngineActorRequest::ProcessFinalizedL1BlockRequest(block))
+            .send(EngineActorRequest::ProcessFinalizedL1BlockRequest(Box::new(block)))
             .await
-            .map_err(|_| EngineClientError::RequestError("request channel closed.".to_string()))?;
-
-        Ok(())
+            .map_err(|_| EngineClientError::RequestError("request channel closed.".to_string()))?)
     }
 }

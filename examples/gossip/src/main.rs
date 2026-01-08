@@ -45,13 +45,13 @@ struct ForwardingNetworkEngineClient {
 #[async_trait]
 impl NetworkEngineClient for ForwardingNetworkEngineClient {
     async fn send_unsafe_block(&self, block: OpExecutionPayloadEnvelope) -> EngineClientResult<()> {
-        match self.block_tx.send(block).await {
-            Err(e) => {
-                error!(target: "net", "Failed to send block: {:?}", e);
-                Ok(())
-            }
-            Ok(_) => Ok(()),
-        }
+        let _ = self
+            .block_tx
+            .send(block)
+            .await
+            .inspect_err(|e| error!(target: "net", "Failed to send block: {:?}", e));
+
+        Ok(())
     }
 }
 

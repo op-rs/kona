@@ -23,11 +23,10 @@ pub struct QueuedNetworkEngineClient {
 #[async_trait]
 impl NetworkEngineClient for QueuedNetworkEngineClient {
     async fn send_unsafe_block(&self, block: OpExecutionPayloadEnvelope) -> EngineClientResult<()> {
-        self.engine_actor_request_tx
-            .send(EngineActorRequest::ProcessUnsafeL2BlockRequest(block))
+        Ok(self
+            .engine_actor_request_tx
+            .send(EngineActorRequest::ProcessUnsafeL2BlockRequest(Box::new(block)))
             .await
-            .map_err(|_| EngineClientError::RequestError("request channel closed.".to_string()))?;
-
-        Ok(())
+            .map_err(|_| EngineClientError::RequestError("request channel closed.".to_string()))?)
     }
 }

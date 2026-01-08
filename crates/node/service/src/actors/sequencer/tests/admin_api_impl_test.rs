@@ -5,7 +5,7 @@ use crate::{
 use alloy_primitives::B256;
 use alloy_transport::RpcError;
 use kona_protocol::{BlockInfo, L2BlockInfo};
-use kona_rpc::{SequencerAdminAPIError, StopSequencerError};
+use kona_rpc::SequencerAdminAPIError;
 use rstest::rstest;
 use tokio::sync::oneshot;
 
@@ -192,7 +192,7 @@ async fn test_stop_sequencer_error_fetching_unsafe_head(#[values(true, false)] v
 
     assert!(matches!(
         result.unwrap_err(),
-        SequencerAdminAPIError::StopError(StopSequencerError::ErrorAfterSequencerWasStopped(_))
+        SequencerAdminAPIError::ErrorAfterSequencerWasStopped(_)
     ));
     assert!(!actor.is_active);
 }

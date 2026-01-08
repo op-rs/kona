@@ -32,7 +32,7 @@ impl DerivationEngineClient for QueuedDerivationEngineClient {
         let (result_tx, mut result_rx) = mpsc::channel(1);
 
         self.engine_actor_request_tx
-            .send(EngineActorRequest::ResetRequest(ResetRequest { result_tx: Some(result_tx) }))
+            .send(EngineActorRequest::ResetRequest(Box::new(ResetRequest { result_tx })))
             .await
             .map_err(|_| EngineClientError::RequestError("request channel closed.".to_string()))?;
 
@@ -47,7 +47,7 @@ impl DerivationEngineClient for QueuedDerivationEngineClient {
         attributes: OpAttributesWithParent,
     ) -> EngineClientResult<()> {
         self.engine_actor_request_tx
-            .send(EngineActorRequest::ProcessDerivedL2AttributesRequest(attributes))
+            .send(EngineActorRequest::ProcessDerivedL2AttributesRequest(Box::new(attributes)))
             .await
             .map_err(|_| EngineClientError::RequestError("request channel closed.".to_string()))?;
 

@@ -2,7 +2,7 @@ use super::SequencerActor;
 use crate::{Conductor, OriginSelector, SequencerEngineClient, UnsafePayloadGossipClient};
 use alloy_primitives::B256;
 use kona_derive::AttributesBuilder;
-use kona_rpc::{SequencerAdminAPIError, StopSequencerError};
+use kona_rpc::SequencerAdminAPIError;
 use tokio::sync::oneshot;
 
 /// The query types to the sequencer actor for the admin api.
@@ -136,7 +136,7 @@ where
             .map(|h| h.hash())
             .map_err(|e| {
                 error!(target: "sequencer", err=?e, "Error fetching unsafe head after stopping sequencer, which should never happen.");
-                SequencerAdminAPIError::StopError(StopSequencerError::ErrorAfterSequencerWasStopped("current unsafe hash is unavailable.".to_string()))
+                SequencerAdminAPIError::ErrorAfterSequencerWasStopped("current unsafe hash is unavailable.".to_string())
             })
     }
 

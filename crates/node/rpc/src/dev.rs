@@ -55,6 +55,16 @@ impl<EngineRpcClient_: EngineRpcClient> DevEngineRpc<EngineRpcClient_> {
 impl<EngineRpcClient_: EngineRpcClient + 'static> DevEngineApiServer
     for DevEngineRpc<EngineRpcClient_>
 {
+    async fn dev_task_queue_length(&self) -> RpcResult<usize> {
+        self.engine_client.dev_get_task_queue_length().await.map_err(|_| {
+            jsonrpsee::types::ErrorObjectOwned::owned(
+                ErrorCode::InternalError.code(),
+                "Failed to receive task queue length",
+                None::<()>,
+            )
+        })
+    }
+
     async fn dev_subscribe_engine_queue_length(
         &self,
         sink: PendingSubscriptionSink,
@@ -78,15 +88,5 @@ impl<EngineRpcClient_: EngineRpcClient + 'static> DevEngineApiServer
 
         tracing::warn!(target: "rpc::dev::engine_queue_size", "Subscription to engine queue size has been closed.");
         Ok(())
-    }
-
-    async fn dev_task_queue_length(&self) -> RpcResult<usize> {
-        self.engine_client.get_task_queue_length().await.map_err(|_| {
-            jsonrpsee::types::ErrorObjectOwned::owned(
-                ErrorCode::InternalError.code(),
-                "Failed to receive task queue length",
-                None::<()>,
-            )
-        })
     }
 }

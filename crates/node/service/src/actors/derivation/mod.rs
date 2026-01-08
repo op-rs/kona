@@ -4,5 +4,5 @@ pub use actor::{
     DerivationState, InboundDerivationMessage, PipelineBuilder,
 };
 
-mod client;
-pub use client::{DerivationEngineClient, QueuedDerivationEngineClient};
+mod engine_client;
+pub use engine_client::{DerivationEngineClient, QueuedDerivationEngineClient};

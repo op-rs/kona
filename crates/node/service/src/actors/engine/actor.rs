@@ -189,14 +189,13 @@ impl EngineActor {
 
 /// A request to process engine tasks.
 #[derive(Debug)]
-#[allow(clippy::large_enum_variant)]
 enum EngineProcessingRequest {
-    Build(BuildRequest),
-    ProcessDerivedL2Attributes(OpAttributesWithParent),
-    ProcessFinalizedL1Block(BlockInfo),
-    ProcessUnsafeL2Block(OpExecutionPayloadEnvelope),
-    Reset(ResetRequest),
-    Seal(SealRequest),
+    Build(Box<BuildRequest>),
+    ProcessDerivedL2Attributes(Box<OpAttributesWithParent>),
+    ProcessFinalizedL1Block(Box<BlockInfo>),
+    ProcessUnsafeL2Block(Box<OpExecutionPayloadEnvelope>),
+    Reset(Box<ResetRequest>),
+    Seal(Box<SealRequest>),
 }
 
 impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
@@ -230,29 +229,29 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
                                     warn!(target: "engine", err = ?e, "Failed to handle engine query.");
                                 }
                             },
-                            EngineRpcRequest::RollupBoostAdminRequest(admin_query) => {
-                                trace!(target: "engine", ?admin_query, "Received rollup boost admin query.");
+                            EngineRpcRequest::RollupBoostAdminRequest(RollupBoostAdminQuery::SetExecutionMode { execution_mode, sender }) => {
+                                trace!(target: "engine", ?execution_mode, "Received rollup boost set execution mode admin query.");
 
-                                match admin_query {
-                                    RollupBoostAdminQuery::SetExecutionMode { execution_mode, sender } => {
-                                        rollup_boost.server.set_execution_mode(execution_mode);
-                                        let _ = sender.send(()).map_err(|_| {
-                                            warn!(target: "engine", "set execution mode response channel closed when trying to send");
-                                        });
-                                    }
-                                    RollupBoostAdminQuery::GetExecutionMode { sender } => {
-                                        let execution_mode = rollup_boost.server.get_execution_mode();
-                                        let _ = sender.send(execution_mode).map_err(|_| {
-                                            warn!(target: "engine", "get execution mode response channel closed when trying to send");
-                                        });
-                                    }
-                                }
+                                rollup_boost.server.set_execution_mode(execution_mode);
+                                let _ = sender.send(()).inspect_err(|_| {
+                                    warn!(target: "engine", "set execution mode response channel closed when trying to send");
+                                });
+                            },
+                            EngineRpcRequest::RollupBoostAdminRequest(RollupBoostAdminQuery::GetExecutionMode{sender}) => {
+                                trace!(target: "engine", "Received rollup boost get execution mode admin query.");
+
+                                let execution_mode = rollup_boost.server.get_execution_mode();
+                                let _ = sender.send(execution_mode).inspect_err(|_| {
+                                    warn!(target: "engine", "get execution mode response channel closed when trying to send");
+                                });
                             },
                             EngineRpcRequest::RollupBoostHealthRequest(health_query) => {
                                 trace!(target: "engine", ?health_query, "Received rollup boost health query.");
 
                                 let health = rollup_boost.get_health();
-                                health_query.sender.send(health.into()).unwrap();
+                                let _ = health_query.sender.send(health.into()).inspect_err(|_| {
+                                    warn!(target: "engine", "rollup boost health query response channel closed when trying to send");
+                                });
                             },
 
                         }
@@ -276,19 +275,14 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
             loop {
                 // Attempt to drain all outstanding tasks from the engine queue before adding new
                 // ones.
-                let drain_result = self
-                    .drain(
-                        &derivation_signal_tx,
-                        &mut sync_complete_tx,
-                        &engine_l2_safe_head_tx,
-                        &mut finalizer,
-                    )
-                    .await;
-
-                if let Err(err) = drain_result {
-                    error!(target: "engine", ?err, "Failed to drain engine tasks");
-                    return Err(err);
-                }
+                self.drain(
+                    &derivation_signal_tx,
+                    &mut sync_complete_tx,
+                    &engine_l2_safe_head_tx,
+                    &mut finalizer,
+                )
+                .await
+                .inspect(|err| error!(target: "engine", ?err, "Failed to drain engine tasks"))?;
 
                 // If the unsafe head has updated, propagate it to the outbound channels.
                 if let Some(unsafe_head_tx) = unsafe_head_tx.as_ref() {
@@ -305,7 +299,8 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
                 };
 
                 match request {
-                    EngineProcessingRequest::Build(BuildRequest { attributes, result_tx }) => {
+                    EngineProcessingRequest::Build(build_request) => {
+                        let BuildRequest { attributes, result_tx } = *build_request;
                         let task = EngineTask::Build(Box::new(BuildTask::new(
                             self.client.clone(),
                             self.rollup.clone(),
@@ -320,7 +315,7 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
                         let task = EngineTask::Consolidate(Box::new(ConsolidateTask::new(
                             self.client.clone(),
                             self.rollup.clone(),
-                            attributes,
+                            *attributes,
                             true,
                         )));
                         self.engine.enqueue(task);
@@ -328,42 +323,38 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
                     EngineProcessingRequest::ProcessFinalizedL1Block(finalized_l1_block) => {
                         // Attempt to finalize any L2 blocks that are contained within the finalized
                         // L1 chain.
-                        finalizer.try_finalize_next(&mut self, finalized_l1_block).await;
+                        finalizer.try_finalize_next(&mut self, *finalized_l1_block).await;
                     }
                     EngineProcessingRequest::ProcessUnsafeL2Block(envelope) => {
                         let task = EngineTask::Insert(Box::new(InsertTask::new(
                             self.client.clone(),
                             self.rollup.clone(),
-                            envelope,
+                            *envelope,
                             false, /* The payload is not derived in this case. This is an unsafe
                                     * block. */
                         )));
                         self.engine.enqueue(task);
                     }
-                    EngineProcessingRequest::Reset(ResetRequest { result_tx }) => {
+                    EngineProcessingRequest::Reset(reset_request) => {
                         warn!(target: "engine", "Received reset request");
 
                         let reset_res = self
                             .reset(&derivation_signal_tx, &engine_l2_safe_head_tx, &mut finalizer)
                             .await;
 
-                        // Send the result if there is a channel on which to do so.
-                        if let Some(tx) = result_tx {
-                            let response_payload = reset_res.as_ref().map(|_| ()).map_err(|e| {
-                                EngineClientError::ResetForkchoiceError(e.to_string())
-                            });
-                            if tx.send(response_payload).await.is_err() {
-                                warn!(target: "engine", "Sending reset response failed");
-                            }
+                        // Send the result to the provided channel.
+                        let response_payload = reset_res
+                            .as_ref()
+                            .map(|_| ())
+                            .map_err(|e| EngineClientError::ResetForkchoiceError(e.to_string()));
+                        if reset_request.result_tx.send(response_payload).await.is_err() {
+                            warn!(target: "engine", "Sending reset response failed");
                         }
 
                         reset_res?;
                     }
-                    EngineProcessingRequest::Seal(SealRequest {
-                        payload_id,
-                        attributes,
-                        result_tx,
-                    }) => {
+                    EngineProcessingRequest::Seal(seal_request) => {
+                        let SealRequest { payload_id, attributes, result_tx } = *seal_request;
                         let task = EngineTask::Seal(Box::new(SealTask::new(
                             self.client.clone(),
                             self.rollup.clone(),
@@ -541,22 +532,22 @@ impl NodeActor for EngineActor {
                 cancel_token.cancel();
 
                 let Some(result) = result else {
-                    warn!(target: "engine", "{} task cancelled", task_name);
+                    warn!(target: "engine", "{task_name} task cancelled");
                     return Ok(());
                 };
 
                 let Ok(result) = result else {
-                    error!(target: "engine", ?result, "{} task panicked", task_name);
+                    error!(target: "engine", ?result, "{task_name} task panicked");
                     return Err(EngineError::ChannelClosed);
                 };
 
                 match result {
                     Ok(()) => {
-                        info!(target: "engine", "{} task completed successfully", task_name);
+                        info!(target: "engine", "{task_name} task completed successfully");
                         Ok(())
                     }
                     Err(err) => {
-                        error!(target: "engine", ?err, "{} task failed", task_name);
+                        error!(target: "engine", ?err, "{task_name} task failed");
                         Err(err)
                     }
                 }
@@ -612,7 +603,7 @@ impl NodeActor for EngineActor {
                     // Route the request to the appropriate channel.
                     match request {
                         EngineActorRequest::RpcRequest(rpc_req) => {
-                            rpc_tx.send(rpc_req).await.map_err(|_| {
+                            rpc_tx.send(*rpc_req).await.map_err(|_| {
                                 error!(target: "engine", "Engine RPC request handler channel closed unexpectedly");
                                 cancellation.cancel();
                                 EngineError::ChannelClosed

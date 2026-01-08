@@ -36,22 +36,21 @@ pub enum EngineClientError {
 
 /// Inbound requests that the [`crate::EngineActor`] can process.
 #[derive(Debug)]
-#[allow(clippy::large_enum_variant)]
 pub enum EngineActorRequest {
     /// Request to build.
-    BuildRequest(BuildRequest),
+    BuildRequest(Box<BuildRequest>),
     /// Request to consolidate based on the provided attributes.
-    ProcessDerivedL2AttributesRequest(OpAttributesWithParent),
+    ProcessDerivedL2AttributesRequest(Box<OpAttributesWithParent>),
     /// Request to process the provided finalized L1 block.
-    ProcessFinalizedL1BlockRequest(BlockInfo),
+    ProcessFinalizedL1BlockRequest(Box<BlockInfo>),
     /// Request to insert the provided unsafe block.
-    ProcessUnsafeL2BlockRequest(OpExecutionPayloadEnvelope),
+    ProcessUnsafeL2BlockRequest(Box<OpExecutionPayloadEnvelope>),
     /// Request to reset engine forkchoice.
-    ResetRequest(ResetRequest),
+    ResetRequest(Box<ResetRequest>),
     /// Request for the engine to process the provided RPC request.
-    RpcRequest(EngineRpcRequest),
+    RpcRequest(Box<EngineRpcRequest>),
     /// Request to seal the block with the provided details.
-    SealRequest(SealRequest),
+    SealRequest(Box<SealRequest>),
 }
 
 /// RPC Request for the engine to handle.
@@ -76,12 +75,12 @@ pub struct BuildRequest {
 }
 
 /// A request to reset the engine forkchoice.
-/// Optionally contains a channel to send back the response if the caller would like to know that
-/// the request was successfully processed.
+/// Contains a channel to send back the response indicating that the reset was successful or
+/// containing the error if there was one.
 #[derive(Debug)]
 pub struct ResetRequest {
-    /// response will be sent to this channel, if `Some`.
-    pub result_tx: Option<mpsc::Sender<EngineClientResult<()>>>,
+    /// response will be sent to this channel.
+    pub result_tx: mpsc::Sender<EngineClientResult<()>>,
 }
 
 /// A request to seal and canonicalize a payload.

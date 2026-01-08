@@ -61,7 +61,7 @@ impl SequencerEngineClient for QueuedSequencerEngineClient {
         let (result_tx, mut result_rx) = mpsc::channel(1);
 
         self.engine_actor_request_tx
-            .send(EngineActorRequest::ResetRequest(ResetRequest { result_tx: Some(result_tx) }))
+            .send(EngineActorRequest::ResetRequest(Box::new(ResetRequest { result_tx })))
             .await
             .map_err(|_| EngineClientError::RequestError("request channel closed.".to_string()))?;
 
@@ -79,10 +79,10 @@ impl SequencerEngineClient for QueuedSequencerEngineClient {
 
         if self
             .engine_actor_request_tx
-            .send(EngineActorRequest::BuildRequest(BuildRequest {
+            .send(EngineActorRequest::BuildRequest(Box::new(BuildRequest {
                 attributes,
                 result_tx: payload_id_tx,
-            }))
+            })))
             .await
             .is_err()
         {
@@ -103,11 +103,11 @@ impl SequencerEngineClient for QueuedSequencerEngineClient {
         let (result_tx, mut result_rx) = mpsc::channel(1);
 
         self.engine_actor_request_tx
-            .send(EngineActorRequest::SealRequest(SealRequest {
+            .send(EngineActorRequest::SealRequest(Box::new(SealRequest {
                 payload_id,
                 attributes,
                 result_tx,
-            }))
+            })))
             .await
             .map_err(|_| EngineClientError::RequestError("request channel closed.".to_string()))?;
 

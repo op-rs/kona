@@ -71,17 +71,15 @@ impl<EngineRpcClient_: EngineRpcClient + 'static> RollupNodeApiServer
 
         let (l1_sync_status_send, l1_sync_status_recv) = tokio::sync::oneshot::channel();
 
-        let ((l2_block_info, output_root, l2_sync_status), l1_sync_status) = tokio::try_join!(
-            async { self.engine_client.output_at_block(block_num).await },
-            async {
+        let ((l2_block_info, output_root, l2_sync_status), l1_sync_status) =
+            tokio::try_join!(self.engine_client.output_at_block(block_num), async {
                 self.l1_watcher_sender
                     .send(L1WatcherQueries::L1State(l1_sync_status_send))
                     .await
                     .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
 
                 l1_sync_status_recv.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))
-            }
-        )?;
+            })?;
 
         let sync_status = Self::sync_status_from_actor_queries(l1_sync_status, l2_sync_status);
 
@@ -111,7 +109,7 @@ impl<EngineRpcClient_: EngineRpcClient + 'static> RollupNodeApiServer
                     .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
                 l1_sync_status_recv.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))
             },
-            async { self.engine_client.get_state().await }
+            self.engine_client.get_state()
         )
         .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
 

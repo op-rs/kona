@@ -13,37 +13,39 @@ use tokio::sync::watch;
 /// Client trait wrapping RPC implementation for the EngineActor.
 #[async_trait]
 pub trait EngineRpcClient: Debug + Send + Sync + Clone {
-    /// Request the current rollup configuration.
+    /// Request the current [`RollupConfig`].
     async fn get_config(&self) -> RpcResult<RollupConfig>;
     /// Request the current [`EngineState`] snapshot.
     async fn get_state(&self) -> RpcResult<EngineState>;
-    /// Development API: Get the current number of pending tasks in the queue.
-    async fn get_task_queue_length(&self) -> RpcResult<usize>;
-    /// Request the L2 output root for a specific block.
+    /// Request the L2 output root for a specific [`BlockNumberOrTag`].
     ///
-    /// Returns a tuple of block info, output root, and engine state at the requested block.
+    /// Returns a tuple of [`L2BlockInfo`], [`OutputRoot`], and [`EngineState`] at the requested
+    /// block.
     async fn output_at_block(
         &self,
         block: BlockNumberOrTag,
     ) -> RpcResult<(L2BlockInfo, OutputRoot, EngineState)>;
-    /// Subscribes to engine queue length updates managed by the returned [`watch::Receiver`].
+    /// Development API: Get the current number of pending tasks in the queue.
+    async fn dev_get_task_queue_length(&self) -> RpcResult<usize>;
+    /// Development API: Subscribes to engine queue length updates managed by the returned
+    /// [`watch::Receiver`].
     async fn dev_subscribe_to_engine_queue_length(&self) -> RpcResult<watch::Receiver<usize>>;
-    /// Subscribes to engine state updates managed by the returned [`watch::Receiver`].
+    /// Development API: Subscribes to engine state updates managed by the returned
+    /// [`watch::Receiver`].
     async fn dev_subscribe_to_engine_state(&self) -> RpcResult<watch::Receiver<EngineState>>;
 }
 
 /// Client trait wrapping RPC implementation for the rollup boost admin endpoints.
+#[async_trait]
 pub trait RollupBoostAdminClient: Send + Sync + Debug {
     /// Sets the execution mode for the rollup boost server.
-    fn set_execution_mode(
+    async fn set_execution_mode(
         &self,
         request: SetExecutionModeRequest,
-    ) -> impl Future<Output = RpcResult<SetExecutionModeResponse>> + Send;
+    ) -> RpcResult<SetExecutionModeResponse>;
 
     /// Gets the current execution mode from the rollup boost server.
-    fn get_execution_mode(
-        &self,
-    ) -> impl Future<Output = RpcResult<GetExecutionModeResponse>> + Send;
+    async fn get_execution_mode(&self) -> RpcResult<GetExecutionModeResponse>;
 }
 
 /// Client trait wrapping RPC implementation for the Sequencer admin endpoints.
@@ -82,22 +84,17 @@ pub enum SequencerAdminAPIError {
     RequestError(String),
 
     /// Error receiving response.
-    #[error("Error receiving response: {0}.")]
-    ResponseError(String),
+    /// Note: this error message is not future-proof, in that it may not be a safe assumption that
+    /// communication is channel-based. If/when that changes the enum will likely need to be updated
+    /// to take a parameter, so we can change it then.
+    #[error("Error receiving response: response channel closed.")]
+    ResponseError,
 
-    /// Error stopping sequencer.
-    #[error("Error stopping sequencer: {0}.")]
-    StopError(#[from] StopSequencerError),
+    /// Sequencer stopped successfully, followed by some error.
+    #[error("Sequencer stopped successfully, followed by error: {0}.")]
+    ErrorAfterSequencerWasStopped(String),
 
     /// Error overriding leader.
     #[error("Error overriding leader: {0}.")]
     LeaderOverrideError(String),
-}
-
-/// Errors that can occur when using the sequencer admin API.
-#[derive(Debug, Error)]
-pub enum StopSequencerError {
-    /// Sequencer stopped successfully, followed by some error.
-    #[error("Sequencer stopped successfully, followed by error: {0}.")]
-    ErrorAfterSequencerWasStopped(String),
 }
