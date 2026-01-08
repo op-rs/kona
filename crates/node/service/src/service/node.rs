@@ -1,10 +1,11 @@
 //! Contains the [`RollupNode`] implementation.
 use crate::{
     ConductorClient, DelayedL1OriginSelectorProvider, DerivationActor, DerivationBuilder,
-    DerivationContext, EngineActor, EngineConfig, EngineContext, InteropMode, L1OriginSelector,
-    L1WatcherActor, NetworkActor, NetworkBuilder, NetworkConfig, NetworkContext, NodeActor,
-    NodeMode, QueuedBlockBuildingClient, QueuedSequencerAdminAPIClient, RpcActor, RpcContext,
-    SequencerActor, SequencerConfig,
+    EngineActor, EngineConfig, EngineContext, InteropMode, L1OriginSelector, L1WatcherActor,
+    NetworkActor, NetworkBuilder, NetworkConfig, NodeActor, NodeMode, QueuedDerivationEngineClient,
+    QueuedEngineRpcClient, QueuedL1WatcherEngineClient, QueuedNetworkEngineClient,
+    QueuedSequencerAdminAPIClient, QueuedSequencerEngineClient, RollupBoostAdminApiClient,
+    RollupBoostHealthRpcClient, RpcActor, RpcContext, SequencerActor, SequencerConfig,
     actors::{
         BlockStream, DerivationInboundChannels, EngineInboundData, NetworkInboundData,
         QueuedUnsafePayloadGossipClient,
@@ -144,6 +145,12 @@ impl RollupNode {
         // Create a global cancellation token for graceful shutdown of tasks.
         let cancellation = CancellationToken::new();
 
+        // Create the engine actor.
+        let (
+            EngineInboundData { inbound_request_tx: engine_actor_request_tx, unsafe_head_rx },
+            engine,
+        ) = EngineActor::new(self.engine_config());
+
         // Create the derivation actor.
         let (
             DerivationInboundChannels {
@@ -153,24 +160,13 @@ impl RollupNode {
                 el_sync_complete_tx,
             },
             derivation,
-        ) = DerivationActor::new(self.derivation_builder());
-
-        // Create the engine actor.
-        let (
-            EngineInboundData {
-                attributes_tx,
-                build_request_tx,
-                finalized_l1_block_tx,
-                inbound_queries_tx: engine_rpc,
-                reset_request_tx,
-                rollup_boost_admin_query_tx: rollup_boost_admin_rpc,
-                rollup_boost_health_query_tx: rollup_boost_health_rpc,
-                seal_request_tx,
-                unsafe_block_tx,
-                unsafe_head_rx,
+        ) = DerivationActor::new(
+            QueuedDerivationEngineClient {
+                engine_actor_request_tx: engine_actor_request_tx.clone(),
             },
-            engine,
-        ) = EngineActor::new(self.engine_config());
+            cancellation.clone(),
+            self.derivation_builder(),
+        );
 
         // Create the p2p actor.
         let (
@@ -181,10 +177,11 @@ impl RollupNode {
                 admin_rpc: net_admin_rpc,
             },
             network,
-        ) = NetworkActor::new(self.network_builder());
-
-        // Create the RPC server actor.
-        let rpc = self.rpc_builder().map(RpcActor::new);
+        ) = NetworkActor::new(
+            QueuedNetworkEngineClient { engine_actor_request_tx: engine_actor_request_tx.clone() },
+            cancellation.clone(),
+            self.network_builder(),
+        );
 
         let delayed_l1_provider = DelayedL1OriginSelectorProvider::new(
             self.l1_config.engine_provider.clone(),
@@ -221,7 +218,9 @@ impl RollupNode {
             self.l1_config.engine_provider.clone(),
             l1_query_rx,
             l1_head_updates_tx.clone(),
-            finalized_l1_block_tx.clone(),
+            QueuedL1WatcherEngineClient {
+                engine_actor_request_tx: engine_actor_request_tx.clone(),
+            },
             signer,
             cancellation.clone(),
             head_stream,
@@ -229,17 +228,9 @@ impl RollupNode {
         );
 
         // Create the sequencer if needed
-        let (sequencer_actor, sequencer_admin_api_tx) = if self.mode().is_sequencer() {
-            let block_building_client = QueuedBlockBuildingClient {
-                build_request_tx: build_request_tx.ok_or(
-                    "build_request_tx is None in sequencer mode. This should never happen."
-                        .to_string(),
-                )?,
-                reset_request_tx: reset_request_tx.clone(),
-                seal_request_tx: seal_request_tx.ok_or(
-                    "seal_request_tx is None in sequencer mode. This should never happen."
-                        .to_string(),
-                )?,
+        let (sequencer_actor, sequencer_admin_client) = if self.mode().is_sequencer() {
+            let sequencer_engine_client = QueuedSequencerEngineClient {
+                engine_actor_request_tx: engine_actor_request_tx.clone(),
                 unsafe_head_rx: unsafe_head_rx.ok_or(
                     "unsafe_head_rx is None in sequencer mode. This should never happen."
                         .to_string(),
@@ -255,9 +246,9 @@ impl RollupNode {
                 Some(SequencerActor {
                     admin_api_rx: sequencer_admin_api_rx,
                     attributes_builder: self.create_attributes_builder(),
-                    block_building_client,
                     cancellation_token: cancellation.clone(),
                     conductor,
+                    engine_client: sequencer_engine_client,
                     is_active: self.sequencer_config.sequencer_stopped.not(),
                     in_recovery_mode: self.sequencer_config.sequencer_recovery_mode,
                     origin_selector: delayed_origin_selector,
@@ -270,6 +261,21 @@ impl RollupNode {
             (None, None)
         };
 
+        // Create the RPC server actor.
+        let rpc = self.rpc_builder().map(|b| {
+            RpcActor::new(
+                b,
+                QueuedEngineRpcClient::new(engine_actor_request_tx.clone()),
+                RollupBoostAdminApiClient {
+                    engine_actor_request_tx: engine_actor_request_tx.clone(),
+                },
+                RollupBoostHealthRpcClient {
+                    engine_actor_request_tx: engine_actor_request_tx.clone(),
+                },
+                sequencer_admin_client,
+            )
+        });
+
         crate::service::spawn_and_wait!(
             cancellation,
             actors = [
@@ -279,27 +285,13 @@ impl RollupNode {
                         cancellation: cancellation.clone(),
                         p2p_network: network_rpc,
                         network_admin: net_admin_rpc,
-                        sequencer_admin: sequencer_admin_api_tx,
                         l1_watcher_queries: l1_query_tx,
-                        engine_query: engine_rpc,
-                        rollup_boost_admin: rollup_boost_admin_rpc,
-                        rollup_boost_health: rollup_boost_health_rpc,
                     }
                 )),
                 sequencer_actor.map(|s| (s, ())),
-                Some((
-                    network,
-                    NetworkContext { blocks: unsafe_block_tx, cancellation: cancellation.clone() }
-                )),
+                Some((network, ())),
                 Some((l1_watcher, ())),
-                Some((
-                    derivation,
-                    DerivationContext {
-                        reset_request_tx: reset_request_tx.clone(),
-                        derived_attributes_tx: attributes_tx,
-                        cancellation: cancellation.clone(),
-                    }
-                )),
+                Some((derivation, ())),
                 Some((
                     engine,
                     EngineContext {

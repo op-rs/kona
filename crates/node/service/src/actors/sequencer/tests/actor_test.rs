@@ -2,7 +2,7 @@
 use crate::{
     SequencerActorError,
     actors::{
-        MockBlockBuildingClient, MockOriginSelector, sequencer::tests::test_util::test_actor,
+        MockOriginSelector, MockSequencerEngineClient, sequencer::tests::test_util::test_actor,
     },
 };
 use kona_derive::{BuilderError, PipelineErrorKind, test_utils::TestAttributesBuilder};
@@ -18,7 +18,7 @@ async fn test_build_unsealed_payload_prepare_payload_attributes_error(
     #[case] forced_error: PipelineErrorKind,
     #[case] expect_err: bool,
 ) {
-    let mut client = MockBlockBuildingClient::new();
+    let mut client = MockSequencerEngineClient::new();
 
     let unsafe_head = L2BlockInfo::default();
     client.expect_get_unsafe_head().times(1).return_once(move || Ok(unsafe_head));
@@ -36,7 +36,7 @@ async fn test_build_unsealed_payload_prepare_payload_attributes_error(
 
     let mut actor = test_actor();
     actor.origin_selector = origin_selector;
-    actor.block_building_client = client;
+    actor.engine_client = client;
     actor.attributes_builder = attributes_builder;
 
     let result = actor.build_unsealed_payload().await;
