@@ -42,15 +42,11 @@ but are currently defined as follows.
   node. The P2P stack consists of `discv5` peer discovery
   and block gossip through libp2p. Visit the [network][p2p]
   docs for more detail.
-- **Supervisor Actor (beta)**: The supervisor actor is an
-  interop feature that allows the `kona-node` to be
-  "managed" (or "indexed") by the supervisor - a new
-  component in the OP Stack. A detailed overview of
-  interop and the supervisor's role is provided in the
-  [supervisor][supervisor] docs.
-- **Runtime Actor**: Loads runtime values from the contracts
-  on the L1 chain for the OP Stack. This is a very
-  light-weight actor described in [runtime][runtime] docs.
+- **L1 Watcher Actor**: Watches the L1 chain for new blocks
+  and system config updates. This lightweight actor polls
+  the L1 RPC for head and finalized block updates, forwards
+  them to other actors, and processes system config log
+  events (such as unsafe block signer updates).
 - **Sequencer Actor**: The sequencer actor extends the
   `kona-node` to be run as a sequencer. Sequencing is
   periphery to the basic rollup node operation. See
@@ -65,8 +61,6 @@ but are currently defined as follows.
 [p2p]: ./p2p
 [engine]: ./engine
 [derivation]: ./derivation
-[supervisor]: #TODO
-[runtime]: #TODO
 [sequencer]: ./sequencer
 
 [specs]: https://specs.optimism.io/protocol/rollup-node.html
