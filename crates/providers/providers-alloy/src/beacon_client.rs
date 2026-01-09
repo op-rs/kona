@@ -272,7 +272,7 @@ mod tests {
         let slot = 987654321;
         let slot_string = slot.to_string();
         let blob_data: Blob = FixedBytes::repeat_byte(1);
-        let repeated_blob_data: Vec<Blob> = vec![blob_data.clone(), blob_data.clone()];
+        let repeated_blob_data: Vec<Blob> = vec![blob_data, blob_data];
         let repeated_blob_response = json!({
             "execution_optimistic": false,
             "finalized": false,
@@ -284,13 +284,13 @@ mod tests {
             "0x016c357b8b3a6b3fd82386e7bebf77143d537cdb1c856509661c412602306a04";
         let blob_hash_of_interest = FixedBytes::from_hex(blob_hash_of_interest_hex).unwrap();
         let required_query_param =
-            format!("{},{}", blob_hash_of_interest_hex, blob_hash_of_interest_hex);
+            format!("{blob_hash_of_interest_hex},{blob_hash_of_interest_hex}");
 
         // This server mocks a single, specific query on a beacon node,
         let server = MockServer::start();
         let mut blobs_mock = server.mock(|when, then| {
             when.method(GET)
-                .path(format!("/eth/v1/beacon/blobs/{}", slot_string))
+                .path(format!("/eth/v1/beacon/blobs/{slot_string}"))
                 .query_param("versioned_hashes", required_query_param.clone());
             then.status(200).json_body(repeated_blob_response);
         });
@@ -309,8 +309,8 @@ mod tests {
         blobs_mock.assert();
 
         let want: Vec<BoxedBlobWithIndex> = vec![
-            BoxedBlobWithIndex { index: 0, blob: Box::new(blob_data.clone()) },
-            BoxedBlobWithIndex { index: 2, blob: Box::new(blob_data.clone()) },
+            BoxedBlobWithIndex { index: 0, blob: Box::new(blob_data) },
+            BoxedBlobWithIndex { index: 2, blob: Box::new(blob_data) },
         ];
         assert_eq!(response, want);
 
@@ -324,7 +324,7 @@ mod tests {
         });
         let incorrect_blobs_mock = server.mock(|when, then| {
             when.method(GET)
-                .path(format!("/eth/v1/beacon/blobs/{}", slot_string))
+                .path(format!("/eth/v1/beacon/blobs/{slot_string}"))
                 .query_param("versioned_hashes", required_query_param.clone());
             then.status(200).json_body(incorrect_blob_response);
         });
