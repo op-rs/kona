@@ -11,7 +11,7 @@ export default defineConfig({
   topNav: [
     { text: 'Run', link: '/node/run/overview' },
     { text: 'SDK', link: '/sdk/overview' },
-    { text: 'Rustdocs', link: 'https://docs.rs/kona-node/latest/' },
+    { text: 'Rustdocs', link: 'https://docs.rs/kona-node-service/latest/' },
     { text: 'GitHub', link: 'https://github.com/op-rs/kona' },
     {
       text: 'v0.1.0',

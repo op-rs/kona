@@ -146,12 +146,51 @@ As of writing these docs, block validation follows a few rules.
 
 ### Node Identification
 
-TODO
+Peers on the OP Stack P2P network are identified using Ethereum Node
+Records (ENRs). Each ENR contains an `opstack` key that encodes the
+chain ID and version, allowing nodes to verify they are connecting
+to peers on the same network.
+
+The [`OpStackEnr`][opstack-enr] type represents this OP Stack-specific
+ENR data. It contains:
+- **Chain ID**: The L2 chain identifier (e.g., 10 for OP Mainnet, 8453 for Base)
+- **Version**: Always set to 0 for the current protocol version
+
+When peers are discovered via discv5, their ENRs are validated using
+[`EnrValidation`][enr-validation] before establishing a connection.
+Validation checks that:
+- The ENR contains the required `opstack` key
+- The chain ID matches the expected network
+- The version is valid (currently must be 0)
+
+Peers with invalid or mismatched ENRs are rejected, ensuring nodes
+only connect to peers participating in the correct network.
 
 
 ### P2P Actor
 
-TODO
+The [`NetworkActor`][network-actor] orchestrates the P2P networking
+layer for the rollup node. It wraps the [`NetworkBuilder`][network-builder]
+and manages communication between the P2P stack and other node actors.
+
+The network actor handles several responsibilities:
+- **Unsafe block signer updates**: Receives signer address updates from
+  the L1 watcher and configures block signature validation accordingly
+- **P2P RPC requests**: Processes peer information queries from the RPC layer
+- **Admin RPC requests**: Handles administrative network operations
+- **Block publishing**: Receives execution payloads from the sequencer
+  actor and publishes them to the gossip network
+
+When started, the network actor builds the discovery and gossip drivers,
+then enters its main loop where it:
+1. Polls the gossip driver for incoming blocks and network events
+2. Processes inbound requests from other actors
+3. Handles peer management based on discovery events
+
+[network-actor]: https://github.com/op-rs/kona/blob/main/crates/node/service/src/actors/network/actor.rs
+[network-builder]: https://github.com/op-rs/kona/blob/main/crates/node/service/src/actors/network/builder.rs
+[opstack-enr]: https://docs.rs/kona-p2p-peers/latest/kona_p2p_peers/struct.OpStackEnr.html
+[enr-validation]: https://docs.rs/kona-p2p-peers/latest/kona_p2p_peers/enum.EnrValidation.html
 
 
 
@@ -169,7 +208,7 @@ TODO
 
 [discv5-service]: https://docs.rs/discv5/latest/discv5/struct.Discv5.html
 
-[driver]: https://docs.rs/kona-p2p/latest/kona_p2p/struct.Discv5Driver.html
+[driver]: https://docs.rs/kona-disc/latest/kona_disc/struct.Discv5Driver.html
 
 [discv5]: https://github.com/ethereum/devp2p/blob/master/discv5/discv5.md
 [libp2p]: https://libp2p.io/
