@@ -1,96 +1,77 @@
-use alloy_rpc_types_engine::PayloadId;
-use kona_engine::{BuildTaskError, EngineQueries, SealTaskError};
-use kona_protocol::{BlockInfo, OpAttributesWithParent};
-use kona_rpc::{RollupBoostAdminQuery, RollupBoostHealthQuery};
-use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
-use thiserror::Error;
+use crate::{DerivationActorRequest, DerivationClientError, DerivationClientResult};
+use async_trait::async_trait;
+use derive_more::Constructor;
+use kona_derive::Signal;
+use kona_protocol::L2BlockInfo;
+use std::fmt::Debug;
 use tokio::sync::mpsc;
 
-/// The result of an Engine client call.
-pub type EngineClientResult<T> = Result<T, EngineClientError>;
+/// Client to use to interact with the [`crate::DerivationActor`].
+#[cfg_attr(test, mockall::automock)]
+#[async_trait]
+pub trait EngineDerivationClient: Debug + Send + Sync {
+    /// Notifies the [`crate::DerivationActor`] that engine syncing has completed.
+    /// Note: Does not wait for the derivation client to process this message.
+    async fn notify_sync_completed(&self) -> DerivationClientResult<()>;
 
-/// Error making requests to the BlockEngine.
-#[derive(Debug, Error)]
-pub enum EngineClientError {
-    /// Error making a request to the engine. The request never made it there.
-    #[error("Error making a request to the engine: {0}.")]
-    RequestError(String),
+    /// Sends the new engine safe_head to the [`crate::DerivationActor`].
+    /// Note: Does not wait for the derivation client to process this message.
+    async fn send_new_engine_safe_head(&self, safe_head: L2BlockInfo)
+    -> DerivationClientResult<()>;
 
-    /// Error receiving response from the engine.
-    /// This means the request may or may not have succeeded.
-    #[error("Error receiving response from the engine: {0}..")]
-    ResponseError(String),
-
-    /// An error occurred starting to build a block.
-    #[error(transparent)]
-    StartBuildError(#[from] BuildTaskError),
-
-    /// An error occurred sealing a block.
-    #[error(transparent)]
-    SealError(#[from] SealTaskError),
-
-    /// An error occurred performing the reset.
-    #[error("An error occurred performing the reset: {0}.")]
-    ResetForkchoiceError(String),
+    /// Sends the [`crate::DerivationActor`] the provided [`Signal`].
+    /// Note: Does not wait for the derivation client to process this message.
+    async fn send_signal(&self, signal: Signal) -> DerivationClientResult<()>;
 }
 
-/// Inbound requests that the [`crate::EngineActor`] can process.
-#[derive(Debug)]
-pub enum EngineActorRequest {
-    /// Request to build.
-    BuildRequest(Box<BuildRequest>),
-    /// Request to consolidate based on the provided attributes.
-    ProcessDerivedL2AttributesRequest(Box<OpAttributesWithParent>),
-    /// Request to process the provided finalized L1 block.
-    ProcessFinalizedL1BlockRequest(Box<BlockInfo>),
-    /// Request to insert the provided unsafe block.
-    ProcessUnsafeL2BlockRequest(Box<OpExecutionPayloadEnvelope>),
-    /// Request to reset engine forkchoice.
-    ResetRequest(Box<ResetRequest>),
-    /// Request for the engine to process the provided RPC request.
-    RpcRequest(Box<EngineRpcRequest>),
-    /// Request to seal the block with the provided details.
-    SealRequest(Box<SealRequest>),
+/// Client to use to send messages to the [`crate::DerivationActor`]'s inbound channel.
+#[derive(Constructor, Debug)]
+pub struct QueuedEngineDerivationClient {
+    /// A channel to use to send the [`DerivationActorRequest`]s to the [`crate::DerivationActor`].
+    pub derivation_actor_request_tx: mpsc::Sender<DerivationActorRequest>,
 }
 
-/// RPC Request for the engine to handle.
-#[derive(Debug)]
-pub enum EngineRpcRequest {
-    /// Engine RPC query.
-    EngineQuery(EngineQueries),
-    /// Rollup boost admin request.
-    RollupBoostAdminRequest(RollupBoostAdminQuery),
-    /// Rollup boost health request.
-    RollupBoostHealthRequest(RollupBoostHealthQuery),
-}
+#[async_trait]
+impl EngineDerivationClient for QueuedEngineDerivationClient {
+    async fn notify_sync_completed(&self) -> DerivationClientResult<()> {
+        info!(target: "engine", "Sending sync completed to derivation actor");
 
-/// A request to build a payload.
-/// Contains the attributes to build and a channel to send back the resulting `PayloadId`.
-#[derive(Debug)]
-pub struct BuildRequest {
-    /// The [`OpAttributesWithParent`] from which the block build should be started.
-    pub attributes: OpAttributesWithParent,
-    /// The channel on which the result, successful or not, will be sent.
-    pub result_tx: mpsc::Sender<PayloadId>,
-}
+        self.derivation_actor_request_tx
+            .send(DerivationActorRequest::ProcessEngineSyncCompletionRequest)
+            .await
+            .map_err(|_| {
+                DerivationClientError::RequestError("request channel closed.".to_string())
+            })?;
 
-/// A request to reset the engine forkchoice.
-/// Contains a channel to send back the response indicating that the reset was successful or
-/// containing the error if there was one.
-#[derive(Debug)]
-pub struct ResetRequest {
-    /// response will be sent to this channel.
-    pub result_tx: mpsc::Sender<EngineClientResult<()>>,
-}
+        Ok(())
+    }
 
-/// A request to seal and canonicalize a payload.
-/// Contains the `PayloadId`, attributes, and a channel to send back the result.
-#[derive(Debug)]
-pub struct SealRequest {
-    /// The `PayloadId` to seal and canonicalize.
-    pub payload_id: PayloadId,
-    /// The attributes necessary for the seal operation.
-    pub attributes: OpAttributesWithParent,
-    /// The channel on which the result, successful or not, will be sent.
-    pub result_tx: mpsc::Sender<Result<OpExecutionPayloadEnvelope, SealTaskError>>,
+    async fn send_new_engine_safe_head(
+        &self,
+        safe_head: L2BlockInfo,
+    ) -> DerivationClientResult<()> {
+        info!(target: "engine", safe_head = ?safe_head, "Sending new safe head to derivation actor");
+
+        self.derivation_actor_request_tx
+            .send(DerivationActorRequest::ProcessEngineSafeHeadUpdateRequest(safe_head))
+            .await
+            .map_err(|_| {
+                DerivationClientError::RequestError("request channel closed.".to_string())
+            })?;
+
+        Ok(())
+    }
+
+    async fn send_signal(&self, signal: Signal) -> DerivationClientResult<()> {
+        info!(target: "engine", signal = ?signal, "Sending signal to derivation actor");
+
+        self.derivation_actor_request_tx
+            .send(DerivationActorRequest::ProcessEngineSignalRequest(signal))
+            .await
+            .map_err(|_| {
+                DerivationClientError::RequestError("request channel closed.".to_string())
+            })?;
+
+        Ok(())
+    }
 }
