@@ -211,6 +211,7 @@ where
             }
             DerivationActorRequest::ProcessEngineSafeHeadUpdateRequest(safe_head) => {
                 info!(target: "derivation", safe_head = ?safe_head, "Received safe head from engine.");
+                self.engine_l2_safe_head = safe_head;
                 self.awaiting_engine_l2_safe_head_update = false;
             }
             DerivationActorRequest::ProcessEngineSyncCompletionRequest => {
