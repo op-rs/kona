@@ -314,20 +314,17 @@ where
         if self.engine.state().el_sync_finished {
             if self.el_sync_complete {
                 return Ok(());
+            }
+            self.el_sync_complete = true;
+
+            // Reset the engine if the sync state does not already know about a finalized block.
+            if self.engine.state().sync_state.finalized_head() == L2BlockInfo::default() {
+                // If the sync status is finished, we can reset the engine and start derivation.
+                info!(target: "engine", "Performing initial engine reset");
+                self.reset().await?;
             } else {
-                self.el_sync_complete = true;
-            }
-
-            // Only reset the engine if the sync state does not already know about a finalized
-            // block.
-            if self.engine.state().sync_state.finalized_head() != L2BlockInfo::default() {
                 info!(target: "engine", "finalized head is not default, so not resetting");
-                return Ok(());
             }
-
-            // If the sync status is finished, we can reset the engine and start derivation.
-            info!(target: "engine", "Performing initial engine reset");
-            self.reset().await?;
 
             self.derivation_client.notify_sync_completed().await.map_err(|e| {
                 error!(target: "engine", ?e, "Failed to notify sync completed");

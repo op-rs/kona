@@ -18,5 +18,8 @@ pub use request::{
     ResetRequest, SealRequest,
 };
 
-mod request_processor;
-pub use request_processor::{EngineProcessingRequest, EngineProcessor, EngineRpcProcessor};
+mod engine_request_processor;
+pub use engine_request_processor::{EngineProcessingRequest, EngineProcessor};
+
+mod rpc_request_processor;
+pub use rpc_request_processor::EngineRpcProcessor;

@@ -39,10 +39,10 @@ where
     /// Whether we are waiting on the engine to acknowledge the last derived attributes
     awaiting_engine_l2_safe_head_update: bool,
 
-    /// A flag indicating whether or not derivation is idle. Derivation is considered idle when it
+    /// A flag indicating whether derivation is idle. Derivation is considered idle when it
     /// has yielded to wait for more data on the DAL.
     derivation_idle: bool,
-    /// A flag indicating whether or not derivation is waiting for a signal. When waiting for a
+    /// A flag indicating whether derivation is waiting for a signal. When waiting for a
     /// signal, derivation cannot process any incoming events.
     waiting_for_signal: bool,
     /// Whether the engine sync has completed. This will only ever go from false -> true.
@@ -198,14 +198,14 @@ where
     async fn process(&mut self, msg: DerivationActorRequest) -> Result<(), DerivationError> {
         match msg {
             DerivationActorRequest::ProcessL1HeadUpdateRequest(l1_head) => {
-                trace!(target: "derivation", l1_head = ?l1_head, "Processing l1 head update");
+                info!(target: "derivation", l1_head = ?l1_head, "Processing l1 head update");
 
                 // If derivation isn't idle and the message hasn't observed a safe head update
                 // already, check if the safe head has changed before continuing.
                 // This is to prevent attempts to progress the pipeline while it is
                 // in the middle of processing a channel.
                 if !self.derivation_idle && self.awaiting_engine_l2_safe_head_update {
-                    trace!(target: "derivation", "Safe head hasn't changed, skipping derivation.");
+                    info!(target: "derivation", "Safe head hasn't changed, skipping derivation.");
                     return Ok(());
                 }
             }
@@ -226,21 +226,23 @@ where
 
         // Only attempt derivation once the engine finishes syncing.
         if !self.has_engine_sync_completed {
-            trace!(target: "derivation", "Engine not ready, skipping derivation");
+            info!(target: "derivation", "Engine not ready, skipping derivation");
             return Ok(());
         } else if self.waiting_for_signal {
-            trace!(target: "derivation", "Waiting to receive a signal, skipping derivation");
+            info!(target: "derivation", "Waiting to receive a signal, skipping derivation");
             return Ok(());
         } else if self.engine_l2_safe_head.block_info.hash.is_zero() {
             warn!(target: "derivation", engine_safe_head = ?self.engine_l2_safe_head.block_info.number, "Waiting for engine to initialize state prior to derivation.");
             return Ok(());
         }
+        trace!(target: "derivation", "Attempting derivation.");
 
         // Advance the pipeline as much as possible, new data may be available or there still may be
         // payloads in the attributes queue.
-        let payload_attrs = match self.produce_next_attributes().await {
+        let payload_attributes = match self.produce_next_attributes().await {
             Ok(attrs) => attrs,
             Err(DerivationError::Yield) => {
+                info!(target: "derivation", "Yielding derivation until more data is available.");
                 // Yield until more data is available.
                 self.derivation_idle = true;
                 return Ok(());
@@ -249,6 +251,7 @@ where
                 return Err(e);
             }
         };
+        trace!(target: "derivation", ?payload_attributes, "Produced payload attributes.");
 
         // Mark derivation as busy.
         self.derivation_idle = false;
@@ -256,7 +259,7 @@ where
 
         // Send payload attributes out for processing.
         self.engine_client
-            .send_derived_attributes(payload_attrs)
+            .send_derived_attributes(payload_attributes)
             .await
             .map_err(|e| DerivationError::Sender(Box::new(e)))?;
 
