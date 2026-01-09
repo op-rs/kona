@@ -21,7 +21,7 @@ use tokio::sync::watch::Sender;
 /// [`EngineTask`]'s [`Ord`] implementation, is used to prioritize tasks executed by the
 /// [`Engine::drain`] method.
 ///
-///  Because tasks are executed one at a time, they are considered to be atomic operations over the
+/// Because tasks are executed one at a time, they are considered to be atomic operations over the
 /// [`EngineState`], and are given exclusive access to the engine state during execution.
 ///
 /// Tasks within the queue are also considered fallible. If they fail with a temporary error,

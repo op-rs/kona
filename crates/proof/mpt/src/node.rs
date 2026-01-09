@@ -104,7 +104,7 @@ impl TrieNode {
         Self::Blinded { commitment }
     }
 
-    /// Blinds the [TrieNode].. Alternatively, if the [TrieNode] is a [TrieNode::Blinded] node
+    /// Blinds the [TrieNode]. Alternatively, if the [TrieNode] is a [TrieNode::Blinded] node
     /// already, its commitment is returned directly.
     pub fn blind(&self) -> B256 {
         match self {

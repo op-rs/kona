@@ -30,8 +30,9 @@ impl OutputRoot {
     /// commitment.
     pub const VERSION: u8 = 0;
 
-    /// Returns the version of the [`OutputRoot`]. Currently, the protocol only supports the version
-    /// number 0.
+    /// Returns the version of the [`OutputRoot`] as a [`B256`] for use in encoding. The version
+    /// is stored in the last byte of the returned value. Currently, the protocol only supports
+    /// version 0.
     pub const fn version(&self) -> B256 {
         B256::ZERO
     }
