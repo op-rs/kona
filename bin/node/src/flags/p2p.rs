@@ -386,7 +386,17 @@ impl P2PArgs {
             Some(port) => port,
         };
 
-        let keypair = self.keypair().unwrap_or_else(|_| Keypair::generate_secp256k1());
+        let keypair = self.keypair().unwrap_or_else(|e| {
+            let generated = Keypair::generate_secp256k1();
+            tracing::warn!(
+                target: "p2p::config",
+                error = %e,
+                peer_id = %generated.public().to_peer_id(),
+                "Failed to load P2P keypair from configuration, generated ephemeral keypair. \
+                 Set --p2p.priv.path or --p2p.priv.raw for a persistent peer ID."
+            );
+            generated
+        });
         let secp256k1_key = keypair.clone().try_into_secp256k1()
             .map_err(|e| anyhow::anyhow!("Impossible to convert keypair to secp256k1. This is a bug since we only support secp256k1 keys: {e}"))?
             .secret().to_bytes();
@@ -467,8 +477,14 @@ impl P2PArgs {
     pub fn keypair(&self) -> Result<Keypair> {
         // Attempt the parse the private key if specified.
         if let Some(mut private_key) = self.private_key {
-            return kona_cli::SecretKeyLoader::parse(&mut private_key.0)
-                .map_err(|e| anyhow::anyhow!(e));
+            let keypair = kona_cli::SecretKeyLoader::parse(&mut private_key.0)
+                .map_err(|e| anyhow::anyhow!(e))?;
+            tracing::info!(
+                target: "p2p::config",
+                peer_id = %keypair.public().to_peer_id(),
+                "Successfully loaded P2P keypair from raw private key"
+            );
+            return Ok(keypair);
         }
 
         let Some(ref key_path) = self.priv_path else {
