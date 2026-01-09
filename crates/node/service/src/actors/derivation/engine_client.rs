@@ -32,21 +32,27 @@ impl DerivationEngineClient for QueuedDerivationEngineClient {
     async fn reset_engine_forkchoice(&self) -> EngineClientResult<()> {
         let (result_tx, mut result_rx) = mpsc::channel(1);
 
+        info!(target: "derivation", "Sending reset request to engine.");
         self.engine_actor_request_tx
             .send(EngineActorRequest::ResetRequest(Box::new(ResetRequest { result_tx })))
             .await
             .map_err(|_| EngineClientError::RequestError("request channel closed.".to_string()))?;
 
-        result_rx.recv().await.ok_or_else(|| {
-            error!(target: "derivation_engine_client", "Failed to receive built payload");
-            EngineClientError::ResponseError("response channel closed.".to_string())
-        })?
+        result_rx
+            .recv()
+            .await
+            .inspect(|_| info!(target: "derivation", "Engine reset successfully."))
+            .ok_or_else(|| {
+                error!(target: "derivation_engine_client", "Failed to receive built payload");
+                EngineClientError::ResponseError("response channel closed.".to_string())
+            })?
     }
 
     async fn send_derived_attributes(
         &self,
         attributes: OpAttributesWithParent,
     ) -> EngineClientResult<()> {
+        trace!(target: "derivation", ?attributes, "Sending derived attributes to engine.");
         self.engine_actor_request_tx
             .send(EngineActorRequest::ProcessDerivedL2AttributesRequest(Box::new(attributes)))
             .await

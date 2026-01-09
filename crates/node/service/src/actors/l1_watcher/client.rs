@@ -29,6 +29,7 @@ pub struct QueuedL1WatcherEngineClient {
 #[async_trait]
 impl L1WatcherEngineClient for QueuedL1WatcherEngineClient {
     async fn send_finalized_l1_block(&self, block: BlockInfo) -> EngineClientResult<()> {
+        trace!(target: "l1_watcher", ?block, "Sending finalized l1 block to engine.");
         let _ = self
             .engine_actor_request_tx
             .send(EngineActorRequest::ProcessFinalizedL1BlockRequest(Box::new(block)))
@@ -57,6 +58,7 @@ pub struct QueuedL1WatcherDerivationClient {
 #[async_trait]
 impl L1WatcherDerivationClient for QueuedL1WatcherDerivationClient {
     async fn send_new_l1_head(&self, block: BlockInfo) -> DerivationClientResult<()> {
+        trace!(target: "l1_watcher", ?block, "Sending new l1 head to derivation actor.");
         self.derivation_actor_request_tx
             .send(DerivationActorRequest::ProcessL1HeadUpdateRequest(block))
             .await

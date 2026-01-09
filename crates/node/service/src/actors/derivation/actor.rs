@@ -195,7 +195,10 @@ where
     /// attributes are successfully produced. If the pipeline step errors,
     /// the same [`L2BlockInfo`] is used again. If the [`L2BlockInfo`] is the
     /// zero hash, the pipeline is not stepped on.
-    async fn process(&mut self, msg: DerivationActorRequest) -> Result<(), DerivationError> {
+    async fn process_request_and_attempt_derivation(
+        &mut self,
+        msg: DerivationActorRequest,
+    ) -> Result<(), DerivationError> {
         match msg {
             DerivationActorRequest::ProcessL1HeadUpdateRequest(l1_head) => {
                 info!(target: "derivation", l1_head = ?l1_head, "Processing l1 head update");
@@ -219,14 +222,13 @@ where
                 self.has_engine_sync_completed = true;
             }
             _ => {
-                error!(target: "derivation", ?msg, "Unexpected request in process(...)");
+                error!(target: "derivation", ?msg, "Unexpected request in process_request_and_attempt_derivation(...)");
                 return Err(DerivationError::RequestReceiveFailed)
             }
         }
 
-        // Only attempt derivation once the engine finishes syncing.
         if !self.has_engine_sync_completed {
-            info!(target: "derivation", "Engine not ready, skipping derivation");
+            info!(target: "derivation", "Engine sync has not completed, skipping derivation");
             return Ok(());
         } else if self.waiting_for_signal {
             info!(target: "derivation", "Waiting to receive a signal, skipping derivation");
@@ -304,7 +306,7 @@ where
                         req @ DerivationActorRequest::ProcessL1HeadUpdateRequest(_)
                             | req @ DerivationActorRequest::ProcessEngineSafeHeadUpdateRequest(_)
                             | req @ DerivationActorRequest::ProcessEngineSyncCompletionRequest => {
-                            self.process(req).await?;
+                            self.process_request_and_attempt_derivation(req).await?;
                         },
                     }
                 }
