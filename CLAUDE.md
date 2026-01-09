@@ -4,24 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build Commands
 - Build workspace: `just b` or `just build-native`
+- Build rollup node: `just build-node`
+- Build supervisor: `just build-supervisor`
 - Lint: `just l` or `just lint-native`
+- Lint all targets (native, cannon, asterisc): `just lint-all`
 - Format: `just f` or `just fmt-native-fix`
 - Run all tests: `just t` or `just tests`
 - Run specific test: `cargo nextest run --package [package-name] --test [test-name]`
 - Run single test: `cargo nextest run --package [package-name] --test [test-name] -- [test_function_name]`
-- Documentation: `just test-docs`
+- Run online tests (excluded by default): `just test-online`
+- Documentation tests: `just test-docs`
+- Check spelling: `just lint-typos` (requires `typos-cli`)
+- Feature powerset check: `just hack` (requires `cargo-hack`)
 
 ## Code Style
 - MSRV: 1.88
 - Format with nightly rustfmt: `cargo +nightly fmt`
-- Imports: organized by crate, reordered automatically
-- Error handling: use proper error types, prefer `Result<T, E>` over panics
-- Naming: follow Rust conventions (snake_case for variables/functions, CamelCase for types)
-- Prefer type-safe APIs and strong typing
-- Documentation: rustdoc for public APIs, clear comments for complex logic
-- Tests: write unit and integration tests for all functionality
-- Performance: be mindful of allocations and copying, prefer references where appropriate
-- No warnings policy: all clippy warnings are treated as errors (-D warnings)
+- All clippy warnings are treated as errors (-D warnings)
+- Imports: organized by crate, reordered automatically (`imports_granularity = "Crate"`)
 
 ## Architecture Overview
 
@@ -39,7 +39,6 @@ Kona is a monorepo for OP Stack types, components, and services built in Rust. T
 - **`genesis`**: Genesis types for OP Stack chains
 - **`interop`**: Core functionality for OP Stack Interop features
 - **`registry`**: Rust bindings for superchain-registry
-- **`comp`**: Compression types and utilities
 - **`hardforks`**: Consensus layer hardfork types and network upgrade transactions
 
 ### Proof (`crates/proof/`)
@@ -55,39 +54,52 @@ Kona is a monorepo for OP Stack types, components, and services built in Rust. T
 - **`service`**: OP Stack rollup node service implementation
 - **`engine`**: Extensible rollup node engine client
 - **`rpc`**: OP Stack RPC types and extensions
-- **`p2p`**: P2P networking including Gossip and Discovery
+- **`gossip`**: P2P Gossip networking
+- **`disc`**: P2P Discovery networking
+- **`peers`**: Networking utilities ported from reth
 - **`sources`**: Data source types and utilities
 
 ### Supervisor (`crates/supervisor/`)
 - **`core`**: Core supervisor functionality
 - **`service`**: Supervisor service implementation
 - **`rpc`**: Supervisor RPC types and client
-- **`storage`**: Database storage layer
+- **`storage`**: Database storage layer (uses reth-db)
 - **`types`**: Common types for supervisor components
 
-### Development Workflow
+### Batcher (`crates/batcher/`)
+- **`comp`**: Compression types and utilities for the OP Stack
 
-1. **Testing**: The project uses `nextest` for test execution. Online tests are excluded by default and can be run separately with `just test-online`
-2. **Cross-compilation**: Docker-based builds for `cannon` (MIPS) and `asterisc` (RISC-V) targets
-3. **Documentation**: Both rustdoc and a separate documentation site at rollup.yoga
-4. **Monorepo Integration**: Pins and integrates with the Optimism monorepo for action tests
+### Providers (`crates/providers/`)
+- **`providers-alloy`**: Provider implementations backed by Alloy
+- **`providers-local`**: Local provider implementations
 
-### Key Configuration Files
-- `rust-toolchain.toml`: Pins Rust version to 1.88
-- `rustfmt.toml`: Custom formatting configuration with crate-level import grouping
-- `clippy.toml`: MSRV configuration for clippy
-- `deny.toml`: Dependency auditing and license compliance
-- `release.toml`: Configuration for `cargo-release` tool
+### Utilities (`crates/utilities/`)
+- **`cli`**: Standard CLI utilities used across binaries
+- **`serde`**: Serialization helpers
+- **`macros`**: Utility macros
 
-### Target Architecture Support
-- Native development on standard platforms
-- Cross-compilation support for fault proof VMs:
-  - MIPS64 (cannon target)
-  - RISC-V (asterisc target)
-- `no_std` compatibility for proof components
+## Cross-Compilation Targets
 
-### Dependencies and Features
-- Heavy use of Alloy ecosystem for Ethereum types
-- OP-specific extensions via op-alloy
-- Modular feature flags for different compilation targets
-- Workspace-level dependency management with version pinning
+The proof components support `no_std` and can be cross-compiled for fault proof VMs:
+- **cannon**: MIPS64 target - `just build-cannon-client`
+- **asterisc**: RISC-V target - `just build-asterisc-client`
+
+Linting for these targets requires Docker:
+- `just lint-cannon`
+- `just lint-asterisc`
+
+## E2E and Acceptance Tests
+
+Tests are located in `tests/` directory with its own justfile:
+- Action tests for single-chain: `just action-tests-single`
+- Action tests for interop: `just action-tests-interop`
+- E2E tests with sysgo orchestrator: `just test-e2e-sysgo`
+- Acceptance tests: `just acceptance-tests`
+
+These require building client binaries and setting up the Optimism monorepo submodule.
+
+## Key Dependencies
+- **Alloy ecosystem**: Ethereum types and providers
+- **op-alloy**: OP Stack extensions to Alloy
+- **revm/op-revm**: EVM execution
+- **reth**: Database types (for supervisor storage)
