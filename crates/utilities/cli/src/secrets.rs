@@ -33,17 +33,17 @@ impl SecretKeyLoader {
                         path = %secret_key_path.display(),
                         error = %e,
                         contents_len = contents.len(),
-                        "Failed to decode secret key from file. Check for trailing whitespace or invalid characters."
+                        "Failed to decode secret key from file"
                     );
                 })?;
-                let keypair = Self::parse(&mut decoded.0)?;
-                tracing::info!(
-                    target: "p2p::secrets",
-                    path = %secret_key_path.display(),
-                    peer_id = %keypair.public().to_peer_id(),
-                    "Successfully loaded P2P keypair from file"
-                );
-                Ok(keypair)
+                Ok(Self::parse(&mut decoded.0)?).inspect(|keypair| {
+                    tracing::info!(
+                        target: "p2p::secrets",
+                        path = %secret_key_path.display(),
+                        peer_id = %keypair.public().to_peer_id(),
+                        "Successfully loaded P2P keypair from file"
+                    );
+                })
             }
             Ok(false) => {
                 if let Some(dir) = secret_key_path.parent() {
@@ -54,14 +54,14 @@ impl SecretKeyLoader {
                 let hex = alloy_primitives::hex::encode(secret.to_bytes());
                 std::fs::write(secret_key_path, &hex)?;
                 let kp = libp2p::identity::secp256k1::Keypair::from(secret);
-                let keypair = Keypair::from(kp);
-                tracing::info!(
-                    target: "p2p::secrets",
-                    path = %secret_key_path.display(),
-                    peer_id = %keypair.public().to_peer_id(),
-                    "Generated new P2P keypair and saved to file"
-                );
-                Ok(keypair)
+                Ok(Keypair::from(kp)).inspect(|keypair| {
+                    tracing::info!(
+                        target: "p2p::secrets",
+                        path = %secret_key_path.display(),
+                        peer_id = %keypair.public().to_peer_id(),
+                        "Generated new P2P keypair and saved to file"
+                    );
+                })
             }
             Err(error) => {
                 tracing::error!(

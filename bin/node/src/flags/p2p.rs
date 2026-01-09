@@ -386,20 +386,17 @@ impl P2PArgs {
             Some(port) => port,
         };
 
-        let keypair = match self.keypair() {
-            Ok(kp) => kp,
-            Err(e) => {
-                let generated = Keypair::generate_secp256k1();
-                tracing::warn!(
-                    target: "p2p::config",
-                    error = %e,
-                    peer_id = %generated.public().to_peer_id(),
-                    "Failed to load P2P keypair from configuration, generated ephemeral keypair. \
-                     Set --p2p.priv.path or --p2p.priv.raw for a persistent peer ID."
-                );
-                generated
-            }
-        };
+        let keypair = self.keypair().unwrap_or_else(|e| {
+            let generated = Keypair::generate_secp256k1();
+            tracing::warn!(
+                target: "p2p::config",
+                error = %e,
+                peer_id = %generated.public().to_peer_id(),
+                "Failed to load P2P keypair from configuration, generated ephemeral keypair. \
+                 Set --p2p.priv.path or --p2p.priv.raw for a persistent peer ID."
+            );
+            generated
+        });
         let secp256k1_key = keypair.clone().try_into_secp256k1()
             .map_err(|e| anyhow::anyhow!("Impossible to convert keypair to secp256k1. This is a bug since we only support secp256k1 keys: {e}"))?
             .secret().to_bytes();
