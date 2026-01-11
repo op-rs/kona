@@ -1,6 +1,9 @@
 //! This module contains the `ClientIO` struct, which is a system call interface for the kernel.
 
-use crate::{BasicKernelInterface, FileDescriptor, errors::IOResult};
+use crate::{
+    BasicKernelInterface, FileDescriptor,
+    errors::{EBADF, IOResult},
+};
 use cfg_if::cfg_if;
 
 cfg_if! {
@@ -19,19 +22,31 @@ cfg_if! {
 
         impl BasicKernelInterface for NativeClientIO {
             fn write(fd: FileDescriptor, buf: &[u8]) -> IOResult<usize> {
+                // Validate file descriptor before using it
+                if (fd as i32) < 0 {
+                    return Err(IOError(EBADF));
+                }
+
                 unsafe {
                     let mut file = File::from_raw_fd(fd as i32);
-                    file.write_all(buf).map_err(|_| IOError(-9))?;
+                    let result = file.write_all(buf).map_err(|_| IOError(EBADF));
                     std::mem::forget(file);
+                    result?;
                     Ok(buf.len())
                 }
             }
 
             fn read(fd: FileDescriptor, buf: &mut [u8]) -> IOResult<usize> {
+                // Validate file descriptor before using it
+                if (fd as i32) < 0 {
+                    return Err(IOError(EBADF));
+                }
+
                 unsafe {
                     let mut file = File::from_raw_fd(fd as i32);
-                    file.read_exact(buf).map_err(|_| IOError(-9))?;
+                    let result = file.read_exact(buf).map_err(|_| IOError(EBADF));
                     std::mem::forget(file);
+                    result?;
                     Ok(buf.len())
                 }
             }
