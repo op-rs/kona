@@ -22,14 +22,14 @@ func NewTestReorgManager(t devtest.CommonT) *TestReorgManager {
 		return nil
 	}
 
-	env, err := env.LoadDevnetFromURL(url)
+	devnetEnv, err := env.LoadDevnetFromURL(url)
 	if err != nil {
 		t.Errorf("failed to load devnet environment from URL %s: %v", url, err)
 		return nil
 	}
 
 	var engineURL, rpcURL string
-	for _, node := range env.Env.L1.Nodes {
+	for _, node := range devnetEnv.Env.L1.Nodes {
 		el, ok := node.Services["el"]
 		if !ok {
 			continue
@@ -58,13 +58,13 @@ func NewTestReorgManager(t devtest.CommonT) *TestReorgManager {
 	blockBuilder := NewTestBlockBuilder(t, TestBlockBuilderConfig{
 		GethRPC:                rpcURL,
 		EngineRPC:              engineURL,
-		JWTSecret:              env.Env.L1.JWT,
+		JWTSecret:              devnetEnv.Env.L1.JWT,
 		safeBlockDistance:      10,
 		finalizedBlockDistance: 20,
 	})
 
 	pos := NewTestPOS(t, rpcURL, blockBuilder)
-	return &TestReorgManager{t, env, blockBuilder, pos}
+	return &TestReorgManager{t, devnetEnv, blockBuilder, pos}
 }
 
 func (m *TestReorgManager) StopL1CL() {
