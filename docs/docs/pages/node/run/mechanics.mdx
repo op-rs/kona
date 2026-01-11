@@ -115,73 +115,77 @@ processors, or integrations with external systems.
 **Example: Defining a Custom Actor**
 
 ```rust
-use kona_node_service::NodeActor;
+use kona_node_service::{NodeActor, CancellableContext};
 use async_trait::async_trait;
-use tokio_util::sync::CancellationToken;
+use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
-struct MyCustomActor;
+struct MyCustomActor {
+    // Actor state and configuration
+}
+
+/// The context passed to the actor when starting.
+struct MyCustomContext {
+    cancellation: CancellationToken,
+    // Add channels and other communication primitives here
+}
+
+impl CancellableContext for MyCustomContext {
+    fn cancelled(&self) -> WaitForCancellationFuture<'_> {
+        self.cancellation.cancelled()
+    }
+}
 
 #[async_trait]
 impl NodeActor for MyCustomActor {
     type Error = std::io::Error;
-    type InboundData = MyCustomContext;
-    type OutboundData = ();
-    type State = ();
+    type StartData = MyCustomContext;
 
-    fn build(_state: Self::State) -> (Self::OutboundData, Self) {
-        ((), MyCustomActor)
-    }
-
-    async fn start(self, ctx: Self::InboundData) -> Result<(), Self::Error> {
-        // Your actor logic here
-        Ok(())
-    }
-}
-
-struct MyCustomContext {
-    cancellation: CancellationToken,
-}
-
-impl kona_node_service::CancellableContext for MyCustomContext {
-    fn cancelled(&self) -> tokio_util::sync::WaitForCancellationFuture<'_> {
-        self.cancellation.cancelled()
+    async fn start(self, ctx: Self::StartData) -> Result<(), Self::Error> {
+        loop {
+            tokio::select! {
+                _ = ctx.cancelled() => {
+                    // Handle graceful shutdown
+                    return Ok(());
+                }
+                // Handle other events, messages, etc.
+            }
+        }
     }
 }
 ```
 
 #### Integrating Custom Actors
 
-To integrate your custom actor, you can create your own implementation
-of the `RollupNodeService` trait, which defines the set of actors and
-pipelines used by the node. You can swap out any of the built-in actors
-for your own, or add entirely new ones.
+The node is built using the `RollupNodeBuilder`, which constructs a
+`RollupNode` with the configured actors and services. While the builder
+provides sensible defaults, you can customize the node by:
 
-**Example: Custom RollupNodeService**
+1. Building your own binary that uses the `RollupNode` directly
+2. Implementing custom actors that communicate via channels
+3. Composing the built-in actors with your custom logic
+
+**Example: Using RollupNodeBuilder**
 
 ```rust
-use kona_node_service::{RollupNodeService, NodeActor, ...};
+use kona_node_service::{RollupNodeBuilder, L1ConfigBuilder, EngineConfig, NetworkConfig};
+use kona_genesis::RollupConfig;
+use kona_rpc::RpcBuilder;
 
-struct MyNodeService;
+// Configure and build the node
+let builder = RollupNodeBuilder::new(
+    rollup_config,
+    l1_config_builder,
+    false, // l2_trust_rpc
+    engine_config,
+    p2p_config,
+    Some(rpc_config),
+);
 
-#[async_trait]
-impl RollupNodeService for MyNodeService {
-    // Use built-in actors, or your own custom ones
-    type DataAvailabilityWatcher = MyCustomActor;
-    type DerivationPipeline = ...;
-    type DerivationActor = ...;
-    type EngineActor = ...;
-    type NetworkActor = ...;
-    type SupervisorExt = ...;
-    type SupervisorActor = ...;
-    type RpcActor = ...;
-    type Error = ...;
-
-    // Implement required trait methods...
-}
+let node = builder.build();
 ```
 
-You can then instantiate and run your custom node service in your
-own binary or integration test.
+To add custom actors, you would typically spawn them alongside the
+built-in actors and communicate via channels (e.g., `tokio::sync::mpsc`).
 
 #### Programmatic Node Construction
 
@@ -193,9 +197,8 @@ your own builder pattern.
 #### Current Limitations
 
 - The extensibility API is **beta** and may change.
-- Most users will want to start by subclassing or wrapping the
-  standard `RollupNode` and only override specific actors or
-  pipelines as needed.
+- Most users will want to start by using the standard `RollupNodeBuilder`
+  and adding custom actors alongside the built-in ones.
 - Documentation and examples for advanced extensibility are still
   evolving—contributions and feedback are welcome!
 
