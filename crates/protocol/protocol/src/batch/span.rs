@@ -43,7 +43,7 @@ use crate::{
 /// SpanBatch {
 ///   prefix: {
 ///     rel_timestamp,     // Relative to genesis
-///     l1_origin_num,     // Final L1 block number  
+///     l1_origin_num,     // Final L1 block number
 ///     parent_check,      // First 20 bytes of parent hash
 ///     l1_origin_check,   // First 20 bytes of L1 origin hash
 ///   },
@@ -1503,6 +1503,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_check_batch_epoch_hash_mismatch() {
+        use crate::alloc::string::ToString;
         let trace_store: TraceStorage = Default::default();
         let layer = CollectingLayer::new(trace_store.clone());
         let subscriber = tracing_subscriber::Registry::default().with(layer);
