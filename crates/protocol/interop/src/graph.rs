@@ -93,12 +93,11 @@ where
             "Checking the message graph for invalid messages"
         );
 
-        // Create a new vector to store invalid edges
+        // Collect invalid messages per chain ID
         let mut invalid_messages = HashMap::default();
 
-        // Prune all valid messages, collecting errors for any chain whose block contains an invalid
-        // message. Errors are de-duplicated by chain ID in a map, since a single invalid
-        // message is cause for invalidating a block.
+        // Validate each message and collect the first error per chain (de-duplicated by chain ID),
+        // since a single invalid message is cause for invalidating a block.
         for message in self.messages.iter() {
             if let Err(e) = self.check_single_dependency(message).await {
                 warn!(
@@ -115,10 +114,10 @@ where
         info!(
             target: "message_graph",
             num_invalid_messages = invalid_messages.len(),
-            "Successfully reduced the message graph",
+            "Finished checking the message graph",
         );
 
-        // Check if the graph is now empty. If not, there are invalid messages.
+        // If any invalid messages were found, return them.
         if !invalid_messages.is_empty() {
             warn!(
                 target: "message_graph",
@@ -127,7 +126,7 @@ where
                     .map(ToString::to_string)
                     .collect::<Vec<_>>()
                     .join(", "),
-                "Failed to reduce the message graph entirely",
+                "Invalid messages detected",
             );
 
             // Return an error with the chain IDs of the blocks containing invalid messages.
