@@ -3150,6 +3150,7 @@ name = "example-gossip"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "clap",
  "discv5",
  "kona-cli",
@@ -3157,6 +3158,7 @@ dependencies = [
  "kona-node-service",
  "kona-registry",
  "libp2p",
+ "op-alloy-rpc-types-engine",
  "tokio",
  "tokio-util",
  "tracing",
