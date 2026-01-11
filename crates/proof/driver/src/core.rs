@@ -158,7 +158,7 @@ where
     /// - **Reset**: Reorg detected, pipeline reset and derivation continues
     /// - **Other Critical**: Fatal pipeline errors that stop derivation
     ///
-    /// ## Execution Errors  
+    /// ## Execution Errors
     /// - **Pre-Holocene**: Block execution failures cause block to be discarded
     /// - **Holocene+**: Failed blocks are retried as deposit-only blocks
     ///   - Strips non-deposit transactions and flushes invalidated channel
@@ -199,7 +199,7 @@ where
     ///     .advance_to_target(&rollup_config, Some(100))
     ///     .await?;
     ///
-    /// // Derive until data exhausted  
+    /// // Derive until data exhausted
     /// let (final_head, output_root) = driver
     ///     .advance_to_target(&rollup_config, None)
     ///     .await?;
