@@ -33,8 +33,8 @@ pub(crate) async fn sub_transition<P, H, Evm>(
     evm_factory: Evm,
 ) -> Result<(), FaultProofProgramError>
 where
-    P: PreimageOracleClient + Send + Sync + Debug + Clone,
-    H: HintWriterClient + Send + Sync + Debug + Clone,
+    P: PreimageOracleClient + Send + Sync + Debug + Clone + 'static,
+    H: HintWriterClient + Send + Sync + Debug + Clone + 'static,
     Evm: EvmFactory<Spec = OpSpecId, BlockEnv = BlockEnv> + Send + Sync + Debug + Clone + 'static,
     <Evm as EvmFactory>::Tx:
         FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope> + OpTxEnv,
@@ -126,6 +126,7 @@ where
         l2_provider,
         evm_factory,
         None,
+        None::<()>,
     );
     let mut driver = Driver::new(cursor, executor, pipeline);
 
