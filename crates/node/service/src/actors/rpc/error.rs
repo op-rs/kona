@@ -15,4 +15,7 @@ pub enum RpcActorError {
     /// Failed to stop the RPC server.
     #[error("Failed to stop the RPC server")]
     StopFailed,
+    /// Failed to build the proxy middleware.
+    #[error("Failed to build proxy middleware: {0}")]
+    ProxyMiddleware(String),
 }
