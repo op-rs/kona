@@ -8,8 +8,8 @@ pub use traits::{CancellableContext, NodeActor};
 mod engine;
 pub use engine::{
     BuildRequest, EngineActor, EngineActorRequest, EngineClientError, EngineClientResult,
-    EngineConfig, EngineContext, EngineError, EngineInboundData, EngineRpcRequest, L2Finalizer,
-    ResetRequest, SealRequest,
+    EngineConfig, EngineContext, EngineError, EngineInboundData, EngineRpcRequest, ResetRequest,
+    SealRequest,
 };
 
 mod rpc;
@@ -26,10 +26,7 @@ pub use derivation::{
 };
 
 mod l1_watcher;
-pub use l1_watcher::{
-    BlockStream, L1WatcherActor, L1WatcherActorError, L1WatcherEngineClient,
-    QueuedL1WatcherEngineClient,
-};
+pub use l1_watcher::{BlockStream, L1WatcherActor, L1WatcherActorError};
 
 mod network;
 pub use network::{

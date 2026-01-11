@@ -17,6 +17,9 @@ pub trait DerivationEngineClient: Debug + Send + Sync {
         &self,
         attributes: OpAttributesWithParent,
     ) -> EngineClientResult<()>;
+
+    /// Sends a request to finalize the L2 block at the provided block number.
+    async fn send_finalized_l2_block(&self, block_number: u64) -> EngineClientResult<()>;
 }
 
 /// Client to use to send messages to the Engine Actor's inbound channel.
@@ -48,6 +51,15 @@ impl DerivationEngineClient for QueuedDerivationEngineClient {
     ) -> EngineClientResult<()> {
         self.engine_actor_request_tx
             .send(EngineActorRequest::ProcessDerivedL2AttributesRequest(Box::new(attributes)))
+            .await
+            .map_err(|_| EngineClientError::RequestError("request channel closed.".to_string()))?;
+
+        Ok(())
+    }
+
+    async fn send_finalized_l2_block(&self, block_number: u64) -> EngineClientResult<()> {
+        self.engine_actor_request_tx
+            .send(EngineActorRequest::ProcessFinalizedL2BlockRequest(block_number))
             .await
             .map_err(|_| EngineClientError::RequestError("request channel closed.".to_string()))?;
 

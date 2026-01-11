@@ -3,9 +3,9 @@ use crate::{
     ConductorClient, DelayedL1OriginSelectorProvider, DerivationActor, DerivationBuilder,
     EngineActor, EngineConfig, EngineContext, InteropMode, L1OriginSelector, L1WatcherActor,
     NetworkActor, NetworkBuilder, NetworkConfig, NodeActor, NodeMode, QueuedDerivationEngineClient,
-    QueuedEngineRpcClient, QueuedL1WatcherEngineClient, QueuedNetworkEngineClient,
-    QueuedSequencerAdminAPIClient, QueuedSequencerEngineClient, RollupBoostAdminApiClient,
-    RollupBoostHealthRpcClient, RpcActor, RpcContext, SequencerActor, SequencerConfig,
+    QueuedEngineRpcClient, QueuedNetworkEngineClient, QueuedSequencerAdminAPIClient,
+    QueuedSequencerEngineClient, RollupBoostAdminApiClient, RollupBoostHealthRpcClient, RpcActor,
+    RpcContext, SequencerActor, SequencerConfig,
     actors::{
         BlockStream, DerivationInboundChannels, EngineInboundData, NetworkInboundData,
         QueuedUnsafePayloadGossipClient,
@@ -156,6 +156,7 @@ impl RollupNode {
             DerivationInboundChannels {
                 derivation_signal_tx,
                 l1_head_updates_tx,
+                l1_finalized_updates_tx,
                 engine_l2_safe_head_tx,
                 el_sync_complete_tx,
             },
@@ -218,9 +219,7 @@ impl RollupNode {
             self.l1_config.engine_provider.clone(),
             l1_query_rx,
             l1_head_updates_tx.clone(),
-            QueuedL1WatcherEngineClient {
-                engine_actor_request_tx: engine_actor_request_tx.clone(),
-            },
+            l1_finalized_updates_tx.clone(),
             signer,
             cancellation.clone(),
             head_stream,

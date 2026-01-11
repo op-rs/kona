@@ -6,3 +6,6 @@ pub use actor::{
 
 mod engine_client;
 pub use engine_client::{DerivationEngineClient, QueuedDerivationEngineClient};
+
+mod finalizer;
+pub(crate) use finalizer::L2Finalizer;

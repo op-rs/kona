@@ -22,15 +22,14 @@ pub use actors::{
     EngineClientError, EngineClientResult, EngineConfig, EngineContext, EngineError,
     EngineInboundData, EngineRpcRequest, InboundDerivationMessage, L1OriginSelector,
     L1OriginSelectorError, L1OriginSelectorProvider, L1WatcherActor, L1WatcherActorError,
-    L1WatcherEngineClient, L2Finalizer, NetworkActor, NetworkActorError, NetworkBuilder,
-    NetworkBuilderError, NetworkConfig, NetworkDriver, NetworkDriverError, NetworkEngineClient,
-    NetworkHandler, NetworkInboundData, NodeActor, OriginSelector, PipelineBuilder,
-    QueuedDerivationEngineClient, QueuedEngineRpcClient, QueuedL1WatcherEngineClient,
-    QueuedNetworkEngineClient, QueuedSequencerAdminAPIClient, QueuedSequencerEngineClient,
-    QueuedUnsafePayloadGossipClient, ResetRequest, RollupBoostAdminApiClient,
-    RollupBoostHealthRpcClient, RpcActor, RpcActorError, RpcContext, SealRequest, SequencerActor,
-    SequencerActorError, SequencerAdminQuery, SequencerConfig, SequencerEngineClient,
-    UnsafePayloadGossipClient, UnsafePayloadGossipClientError,
+    NetworkActor, NetworkActorError, NetworkBuilder, NetworkBuilderError, NetworkConfig,
+    NetworkDriver, NetworkDriverError, NetworkEngineClient, NetworkHandler, NetworkInboundData,
+    NodeActor, OriginSelector, PipelineBuilder, QueuedDerivationEngineClient,
+    QueuedEngineRpcClient, QueuedNetworkEngineClient, QueuedSequencerAdminAPIClient,
+    QueuedSequencerEngineClient, QueuedUnsafePayloadGossipClient, ResetRequest,
+    RollupBoostAdminApiClient, RollupBoostHealthRpcClient, RpcActor, RpcActorError, RpcContext,
+    SealRequest, SequencerActor, SequencerActorError, SequencerAdminQuery, SequencerConfig,
+    SequencerEngineClient, UnsafePayloadGossipClient, UnsafePayloadGossipClientError,
 };
 
 mod metrics;

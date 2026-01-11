@@ -1,6 +1,6 @@
 use alloy_rpc_types_engine::PayloadId;
 use kona_engine::{BuildTaskError, EngineQueries, SealTaskError};
-use kona_protocol::{BlockInfo, OpAttributesWithParent};
+use kona_protocol::OpAttributesWithParent;
 use kona_rpc::{RollupBoostAdminQuery, RollupBoostHealthQuery};
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use thiserror::Error;
@@ -41,8 +41,8 @@ pub enum EngineActorRequest {
     BuildRequest(Box<BuildRequest>),
     /// Request to consolidate based on the provided attributes.
     ProcessDerivedL2AttributesRequest(Box<OpAttributesWithParent>),
-    /// Request to process the provided finalized L1 block.
-    ProcessFinalizedL1BlockRequest(Box<BlockInfo>),
+    /// Request to finalize the L2 block at the provided block number.
+    ProcessFinalizedL2BlockRequest(u64),
     /// Request to insert the provided unsafe block.
     ProcessUnsafeL2BlockRequest(Box<OpExecutionPayloadEnvelope>),
     /// Request to reset engine forkchoice.

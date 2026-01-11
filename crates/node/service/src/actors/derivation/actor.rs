@@ -2,7 +2,10 @@
 
 use crate::{
     InteropMode, Metrics, NodeActor,
-    actors::{CancellableContext, derivation::DerivationEngineClient},
+    actors::{
+        CancellableContext,
+        derivation::{DerivationEngineClient, L2Finalizer},
+    },
 };
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
@@ -66,6 +69,9 @@ where
     /// Specs: <https://specs.optimism.io/protocol/derivation.html#l1-sync-payload-attributes-processing>
     derivation_signal_rx: mpsc::Receiver<Signal>,
 
+    /// The receiver for L1 finalized block notifications.
+    l1_finalized_updates: watch::Receiver<Option<BlockInfo>>,
+
     /// The Engine client used to interact with the engine.
     engine_client: DerivationEngineClient_,
 }
@@ -85,6 +91,8 @@ where
     /// A flag indicating whether or not derivation is waiting for a signal. When waiting for a
     /// signal, derivation cannot process any incoming events.
     pub waiting_for_signal: bool,
+    /// The [`L2Finalizer`] tracks derived L2 blocks awaiting finalization.
+    pub(crate) finalizer: L2Finalizer,
 
     phantom: PhantomData<DerivationEngineClient_>,
 }
@@ -173,6 +181,8 @@ where
 pub struct DerivationInboundChannels {
     /// The sender for L1 head update notifications.
     pub l1_head_updates_tx: watch::Sender<Option<BlockInfo>>,
+    /// The sender for L1 finalized block notifications.
+    pub l1_finalized_updates_tx: watch::Sender<Option<BlockInfo>>,
     /// The sender for L2 safe head update notifications.
     pub engine_l2_safe_head_tx: watch::Sender<L2BlockInfo>,
     /// A sender used by the engine to signal derivation to begin. Completing EL sync consumes the
@@ -203,14 +213,22 @@ where
     PipelineSignalReceiver: Pipeline + SignalReceiver,
 {
     /// Creates a new instance of the [DerivationState].
-    pub const fn new(pipeline: PipelineSignalReceiver) -> Self {
-        Self { pipeline, derivation_idle: true, waiting_for_signal: false, phantom: PhantomData }
+    pub fn new(pipeline: PipelineSignalReceiver) -> Self {
+        Self {
+            pipeline,
+            derivation_idle: true,
+            waiting_for_signal: false,
+            finalizer: L2Finalizer::default(),
+            phantom: PhantomData,
+        }
     }
 
     /// Handles a [`Signal`] received over the derivation signal receiver channel.
     async fn signal(&mut self, signal: Signal) {
         if let Signal::Reset(ResetSignal { l1_origin, .. }) = signal {
             kona_macros::set!(counter, Metrics::DERIVATION_L1_ORIGIN, l1_origin.number);
+            // Clear the finalization queue on reset.
+            self.finalizer.clear();
         }
 
         match self.pipeline.signal(signal).await {
@@ -395,12 +413,30 @@ where
         // Mark the L2 safe head as seen.
         engine_l2_safe_head.borrow_and_update();
 
+        // Enqueue the payload attributes for finalization tracking.
+        self.finalizer.enqueue_for_finalization(&payload_attrs);
+
         // Send payload attributes out for processing.
         engine_client
             .send_derived_attributes(payload_attrs)
             .await
             .map_err(|e| DerivationError::Sender(Box::new(e)))?;
 
+        Ok(())
+    }
+
+    /// Attempts to finalize L2 blocks when a new finalized L1 block is received.
+    async fn try_finalize(
+        &mut self,
+        finalized_l1_block: BlockInfo,
+        engine_client: &DerivationEngineClient_,
+    ) -> Result<(), DerivationError> {
+        if let Some(l2_block_number) = self.finalizer.try_finalize_next(finalized_l1_block) {
+            engine_client
+                .send_finalized_l2_block(l2_block_number)
+                .await
+                .map_err(|e| DerivationError::Sender(Box::new(e)))?;
+        }
         Ok(())
     }
 }
@@ -422,10 +458,12 @@ where
             watch::channel(L2BlockInfo::default());
         let (el_sync_complete_tx, el_sync_complete_rx) = oneshot::channel();
         let (derivation_signal_tx, derivation_signal_rx) = mpsc::channel(16);
+        let (l1_finalized_updates_tx, l1_finalized_updates_rx) = watch::channel(None);
         let actor = Self {
             cancellation_token,
             state,
             l1_head_updates: l1_head_updates_rx,
+            l1_finalized_updates: l1_finalized_updates_rx,
             engine_l2_safe_head: engine_l2_safe_head_rx,
             el_sync_complete_rx,
             derivation_signal_rx,
@@ -435,6 +473,7 @@ where
         (
             DerivationInboundChannels {
                 l1_head_updates_tx,
+                l1_finalized_updates_tx,
                 engine_l2_safe_head_tx,
                 el_sync_complete_tx,
                 derivation_signal_tx,
@@ -495,6 +534,13 @@ where
                 }
                 _ = self.engine_l2_safe_head.changed() => {
                     state.process(InboundDerivationMessage::SafeHeadUpdated, &mut self.engine_l2_safe_head, &self.el_sync_complete_rx, &self.engine_client).await?;
+                }
+                _ = self.l1_finalized_updates.changed() => {
+                    // Extract the value before awaiting to avoid holding the borrow across await.
+                    let finalized_l1_block = *self.l1_finalized_updates.borrow_and_update();
+                    if let Some(finalized_l1_block) = finalized_l1_block {
+                        state.try_finalize(finalized_l1_block, &self.engine_client).await?;
+                    }
                 }
                 _ = &mut self.el_sync_complete_rx, if !self.el_sync_complete_rx.is_terminated() => {
                     info!(target: "derivation", "Engine finished syncing, starting derivation.");

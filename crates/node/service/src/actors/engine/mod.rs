@@ -11,7 +11,3 @@ pub use client::{
 
 mod error;
 pub use error::EngineError;
-
-mod finalizer;
-
-pub use finalizer::L2Finalizer;

@@ -1,8 +1,8 @@
 //! The [`EngineActor`].
 
 use crate::{
-    BuildRequest, EngineActorRequest, EngineClientError, EngineError, EngineRpcRequest,
-    L2Finalizer, NodeActor, NodeMode, ResetRequest, SealRequest, actors::CancellableContext,
+    BuildRequest, EngineActorRequest, EngineClientError, EngineError, EngineRpcRequest, NodeActor,
+    NodeMode, ResetRequest, SealRequest, actors::CancellableContext,
 };
 use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::JwtSecret;
@@ -12,11 +12,11 @@ use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
     BuildTask, ConsolidateTask, Engine, EngineClient, EngineClientBuilder,
     EngineClientBuilderError, EngineState as InnerEngineState, EngineTask, EngineTaskError,
-    EngineTaskErrorSeverity, InsertTask, OpEngineClient, RollupBoostServer, RollupBoostServerArgs,
-    SealTask,
+    EngineTaskErrorSeverity, FinalizeTask, InsertTask, OpEngineClient, RollupBoostServer,
+    RollupBoostServerArgs, SealTask,
 };
 use kona_genesis::RollupConfig;
-use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
+use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use kona_rpc::RollupBoostAdminQuery;
 use op_alloy_network::Optimism;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
@@ -39,8 +39,6 @@ pub struct EngineActor {
     inbound_request_rx: mpsc::Receiver<EngineActorRequest>,
     /// The [`EngineConfig`] used to build the actor.
     builder: EngineConfig,
-    /// The [`L2Finalizer`], used to finalize L2 blocks.
-    finalizer: L2Finalizer,
 
     /// A channel to use to relay the current unsafe head.
     /// ## Note
@@ -174,12 +172,7 @@ impl EngineActor {
             (None, None)
         };
 
-        let actor = Self {
-            builder: config,
-            inbound_request_rx,
-            unsafe_head_tx,
-            finalizer: L2Finalizer::default(),
-        };
+        let actor = Self { builder: config, inbound_request_rx, unsafe_head_tx };
 
         let outbound_data = EngineInboundData { inbound_request_tx, unsafe_head_rx };
 
@@ -192,7 +185,7 @@ impl EngineActor {
 enum EngineProcessingRequest {
     Build(Box<BuildRequest>),
     ProcessDerivedL2Attributes(Box<OpAttributesWithParent>),
-    ProcessFinalizedL1Block(Box<BlockInfo>),
+    ProcessFinalizedL2Block(u64),
     ProcessUnsafeL2Block(Box<OpExecutionPayloadEnvelope>),
     Reset(Box<ResetRequest>),
     Seal(Box<SealRequest>),
@@ -268,21 +261,17 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
         derivation_signal_tx: mpsc::Sender<Signal>,
         engine_l2_safe_head_tx: watch::Sender<L2BlockInfo>,
         mut sync_complete_tx: Option<oneshot::Sender<()>>,
-        mut finalizer: L2Finalizer,
         unsafe_head_tx: Option<watch::Sender<L2BlockInfo>>,
     ) -> JoinHandle<Result<(), EngineError>> {
         tokio::spawn(async move {
             loop {
                 // Attempt to drain all outstanding tasks from the engine queue before adding new
                 // ones.
-                self.drain(
-                    &derivation_signal_tx,
-                    &mut sync_complete_tx,
-                    &engine_l2_safe_head_tx,
-                    &mut finalizer,
-                )
-                .await
-                .inspect(|err| error!(target: "engine", ?err, "Failed to drain engine tasks"))?;
+                self.drain(&derivation_signal_tx, &mut sync_complete_tx, &engine_l2_safe_head_tx)
+                    .await
+                    .inspect(
+                        |err| error!(target: "engine", ?err, "Failed to drain engine tasks"),
+                    )?;
 
                 // If the unsafe head has updated, propagate it to the outbound channels.
                 if let Some(unsafe_head_tx) = unsafe_head_tx.as_ref() {
@@ -310,8 +299,6 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
                         self.engine.enqueue(task);
                     }
                     EngineProcessingRequest::ProcessDerivedL2Attributes(attributes) => {
-                        finalizer.enqueue_for_finalization(&attributes);
-
                         let task = EngineTask::Consolidate(Box::new(ConsolidateTask::new(
                             self.client.clone(),
                             self.rollup.clone(),
@@ -320,10 +307,14 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
                         )));
                         self.engine.enqueue(task);
                     }
-                    EngineProcessingRequest::ProcessFinalizedL1Block(finalized_l1_block) => {
-                        // Attempt to finalize any L2 blocks that are contained within the finalized
-                        // L1 chain.
-                        finalizer.try_finalize_next(&mut self, *finalized_l1_block).await;
+                    EngineProcessingRequest::ProcessFinalizedL2Block(l2_block_number) => {
+                        // Finalize the L2 block at the provided block number.
+                        let task = EngineTask::Finalize(Box::new(FinalizeTask::new(
+                            self.client.clone(),
+                            self.rollup.clone(),
+                            l2_block_number,
+                        )));
+                        self.engine.enqueue(task);
                     }
                     EngineProcessingRequest::ProcessUnsafeL2Block(envelope) => {
                         let task = EngineTask::Insert(Box::new(InsertTask::new(
@@ -338,9 +329,8 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
                     EngineProcessingRequest::Reset(reset_request) => {
                         warn!(target: "engine", "Received reset request");
 
-                        let reset_res = self
-                            .reset(&derivation_signal_tx, &engine_l2_safe_head_tx, &mut finalizer)
-                            .await;
+                        let reset_res =
+                            self.reset(&derivation_signal_tx, &engine_l2_safe_head_tx).await;
 
                         // Send the result to the provided channel.
                         let response_payload = reset_res
@@ -376,7 +366,6 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
         &mut self,
         derivation_signal_tx: &mpsc::Sender<Signal>,
         engine_l2_safe_head_tx: &watch::Sender<L2BlockInfo>,
-        finalizer: &mut L2Finalizer,
     ) -> Result<(), EngineError> {
         // Reset the engine.
         let (l2_safe_head, l1_origin, system_config) =
@@ -399,9 +388,6 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
             }
         }
 
-        // Clear the queue of L2 blocks awaiting finalization.
-        finalizer.clear();
-
         Ok(())
     }
 
@@ -411,7 +397,6 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
         derivation_signal_tx: &mpsc::Sender<Signal>,
         sync_complete_tx: &mut Option<oneshot::Sender<()>>,
         engine_l2_safe_head_tx: &watch::Sender<L2BlockInfo>,
-        finalizer: &mut L2Finalizer,
     ) -> Result<(), EngineError> {
         match self.engine.drain().await {
             Ok(_) => {
@@ -425,7 +410,7 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
                     }
                     EngineTaskErrorSeverity::Reset => {
                         warn!(target: "engine", ?err, "Received reset request");
-                        self.reset(derivation_signal_tx, engine_l2_safe_head_tx, finalizer).await?;
+                        self.reset(derivation_signal_tx, engine_l2_safe_head_tx).await?;
                     }
                     EngineTaskErrorSeverity::Flush => {
                         // This error is encountered when the payload is marked INVALID
@@ -451,13 +436,7 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
         }
 
         self.maybe_update_safe_head(engine_l2_safe_head_tx);
-        self.check_el_sync(
-            derivation_signal_tx,
-            engine_l2_safe_head_tx,
-            sync_complete_tx,
-            finalizer,
-        )
-        .await?;
+        self.check_el_sync(derivation_signal_tx, engine_l2_safe_head_tx, sync_complete_tx).await?;
 
         Ok(())
     }
@@ -468,7 +447,6 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
         derivation_signal_tx: &mpsc::Sender<Signal>,
         engine_l2_safe_head_tx: &watch::Sender<L2BlockInfo>,
         sync_complete_tx: &mut Option<oneshot::Sender<()>>,
-        finalizer: &mut L2Finalizer,
     ) -> Result<(), EngineError> {
         if self.engine.state().el_sync_finished {
             let Some(sync_complete_tx) = std::mem::take(sync_complete_tx) else {
@@ -483,7 +461,7 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
 
             // If the sync status is finished, we can reset the engine and start derivation.
             info!(target: "engine", "Performing initial engine reset");
-            self.reset(derivation_signal_tx, engine_l2_safe_head_tx, finalizer).await?;
+            self.reset(derivation_signal_tx, engine_l2_safe_head_tx).await?;
             sync_complete_tx.send(()).ok();
         }
 
@@ -567,7 +545,6 @@ impl NodeActor for EngineActor {
                 derivation_signal_tx,
                 engine_l2_safe_head_tx,
                 Some(sync_complete_tx),
-                self.finalizer,
                 self.unsafe_head_tx,
             )
             .with_cancellation_token(&cancellation)
@@ -615,8 +592,8 @@ impl NodeActor for EngineActor {
                         EngineActorRequest::ProcessDerivedL2AttributesRequest(attributes) => {
                             send_engine_processing_request(EngineProcessingRequest::ProcessDerivedL2Attributes(attributes)).await?;
                         }
-                        EngineActorRequest::ProcessFinalizedL1BlockRequest(block) => {
-                            send_engine_processing_request(EngineProcessingRequest::ProcessFinalizedL1Block(block)).await?;
+                        EngineActorRequest::ProcessFinalizedL2BlockRequest(block_number) => {
+                            send_engine_processing_request(EngineProcessingRequest::ProcessFinalizedL2Block(block_number)).await?;
                         }
                         EngineActorRequest::ProcessUnsafeL2BlockRequest(envelope) => {
                             send_engine_processing_request(EngineProcessingRequest::ProcessUnsafeL2Block(envelope)).await?;
