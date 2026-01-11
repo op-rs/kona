@@ -223,33 +223,50 @@ impl OpP2PApiServer for P2pRpc {
 
         // We need to wait until both peers are connected to each other to return from this method.
         // We try with an exponential backoff and return an error if we fail to connect to the peer.
-        let is_connected = async || {
+        let peer_id_str = peer_id.to_string();
+
+        enum WaitError {
+            NotReady,
+            Internal(ErrorObject<'static>),
+        }
+
+        let wait_until_connected = || async {
             let (tx, rx) = tokio::sync::oneshot::channel();
 
             self.sender
                 .send(P2pRpcRequest::Peers { out: tx, connected: true })
                 .await
-                .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+                .map_err(|_| WaitError::Internal(ErrorObject::from(ErrorCode::InternalError)))?;
 
             let peers = rx.await.map_err(|_| {
-                ErrorObject::borrowed(ErrorCode::InternalError.code(), "Failed to get peers", None)
+                WaitError::Internal(ErrorObject::borrowed(
+                    ErrorCode::InternalError.code(),
+                    "Failed to get peers",
+                    None,
+                ))
             })?;
 
-            Ok::<bool, ErrorObject<'_>>(peers.peers.contains_key(&peer_id.to_string()))
+            if peers.peers.contains_key(&peer_id_str) {
+                Ok::<(), WaitError>(())
+            } else {
+                Err(WaitError::NotReady)
+            }
         };
 
-        if !is_connected
+        let res = wait_until_connected
             .retry(ExponentialBuilder::default().with_total_delay(Some(Duration::from_secs(10))))
-            .await?
-        {
-            return Err(ErrorObject::borrowed(
+            .when(|e| matches!(e, WaitError::NotReady))
+            .await;
+
+        match res {
+            Ok(()) => Ok(()),
+            Err(WaitError::NotReady) => Err(ErrorObject::borrowed(
                 ErrorCode::InvalidParams.code(),
                 "Peer not connected",
                 None,
-            ));
+            )),
+            Err(WaitError::Internal(e)) => Err(e),
         }
-
-        Ok(())
     }
 
     async fn opp2p_disconnect_peer(&self, peer_id: String) -> RpcResult<()> {
@@ -270,33 +287,50 @@ impl OpP2PApiServer for P2pRpc {
         // We need to wait until both peers are fully disconnected to each other to return from this
         // method. We try with an exponential backoff and return an error if we fail to
         // disconnect from the peer.
-        let is_not_connected = async || {
+        let peer_id_str = peer_id.to_string();
+
+        enum WaitError {
+            NotReady,
+            Internal(ErrorObject<'static>),
+        }
+
+        let wait_until_disconnected = || async {
             let (tx, rx) = tokio::sync::oneshot::channel();
 
             self.sender
                 .send(P2pRpcRequest::Peers { out: tx, connected: true })
                 .await
-                .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+                .map_err(|_| WaitError::Internal(ErrorObject::from(ErrorCode::InternalError)))?;
 
             let peers = rx.await.map_err(|_| {
-                ErrorObject::borrowed(ErrorCode::InternalError.code(), "Failed to get peers", None)
+                WaitError::Internal(ErrorObject::borrowed(
+                    ErrorCode::InternalError.code(),
+                    "Failed to get peers",
+                    None,
+                ))
             })?;
 
-            Ok::<bool, ErrorObject<'_>>(!peers.peers.contains_key(&peer_id.to_string()))
+            if !peers.peers.contains_key(&peer_id_str) {
+                Ok::<(), WaitError>(())
+            } else {
+                Err(WaitError::NotReady)
+            }
         };
 
-        if !is_not_connected
+        let res = wait_until_disconnected
             .retry(ExponentialBuilder::default().with_total_delay(Some(Duration::from_secs(10))))
-            .await?
-        {
-            return Err(ErrorObject::borrowed(
+            .when(|e| matches!(e, WaitError::NotReady))
+            .await;
+
+        match res {
+            Ok(()) => Ok(()),
+            Err(WaitError::NotReady) => Err(ErrorObject::borrowed(
                 ErrorCode::InvalidParams.code(),
                 "Peers are still connected",
                 None,
-            ));
+            )),
+            Err(WaitError::Internal(e)) => Err(e),
         }
-
-        Ok(())
     }
 }
 
