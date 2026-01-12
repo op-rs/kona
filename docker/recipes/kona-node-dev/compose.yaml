@@ -71,9 +71,6 @@ services:
       --port ${OP_RETH_DISCOVERY_PORT:-30303}
       --rpc.eth-proof-window 4096
 
-  #--http.api "debug,eth,net,trace,txpool,rpc,web3,admin,reth"
-
-
   op-rs-op-sepolia-kona-node:
     container_name: kona
     depends_on:
