@@ -324,7 +324,7 @@ mod tests {
             match test_case.want {
                 Some(s) => {
                     let r = response.unwrap();
-                    assert_eq!(r.len(), s.len(), "length mistmatch{}", test_case.name);
+                    assert_eq!(r.len(), s.len(), "length mismatch{}", test_case.name);
                     assert_eq!(r, s, "{}", test_case.name)
                 }
                 None => {
