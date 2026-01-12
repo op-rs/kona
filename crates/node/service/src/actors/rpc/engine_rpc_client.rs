@@ -29,7 +29,7 @@ impl EngineRpcClient for QueuedEngineRpcClient {
 
         self.engine_actor_request_tx
             .send(EngineActorRequest::RpcRequest(Box::new(EngineRpcRequest::EngineQuery(
-                EngineQueries::Config(config_tx),
+                Box::new(EngineQueries::Config(config_tx)),
             ))))
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
@@ -45,7 +45,7 @@ impl EngineRpcClient for QueuedEngineRpcClient {
 
         self.engine_actor_request_tx
             .send(EngineActorRequest::RpcRequest(Box::new(EngineRpcRequest::EngineQuery(
-                EngineQueries::State(state_tx),
+                Box::new(EngineQueries::State(state_tx)),
             ))))
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
@@ -64,7 +64,7 @@ impl EngineRpcClient for QueuedEngineRpcClient {
 
         self.engine_actor_request_tx
             .send(EngineActorRequest::RpcRequest(Box::new(EngineRpcRequest::EngineQuery(
-                EngineQueries::OutputAtBlock { block, sender: output_tx },
+                Box::new(EngineQueries::OutputAtBlock { block, sender: output_tx }),
             ))))
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
@@ -80,7 +80,7 @@ impl EngineRpcClient for QueuedEngineRpcClient {
 
         self.engine_actor_request_tx
             .send(EngineActorRequest::RpcRequest(Box::new(EngineRpcRequest::EngineQuery(
-                EngineQueries::TaskQueueLength(length_tx),
+                Box::new(EngineQueries::TaskQueueLength(length_tx)),
             ))))
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
@@ -96,7 +96,7 @@ impl EngineRpcClient for QueuedEngineRpcClient {
 
         self.engine_actor_request_tx
             .send(EngineActorRequest::RpcRequest(Box::new(EngineRpcRequest::EngineQuery(
-                EngineQueries::QueueLengthReceiver(sub_tx),
+                Box::new(EngineQueries::QueueLengthReceiver(sub_tx)),
             ))))
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
@@ -111,7 +111,7 @@ impl EngineRpcClient for QueuedEngineRpcClient {
 
         self.engine_actor_request_tx
             .send(EngineActorRequest::RpcRequest(Box::new(EngineRpcRequest::EngineQuery(
-                EngineQueries::StateReceiver(sub_tx),
+                Box::new(EngineQueries::StateReceiver(sub_tx)),
             ))))
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
