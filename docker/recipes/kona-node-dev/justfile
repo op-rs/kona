@@ -40,7 +40,7 @@ create-docker-network NETWORK="stf-net":
 	-docker network create {{NETWORK}}
 
 setup-ubuntu:
-	-which apt && sudo apt install just git rustup make clang tmux vim
+	-which apt && sudo apt install just git rustup make clang
 	-rustup install nightly
 
 start: stop up
