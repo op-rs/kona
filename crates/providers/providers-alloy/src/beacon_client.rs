@@ -257,88 +257,81 @@ mod tests {
     use httpmock::prelude::*;
     use serde_json::json;
 
+    const TEST_BLOB_DATA: Blob = FixedBytes::repeat_byte(1);
+    const TEST_BLOB_HASH_HEX: &str =
+        "0x016c357b8b3a6b3fd82386e7bebf77143d537cdb1c856509661c412602306a04";
+
     #[test]
     fn test_blob_versioned_hash() {
         let input: Blob = FixedBytes::repeat_byte(1);
-        let want: FixedBytes<32> = FixedBytes::from_hex(
-            "0x016c357b8b3a6b3fd82386e7bebf77143d537cdb1c856509661c412602306a04",
-        )
-        .unwrap();
-        assert_eq!(want, blob_versioned_hash(&input).unwrap());
+        let test_blob_hash: FixedBytes<32> = FixedBytes::from_hex(TEST_BLOB_HASH_HEX).unwrap();
+        assert_eq!(test_blob_hash, blob_versioned_hash(&input).unwrap());
     }
 
     #[tokio::test]
     async fn test_filtered_beacon_blobs() {
         let slot = 987654321;
         let slot_string = slot.to_string();
-        let blob_data: Blob = FixedBytes::repeat_byte(1);
-        let repeated_blob_data: Vec<Blob> = vec![blob_data, blob_data];
-        let repeated_blob_response = json!({
-            "execution_optimistic": false,
-            "finalized": false,
-            "data": repeated_blob_data
-        });
-
-        // The following hash corresponds to the all 01s blob_data (see test above):
-        let blob_hash_of_interest_hex =
-            "0x016c357b8b3a6b3fd82386e7bebf77143d537cdb1c856509661c412602306a04";
-        let blob_hash_of_interest = FixedBytes::from_hex(blob_hash_of_interest_hex).unwrap();
-        let required_query_param =
-            format!("{blob_hash_of_interest_hex},{blob_hash_of_interest_hex}");
-
-        // This server mocks a single, specific query on a beacon node,
-        let server = MockServer::start();
-        let mut blobs_mock = server.mock(|when, then| {
-            when.method(GET)
-                .path(format!("/eth/v1/beacon/blobs/{slot_string}"))
-                .query_param("versioned_hashes", required_query_param.clone());
-            then.status(200).json_body(repeated_blob_response);
-        });
-
-        let client = OnlineBeaconClient::new_http(server.base_url());
-        let response = client
-            .filtered_beacon_blobs(
-                slot,
-                &[
-                    IndexedBlobHash { index: 0, hash: blob_hash_of_interest },
-                    IndexedBlobHash { index: 2, hash: blob_hash_of_interest },
-                ],
-            ) // ask for blobs 0 and 2, which happen to have identical data and hashes
-            .await
-            .unwrap();
-        blobs_mock.assert();
-
-        let want: Vec<BoxedBlobWithIndex> = vec![
-            BoxedBlobWithIndex { index: 0, blob: Box::new(blob_data) },
-            BoxedBlobWithIndex { index: 2, blob: Box::new(blob_data) },
+        let repeated_blob_data: Vec<Blob> = vec![TEST_BLOB_DATA, TEST_BLOB_DATA];
+        let garbage_blob_data: Vec<Blob> = vec![FixedBytes::repeat_byte(2)];
+        let required_query_param = format!("{TEST_BLOB_HASH_HEX},{TEST_BLOB_HASH_HEX}");
+        let test_blob_hash: FixedBytes<32> = FixedBytes::from_hex(TEST_BLOB_HASH_HEX).unwrap();
+        let requested_blob_hashes: Vec<IndexedBlobHash> = vec![
+            IndexedBlobHash { index: 0, hash: test_blob_hash },
+            IndexedBlobHash { index: 2, hash: test_blob_hash },
         ];
-        assert_eq!(response, want);
 
-        // Replace the mock with one which will provide an incorrect response
-        blobs_mock.delete();
-        let garbage_blob_data: Blob = FixedBytes::repeat_byte(2);
-        let incorrect_blob_response = json!({
-            "execution_optimistic": false,
-            "finalized": false,
-            "data": vec![garbage_blob_data]
-        });
-        let incorrect_blobs_mock = server.mock(|when, then| {
-            when.method(GET)
-                .path(format!("/eth/v1/beacon/blobs/{slot_string}"))
-                .query_param("versioned_hashes", required_query_param.clone());
-            then.status(200).json_body(incorrect_blob_response);
-        });
+        struct TestCase {
+            name: &'static str,
+            mock_response_data: Vec<Blob>,
+            want: Option<Vec<BoxedBlobWithIndex>>, // if none, expect an error
+        }
 
-        client
-            .filtered_beacon_blobs(
-                slot,
-                &[
-                    IndexedBlobHash { index: 0, hash: blob_hash_of_interest },
-                    IndexedBlobHash { index: 2, hash: blob_hash_of_interest },
-                ],
-            ) // ask for blobs 0 and 2, which happen to have identical data and hashes
-            .await
-            .expect_err("Expected error when mocking an incorrect response from the beacon server");
-        incorrect_blobs_mock.assert();
+        let test_cases = vec![
+            TestCase {
+                name: "Repeated Blob Data, expect success",
+                mock_response_data: repeated_blob_data,
+                want: Some(vec![
+                    BoxedBlobWithIndex { index: 0, blob: Box::new(TEST_BLOB_DATA) },
+                    BoxedBlobWithIndex { index: 2, blob: Box::new(TEST_BLOB_DATA) },
+                ]),
+            },
+            TestCase {
+                name: "Garbage Blob Data, expect error",
+                mock_response_data: garbage_blob_data,
+                want: None, // indicates an error is expected
+            },
+        ];
+
+        let server = MockServer::start();
+        for test_case in test_cases {
+            // This server mocks a single, specific query on a beacon node,
+            let mock_response = json!({
+                "execution_optimistic": false,
+                "finalized": false,
+                "data": test_case.mock_response_data
+            });
+            let mut blobs_mock = server.mock(|when, then| {
+                when.method(GET)
+                    .path(format!("/eth/v1/beacon/blobs/{slot_string}"))
+                    .query_param("versioned_hashes", required_query_param.clone());
+                then.status(200).json_body(mock_response);
+            });
+
+            let client = OnlineBeaconClient::new_http(server.base_url());
+            let response = client.filtered_beacon_blobs(slot, &requested_blob_hashes).await;
+            blobs_mock.assert();
+            match test_case.want {
+                Some(s) => {
+                    let r = response.unwrap();
+                    assert_eq!(r.len(), s.len(), "length mistmatch{}", test_case.name);
+                    assert_eq!(r, s, "{}", test_case.name)
+                }
+                None => {
+                    assert!(response.is_err(), "{}", test_case.name)
+                }
+            }
+            blobs_mock.delete();
+        }
     }
 }
