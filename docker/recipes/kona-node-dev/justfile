@@ -4,7 +4,6 @@ default:
 
 # initialize project
 init: && update build-kona-node build-op-reth (create-docker-network "stf-net") up
-	-git init
 	-git clone https://github.com/op-rs/kona.git kona-node/kona
 	-git clone https://github.com/paradigmxyz/reth op-reth/reth
 	-./generate-jwt.sh
