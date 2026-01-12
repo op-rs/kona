@@ -19,6 +19,7 @@ pub trait DerivationEngineClient: Debug + Send + Sync {
     ) -> EngineClientResult<()>;
 
     /// Sends a request to finalize the L2 block at the provided block number.
+    /// Note: This does not wait for the engine to process it.
     async fn send_finalized_l2_block(&self, block_number: u64) -> EngineClientResult<()>;
 }
 
