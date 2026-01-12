@@ -12,7 +12,7 @@ init: && update build-kona-node build-op-reth (create-docker-network "stf-net") 
 # update submodules
 update:
 	git -C kona-node/kona submodule update --init --remote
-	git -C kona-node/reth submodule update --init --remote
+	git -C op-reth/reth submodule update --init --remote
 
 # checkout kona dev branch
 checkout BRANCH="main":
