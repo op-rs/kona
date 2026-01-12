@@ -2,6 +2,9 @@ FROM ubuntu:latest
 
 RUN apt-get update -y && apt-get upgrade -y && apt install -y ca-certificates
 
+RUN useradd -ms /bin/bash konauser
+USER konauser
+
 WORKDIR /
 
 COPY kona-node/kona/target/release/kona-node /usr/local/bin

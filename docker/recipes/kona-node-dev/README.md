@@ -14,7 +14,7 @@ development branch and see how it behaves on a network.
 Assuming you are on Ubuntu and your user is member of the group `docker`, first time run
 
     git clone 'https://github.com/op-rs/kona.git'
-    git -C kona-node/kona checkout einar/kona-node-dev-recipe ### TODO(einar-oplabs) only for testing pre-merge
+    git -C kona checkout einar/kona-node-dev-recipe ### TODO(einar-oplabs) only for testing pre-merge
     mv kona/docker/recipes/kona-node-dev/ .
     cd kona-node-dev
     just init
