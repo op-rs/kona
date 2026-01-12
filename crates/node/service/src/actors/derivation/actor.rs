@@ -199,6 +199,56 @@ where
         }
     }
 
+    async fn handle_derivation_actor_request(
+        &mut self,
+        request_type: DerivationActorRequest,
+    ) -> Result<(), DerivationError> {
+        match request_type {
+            DerivationActorRequest::ProcessEngineSignalRequest(signal) => {
+                self.signal(*signal).await;
+                self.waiting_for_signal = false;
+            }
+            DerivationActorRequest::ProcessFinalizedL1Block(finalized_l1_block) => {
+                // Attempt to finalize the block. If successful, notify engine.
+                if let Some(l2_block_number) = self.finalizer.try_finalize_next(*finalized_l1_block)
+                {
+                    self.engine_client
+                        .send_finalized_l2_block(l2_block_number)
+                        .await
+                        .map_err(|e| DerivationError::Sender(Box::new(e)))?;
+                }
+            }
+            DerivationActorRequest::ProcessL1HeadUpdateRequest(l1_head) => {
+                info!(target: "derivation", l1_head = ?*l1_head, "Processing l1 head update");
+
+                // If derivation isn't idle and the message hasn't observed a safe head update
+                // already, check if the safe head has changed before continuing.
+                // This is to prevent attempts to progress the pipeline while it is
+                // in the middle of processing a channel.
+                if !self.derivation_idle && self.awaiting_engine_l2_safe_head_update {
+                    info!(target: "derivation", "Safe head hasn't changed, skipping derivation.");
+                } else {
+                    self.attempt_derivation().await?;
+                }
+            }
+            DerivationActorRequest::ProcessEngineSafeHeadUpdateRequest(safe_head) => {
+                info!(target: "derivation", safe_head = ?*safe_head, "Received safe head from engine.");
+                self.engine_l2_safe_head = *safe_head;
+                self.awaiting_engine_l2_safe_head_update = false;
+
+                self.attempt_derivation().await?;
+            }
+            DerivationActorRequest::ProcessEngineSyncCompletionRequest => {
+                info!(target: "derivation", "Engine finished syncing, starting derivation.");
+                self.has_engine_sync_completed = true;
+
+                self.attempt_derivation().await?;
+            }
+        }
+
+        Ok(())
+    }
+
     /// Attempts to process the next payload attributes.
     ///
     /// There are a few constraints around stepping on the derivation pipeline.
@@ -211,38 +261,7 @@ where
     /// attributes are successfully produced. If the pipeline step errors,
     /// the same [`L2BlockInfo`] is used again. If the [`L2BlockInfo`] is the
     /// zero hash, the pipeline is not stepped on.
-    async fn process_request_and_attempt_derivation(
-        &mut self,
-        msg: DerivationActorRequest,
-    ) -> Result<(), DerivationError> {
-        match msg {
-            DerivationActorRequest::ProcessL1HeadUpdateRequest(l1_head) => {
-                info!(target: "derivation", l1_head = ?*l1_head, "Processing l1 head update");
-
-                // If derivation isn't idle and the message hasn't observed a safe head update
-                // already, check if the safe head has changed before continuing.
-                // This is to prevent attempts to progress the pipeline while it is
-                // in the middle of processing a channel.
-                if !self.derivation_idle && self.awaiting_engine_l2_safe_head_update {
-                    info!(target: "derivation", "Safe head hasn't changed, skipping derivation.");
-                    return Ok(());
-                }
-            }
-            DerivationActorRequest::ProcessEngineSafeHeadUpdateRequest(safe_head) => {
-                info!(target: "derivation", safe_head = ?*safe_head, "Received safe head from engine.");
-                self.engine_l2_safe_head = *safe_head;
-                self.awaiting_engine_l2_safe_head_update = false;
-            }
-            DerivationActorRequest::ProcessEngineSyncCompletionRequest => {
-                info!(target: "derivation", "Engine finished syncing, starting derivation.");
-                self.has_engine_sync_completed = true;
-            }
-            _ => {
-                error!(target: "derivation", ?msg, "Unexpected request in process_request_and_attempt_derivation(...)");
-                return Err(DerivationError::RequestReceiveFailed)
-            }
-        }
-
+    async fn attempt_derivation(&mut self) -> Result<(), DerivationError> {
         if !self.has_engine_sync_completed {
             info!(target: "derivation", "Engine sync has not completed, skipping derivation");
             return Ok(());
@@ -316,26 +335,7 @@ where
                         return Err(DerivationError::RequestReceiveFailed);
                     };
 
-                    match request_type {
-                        DerivationActorRequest::ProcessEngineSignalRequest(signal) => {
-                            self.signal(*signal).await;
-                            self.waiting_for_signal = false;
-                        },
-                        DerivationActorRequest::ProcessFinalizedL1Block(finalized_l1_block) => {
-                            // Attempt to finalize the block. If successful, notify engine.
-                            if let Some(l2_block_number) = self.finalizer.try_finalize_next(*finalized_l1_block) {
-                                self.engine_client
-                                    .send_finalized_l2_block(l2_block_number)
-                                    .await
-                                    .map_err(|e| DerivationError::Sender(Box::new(e)))?;
-                            }
-                        },
-                        req @ DerivationActorRequest::ProcessL1HeadUpdateRequest(_)
-                            | req @ DerivationActorRequest::ProcessEngineSafeHeadUpdateRequest(_)
-                            | req @ DerivationActorRequest::ProcessEngineSyncCompletionRequest => {
-                            self.process_request_and_attempt_derivation(req).await?;
-                        },
-                    }
+                    self.handle_derivation_actor_request(request_type).await?;
                 }
             }
         }

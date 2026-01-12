@@ -34,7 +34,7 @@ pub enum EngineProcessingRequest {
     /// Request to process a derived L2 safe head.
     ProcessDerivedL2Attributes(Box<OpAttributesWithParent>),
     /// Request to process the finalized L2 block with the provided block number.
-    ProcessFinalizedL2Block(Box<u64>),
+    ProcessFinalizedL2BlockNumber(Box<u64>),
     /// Request to process a received unsafe L2 block.
     ProcessUnsafeL2Block(Box<OpExecutionPayloadEnvelope>),
     /// Request to reset the forkchoice.
@@ -158,35 +158,32 @@ where
         }
 
         self.send_derivation_actor_safe_head_if_updated().await?;
-        self.check_el_sync().await?;
+
+        if !self.el_sync_complete && self.engine.state().el_sync_finished {
+            self.mark_el_sync_complete_and_notify_derivation_actor().await?;
+        }
 
         Ok(())
     }
 
-    /// Checks if the EL has finished syncing, notifying the derivation actor if it has.
-    async fn check_el_sync(&mut self) -> Result<(), EngineError> {
-        if self.engine.state().el_sync_finished {
-            if self.el_sync_complete {
-                return Ok(());
-            }
-            self.el_sync_complete = true;
+    async fn mark_el_sync_complete_and_notify_derivation_actor(
+        &mut self,
+    ) -> Result<(), EngineError> {
+        self.el_sync_complete = true;
 
-            // Reset the engine if the sync state does not already know about a finalized block.
-            if self.engine.state().sync_state.finalized_head() == L2BlockInfo::default() {
-                // If the sync status is finished, we can reset the engine and start derivation.
-                info!(target: "engine", "Performing initial engine reset");
-                self.reset().await?;
-            } else {
-                info!(target: "engine", "finalized head is not default, so not resetting");
-            }
-
-            self.derivation_client.notify_sync_completed().await.map_err(|e| {
-                error!(target: "engine", ?e, "Failed to notify sync completed");
-                EngineError::ChannelClosed
-            })?;
+        // Reset the engine if the sync state does not already know about a finalized block.
+        if self.engine.state().sync_state.finalized_head() == L2BlockInfo::default() {
+            // If the sync status is finished, we can reset the engine and start derivation.
+            info!(target: "engine", "Performing initial engine reset");
+            self.reset().await?;
+        } else {
+            info!(target: "engine", "finalized head is not default, so not resetting");
         }
 
-        Ok(())
+        self.derivation_client.notify_sync_completed().await.map(|_| Ok(())).map_err(|e| {
+            error!(target: "engine", ?e, "Failed to notify sync completed");
+            EngineError::ChannelClosed
+        })?
     }
 
     /// Attempts to send the [`crate::DerivationActor`] the safe head if updated.
@@ -262,7 +259,9 @@ where
                         )));
                         self.engine.enqueue(task);
                     }
-                    EngineProcessingRequest::ProcessFinalizedL2Block(finalized_l2_block_number) => {
+                    EngineProcessingRequest::ProcessFinalizedL2BlockNumber(
+                        finalized_l2_block_number,
+                    ) => {
                         // Finalize the L2 block at the provided block number.
                         let task = EngineTask::Finalize(Box::new(FinalizeTask::new(
                             self.client.clone(),
@@ -293,9 +292,10 @@ where
                             .map_err(|e| EngineClientError::ResetForkchoiceError(e.to_string()));
                         if reset_request.result_tx.send(response_payload).await.is_err() {
                             warn!(target: "engine", "Sending reset response failed");
+                            // If there was an error and we couldn't notify the caller to handle it,
+                            // return the error.
+                            reset_res?;
                         }
-
-                        reset_res?;
                     }
                     EngineProcessingRequest::Seal(seal_request) => {
                         let SealRequest { payload_id, attributes, result_tx } = *seal_request;

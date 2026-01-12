@@ -39,6 +39,39 @@ impl<EngineClient_> EngineRpcProcessor<EngineClient_>
 where
     EngineClient_: EngineClient + 'static,
 {
+    async fn handle_rpc_request(&self, request: EngineRpcRequest) -> Result<(), EngineError> {
+        match request {
+            EngineRpcRequest::EngineQuery(req) => {
+                trace!(target: "engine", ?req, "Received engine query.");
+
+                if let Err(e) = req
+                    .handle(
+                        &self.engine_state_receiver,
+                        &self.engine_queue_length_receiver,
+                        &self.engine_client,
+                        &self.rollup_config,
+                    )
+                    .await
+                {
+                    warn!(target: "engine", err = ?e, "Failed to handle engine query.");
+                }
+            }
+            EngineRpcRequest::RollupBoostAdminRequest(admin_query) => {
+                trace!(target: "engine", ?admin_query, "Received rollup boost admin query.");
+
+                self.handle_rollup_boost_admin_query(*admin_query);
+            }
+            EngineRpcRequest::RollupBoostHealthRequest(health_query) => {
+                trace!(target: "engine", ?health_query, "Received rollup boost health query.");
+
+                let health = self.rollup_boost_server.get_health();
+                health_query.sender.send(health.into()).unwrap();
+            }
+        }
+
+        Ok(())
+    }
+
     fn handle_rollup_boost_admin_query(&self, admin_query: RollupBoostAdminQuery) {
         match admin_query {
             RollupBoostAdminQuery::SetExecutionMode { execution_mode, sender } => {
@@ -73,31 +106,7 @@ where
                             error!(target: "engine", "Engine rpc request receiver closed unexpectedly");
                             return Err(EngineError::ChannelClosed);
                         };
-                        match query {
-                            EngineRpcRequest::EngineQuery(req) => {
-                                trace!(target: "engine", ?req, "Received engine query.");
-
-                                if let Err(e) = req
-                                    .handle(&self.engine_state_receiver, &self.engine_queue_length_receiver, &self.engine_client, &self.rollup_config)
-                                    .await
-                                {
-                                    warn!(target: "engine", err = ?e, "Failed to handle engine query.");
-                                }
-                            },
-                            EngineRpcRequest::RollupBoostAdminRequest(admin_query) => {
-                                trace!(target: "engine", ?admin_query, "Received rollup boost admin query.");
-
-                                self.handle_rollup_boost_admin_query(*admin_query);
-
-                            },
-                            EngineRpcRequest::RollupBoostHealthRequest(health_query) => {
-                                trace!(target: "engine", ?health_query, "Received rollup boost health query.");
-
-                                let health = self.rollup_boost_server.get_health();
-                                health_query.sender.send(health.into()).unwrap();
-                            },
-
-                        }
+                        self.handle_rpc_request(query).await?;
                     }
                 }
             }

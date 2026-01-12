@@ -143,8 +143,8 @@ where
                         EngineActorRequest::ProcessDerivedL2AttributesRequest(attributes) => {
                             send_engine_processing_request(EngineProcessingRequest::ProcessDerivedL2Attributes(attributes)).await?;
                         }
-                        EngineActorRequest::ProcessFinalizedL2BlockRequest(block_number) => {
-                            send_engine_processing_request(EngineProcessingRequest::ProcessFinalizedL2Block(block_number)).await?;
+                        EngineActorRequest::ProcessFinalizedL2BlockNumberRequest(block_number) => {
+                            send_engine_processing_request(EngineProcessingRequest::ProcessFinalizedL2BlockNumber(block_number)).await?;
                         }
                         EngineActorRequest::ProcessUnsafeL2BlockRequest(envelope) => {
                             send_engine_processing_request(EngineProcessingRequest::ProcessUnsafeL2Block(envelope)).await?;

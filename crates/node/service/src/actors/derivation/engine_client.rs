@@ -68,7 +68,7 @@ impl DerivationEngineClient for QueuedDerivationEngineClient {
     async fn send_finalized_l2_block(&self, block_number: u64) -> EngineClientResult<()> {
         trace!(target: "derivation", block_number, "Sending finalized L2 block number to engine.");
         self.engine_actor_request_tx
-            .send(EngineActorRequest::ProcessFinalizedL2BlockRequest(Box::new(block_number)))
+            .send(EngineActorRequest::ProcessFinalizedL2BlockNumberRequest(Box::new(block_number)))
             .await
             .map_err(|_| EngineClientError::RequestError("request channel closed.".to_string()))?;
 

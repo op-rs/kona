@@ -18,7 +18,7 @@ pub enum EngineClientError {
 
     /// Error receiving response from the engine.
     /// This means the request may or may not have succeeded.
-    #[error("Error receiving response from the engine: {0}..")]
+    #[error("Error receiving response from the engine: {0}.")]
     ResponseError(String),
 
     /// An error occurred starting to build a block.
@@ -42,7 +42,7 @@ pub enum EngineActorRequest {
     /// Request to consolidate based on the provided attributes.
     ProcessDerivedL2AttributesRequest(Box<OpAttributesWithParent>),
     /// Request to finalize the L2 block at the provided block number.
-    ProcessFinalizedL2BlockRequest(Box<u64>),
+    ProcessFinalizedL2BlockNumberRequest(Box<u64>),
     /// Request to insert the provided unsafe block.
     ProcessUnsafeL2BlockRequest(Box<OpExecutionPayloadEnvelope>),
     /// Request to reset engine forkchoice.
