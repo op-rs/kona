@@ -10,7 +10,7 @@ init: && update build-kona-node build-op-reth (create-docker-network "stf-net") 
 	-./generate-jwt.sh
 
 # update submodules
-update:
+update: && build-kona-node build-op-reth
 	git -C kona-node/kona submodule update --init --remote
 	git -C op-reth/reth submodule update --init --remote
 
@@ -51,11 +51,6 @@ setup-ubuntu:
 start: stop up
 
 stop: down rmi
-
-
-#checkout branch:
-#	#!/bin/bash
-#	(cd kona-node/kona && git fetch origin && git checkout "{{branch}}")
 
 reset-git:
 	#!/bin/bash
