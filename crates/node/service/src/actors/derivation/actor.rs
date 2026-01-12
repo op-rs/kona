@@ -424,21 +424,6 @@ where
 
         Ok(())
     }
-
-    /// Attempts to finalize L2 blocks when a new finalized L1 block is received.
-    async fn try_finalize(
-        &mut self,
-        finalized_l1_block: BlockInfo,
-        engine_client: &DerivationEngineClient_,
-    ) -> Result<(), DerivationError> {
-        if let Some(l2_block_number) = self.finalizer.try_finalize_next(finalized_l1_block) {
-            engine_client
-                .send_finalized_l2_block(l2_block_number)
-                .await
-                .map_err(|e| DerivationError::Sender(Box::new(e)))?;
-        }
-        Ok(())
-    }
 }
 
 impl<DerivationEngineClient_, PipelineBuilder_>
@@ -539,7 +524,13 @@ where
                     // Extract the value before awaiting to avoid holding the borrow across await.
                     let finalized_l1_block = *self.l1_finalized_updates.borrow_and_update();
                     if let Some(finalized_l1_block) = finalized_l1_block {
-                        state.try_finalize(finalized_l1_block, &self.engine_client).await?;
+                        // Attempt to finalize L2 blocks when a new finalized L1 block is received.
+                        if let Some(l2_block_number) = state.finalizer.try_finalize_next(finalized_l1_block) {
+                            self.engine_client
+                                .send_finalized_l2_block(l2_block_number)
+                                .await
+                                .map_err(|e| DerivationError::Sender(Box::new(e)))?;
+                        }
                     }
                 }
                 _ = &mut self.el_sync_complete_rx, if !self.el_sync_complete_rx.is_terminated() => {
