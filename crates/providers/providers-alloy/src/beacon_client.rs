@@ -18,7 +18,7 @@ const SPEC_METHOD: &str = "eth/v1/config/spec";
 /// The beacon genesis engine api method.
 const GENESIS_METHOD: &str = "eth/v1/beacon/genesis";
 
-/// THe blobs engine api method prefix.
+/// The blobs engine api method prefix.
 const BLOBS_METHOD_PREFIX: &str = "eth/v1/beacon/blobs";
 
 /// A reduced genesis data.
@@ -106,7 +106,7 @@ pub enum BeaconClientError {
     Http(#[from] reqwest::Error),
 
     /// Blob hash not found in beacon response.
-    #[error("Blob hash not found in beacon response {0}")]
+    #[error("Blob hash not found in beacon response: {0}")]
     BlobNotFound(String),
 
     /// KZG error.
@@ -160,7 +160,7 @@ impl OnlineBeaconClient {
         let response = self
             .inner
             .get(format!("{}/{}/{}", self.base, BLOBS_METHOD_PREFIX, slot))
-            .query(&[("versioned_hashes", &params.join(",").as_str())])
+            .query(&[("versioned_hashes", &params.join(","))])
             .send()
             .await?
             .error_for_status()?;
@@ -320,7 +320,7 @@ mod tests {
         let incorrect_blob_response = json!({
             "execution_optimistic": false,
             "finalized": false,
-            "data": garbage_blob_data
+            "data": vec![garbage_blob_data]
         });
         let incorrect_blobs_mock = server.mock(|when, then| {
             when.method(GET)
