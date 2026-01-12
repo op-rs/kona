@@ -1,10 +1,8 @@
 //! [NodeActor] implementation for the derivation sub-routine.
 
-use std::sync::Arc;
-
 use crate::{
     InteropMode, Metrics, NodeActor,
-    actors::{CancellableContext, engine::ResetRequest},
+    actors::{CancellableContext, derivation::DerivationEngineClient},
 };
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
@@ -19,6 +17,7 @@ use kona_providers_alloy::{
     OnlinePipeline,
 };
 use op_alloy_network::Optimism;
+use std::{marker::PhantomData, sync::Arc};
 use thiserror::Error;
 use tokio::{
     select,
@@ -32,13 +31,15 @@ use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 /// derivation pipeline forward to produce new payload attributes. The actor then sends the payload
 /// to the [NodeActor] responsible for the execution sub-routine.
 #[derive(Debug)]
-pub struct DerivationActor<B>
+pub struct DerivationActor<DerivationEngineClient_, PipelineBuilder_>
 where
-    B: PipelineBuilder,
+    DerivationEngineClient_: DerivationEngineClient,
+    PipelineBuilder_: PipelineBuilder<DerivationEngineClient_>,
 {
+    /// The cancellation token, shared between all tasks.
+    cancellation_token: CancellationToken,
     /// The state for the derivation actor.
-    state: B,
-
+    state: PipelineBuilder_,
     /// The receiver for L1 head update notifications.
     l1_head_updates: watch::Receiver<Option<BlockInfo>>,
     /// The receiver for L2 safe head update notifications.
@@ -50,8 +51,7 @@ where
     ///
     /// The derivation actor steps over the derivation pipeline to generate
     /// [`OpAttributesWithParent`]. These attributes then need to be executed
-    /// via the engine api, which is done by sending them through the
-    /// [`DerivationContext::derived_attributes_tx`] channel.
+    /// via the engine api, which is done by sending them to the engine.
     ///
     /// When the engine api receives an `INVALID` response for a new block (
     /// the new [`OpAttributesWithParent`]) during block building, the payload
@@ -65,22 +65,28 @@ where
     ///
     /// Specs: <https://specs.optimism.io/protocol/derivation.html#l1-sync-payload-attributes-processing>
     derivation_signal_rx: mpsc::Receiver<Signal>,
+
+    /// The Engine client used to interact with the engine.
+    engine_client: DerivationEngineClient_,
 }
 
 /// The state for the derivation actor.
 #[derive(Debug)]
-pub struct DerivationState<P>
+pub struct DerivationState<DerivationEngineClient_, PipelineSignalReceiver>
 where
-    P: Pipeline + SignalReceiver,
+    DerivationEngineClient_: DerivationEngineClient,
+    PipelineSignalReceiver: Pipeline + SignalReceiver,
 {
     /// The derivation pipeline.
-    pub pipeline: P,
+    pub pipeline: PipelineSignalReceiver,
     /// A flag indicating whether or not derivation is idle. Derivation is considered idle when it
     /// has yielded to wait for more data on the DAL.
     pub derivation_idle: bool,
     /// A flag indicating whether or not derivation is waiting for a signal. When waiting for a
     /// signal, derivation cannot process any incoming events.
     pub waiting_for_signal: bool,
+
+    phantom: PhantomData<DerivationEngineClient_>,
 }
 
 /// The size of the cache used in the derivation pipeline's providers.
@@ -88,12 +94,14 @@ const DERIVATION_PROVIDER_CACHE_SIZE: usize = 1024;
 
 /// A trait for building derivation pipelines.
 #[async_trait]
-pub trait PipelineBuilder: Send + Sync + 'static {
+pub trait PipelineBuilder<DerivationEngineClient_: DerivationEngineClient>:
+    Send + Sync + 'static
+{
     /// The type of pipeline to build.
     type Pipeline: Pipeline + SignalReceiver + Send + Sync + 'static;
 
     /// Builds the derivation pipeline.
-    async fn build(self) -> DerivationState<Self::Pipeline>;
+    async fn build(self) -> DerivationState<DerivationEngineClient_, Self::Pipeline>;
 }
 
 /// The configuration necessary to build the derivation actor.
@@ -118,10 +126,13 @@ pub struct DerivationBuilder {
 }
 
 #[async_trait]
-impl PipelineBuilder for DerivationBuilder {
+impl<DerivationEngineClient_> PipelineBuilder<DerivationEngineClient_> for DerivationBuilder
+where
+    DerivationEngineClient_: DerivationEngineClient + 'static,
+{
     type Pipeline = OnlinePipeline;
 
-    async fn build(self) -> DerivationState<OnlinePipeline> {
+    async fn build(self) -> DerivationState<DerivationEngineClient_, OnlinePipeline> {
         // Create the caching L1/L2 EL providers for derivation.
         let l1_derivation_provider = AlloyChainProvider::new_with_trust(
             self.l1_provider.clone(),
@@ -174,31 +185,26 @@ pub struct DerivationInboundChannels {
     pub derivation_signal_tx: mpsc::Sender<Signal>,
 }
 
-/// The communication context used by the derivation actor.
-#[derive(Debug)]
-pub struct DerivationContext {
-    /// The cancellation token, shared between all tasks.
-    pub cancellation: CancellationToken,
-    /// Sends the derived [`OpAttributesWithParent`]s produced by the actor.
-    pub derived_attributes_tx: mpsc::Sender<OpAttributesWithParent>,
-    /// The reset request sender, used to handle [`PipelineErrorKind::Reset`] events and forward
-    /// them to the engine.
-    pub reset_request_tx: mpsc::Sender<ResetRequest>,
-}
-
-impl CancellableContext for DerivationContext {
+impl<DerivationEngineClient_, PipelineBuilder_> CancellableContext
+    for DerivationActor<DerivationEngineClient_, PipelineBuilder_>
+where
+    DerivationEngineClient_: DerivationEngineClient,
+    PipelineBuilder_: PipelineBuilder<DerivationEngineClient_>,
+{
     fn cancelled(&self) -> WaitForCancellationFuture<'_> {
-        self.cancellation.cancelled()
+        self.cancellation_token.cancelled()
     }
 }
 
-impl<P> DerivationState<P>
+impl<DerivationEngineClient_, PipelineSignalReceiver>
+    DerivationState<DerivationEngineClient_, PipelineSignalReceiver>
 where
-    P: Pipeline + SignalReceiver,
+    DerivationEngineClient_: DerivationEngineClient + 'static,
+    PipelineSignalReceiver: Pipeline + SignalReceiver,
 {
     /// Creates a new instance of the [DerivationState].
-    pub const fn new(pipeline: P) -> Self {
-        Self { pipeline, derivation_idle: true, waiting_for_signal: false }
+    pub const fn new(pipeline: PipelineSignalReceiver) -> Self {
+        Self { pipeline, derivation_idle: true, waiting_for_signal: false, phantom: PhantomData }
     }
 
     /// Handles a [`Signal`] received over the derivation signal receiver channel.
@@ -220,7 +226,7 @@ where
     async fn produce_next_attributes(
         &mut self,
         engine_l2_safe_head: &watch::Receiver<L2BlockInfo>,
-        reset_request_tx: &mpsc::Sender<ResetRequest>,
+        engine_client: &DerivationEngineClient_,
     ) -> Result<OpAttributesWithParent, DerivationError> {
         // As we start the safe head at the disputed block's parent, we step the pipeline until the
         // first attributes are produced. All batches at and before the safe head will be
@@ -291,7 +297,7 @@ where
                                     .rollup_config()
                                     .is_interop_active(l2_safe_head.block_info.timestamp)
                                 {
-                                    reset_request_tx.send(ResetRequest{result_tx: None}).await.map_err(|e| {
+                                    engine_client.reset_engine_forkchoice().await.map_err(|e| {
                                         error!(target: "derivation", ?e, "Failed to send reset request");
                                         DerivationError::Sender(Box::new(e))
                                     })?;
@@ -333,8 +339,7 @@ where
         msg: InboundDerivationMessage,
         engine_l2_safe_head: &mut watch::Receiver<L2BlockInfo>,
         el_sync_complete_rx: &oneshot::Receiver<()>,
-        derived_attributes_tx: &mpsc::Sender<OpAttributesWithParent>,
-        reset_request_tx: &mpsc::Sender<ResetRequest>,
+        engine_client: &DerivationEngineClient_,
     ) -> Result<(), DerivationError> {
         // Only attempt derivation once the engine finishes syncing.
         if !el_sync_complete_rx.is_terminated() {
@@ -372,7 +377,7 @@ where
         // Advance the pipeline as much as possible, new data may be available or there still may be
         // payloads in the attributes queue.
         let payload_attrs =
-            match self.produce_next_attributes(engine_l2_safe_head, reset_request_tx).await {
+            match self.produce_next_attributes(engine_l2_safe_head, engine_client).await {
                 Ok(attrs) => attrs,
                 Err(DerivationError::Yield) => {
                     // Yield until more data is available.
@@ -391,8 +396,8 @@ where
         engine_l2_safe_head.borrow_and_update();
 
         // Send payload attributes out for processing.
-        derived_attributes_tx
-            .send(payload_attrs)
+        engine_client
+            .send_derived_attributes(payload_attrs)
             .await
             .map_err(|e| DerivationError::Sender(Box::new(e)))?;
 
@@ -400,23 +405,31 @@ where
     }
 }
 
-impl<B> DerivationActor<B>
+impl<DerivationEngineClient_, PipelineBuilder_>
+    DerivationActor<DerivationEngineClient_, PipelineBuilder_>
 where
-    B: PipelineBuilder,
+    DerivationEngineClient_: DerivationEngineClient,
+    PipelineBuilder_: PipelineBuilder<DerivationEngineClient_>,
 {
     /// Creates a new instance of the [DerivationActor].
-    pub fn new(state: B) -> (DerivationInboundChannels, Self) {
+    pub fn new(
+        engine_client: DerivationEngineClient_,
+        cancellation_token: CancellationToken,
+        state: PipelineBuilder_,
+    ) -> (DerivationInboundChannels, Self) {
         let (l1_head_updates_tx, l1_head_updates_rx) = watch::channel(None);
         let (engine_l2_safe_head_tx, engine_l2_safe_head_rx) =
             watch::channel(L2BlockInfo::default());
         let (el_sync_complete_tx, el_sync_complete_rx) = oneshot::channel();
         let (derivation_signal_tx, derivation_signal_rx) = mpsc::channel(16);
         let actor = Self {
+            cancellation_token,
             state,
             l1_head_updates: l1_head_updates_rx,
             engine_l2_safe_head: engine_l2_safe_head_rx,
             el_sync_complete_rx,
             derivation_signal_rx,
+            engine_client,
         };
 
         (
@@ -432,28 +445,23 @@ where
 }
 
 #[async_trait]
-impl<B> NodeActor for DerivationActor<B>
+impl<DerivationEngineClient_, PipelineBuilder_> NodeActor
+    for DerivationActor<DerivationEngineClient_, PipelineBuilder_>
 where
-    B: PipelineBuilder,
+    DerivationEngineClient_: DerivationEngineClient + 'static,
+    PipelineBuilder_: PipelineBuilder<DerivationEngineClient_>,
 {
     type Error = DerivationError;
-    type StartData = DerivationContext;
+    type StartData = ();
 
-    async fn start(
-        mut self,
-        DerivationContext {
-            derived_attributes_tx,
-            reset_request_tx,
-            cancellation,
-        }: Self::StartData,
-    ) -> Result<(), Self::Error> {
+    async fn start(mut self, _: Self::StartData) -> Result<(), Self::Error> {
         let mut state = self.state.build().await;
 
         loop {
             select! {
                 biased;
 
-                _ = cancellation.cancelled() => {
+                _ = self.cancellation_token.cancelled() => {
                     info!(
                         target: "derivation",
                         "Received shutdown signal. Exiting derivation task."
@@ -483,15 +491,15 @@ where
                         return Ok(());
                     }
 
-                    state.process(InboundDerivationMessage::NewDataAvailable, &mut self.engine_l2_safe_head, &self.el_sync_complete_rx, &derived_attributes_tx, &reset_request_tx).await?;
+                    state.process(InboundDerivationMessage::NewDataAvailable, &mut self.engine_l2_safe_head, &self.el_sync_complete_rx, &self.engine_client).await?;
                 }
                 _ = self.engine_l2_safe_head.changed() => {
-                    state.process(InboundDerivationMessage::SafeHeadUpdated, &mut self.engine_l2_safe_head, &self.el_sync_complete_rx, &derived_attributes_tx, &reset_request_tx).await?;
+                    state.process(InboundDerivationMessage::SafeHeadUpdated, &mut self.engine_l2_safe_head, &self.el_sync_complete_rx, &self.engine_client).await?;
                 }
                 _ = &mut self.el_sync_complete_rx, if !self.el_sync_complete_rx.is_terminated() => {
                     info!(target: "derivation", "Engine finished syncing, starting derivation.");
                     // Optimistically process the first message.
-                    state.process(InboundDerivationMessage::NewDataAvailable, &mut self.engine_l2_safe_head, &self.el_sync_complete_rx, &derived_attributes_tx, &reset_request_tx).await?;
+                    state.process(InboundDerivationMessage::NewDataAvailable, &mut self.engine_l2_safe_head, &self.el_sync_complete_rx, &self.engine_client).await?;
                 }
             }
         }

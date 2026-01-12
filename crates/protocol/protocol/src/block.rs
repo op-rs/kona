@@ -239,7 +239,7 @@ impl L2BlockInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloc::string::ToString;
+    use alloc::{string::ToString, vec};
     use alloy_consensus::{Header, TxEnvelope};
     use alloy_primitives::b256;
     use op_alloy_consensus::OpBlock;

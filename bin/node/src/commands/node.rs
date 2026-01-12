@@ -246,12 +246,12 @@ impl NodeCommand {
                 Err(e) => {
                     if Self::is_jwt_signature_error(&e) {
                         error!(
-                            "Engine API JWT secret differs from the one specified by --l2.jwt-secret"
+                            "Engine API JWT secret differs from the one specified by --l2.jwt-secret/--l2.jwt-secret-encoded"
                         );
                         error!(
                             "Ensure that the JWT secret file specified is correct (by default it is `jwt.hex` in the current directory)"
                         );
-                        return Err(JwtValidationError::InvalidSignature.into())
+                        return Err(JwtValidationError::InvalidSignature.into());
                     }
                     Err(JwtValidationError::CapabilityExchange(e.to_string()).into())
                 }
