@@ -21,8 +21,9 @@ pub enum DerivationClientError {
 /// Inbound requests that the [`crate::DerivationActor`] can process.
 #[derive(Debug)]
 pub enum DerivationActorRequest {
-    /// Request to process the fact that Engine sync has completed.
-    ProcessEngineSyncCompletionRequest,
+    /// Request to process the fact that Engine sync has completed, along with the current safe
+    /// head.
+    ProcessEngineSyncCompletionRequest(Box<L2BlockInfo>),
     /// Request to process the provided L2 engine safe head update.
     ProcessEngineSafeHeadUpdateRequest(Box<L2BlockInfo>),
     /// A request containing a [`Signal`] to the derivation pipeline.

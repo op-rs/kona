@@ -1,15 +1,16 @@
 //! [NodeActor] implementation for the derivation sub-routine.
 
 use crate::{
-    CancellableContext, Metrics, NodeActor,
-    actors::derivation::{DerivationActorRequest, DerivationEngineClient, L2Finalizer},
+    CancellableContext, DerivationActorRequest, DerivationEngineClient, DerivationState,
+    DerivationStateMachine, DerivationStateTransitionError, DerivationStateUpdate, Metrics,
+    NodeActor, actors::derivation::L2Finalizer,
 };
 use async_trait::async_trait;
 use kona_derive::{
     ActivationSignal, Pipeline, PipelineError, PipelineErrorKind, ResetError, ResetSignal, Signal,
     SignalReceiver, StepResult,
 };
-use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
+use kona_protocol::OpAttributesWithParent;
 use thiserror::Error;
 use tokio::{select, sync::mpsc};
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
@@ -33,22 +34,10 @@ where
     engine_client: DerivationEngineClient_,
     /// The derivation pipeline.
     pipeline: PipelineSignalReceiver,
-
-    /// The engine's L2 safe head, according to updates from the Engine.
-    engine_l2_safe_head: L2BlockInfo,
-    /// Whether we are waiting on the engine to acknowledge the last derived attributes
-    awaiting_engine_l2_safe_head_update: bool,
-
-    /// A flag indicating whether derivation is idle. Derivation is considered idle when it
-    /// has yielded to wait for more data on the DAL.
-    derivation_idle: bool,
+    /// The state machine controlling when derivation can occur.
+    derivation_state_machine: DerivationStateMachine,
     /// The [`L2Finalizer`] tracks derived L2 blocks awaiting finalization.
     pub(crate) finalizer: L2Finalizer,
-    /// A flag indicating whether derivation is waiting for a signal. When waiting for a
-    /// signal, derivation cannot process any incoming events.
-    waiting_for_signal: bool,
-    /// Whether the engine sync has completed. This will only ever go from false -> true.
-    has_engine_sync_completed: bool,
 }
 
 impl<DerivationEngineClient_, PipelineSignalReceiver> CancellableContext
@@ -80,11 +69,7 @@ where
             pipeline,
             inbound_request_rx,
             engine_client,
-            derivation_idle: true,
-            waiting_for_signal: false,
-            engine_l2_safe_head: L2BlockInfo::default(),
-            awaiting_engine_l2_safe_head_update: false,
-            has_engine_sync_completed: false,
+            derivation_state_machine: DerivationStateMachine::default(),
             finalizer: L2Finalizer::default(),
         }
     }
@@ -112,7 +97,8 @@ where
         // first attributes are produced. All batches at and before the safe head will be
         // dropped, so the first payload will always be the disputed one.
         loop {
-            match self.pipeline.step(self.engine_l2_safe_head).await {
+            match self.pipeline.step(self.derivation_state_machine.last_confirmed_safe_head()).await
+            {
                 StepResult::PreparedAttributes => { /* continue; attributes will be sent off. */ }
                 StepResult::AdvancedOrigin => {
                     let origin =
@@ -141,7 +127,12 @@ where
 
                             let system_config = self
                                 .pipeline
-                                .system_config_by_number(self.engine_l2_safe_head.block_info.number)
+                                .system_config_by_number(
+                                    self.derivation_state_machine
+                                        .last_confirmed_safe_head()
+                                        .block_info
+                                        .number,
+                                )
                                 .await?;
 
                             if matches!(e, ResetError::HoloceneActivation) {
@@ -153,7 +144,9 @@ where
                                 self.pipeline
                                     .signal(
                                         ActivationSignal {
-                                            l2_safe_head: self.engine_l2_safe_head,
+                                            l2_safe_head: self
+                                                .derivation_state_machine
+                                                .last_confirmed_safe_head(),
                                             l1_origin,
                                             system_config: Some(system_config),
                                         }
@@ -172,14 +165,18 @@ where
                                 // send the `reset` signal to the engine actor only when interop is
                                 // not active.
                                 if !self.pipeline.rollup_config().is_interop_active(
-                                    self.engine_l2_safe_head.block_info.timestamp,
+                                    self.derivation_state_machine
+                                        .last_confirmed_safe_head()
+                                        .block_info
+                                        .timestamp,
                                 ) {
                                     self.engine_client.reset_engine_forkchoice().await.map_err(|e| {
                                         error!(target: "derivation", ?e, "Failed to send reset request");
                                         DerivationError::Sender(Box::new(e))
                                     })?;
                                 }
-                                self.waiting_for_signal = true;
+                                self.derivation_state_machine
+                                    .update(&DerivationStateUpdate::SignalNeeded)?;
                                 return Err(DerivationError::Yield);
                             }
                         }
@@ -206,7 +203,7 @@ where
         match request_type {
             DerivationActorRequest::ProcessEngineSignalRequest(signal) => {
                 self.signal(*signal).await;
-                self.waiting_for_signal = false;
+                self.derivation_state_machine.update(&DerivationStateUpdate::SignalProcessed)?;
             }
             DerivationActorRequest::ProcessFinalizedL1Block(finalized_l1_block) => {
                 // Attempt to finalize the block. If successful, notify engine.
@@ -221,26 +218,21 @@ where
             DerivationActorRequest::ProcessL1HeadUpdateRequest(l1_head) => {
                 info!(target: "derivation", l1_head = ?*l1_head, "Processing l1 head update");
 
-                // If derivation isn't idle and the message hasn't observed a safe head update
-                // already, check if the safe head has changed before continuing.
-                // This is to prevent attempts to progress the pipeline while it is
-                // in the middle of processing a channel.
-                if !self.derivation_idle && self.awaiting_engine_l2_safe_head_update {
-                    info!(target: "derivation", "Safe head hasn't changed, skipping derivation.");
-                } else {
-                    self.attempt_derivation().await?;
-                }
-            }
-            DerivationActorRequest::ProcessEngineSafeHeadUpdateRequest(safe_head) => {
-                info!(target: "derivation", safe_head = ?*safe_head, "Received safe head from engine.");
-                self.engine_l2_safe_head = *safe_head;
-                self.awaiting_engine_l2_safe_head_update = false;
+                self.derivation_state_machine.update(&DerivationStateUpdate::L1DataReceived)?;
 
                 self.attempt_derivation().await?;
             }
-            DerivationActorRequest::ProcessEngineSyncCompletionRequest => {
+            DerivationActorRequest::ProcessEngineSafeHeadUpdateRequest(safe_head) => {
+                info!(target: "derivation", safe_head = ?*safe_head, "Received safe head from engine.");
+                self.derivation_state_machine
+                    .update(&DerivationStateUpdate::NewAttributesConfirmed(safe_head))?;
+
+                self.attempt_derivation().await?;
+            }
+            DerivationActorRequest::ProcessEngineSyncCompletionRequest(safe_head) => {
                 info!(target: "derivation", "Engine finished syncing, starting derivation.");
-                self.has_engine_sync_completed = true;
+                self.derivation_state_machine
+                    .update(&DerivationStateUpdate::ELSyncCompleted(safe_head))?;
 
                 self.attempt_derivation().await?;
             }
@@ -250,29 +242,13 @@ where
     }
 
     /// Attempts to process the next payload attributes.
-    ///
-    /// There are a few constraints around stepping on the derivation pipeline.
-    /// - The l2 safe head ([`L2BlockInfo`]) must not be the zero hash.
-    /// - The pipeline must not be stepped on with the same L2 safe head twice.
-    /// - Errors must be bubbled up to the caller.
-    ///
-    /// In order to achieve this, the channel to receive the L2 safe head
-    /// [`L2BlockInfo`] from the engine is *only* marked as _seen_ after payload
-    /// attributes are successfully produced. If the pipeline step errors,
-    /// the same [`L2BlockInfo`] is used again. If the [`L2BlockInfo`] is the
-    /// zero hash, the pipeline is not stepped on.
     async fn attempt_derivation(&mut self) -> Result<(), DerivationError> {
-        if !self.has_engine_sync_completed {
-            info!(target: "derivation", "Engine sync has not completed, skipping derivation");
-            return Ok(());
-        } else if self.waiting_for_signal {
-            info!(target: "derivation", "Waiting to receive a signal, skipping derivation");
-            return Ok(());
-        } else if self.engine_l2_safe_head.block_info.hash.is_zero() {
-            warn!(target: "derivation", engine_safe_head = ?self.engine_l2_safe_head.block_info.number, "Waiting for engine to initialize state prior to derivation.");
+        if self.derivation_state_machine.current_state() != DerivationState::Deriving {
+            info!(target: "derivation", derivation_state=?self.derivation_state_machine, "Skipping derivation.");
             return Ok(());
         }
-        trace!(target: "derivation", "Attempting derivation.");
+
+        info!(target: "derivation", derivation_state=?self.derivation_state_machine, "Attempting derivation.");
 
         // Advance the pipeline as much as possible, new data may be available or there still may be
         // payloads in the attributes queue.
@@ -280,7 +256,7 @@ where
             Ok(attrs) => attrs,
             Err(DerivationError::Yield) => {
                 info!(target: "derivation", "Yielding derivation until more data is available.");
-                self.derivation_idle = true;
+                self.derivation_state_machine.update(&DerivationStateUpdate::MoreDataNeeded)?;
                 return Ok(());
             }
             Err(e) => {
@@ -289,9 +265,9 @@ where
         };
         trace!(target: "derivation", ?payload_attributes, "Produced payload attributes.");
 
-        // Mark derivation as busy.
-        self.derivation_idle = false;
-        self.awaiting_engine_l2_safe_head_update = true;
+        self.derivation_state_machine.update(&DerivationStateUpdate::NewAttributesDerived(
+            Box::new(payload_attributes.clone()),
+        ))?;
 
         // Enqueue the payload attributes for finalization tracking.
         self.finalizer.enqueue_for_finalization(&payload_attributes);
@@ -357,4 +333,7 @@ pub enum DerivationError {
     /// Failed to receive inbound request
     #[error("Failed to receive inbound request")]
     RequestReceiveFailed,
+    /// An invalid state transition occurred.
+    #[error(transparent)]
+    StateTransitionError(#[from] DerivationStateTransitionError),
 }

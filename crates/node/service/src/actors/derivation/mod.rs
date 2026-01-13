@@ -9,3 +9,8 @@ pub(crate) use finalizer::L2Finalizer;
 
 mod request;
 pub use request::{DerivationActorRequest, DerivationClientError, DerivationClientResult};
+
+mod state_machine;
+pub use state_machine::{
+    DerivationState, DerivationStateMachine, DerivationStateTransitionError, DerivationStateUpdate,
+};

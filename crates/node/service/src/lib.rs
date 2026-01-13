@@ -19,6 +19,7 @@ pub use actors::{
     BlockStream, BuildRequest, CancellableContext, Conductor, ConductorClient, ConductorError,
     DelayedL1OriginSelectorProvider, DerivationActor, DerivationActorRequest,
     DerivationClientError, DerivationClientResult, DerivationEngineClient, DerivationError,
+    DerivationState, DerivationStateMachine, DerivationStateTransitionError, DerivationStateUpdate,
     EngineActor, EngineActorRequest, EngineClientError, EngineClientResult, EngineConfig,
     EngineDerivationClient, EngineError, EngineProcessingRequest, EngineProcessor,
     EngineRequestReceiver, EngineRpcProcessor, EngineRpcRequest, EngineRpcRequestReceiver,

@@ -180,10 +180,14 @@ where
             info!(target: "engine", "finalized head is not default, so not resetting");
         }
 
-        self.derivation_client.notify_sync_completed().await.map(|_| Ok(())).map_err(|e| {
-            error!(target: "engine", ?e, "Failed to notify sync completed");
-            EngineError::ChannelClosed
-        })?
+        self.derivation_client
+            .notify_sync_completed(self.engine.state().sync_state.safe_head())
+            .await
+            .map(|_| Ok(()))
+            .map_err(|e| {
+                error!(target: "engine", ?e, "Failed to notify sync completed");
+                EngineError::ChannelClosed
+            })?
     }
 
     /// Attempts to send the [`crate::DerivationActor`] the safe head if updated.
