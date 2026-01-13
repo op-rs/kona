@@ -15,12 +15,11 @@ Assuming you are on Ubuntu and your user is member of the group `docker`, first 
 
     git clone 'https://github.com/op-rs/kona.git'
     git -C kona-node/kona checkout einar/kona-node-dev-recipe ### TODO(einar-oplabs) only for testing pre-merge
-    mv kona/docker/recipes/kona-node-dev/ .
-    cd kona-node-dev
+    cd kona/docker/recipes/kona-node-dev/
     just init
 
 If the last step fails due to missing packages, you can run `just setup-ubuntu`
-and then `just init` again.  This will install the required packages for
+and then run `just init` again.  This will install the required packages for
 Ubuntu.  `just init` will also set up a virtual network, and finally spin up
 `kona-node`, `op-reth`, `prometheus` and `grafana`.
 
@@ -38,7 +37,7 @@ A typical workflow after init could look like this:
 
     # remove existing images causing them to be rebuild
     just rmi 
-    # maybe update submodules
+    # pull latest commits
     just update
     # checkout dev branch
     just checkout <my-branch>
