@@ -24,9 +24,9 @@ impl RollupBoostHealthzApiServer for RollupBoostHealthRpcClient {
 
         self.engine_actor_request_tx
             .send(EngineActorRequest::RpcRequest(Box::new(
-                EngineRpcRequest::RollupBoostHealthRequest(kona_rpc::RollupBoostHealthQuery {
-                    sender: health_tx,
-                }),
+                EngineRpcRequest::RollupBoostHealthRequest(Box::new(
+                    kona_rpc::RollupBoostHealthQuery { sender: health_tx },
+                )),
             )))
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
@@ -56,12 +56,12 @@ impl RollupBoostAdminClient for RollupBoostAdminApiClient {
 
         engine_actor_request_tx
             .send(EngineActorRequest::RpcRequest(Box::new(
-                EngineRpcRequest::RollupBoostAdminRequest(
+                EngineRpcRequest::RollupBoostAdminRequest(Box::new(
                     kona_rpc::RollupBoostAdminQuery::SetExecutionMode {
                         execution_mode: request.execution_mode,
                         sender: mode_tx,
                     },
-                ),
+                )),
             )))
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
@@ -78,9 +78,9 @@ impl RollupBoostAdminClient for RollupBoostAdminApiClient {
 
         engine_actor_request_tx
             .send(EngineActorRequest::RpcRequest(Box::new(
-                EngineRpcRequest::RollupBoostAdminRequest(
+                EngineRpcRequest::RollupBoostAdminRequest(Box::new(
                     kona_rpc::RollupBoostAdminQuery::GetExecutionMode { sender: mode_tx },
-                ),
+                )),
             )))
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
