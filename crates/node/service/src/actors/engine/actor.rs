@@ -269,7 +269,7 @@ impl<EngineClient_: EngineClient + 'static> EngineActorState<EngineClient_> {
                 // ones.
                 self.drain(&derivation_signal_tx, &mut sync_complete_tx, &engine_l2_safe_head_tx)
                     .await
-                    .inspect(
+                    .inspect_err(
                         |err| error!(target: "engine", ?err, "Failed to drain engine tasks"),
                     )?;
 
