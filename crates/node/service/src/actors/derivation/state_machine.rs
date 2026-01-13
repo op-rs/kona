@@ -1,6 +1,7 @@
 use derive_more::PartialEq;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use thiserror::Error;
+use tracing::info;
 
 /// The possible states of the [`DerivationStateMachine`] implemented by the
 /// [`crate::DerivationActor`].
@@ -209,5 +210,217 @@ impl DerivationStateMachine {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        DerivationState::*, DerivationStateMachine, DerivationStateTransitionError,
+        DerivationStateUpdate::*, L2BlockInfo, transition,
+    };
+    use alloy_eips::BlockNumHash;
+    use alloy_primitives::{BlockHash, b256};
+    use kona_protocol::{BlockInfo, OpAttributesWithParent};
+    use op_alloy_rpc_types_engine::OpPayloadAttributes;
+    use rstest::rstest;
+
+    /// Creates a dummy L2BlockInfo for testing
+    fn dummy_l2_block_info() -> L2BlockInfo {
+        L2BlockInfo {
+            block_info: BlockInfo {
+                hash: b256!("0000000000000000000000000000000000000000000000000000000000000001"),
+                number: 1,
+                parent_hash: BlockHash::default(),
+                timestamp: 0,
+            },
+            l1_origin: BlockNumHash { hash: BlockHash::default(), number: 0 },
+            seq_num: 0,
+        }
+    }
+
+    /// Creates a dummy OpAttributesWithParent for testing
+    fn dummy_op_attributes() -> OpAttributesWithParent {
+        OpAttributesWithParent {
+            attributes: OpPayloadAttributes::default(),
+            parent: dummy_l2_block_info(),
+            derived_from: None,
+            is_last_in_span: false,
+        }
+    }
+
+    // This is just here to shrink the #[case(...)] statements below for readability.
+    fn attrs() -> Box<OpAttributesWithParent> {
+        Box::new(dummy_op_attributes())
+    }
+
+    // This is just here to shrink the #[case(...)] statements below for readability.
+    fn block() -> Box<L2BlockInfo> {
+        Box::new(dummy_l2_block_info())
+    }
+
+    #[rstest]
+    // AwaitingELSyncCompletion valid transitions
+    #[case(AwaitingELSyncCompletion, ELSyncCompleted(block()), Deriving)]
+    #[case(AwaitingELSyncCompletion, NewAttributesConfirmed(block()), AwaitingELSyncCompletion)]
+    #[case(AwaitingELSyncCompletion, SignalProcessed, AwaitingELSyncCompletion)]
+    #[case(AwaitingELSyncCompletion, L1DataReceived, AwaitingELSyncCompletion)]
+    // AwaitingL1Data valid transitions
+    #[case(AwaitingL1Data, L1DataReceived, Deriving)]
+    #[case(AwaitingL1Data, SignalProcessed, AwaitingUpdateAfterSignal)]
+    // AwaitingSafeHeadConfirmation valid transitions
+    #[case(AwaitingSafeHeadConfirmation, NewAttributesConfirmed(block()), Deriving)]
+    #[case(AwaitingSafeHeadConfirmation, SignalProcessed, AwaitingUpdateAfterSignal)]
+    #[case(AwaitingSafeHeadConfirmation, L1DataReceived, AwaitingSafeHeadConfirmation)]
+    // AwaitingSignal valid transitions
+    #[case(AwaitingSignal, SignalProcessed, AwaitingUpdateAfterSignal)]
+    #[case(AwaitingSignal, L1DataReceived, AwaitingSignal)]
+    #[case(AwaitingSignal, MoreDataNeeded, AwaitingSignal)]
+    // AwaitingUpdateAfterSignal valid transitions
+    #[case(AwaitingUpdateAfterSignal, L1DataReceived, Deriving)]
+    #[case(AwaitingUpdateAfterSignal, NewAttributesConfirmed(block()), Deriving)]
+    #[case(AwaitingUpdateAfterSignal, SignalProcessed, AwaitingUpdateAfterSignal)]
+    // Deriving valid transitions
+    #[case(Deriving, NewAttributesDerived(attrs()), AwaitingSafeHeadConfirmation)]
+    #[case(Deriving, SignalNeeded, AwaitingSignal)]
+    #[case(Deriving, MoreDataNeeded, AwaitingL1Data)]
+    fn test_valid_transitions(
+        #[case] state: super::DerivationState,
+        #[case] update: super::DerivationStateUpdate,
+        #[case] expected_state: super::DerivationState,
+    ) {
+        let result = transition(&state, &update);
+        assert!(result.is_ok(), "Expected valid transition from {state:?} with {update:?}");
+        assert_eq!(
+            result.unwrap(),
+            expected_state,
+            "Transition from {state:?} with {update:?} should result in {expected_state:?}"
+        );
+    }
+
+    #[rstest]
+    // AwaitingELSyncCompletion invalid transitions
+    #[case(AwaitingELSyncCompletion, MoreDataNeeded)]
+    #[case(AwaitingELSyncCompletion, NewAttributesDerived(attrs()))]
+    #[case(AwaitingELSyncCompletion, SignalNeeded)]
+    // AwaitingL1Data invalid transitions
+    #[case(AwaitingL1Data, ELSyncCompleted(block()))]
+    #[case(AwaitingL1Data, MoreDataNeeded)]
+    #[case(AwaitingL1Data, NewAttributesDerived(attrs()))]
+    #[case(AwaitingL1Data, NewAttributesConfirmed(block()))]
+    #[case(AwaitingL1Data, SignalNeeded)]
+    // AwaitingSafeHeadConfirmation invalid transitions
+    #[case(AwaitingSafeHeadConfirmation, ELSyncCompleted(block()))]
+    #[case(AwaitingSafeHeadConfirmation, MoreDataNeeded)]
+    #[case(AwaitingSafeHeadConfirmation, NewAttributesDerived(attrs()))]
+    #[case(AwaitingSafeHeadConfirmation, SignalNeeded)]
+    // AwaitingSignal invalid transitions
+    #[case(AwaitingSignal, ELSyncCompleted(block()))]
+    #[case(AwaitingSignal, NewAttributesDerived(attrs()))]
+    #[case(AwaitingSignal, NewAttributesConfirmed(block()))]
+    #[case(AwaitingSignal, SignalNeeded)]
+    // AwaitingUpdateAfterSignal invalid transitions
+    #[case(AwaitingUpdateAfterSignal, ELSyncCompleted(block()))]
+    #[case(AwaitingUpdateAfterSignal, MoreDataNeeded)]
+    #[case(AwaitingUpdateAfterSignal, NewAttributesDerived(attrs()))]
+    #[case(AwaitingUpdateAfterSignal, SignalNeeded)]
+    // Deriving invalid transitions
+    #[case(Deriving, ELSyncCompleted(block()))]
+    #[case(Deriving, L1DataReceived)]
+    #[case(Deriving, NewAttributesConfirmed(block()))]
+    #[case(Deriving, SignalProcessed)]
+    fn test_invalid_transitions(
+        #[case] state: super::DerivationState,
+        #[case] update: super::DerivationStateUpdate,
+    ) {
+        let result = transition(&state, &update);
+        assert!(result.is_err(), "Expected invalid transition from {state:?} with {update:?}");
+        match result.unwrap_err() {
+            DerivationStateTransitionError::InvalidTransition {
+                state: err_state,
+                update: err_update,
+            } => {
+                assert_eq!(err_state, state);
+                assert_eq!(err_update, update);
+            }
+        }
+    }
+
+    #[test]
+    fn test_state_machine_initial_state() {
+        let machine = DerivationStateMachine::new();
+        assert_eq!(machine.current_state(), AwaitingELSyncCompletion);
+        assert_eq!(machine.last_confirmed_safe_head(), L2BlockInfo::default());
+    }
+
+    #[test]
+    fn test_state_machine_sync_completed_safe_head_update() {
+        let mut machine = DerivationStateMachine::new();
+        let safe_head = dummy_l2_block_info();
+
+        machine.update(&ELSyncCompleted(Box::new(safe_head))).unwrap();
+
+        assert_eq!(machine.current_state(), Deriving);
+        assert_eq!(machine.last_confirmed_safe_head(), safe_head);
+    }
+
+    #[test]
+    fn test_state_machine_update_preserves_confirmed_safe_head() {
+        let mut machine = DerivationStateMachine::new();
+        let first_safe_head = dummy_l2_block_info();
+
+        machine.update(&ELSyncCompleted(Box::new(first_safe_head))).unwrap();
+
+        // Transition to AwaitingL1Data
+        machine.update(&MoreDataNeeded).unwrap();
+
+        // Receive L1 data and go back to Deriving
+        machine.update(&L1DataReceived).unwrap();
+
+        // Safe head should still be the first one
+        assert_eq!(machine.last_confirmed_safe_head(), first_safe_head);
+    }
+
+    #[test]
+    fn test_state_machine_updates_safe_head_on_confirmation() {
+        let mut machine = DerivationStateMachine::new();
+        let initial_safe_head = dummy_l2_block_info();
+
+        machine.update(&ELSyncCompleted(Box::new(initial_safe_head))).unwrap();
+
+        // Derive new attributes
+        machine.update(&NewAttributesDerived(Box::new(dummy_op_attributes()))).unwrap();
+
+        let new_safe_head = L2BlockInfo {
+            block_info: BlockInfo {
+                hash: b256!("0000000000000000000000000000000000000000000000000000000000000002"),
+                number: 2,
+                parent_hash: initial_safe_head.block_info.hash,
+                timestamp: 1,
+            },
+            l1_origin: BlockNumHash { hash: BlockHash::default(), number: 0 },
+            seq_num: 0,
+        };
+
+        // Confirm new attributes
+        machine.update(&NewAttributesConfirmed(Box::new(new_safe_head))).unwrap();
+
+        assert_eq!(machine.current_state(), Deriving);
+        assert_eq!(machine.last_confirmed_safe_head(), new_safe_head);
+    }
+
+    #[test]
+    fn test_state_machine_invalid_transition_error() {
+        let mut machine = DerivationStateMachine::new();
+
+        let result = machine.update(&MoreDataNeeded);
+        assert!(result.is_err());
+
+        match result.unwrap_err() {
+            DerivationStateTransitionError::InvalidTransition { state, update } => {
+                assert_eq!(state, AwaitingELSyncCompletion);
+                assert!(matches!(update, MoreDataNeeded));
+            }
+        }
     }
 }
