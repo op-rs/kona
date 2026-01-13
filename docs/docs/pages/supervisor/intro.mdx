@@ -1,0 +1,117 @@
+# Supervisor Overview
+
+The **Kona Supervisor** is a core component of the OP Stack Interop architecture, responsible for coordinating cross-chain operations and managing multiple rollup nodes in an interoperable network.
+
+## What is the Supervisor?
+
+The supervisor acts as a coordination layer that:
+
+- **Manages Multiple Chains**: Indexes and tracks state across multiple OP Stack chains in an interop cluster
+- **Coordinates Cross-Chain Messages**: Ensures safe cross-chain message passing and dependency resolution
+- **Provides Safety Guarantees**: Validates cross-chain transactions and prevents unsafe operations
+- **Exposes RPC Interface**: Offers APIs for querying cross-chain state and managing the supervisor
+
+## Architecture
+
+The supervisor is built from several modular crates:
+
+### Core Components
+
+- **[kona-supervisor-core](/supervisor/core)**: Core supervisor logic including the main supervisor implementation, chain tracking, and cross-chain coordination
+- **[kona-supervisor-service](/supervisor/service)**: Service layer that runs the supervisor as a standalone daemon
+- **[kona-supervisor-rpc](/supervisor/rpc)**: RPC server and client implementations for supervisor APIs
+- **[kona-supervisor-storage](/supervisor/storage)**: Database storage layer using RocksDB for persisting supervisor state
+- **[kona-supervisor-types](/supervisor/types)**: Common types shared across supervisor components
+- **[kona-supervisor-metrics](/supervisor/metrics)**: Metrics collection and reporting for monitoring supervisor health
+
+## Key Concepts
+
+### Chain Management
+
+The supervisor maintains a registry of chains in the interop cluster. Each chain:
+- Has a unique chain ID
+- Is indexed by the supervisor
+- Can send and receive cross-chain messages
+- Has its state tracked for safety validation
+
+### Cross-Chain Coordination
+
+The supervisor ensures safe cross-chain operations by:
+1. Tracking dependencies between chains
+2. Validating message execution order
+3. Preventing unsafe cross-chain transactions
+4. Managing the finalization of cross-chain messages
+
+### Integration with Rollup Nodes
+
+Rollup nodes (kona-node) integrate with the supervisor through:
+- The **Supervisor Actor** (beta) in the node architecture
+- RPC connections to the supervisor service
+- Event streaming for state updates
+- Safety validation hooks before executing cross-chain transactions
+
+## Getting Started
+
+### Prerequisites
+
+- Rust toolchain (MSRV: 1.88)
+- Understanding of OP Stack interop concepts
+- One or more rollup nodes to coordinate
+
+### Installation
+
+Build the supervisor binary:
+
+```bash
+just build-supervisor
+```
+
+Or with cargo directly:
+
+```bash
+cargo build --release --bin kona-supervisor
+```
+
+### Running the Supervisor
+
+For detailed instructions on running and configuring the supervisor, see:
+- [Configuration](/supervisor/configuration)
+- [Running the Supervisor](/supervisor/running)
+- [RPC API Reference](/supervisor/rpc)
+
+## Use Cases
+
+### Development and Testing
+
+The supervisor is essential for:
+- Testing cross-chain interactions locally
+- Developing interop-enabled applications
+- Validating cross-chain message passing
+
+### Production Deployments
+
+In production, the supervisor:
+- Coordinates multiple production rollup nodes
+- Provides safety guarantees for cross-chain operations
+- Enables seamless cross-chain user experiences
+- Monitors and reports on interop cluster health
+
+## Learn More
+
+- [Supervisor Configuration](/supervisor/configuration): Configure supervisor settings and chain registry
+- [RPC API](/supervisor/rpc): Detailed RPC method documentation
+- [Storage Layer](/supervisor/storage): Understanding supervisor data persistence
+- [Metrics](/supervisor/metrics): Monitoring supervisor health and performance
+- [Interop Protocol](/sdk/protocol/interop): Deep dive into OP Stack interop concepts
+
+## Binary Location
+
+The supervisor binary is located at:
+```
+bin/supervisor/
+```
+
+And can be built with:
+```bash
+cargo build --release --bin kona-supervisor
+```

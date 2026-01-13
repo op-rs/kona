@@ -1,0 +1,242 @@
+# Supervisor Configuration
+
+This page describes how to configure the Kona Supervisor for your interop cluster.
+
+## Configuration File
+
+The supervisor can be configured using command-line arguments, environment variables, or a configuration file.
+
+### Basic Configuration
+
+```bash
+kona-supervisor \
+  --config-dir /path/to/config \
+  --data-dir /path/to/data \
+  --rpc-addr 0.0.0.0:8080 \
+  --log-level info
+```
+
+## Configuration Options
+
+### Data Directory
+
+**Flag**: `--data-dir <PATH>`
+**Env**: `SUPERVISOR_DATA_DIR`
+**Default**: `./supervisor-data`
+
+Directory for storing supervisor state and database files.
+
+### RPC Server
+
+**Flag**: `--rpc-addr <ADDR>`
+**Env**: `SUPERVISOR_RPC_ADDR`
+**Default**: `127.0.0.1:8080`
+
+Address and port for the supervisor RPC server.
+
+### Configuration Directory
+
+**Flag**: `--config-dir <PATH>`
+**Env**: `SUPERVISOR_CONFIG_DIR`
+
+Directory containing chain configuration files (JSON format).
+
+### Log Level
+
+**Flag**: `--log-level <LEVEL>`
+**Env**: `RUST_LOG`
+**Default**: `info`
+
+Logging verbosity. Options: `trace`, `debug`, `info`, `warn`, `error`
+
+## Chain Registry
+
+The supervisor needs to know about the chains in your interop cluster. Configure chains using JSON files in the config directory.
+
+### Chain Configuration Format
+
+Create a JSON file for each chain (e.g., `chain-10.json` for OP Mainnet):
+
+```json
+{
+  "chain_id": 10,
+  "rpc_url": "http://localhost:9545",
+  "name": "OP Mainnet",
+  "rollup_config": {
+    "l1_chain_id": 1,
+    "l2_chain_id": 10,
+    "block_time": 2,
+    "max_sequencer_drift": 600,
+    "seq_window_size": 3600
+  }
+}
+```
+
+### Using Superchain Registry
+
+The supervisor can load chains from the superchain registry:
+
+```bash
+kona-supervisor --use-superchain-registry
+```
+
+This automatically configures all chains in the OP Stack superchain.
+
+## Storage Configuration
+
+The supervisor uses RocksDB for persistent storage.
+
+### Storage Path
+
+By default, storage is at `<data-dir>/db`. Configure with:
+
+```bash
+--storage-path /custom/path/to/db
+```
+
+### Storage Options
+
+```bash
+--storage-cache-size 1GB
+--storage-max-open-files 1000
+```
+
+## RPC Configuration
+
+### Enabling RPC Methods
+
+Configure which RPC methods are available:
+
+```bash
+--rpc-modules supervisor,admin
+```
+
+Available modules:
+- `supervisor`: Core supervisor RPC methods
+- `admin`: Administrative methods
+- `debug`: Debug and diagnostic methods
+
+### CORS Configuration
+
+```bash
+--rpc-cors-origins "http://localhost:3000,https://app.example.com"
+```
+
+### JWT Authentication
+
+Enable JWT authentication for RPC:
+
+```bash
+--rpc-jwt-secret /path/to/jwt.hex
+```
+
+## Metrics Configuration
+
+### Prometheus Metrics
+
+Enable Prometheus metrics endpoint:
+
+```bash
+--metrics
+--metrics-addr 0.0.0.0:9090
+```
+
+Access metrics at `http://localhost:9090/metrics`
+
+## Example Configurations
+
+### Development Setup
+
+Minimal configuration for local development:
+
+```bash
+kona-supervisor \
+  --data-dir ./dev-data \
+  --config-dir ./dev-config \
+  --rpc-addr 127.0.0.1:8080 \
+  --metrics \
+  --log-level debug
+```
+
+### Production Setup
+
+Production configuration with monitoring:
+
+```bash
+kona-supervisor \
+  --data-dir /var/lib/supervisor \
+  --config-dir /etc/supervisor/chains \
+  --rpc-addr 0.0.0.0:8080 \
+  --rpc-jwt-secret /etc/supervisor/jwt.hex \
+  --rpc-cors-origins "https://api.example.com" \
+  --metrics \
+  --metrics-addr 0.0.0.0:9090 \
+  --storage-cache-size 4GB \
+  --log-level info
+```
+
+### Multi-Chain Cluster
+
+Configuration for supervising multiple chains:
+
+```bash
+kona-supervisor \
+  --use-superchain-registry \
+  --data-dir /var/lib/supervisor \
+  --rpc-addr 0.0.0.0:8080 \
+  --metrics \
+  --log-level info
+```
+
+## Environment Variables
+
+All command-line options can be set via environment variables:
+
+```bash
+export SUPERVISOR_DATA_DIR=/var/lib/supervisor
+export SUPERVISOR_RPC_ADDR=0.0.0.0:8080
+export SUPERVISOR_CONFIG_DIR=/etc/supervisor/chains
+export RUST_LOG=info
+
+kona-supervisor
+```
+
+## Configuration File
+
+Alternatively, use a TOML configuration file:
+
+```toml
+# supervisor.toml
+[supervisor]
+data_dir = "/var/lib/supervisor"
+config_dir = "/etc/supervisor/chains"
+
+[rpc]
+addr = "0.0.0.0:8080"
+modules = ["supervisor", "admin"]
+cors_origins = ["https://api.example.com"]
+jwt_secret = "/etc/supervisor/jwt.hex"
+
+[storage]
+path = "/var/lib/supervisor/db"
+cache_size = "4GB"
+max_open_files = 1000
+
+[metrics]
+enabled = true
+addr = "0.0.0.0:9090"
+
+[logging]
+level = "info"
+```
+
+Load with:
+```bash
+kona-supervisor --config supervisor.toml
+```
+
+## Learn More
+
+- [Running the Supervisor](/supervisor/running)
+- [RPC API Reference](/supervisor/rpc)
+- [Metrics](/supervisor/metrics)

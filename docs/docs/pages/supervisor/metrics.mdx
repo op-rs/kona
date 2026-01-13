@@ -1,0 +1,396 @@
+# Supervisor Metrics
+
+<a href="https://crates.io/crates/kona-supervisor-metrics"><img src="https://img.shields.io/crates/v/kona-supervisor-metrics.svg?label=kona-supervisor-metrics" alt="kona-supervisor-metrics crate" /></a>
+
+The `kona-supervisor-metrics` crate provides comprehensive metrics collection and reporting for monitoring supervisor health and performance.
+
+## Overview
+
+The metrics system tracks:
+- **Chain synchronization status**: Track sync progress for each supervised chain
+- **Cross-chain message flow**: Monitor message rates and validation success
+- **Storage performance**: Database operation latency and throughput
+- **RPC request metrics**: Request rates, latency, and error rates
+- **System health**: Memory usage, CPU usage, uptime
+
+## Enabling Metrics
+
+Start the supervisor with metrics enabled:
+
+```bash
+kona-supervisor \
+  --metrics \
+  --metrics-addr 0.0.0.0:9090
+```
+
+Access metrics at: `http://localhost:9090/metrics`
+
+## Available Metrics
+
+### Chain Metrics
+
+#### `supervisor_chains_total`
+**Type**: Gauge
+**Description**: Total number of chains being supervised
+
+#### `supervisor_chain_head_block`
+**Type**: Gauge
+**Labels**: `chain_id`
+**Description**: Current head block number for each chain
+
+#### `supervisor_chain_finalized_block`
+**Type**: Gauge
+**Labels**: `chain_id`
+**Description**: Current finalized block number for each chain
+
+#### `supervisor_chain_sync_status`
+**Type**: Gauge
+**Labels**: `chain_id`, `status`
+**Description**: Sync status (0=stopped, 1=syncing, 2=synced)
+
+#### `supervisor_chain_blocks_behind`
+**Type**: Gauge
+**Labels**: `chain_id`
+**Description**: Number of blocks behind the chain head
+
+### Cross-Chain Message Metrics
+
+#### `supervisor_ccm_pending_total`
+**Type**: Gauge
+**Labels**: `source_chain`, `target_chain`
+**Description**: Number of pending cross-chain messages
+
+#### `supervisor_ccm_validated_total`
+**Type**: Counter
+**Labels**: `source_chain`, `target_chain`, `result`
+**Description**: Total cross-chain messages validated (result: success/failure)
+
+#### `supervisor_ccm_executed_total`
+**Type**: Counter
+**Labels**: `source_chain`, `target_chain`
+**Description**: Total cross-chain messages executed
+
+#### `supervisor_ccm_validation_duration_seconds`
+**Type**: Histogram
+**Labels**: `source_chain`, `target_chain`
+**Description**: Cross-chain message validation duration
+
+### Storage Metrics
+
+#### `supervisor_storage_size_bytes`
+**Type**: Gauge
+**Description**: Total storage size in bytes
+
+#### `supervisor_storage_cache_hits_total`
+**Type**: Counter
+**Description**: Number of cache hits
+
+#### `supervisor_storage_cache_misses_total`
+**Type**: Counter
+**Description**: Number of cache misses
+
+#### `supervisor_storage_read_duration_seconds`
+**Type**: Histogram
+**Labels**: `operation`
+**Description**: Storage read operation duration
+
+#### `supervisor_storage_write_duration_seconds`
+**Type**: Histogram
+**Labels**: `operation`
+**Description**: Storage write operation duration
+
+### RPC Metrics
+
+#### `supervisor_rpc_requests_total`
+**Type**: Counter
+**Labels**: `method`, `status`
+**Description**: Total RPC requests (status: success/error)
+
+#### `supervisor_rpc_request_duration_seconds`
+**Type**: Histogram
+**Labels**: `method`
+**Description**: RPC request duration
+
+#### `supervisor_rpc_active_connections`
+**Type**: Gauge
+**Description**: Number of active RPC connections
+
+#### `supervisor_rpc_errors_total`
+**Type**: Counter
+**Labels**: `method`, `error_code`
+**Description**: Total RPC errors by method and error code
+
+### System Metrics
+
+#### `supervisor_uptime_seconds`
+**Type**: Counter
+**Description**: Supervisor uptime in seconds
+
+#### `supervisor_memory_bytes`
+**Type**: Gauge
+**Labels**: `type`
+**Description**: Memory usage (type: heap/rss)
+
+#### `supervisor_cpu_usage_percent`
+**Type**: Gauge
+**Description**: CPU usage percentage
+
+## Monitoring with Prometheus
+
+### Prometheus Configuration
+
+Add to your `prometheus.yml`:
+
+```yaml
+scrape_configs:
+  - job_name: 'kona-supervisor'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 15s
+```
+
+Restart Prometheus:
+```bash
+systemctl restart prometheus
+```
+
+### Example Queries
+
+**Chain sync progress:**
+```promql
+supervisor_chain_head_block{chain_id="10"}
+```
+
+**Cross-chain message rate:**
+```promql
+rate(supervisor_ccm_validated_total[5m])
+```
+
+**RPC error rate:**
+```promql
+rate(supervisor_rpc_errors_total[5m])
+```
+
+**Storage cache hit rate:**
+```promql
+rate(supervisor_storage_cache_hits_total[5m]) /
+(rate(supervisor_storage_cache_hits_total[5m]) + rate(supervisor_storage_cache_misses_total[5m]))
+```
+
+**Average RPC latency:**
+```promql
+histogram_quantile(0.95,
+  rate(supervisor_rpc_request_duration_seconds_bucket[5m])
+)
+```
+
+## Grafana Dashboards
+
+### Setting Up Grafana
+
+1. Install Grafana
+2. Add Prometheus data source
+3. Import supervisor dashboard
+
+### Creating a Dashboard
+
+Create a dashboard with panels for:
+
+#### Chain Synchronization
+```promql
+supervisor_chain_head_block
+```
+
+#### Message Throughput
+```promql
+rate(supervisor_ccm_executed_total[5m])
+```
+
+#### Storage Performance
+```promql
+rate(supervisor_storage_write_duration_seconds_sum[5m]) /
+rate(supervisor_storage_write_duration_seconds_count[5m])
+```
+
+#### RPC Performance
+```promql
+histogram_quantile(0.99,
+  rate(supervisor_rpc_request_duration_seconds_bucket[5m])
+)
+```
+
+### Example Dashboard JSON
+
+```json
+{
+  "dashboard": {
+    "title": "Kona Supervisor",
+    "panels": [
+      {
+        "title": "Chains Supervised",
+        "targets": [
+          {
+            "expr": "supervisor_chains_total"
+          }
+        ],
+        "type": "stat"
+      },
+      {
+        "title": "Cross-Chain Messages (Rate)",
+        "targets": [
+          {
+            "expr": "rate(supervisor_ccm_executed_total[5m])",
+            "legendFormat": "{{source_chain}} -> {{target_chain}}"
+          }
+        ],
+        "type": "graph"
+      }
+    ]
+  }
+}
+```
+
+## Alerting
+
+### Prometheus Alerts
+
+Create alert rules in `alerts.yml`:
+
+```yaml
+groups:
+  - name: supervisor_alerts
+    rules:
+      # Chain stopped syncing
+      - alert: ChainNotSyncing
+        expr: supervisor_chain_sync_status != 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Chain {{ $labels.chain_id }} not syncing"
+          description: "Chain has not been syncing for 5 minutes"
+
+      # High RPC error rate
+      - alert: HighRPCErrorRate
+        expr: rate(supervisor_rpc_errors_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High RPC error rate"
+          description: "RPC error rate is {{ $value }} per second"
+
+      # Storage cache hit rate low
+      - alert: LowCacheHitRate
+        expr: |
+          rate(supervisor_storage_cache_hits_total[5m]) /
+          (rate(supervisor_storage_cache_hits_total[5m]) +
+           rate(supervisor_storage_cache_misses_total[5m])) < 0.7
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low storage cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }}"
+
+      # Message validation failures
+      - alert: MessageValidationFailures
+        expr: rate(supervisor_ccm_validated_total{result="failure"}[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Message validation failures detected"
+          description: "Validation failure rate: {{ $value }} per second"
+```
+
+### Alertmanager Configuration
+
+Configure notifications in Alertmanager:
+
+```yaml
+route:
+  group_by: ['alertname', 'chain_id']
+  receiver: 'team-notifications'
+
+receivers:
+  - name: 'team-notifications'
+    slack_configs:
+      - api_url: 'YOUR_SLACK_WEBHOOK'
+        channel: '#supervisor-alerts'
+```
+
+## Custom Metrics
+
+### Adding Custom Metrics in Code
+
+```rust
+use kona_supervisor_metrics::{Counter, Histogram};
+
+// Define custom counter
+static CUSTOM_COUNTER: Counter = Counter::new("supervisor_custom_total", "Custom metric");
+
+// Increment counter
+CUSTOM_COUNTER.increment();
+
+// Define custom histogram
+static CUSTOM_HISTOGRAM: Histogram = Histogram::new(
+    "supervisor_custom_duration_seconds",
+    "Custom duration"
+);
+
+// Record value
+CUSTOM_HISTOGRAM.observe(duration.as_secs_f64());
+```
+
+## Performance Impact
+
+Metrics collection has minimal overhead:
+- **CPU**: < 1% additional CPU usage
+- **Memory**: ~10-20MB for metrics storage
+- **Network**: Minimal (only when scraped)
+
+## Troubleshooting
+
+### Metrics Not Available
+
+**Problem**: Can't access metrics endpoint
+
+**Solutions**:
+1. Verify metrics are enabled: `--metrics`
+2. Check metrics address: `--metrics-addr 0.0.0.0:9090`
+3. Verify firewall rules: `sudo ufw allow 9090`
+4. Test locally: `curl http://localhost:9090/metrics`
+
+### High Cardinality Issues
+
+**Problem**: Too many unique label combinations
+
+**Solutions**:
+1. Review label usage (avoid using IDs as labels)
+2. Use fewer dynamic labels
+3. Aggregate similar metrics
+
+### Missing Metrics
+
+**Problem**: Expected metrics not appearing
+
+**Solutions**:
+1. Ensure supervisor is running: `systemctl status kona-supervisor`
+2. Check logs for errors: `journalctl -u kona-supervisor -f`
+3. Verify metric registration in code
+
+## Best Practices
+
+1. **Regular Monitoring**: Set up dashboards for continuous monitoring
+2. **Alert Tuning**: Start with conservative thresholds and adjust based on baseline
+3. **Metric Retention**: Configure Prometheus retention based on needs
+4. **Label Usage**: Keep label cardinality low for performance
+5. **Documentation**: Document custom metrics and their meanings
+
+## Learn More
+
+- [Supervisor Overview](/supervisor/intro)
+- [Configuration](/supervisor/configuration)
+- [Running the Supervisor](/supervisor/running)
+- [Storage Layer](/supervisor/storage)

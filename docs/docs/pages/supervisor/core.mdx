@@ -1,0 +1,129 @@
+# Supervisor Core
+
+<a href="https://crates.io/crates/kona-supervisor-core"><img src="https://img.shields.io/crates/v/kona-supervisor-core.svg?label=kona-supervisor-core" alt="kona-supervisor-core crate" /></a>
+
+The `kona-supervisor-core` crate provides the core logic for the Kona Supervisor, implementing the fundamental coordination and management capabilities for OP Stack interop.
+
+## Overview
+
+The core supervisor provides:
+- **Chain Registry Management**: Track and manage multiple chains in the interop cluster
+- **Cross-Chain Coordination**: Validate and coordinate cross-chain message passing
+- **Safety Validation**: Ensure safe execution of cross-chain transactions
+- **State Tracking**: Monitor and index state across multiple chains
+- **RPC Client Integration**: Connect to and query rollup node RPC endpoints
+
+## Key Components
+
+### Supervisor Implementation
+
+The main supervisor implementation handles:
+- Chain lifecycle management (add, remove, update chains)
+- Cross-chain message validation
+- Dependency resolution between chains
+- Safety checks for interop operations
+
+### Chain Management
+
+The supervisor maintains:
+- Chain metadata (chain ID, RPC endpoint, configuration)
+- Chain state (current head, finalized head)
+- Cross-chain dependencies
+- Message queues and execution order
+
+### Integration Points
+
+The core integrates with:
+- **kona-interop**: For interop-specific types and logic
+- **kona-supervisor-storage**: For persistent state management
+- **kona-supervisor-rpc**: For RPC client and server functionality
+- **kona-supervisor-metrics**: For operational metrics
+
+## Usage
+
+### Adding a Chain
+
+```rust
+use kona_supervisor_core::Supervisor;
+
+// Create supervisor instance
+let mut supervisor = Supervisor::new(config, storage);
+
+// Add a chain to the interop cluster
+supervisor.add_chain(chain_id, rpc_endpoint, rollup_config).await?;
+```
+
+### Validating Cross-Chain Messages
+
+```rust
+// Validate a cross-chain message before execution
+let is_safe = supervisor.validate_cross_chain_message(
+    source_chain_id,
+    target_chain_id,
+    message
+).await?;
+
+if is_safe {
+    // Execute the message
+}
+```
+
+### Querying Chain State
+
+```rust
+// Get the current head of a chain
+let head = supervisor.get_chain_head(chain_id).await?;
+
+// Get finalized head
+let finalized = supervisor.get_finalized_head(chain_id).await?;
+```
+
+## Architecture
+
+The core supervisor follows an async architecture using:
+- **Tokio** for async runtime
+- **Async-trait** for trait-based abstractions
+- **Futures** for concurrent operations
+- **Tracing** for observability
+
+## Dependencies
+
+Key dependencies include:
+- `kona-interop`: Interop protocol types
+- `kona-protocol`: Core OP Stack protocol types
+- `kona-supervisor-types`: Common supervisor types
+- `kona-supervisor-storage`: Storage abstractions
+- `alloy-*`: Ethereum type support
+- `op-alloy-*`: OP Stack specific types
+
+## Thread Safety
+
+The supervisor core is designed to be thread-safe and can handle concurrent operations across multiple chains safely.
+
+## Error Handling
+
+The core uses `thiserror` for structured error types:
+- `SupervisorError`: General supervisor errors
+- `ChainError`: Chain-specific errors
+- `ValidationError`: Cross-chain validation failures
+- `StorageError`: Storage operation errors
+
+## Testing
+
+The crate includes comprehensive tests for:
+- Chain management operations
+- Cross-chain message validation
+- Safety guarantees
+- State tracking accuracy
+
+Run tests with:
+```bash
+cargo nextest run --package kona-supervisor-core
+```
+
+## Learn More
+
+- [Supervisor Overview](/supervisor/intro)
+- [Supervisor Service](/supervisor/service)
+- [RPC API](/supervisor/rpc)
+- [Storage Layer](/supervisor/storage)

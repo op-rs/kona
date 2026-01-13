@@ -1,0 +1,326 @@
+# Batcher Components
+
+The batcher components provide compression and data handling utilities for OP Stack batch submission.
+
+## Overview
+
+The batcher is responsible for:
+- **Compressing transaction batches**: Reduce data size for L1 posting
+- **Managing compression algorithms**: Support multiple compression methods
+- **Optimizing batch data**: Minimize L1 data availability costs
+- **Channel output management**: Handle batch data framing and chunking
+
+## Crates
+
+### kona-comp
+
+<a href="https://crates.io/crates/kona-comp"><img src="https://img.shields.io/crates/v/kona-comp.svg?label=kona-comp" alt="kona-comp crate" /></a>
+
+The `kona-comp` crate provides compression types and utilities for the OP Stack batcher.
+
+## Compression Types
+
+The OP Stack supports multiple compression algorithms:
+
+### Brotli Compression
+
+High-performance compression with excellent compression ratios:
+
+```rust
+use kona_comp::{BrotliCompressor, Compressor};
+
+let compressor = BrotliCompressor::new(11); // Quality level 0-11
+let compressed = compressor.compress(&data)?;
+```
+
+### Zlib Compression
+
+Standard deflate compression:
+
+```rust
+use kona_comp::{ZlibCompressor, Compressor};
+
+let compressor = ZlibCompressor::new();
+let compressed = compressor.compress(&data)?;
+```
+
+## Compression Configuration
+
+Configure compression parameters:
+
+```rust
+use kona_comp::{CompressionConfig, CompressionVariant};
+
+let config = CompressionConfig {
+    variant: CompressionVariant::Brotli,
+    quality: 11,  // Maximum compression
+};
+```
+
+## Compression Ratio Tracking
+
+Monitor compression effectiveness:
+
+```rust
+use kona_comp::CompressionRatio;
+
+let ratio = CompressionRatio::new(original_size, compressed_size);
+println!("Compression ratio: {:.2}%", ratio.percentage());
+```
+
+## Channel Output
+
+Manage batch data output to channels:
+
+```rust
+use kona_comp::ChannelOut;
+
+// Create a channel output
+let mut channel = ChannelOut::new(channel_id, compressor);
+
+// Add frames to the channel
+channel.add_frame(frame_data)?;
+
+// Get compressed output
+let output = channel.output()?;
+```
+
+## Compression Traits
+
+The crate provides flexible compression traits:
+
+### `Compressor` Trait
+
+Implement custom compression:
+
+```rust
+use kona_comp::Compressor;
+
+struct CustomCompressor;
+
+impl Compressor for CustomCompressor {
+    fn compress(&self, data: &[u8]) -> Result<Vec<u8>, Error> {
+        // Custom compression logic
+        Ok(compressed_data)
+    }
+
+    fn decompress(&self, data: &[u8]) -> Result<Vec<u8>, Error> {
+        // Custom decompression logic
+        Ok(decompressed_data)
+    }
+}
+```
+
+## Shadow Compression
+
+Test compression effectiveness without actual compression:
+
+```rust
+use kona_comp::ShadowCompressor;
+
+// Tracks compression ratio without actually compressing
+let shadow = ShadowCompressor::new(base_compressor);
+let result = shadow.compress(&data)?;
+
+// Get compression statistics
+let stats = shadow.stats();
+println!("Average ratio: {:.2}%", stats.average_ratio());
+```
+
+## Compression Variants
+
+Choose the optimal compression for your use case:
+
+### `CompressionVariant` Enum
+
+```rust
+pub enum CompressionVariant {
+    /// Brotli compression (best ratio, slower)
+    Brotli,
+    /// Zlib/Deflate compression (faster, good ratio)
+    Zlib,
+    /// No compression (fastest, for testing)
+    None,
+}
+```
+
+## Usage Examples
+
+### Compressing a Batch
+
+```rust
+use kona_comp::{BrotliCompressor, Compressor};
+
+// Create compressor
+let compressor = BrotliCompressor::new(11);
+
+// Compress batch data
+let batch_data = serialize_batch(&transactions)?;
+let compressed = compressor.compress(&batch_data)?;
+
+println!("Original: {} bytes", batch_data.len());
+println!("Compressed: {} bytes", compressed.len());
+println!("Savings: {:.1}%",
+    100.0 * (1.0 - compressed.len() as f64 / batch_data.len() as f64)
+);
+```
+
+### Decompressing Data
+
+```rust
+use kona_comp::{BrotliCompressor, Compressor};
+
+let compressor = BrotliCompressor::new(11);
+
+// Decompress received data
+let decompressed = compressor.decompress(&compressed_data)?;
+
+// Verify integrity
+assert_eq!(original_data, decompressed);
+```
+
+### Comparing Compression Methods
+
+```rust
+use kona_comp::{BrotliCompressor, ZlibCompressor, Compressor};
+
+let data = generate_batch_data();
+
+// Try different compression methods
+let brotli = BrotliCompressor::new(11);
+let zlib = ZlibCompressor::new();
+
+let brotli_result = brotli.compress(&data)?;
+let zlib_result = zlib.compress(&data)?;
+
+println!("Brotli: {} bytes", brotli_result.len());
+println!("Zlib: {} bytes", zlib_result.len());
+```
+
+## Performance Considerations
+
+### Compression Quality vs Speed
+
+Higher quality = better compression but slower:
+
+```rust
+// Fast compression (quality 1-4)
+let fast_compressor = BrotliCompressor::new(1);
+
+// Balanced (quality 5-8)
+let balanced_compressor = BrotliCompressor::new(6);
+
+// Maximum compression (quality 9-11)
+let max_compressor = BrotliCompressor::new(11);
+```
+
+### Batch Size Optimization
+
+Larger batches generally compress better:
+
+```rust
+// Small batches: lower compression ratio
+let small_batch = transactions[0..10].to_vec();
+
+// Large batches: higher compression ratio
+let large_batch = transactions[0..1000].to_vec();
+```
+
+## Feature Flags
+
+The crate supports several feature flags:
+
+- `std`: Standard library support (default: off for `no_std` compatibility)
+- `serde`: Serde serialization support
+- `arbitrary`: Arbitrary trait implementations for fuzzing
+- `test-utils`: Testing utilities
+
+## Testing
+
+### Unit Tests
+
+Run compression tests:
+
+```bash
+cargo nextest run --package kona-comp
+```
+
+### Property Testing
+
+The crate includes property tests using `proptest`:
+
+```rust
+#[cfg(test)]
+mod tests {
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn compress_decompress_roundtrip(data: Vec<u8>) {
+            let compressor = BrotliCompressor::new(11);
+            let compressed = compressor.compress(&data).unwrap();
+            let decompressed = compressor.decompress(&compressed).unwrap();
+            assert_eq!(data, decompressed);
+        }
+    }
+}
+```
+
+## Integration with Batcher
+
+The compression utilities integrate with the batcher for L1 submission:
+
+```rust
+use kona_comp::{BrotliCompressor, ChannelOut};
+
+// Create channel with compression
+let compressor = BrotliCompressor::new(11);
+let mut channel = ChannelOut::new(channel_id, compressor);
+
+// Add batch data
+for batch in batches {
+    let encoded = encode_batch(&batch)?;
+    channel.add_frame(encoded)?;
+}
+
+// Get compressed output for L1 submission
+let compressed_data = channel.output()?;
+submit_to_l1(compressed_data)?;
+```
+
+## Learn More
+
+- [Batches](/sdk/protocol/protocol/batches): Understanding batch format
+- [Frames](/sdk/protocol/protocol/frames): Frame format and structure
+- [Channels](/sdk/protocol/protocol/channels): Channel management
+- [Derivation Pipeline](/sdk/protocol/derive/intro): How batches are processed
+
+## Benchmarks
+
+Run performance benchmarks:
+
+```bash
+just benches
+```
+
+Or specifically for compression:
+
+```bash
+cargo bench --package kona-comp
+```
+
+## `no_std` Support
+
+The crate is `no_std` compatible by default:
+
+```toml
+[dependencies]
+kona-comp = { version = "0.4", default-features = false }
+```
+
+Enable `std` for standard library features:
+
+```toml
+[dependencies]
+kona-comp = { version = "0.4", features = ["std"] }
+```

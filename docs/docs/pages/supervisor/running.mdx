@@ -1,0 +1,307 @@
+# Running the Supervisor
+
+This guide explains how to run the Kona Supervisor for coordinating OP Stack interop clusters.
+
+## Prerequisites
+
+Before running the supervisor, ensure you have:
+
+1. **Built the supervisor binary** (see [Installation](/supervisor/intro#installation))
+2. **One or more rollup nodes** to supervise
+3. **Chain configuration files** for your interop cluster
+
+## Quick Start
+
+### 1. Build the Supervisor
+
+```bash
+just build-supervisor
+```
+
+The binary will be available at `target/release/kona-supervisor`.
+
+### 2. Create Configuration
+
+Create a directory for chain configurations:
+
+```bash
+mkdir -p ./supervisor-config
+```
+
+Create a chain configuration file (e.g., `./supervisor-config/chain-901.json`):
+
+```json
+{
+  "chain_id": 901,
+  "rpc_url": "http://localhost:9545",
+  "name": "Local L2"
+}
+```
+
+### 3. Start the Supervisor
+
+```bash
+./target/release/kona-supervisor \
+  --config-dir ./supervisor-config \
+  --data-dir ./supervisor-data \
+  --rpc-addr 127.0.0.1:8080 \
+  --metrics \
+  --log-level info
+```
+
+The supervisor will:
+- Load chain configurations from `./supervisor-config`
+- Store state in `./supervisor-data`
+- Serve RPC on `http://127.0.0.1:8080`
+- Expose metrics on the default metrics port
+
+## Running with Docker
+
+### Using Docker Directly
+
+```bash
+docker run -p 8080:8080 -p 9090:9090 \
+  -v $(pwd)/supervisor-config:/config \
+  -v $(pwd)/supervisor-data:/data \
+  kona-supervisor:latest \
+  --config-dir /config \
+  --data-dir /data \
+  --rpc-addr 0.0.0.0:8080 \
+  --metrics
+```
+
+### Using Docker Compose
+
+Create a `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+
+services:
+  supervisor:
+    image: kona-supervisor:latest
+    ports:
+      - "8080:8080"   # RPC
+      - "9090:9090"   # Metrics
+    volumes:
+      - ./supervisor-config:/config
+      - ./supervisor-data:/data
+    command:
+      - --config-dir=/config
+      - --data-dir=/data
+      - --rpc-addr=0.0.0.0:8080
+      - --metrics
+      - --log-level=info
+    restart: unless-stopped
+```
+
+Start with:
+```bash
+docker-compose up -d
+```
+
+## Integrating with Rollup Nodes
+
+The supervisor coordinates with kona-node instances. Configure your rollup nodes to connect to the supervisor:
+
+```bash
+kona-node \
+  --supervisor-rpc http://localhost:8080 \
+  --supervisor-enabled \
+  # ... other node configuration
+```
+
+## Monitoring
+
+### Check Supervisor Health
+
+Query the supervisor RPC to check health:
+
+```bash
+curl -X POST http://localhost:8080 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "supervisor_health",
+    "params": [],
+    "id": 1
+  }'
+```
+
+### View Metrics
+
+Access Prometheus metrics:
+
+```bash
+curl http://localhost:9090/metrics
+```
+
+### Check Logs
+
+Monitor supervisor logs:
+
+```bash
+tail -f supervisor.log
+```
+
+Or with docker-compose:
+```bash
+docker-compose logs -f supervisor
+```
+
+## Production Deployment
+
+### System Service
+
+Create a systemd service file `/etc/systemd/system/kona-supervisor.service`:
+
+```ini
+[Unit]
+Description=Kona Supervisor
+After=network.target
+
+[Service]
+Type=simple
+User=supervisor
+Group=supervisor
+WorkingDirectory=/opt/kona
+ExecStart=/usr/local/bin/kona-supervisor \
+  --config-dir /etc/kona/supervisor \
+  --data-dir /var/lib/kona/supervisor \
+  --rpc-addr 0.0.0.0:8080 \
+  --rpc-jwt-secret /etc/kona/jwt.hex \
+  --metrics \
+  --log-level info
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+```bash
+sudo systemctl enable kona-supervisor
+sudo systemctl start kona-supervisor
+```
+
+### Security Considerations
+
+#### 1. JWT Authentication
+
+Always use JWT authentication in production:
+
+```bash
+# Generate JWT secret
+openssl rand -hex 32 > /etc/kona/jwt.hex
+chmod 600 /etc/kona/jwt.hex
+```
+
+Configure supervisor:
+```bash
+--rpc-jwt-secret /etc/kona/jwt.hex
+```
+
+#### 2. Firewall Rules
+
+Restrict RPC access:
+```bash
+# Allow only from trusted IPs
+sudo ufw allow from 10.0.0.0/24 to any port 8080
+```
+
+#### 3. TLS/SSL
+
+Use a reverse proxy (nginx/caddy) for TLS:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name supervisor.example.com;
+
+    ssl_certificate /etc/ssl/certs/supervisor.crt;
+    ssl_certificate_key /etc/ssl/private/supervisor.key;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+### High Availability
+
+#### Multiple Supervisor Instances
+
+For high availability, run multiple supervisor instances with shared storage:
+
+```bash
+# Instance 1
+kona-supervisor \
+  --rpc-addr 0.0.0.0:8080 \
+  --data-dir /shared/storage/supervisor
+
+# Instance 2
+kona-supervisor \
+  --rpc-addr 0.0.0.0:8081 \
+  --data-dir /shared/storage/supervisor
+```
+
+Use a load balancer to distribute traffic between instances.
+
+## Troubleshooting
+
+### Supervisor Won't Start
+
+**Problem**: Supervisor fails to start
+
+**Solutions**:
+1. Check port availability: `netstat -tulpn | grep 8080`
+2. Verify config files: `ls -la ./supervisor-config/`
+3. Check permissions: `ls -la ./supervisor-data/`
+4. Review logs: `--log-level debug`
+
+### Chain Connection Issues
+
+**Problem**: Can't connect to rollup node
+
+**Solutions**:
+1. Verify RPC URL: `curl http://localhost:9545`
+2. Check network connectivity
+3. Verify JWT secret matches between supervisor and node
+4. Check CORS settings
+
+### High Memory Usage
+
+**Problem**: Supervisor using too much memory
+
+**Solutions**:
+1. Reduce storage cache: `--storage-cache-size 1GB`
+2. Limit open files: `--storage-max-open-files 500`
+3. Monitor with metrics: check `supervisor_memory_bytes`
+
+### Slow Performance
+
+**Problem**: Supervisor responding slowly
+
+**Solutions**:
+1. Increase storage cache: `--storage-cache-size 4GB`
+2. Use faster disk (SSD/NVMe)
+3. Check network latency to rollup nodes
+4. Review metrics for bottlenecks
+
+## Command Reference
+
+See all available commands:
+
+```bash
+kona-supervisor --help
+```
+
+## Learn More
+
+- [Configuration Guide](/supervisor/configuration)
+- [RPC API Reference](/supervisor/rpc)
+- [Metrics Documentation](/supervisor/metrics)
+- [Storage Layer](/supervisor/storage)

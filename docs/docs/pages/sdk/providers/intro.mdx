@@ -1,0 +1,390 @@
+# Providers
+
+Provider implementations for fetching blockchain data in the OP Stack.
+
+## Overview
+
+Providers abstract data fetching from different sources, enabling flexible integration with various blockchain data backends. The Kona providers offer:
+
+- **Alloy-based providers**: Production-ready providers using Alloy transports
+- **Local providers**: Local data sources for testing and development
+- **Trait-based abstractions**: Implement custom providers for any data source
+- **Async support**: Full async/await compatibility
+
+## Provider Crates
+
+### kona-providers-alloy
+
+<a href="https://crates.io/crates/kona-providers-alloy"><img src="https://img.shields.io/crates/v/kona-providers-alloy.svg?label=kona-providers-alloy" alt="kona-providers-alloy crate" /></a>
+
+Production provider implementations backed by Alloy transports, supporting HTTP, WebSocket, and IPC connections to Ethereum nodes.
+
+### kona-providers-local
+
+<a href="https://crates.io/crates/kona-providers-local"><img src="https://img.shields.io/crates/v/kona-providers-local.svg?label=kona-providers-local" alt="kona-providers-local crate" /></a>
+
+Local provider implementations for testing and development, including in-memory and file-based data sources.
+
+## Provider Traits
+
+Providers implement standardized traits from `kona-derive`:
+
+### `ChainProvider`
+
+Fetch chain data (blocks, transactions, receipts):
+
+```rust
+use kona_derive::traits::ChainProvider;
+
+#[async_trait]
+pub trait ChainProvider {
+    /// Get a block by number
+    async fn block_by_number(&self, number: u64) -> Result<Block>;
+
+    /// Get a transaction receipt
+    async fn receipt_by_hash(&self, hash: B256) -> Result<Receipt>;
+
+    /// Get the latest block number
+    async fn block_number(&self) -> Result<u64>;
+}
+```
+
+### `BlobProvider`
+
+Fetch blob data for EIP-4844:
+
+```rust
+use kona_derive::traits::BlobProvider;
+
+#[async_trait]
+pub trait BlobProvider {
+    /// Get blobs for a block
+    async fn blobs(&self, block_hash: B256) -> Result<Vec<Blob>>;
+
+    /// Get blob sidecars
+    async fn blob_sidecars(&self, block_hash: B256) -> Result<Vec<BlobSidecar>>;
+}
+```
+
+## Using Alloy Providers
+
+### HTTP Provider
+
+Connect via HTTP:
+
+```rust
+use kona_providers_alloy::AlloyChainProvider;
+
+// Create HTTP provider
+let provider = AlloyChainProvider::new_http(
+    "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY".parse()?
+).await?;
+
+// Fetch data
+let block = provider.block_by_number(123456).await?;
+let latest = provider.block_number().await?;
+```
+
+### WebSocket Provider
+
+For real-time updates:
+
+```rust
+use kona_providers_alloy::AlloyChainProvider;
+
+// Create WebSocket provider
+let provider = AlloyChainProvider::new_ws(
+    "wss://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
+).await?;
+
+// Subscribe to new blocks
+let mut subscription = provider.subscribe_blocks().await?;
+while let Some(block) = subscription.next().await {
+    println!("New block: {}", block.number);
+}
+```
+
+### IPC Provider
+
+For local node connections:
+
+```rust
+use kona_providers_alloy::AlloyChainProvider;
+
+// Create IPC provider
+let provider = AlloyChainProvider::new_ipc(
+    "/tmp/geth.ipc"
+).await?;
+```
+
+## L1 and L2 Providers
+
+Separate providers for L1 and L2 chains:
+
+```rust
+use kona_providers_alloy::AlloyChainProvider;
+
+// L1 provider (Ethereum mainnet)
+let l1_provider = AlloyChainProvider::new_http(
+    "https://eth-mainnet.g.alchemy.com/v2/KEY".parse()?
+).await?;
+
+// L2 provider (OP Mainnet)
+let l2_provider = AlloyChainProvider::new_http(
+    "https://opt-mainnet.g.alchemy.com/v2/KEY".parse()?
+).await?;
+
+// Use in derivation pipeline
+let pipeline = DerivationPipeline::new(
+    l1_provider,
+    l2_provider,
+    rollup_config,
+);
+```
+
+## Local Providers for Testing
+
+### In-Memory Provider
+
+For unit tests:
+
+```rust
+use kona_providers_local::InMemoryChainProvider;
+
+// Create in-memory provider
+let mut provider = InMemoryChainProvider::new();
+
+// Add test data
+provider.insert_block(test_block);
+provider.insert_receipt(test_receipt);
+
+// Use in tests
+let block = provider.block_by_number(1).await?;
+assert_eq!(block.number, 1);
+```
+
+### File-Based Provider
+
+Load test data from files:
+
+```rust
+use kona_providers_local::FileChainProvider;
+
+// Load from JSON files
+let provider = FileChainProvider::new("./test-data")?;
+
+// Automatically loads blocks and receipts from files
+let block = provider.block_by_number(100).await?;
+```
+
+## Implementing Custom Providers
+
+Create custom providers for any data source:
+
+```rust
+use kona_derive::traits::ChainProvider;
+use async_trait::async_trait;
+
+pub struct CustomProvider {
+    // Your data source
+}
+
+#[async_trait]
+impl ChainProvider for CustomProvider {
+    async fn block_by_number(&self, number: u64) -> Result<Block> {
+        // Fetch from your source
+        self.fetch_block(number).await
+    }
+
+    async fn receipt_by_hash(&self, hash: B256) -> Result<Receipt> {
+        // Fetch from your source
+        self.fetch_receipt(hash).await
+    }
+
+    async fn block_number(&self) -> Result<u64> {
+        // Get latest block number
+        self.latest_block_number().await
+    }
+}
+```
+
+## Provider Caching
+
+Implement caching for better performance:
+
+```rust
+use kona_providers_alloy::AlloyChainProvider;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
+pub struct CachedProvider<P> {
+    inner: P,
+    cache: Arc<RwLock<HashMap<u64, Block>>>,
+}
+
+impl<P: ChainProvider> CachedProvider<P> {
+    pub fn new(provider: P) -> Self {
+        Self {
+            inner: provider,
+            cache: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+}
+
+#[async_trait]
+impl<P: ChainProvider + Send + Sync> ChainProvider for CachedProvider<P> {
+    async fn block_by_number(&self, number: u64) -> Result<Block> {
+        // Check cache first
+        {
+            let cache = self.cache.read().await;
+            if let Some(block) = cache.get(&number) {
+                return Ok(block.clone());
+            }
+        }
+
+        // Fetch and cache
+        let block = self.inner.block_by_number(number).await?;
+        self.cache.write().await.insert(number, block.clone());
+        Ok(block)
+    }
+
+    // Implement other methods...
+}
+```
+
+## Provider Configuration
+
+Configure provider behavior:
+
+```rust
+use kona_providers_alloy::{AlloyChainProvider, ProviderConfig};
+
+let config = ProviderConfig {
+    timeout: Duration::from_secs(30),
+    max_retries: 3,
+    retry_backoff: Duration::from_secs(1),
+};
+
+let provider = AlloyChainProvider::with_config(
+    "https://eth-mainnet.g.alchemy.com/v2/KEY".parse()?,
+    config,
+).await?;
+```
+
+## Error Handling
+
+Handle provider errors:
+
+```rust
+use kona_providers_alloy::AlloyChainProvider;
+
+match provider.block_by_number(123456).await {
+    Ok(block) => {
+        println!("Got block: {}", block.number);
+    }
+    Err(e) => {
+        eprintln!("Provider error: {}", e);
+        // Handle timeout, connection issues, etc.
+    }
+}
+```
+
+## Integration with Derivation
+
+Use providers in the derivation pipeline:
+
+```rust
+use kona_derive::DerivationPipeline;
+use kona_providers_alloy::AlloyChainProvider;
+
+// Create providers
+let l1_provider = AlloyChainProvider::new_http(l1_rpc_url).await?;
+let l2_provider = AlloyChainProvider::new_http(l2_rpc_url).await?;
+
+// Create pipeline
+let mut pipeline = DerivationPipeline::new(
+    l1_provider,
+    l2_provider,
+    rollup_config,
+);
+
+// Derive L2 blocks from L1
+let attributes = pipeline.next().await?;
+```
+
+## Testing with Providers
+
+### Mocking Providers
+
+Use in-memory providers for tests:
+
+```rust
+#[cfg(test)]
+mod tests {
+    use kona_providers_local::InMemoryChainProvider;
+
+    #[tokio::test]
+    async fn test_derivation() {
+        let mut provider = InMemoryChainProvider::new();
+
+        // Add test data
+        provider.insert_block(create_test_block(1));
+        provider.insert_block(create_test_block(2));
+
+        // Test your code
+        let pipeline = create_pipeline(provider);
+        let result = pipeline.derive().await;
+        assert!(result.is_ok());
+    }
+}
+```
+
+### Property Testing
+
+Test provider invariants:
+
+```rust
+use proptest::prelude::*;
+
+proptest! {
+    #[test]
+    fn provider_consistency(block_number: u64) {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let provider = create_test_provider();
+
+            // Fetching same block twice should return same result
+            let block1 = provider.block_by_number(block_number).await.unwrap();
+            let block2 = provider.block_by_number(block_number).await.unwrap();
+
+            assert_eq!(block1, block2);
+        });
+    }
+}
+```
+
+## Performance Tips
+
+1. **Use WebSocket for real-time data**: Faster than polling HTTP
+2. **Implement caching**: Reduce redundant requests
+3. **Batch requests**: Use batch RPC calls when possible
+4. **Connection pooling**: Reuse connections for multiple requests
+5. **Rate limiting**: Respect provider rate limits
+
+## Learn More
+
+- [Derivation Pipeline](/sdk/protocol/derive/intro): Using providers in derivation
+- [Chain Data Sources](/node/design/derivation): How the node uses providers
+- [Custom Derivation Pipeline Example](/sdk/examples/custom-derivation-pipeline): Building with custom providers
+
+## Feature Flags
+
+### kona-providers-alloy
+
+- `std`: Standard library support
+- `online`: Enable online tests (requires network access)
+
+### kona-providers-local
+
+- `std`: Standard library support
+- `serde`: Serialization support for test data

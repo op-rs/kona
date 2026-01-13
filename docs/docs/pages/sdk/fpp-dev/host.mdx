@@ -1,0 +1,428 @@
+# Host Program
+
+The **Kona Host** is the native program that serves as the Preimage Oracle server for fault proof programs. It runs on the host system and provides data to the fault proof client running inside the FPVM (Fault Proof Virtual Machine).
+
+## Overview
+
+The host program is essential for fault proof execution:
+
+- **Preimage Oracle Server**: Serves preimages to the client program via the PreimageOracle ABI
+- **Data Fetching**: Retrieves blockchain data from L1 and L2 providers
+- **FPVM Communication**: Communicates with the client through file descriptors
+- **Caching**: Caches frequently requested preimages for performance
+- **Hint Processing**: Processes hints from the client to prefetch data
+
+## Architecture
+
+The host-client architecture follows a clear separation:
+
+```
+┌─────────────────┐        PreimageOracle ABI        ┌─────────────────┐
+│                 │◄──────────────────────────────────┤                 │
+│   Host (Native) │         (Hint + Read/Write)       │  Client (FPVM)  │
+│                 ├──────────────────────────────────►│                 │
+└─────────────────┘                                   └─────────────────┘
+       │
+       │ Fetches data from
+       ▼
+┌─────────────────┐
+│   L1 Provider   │
+│   L2 Provider   │
+└─────────────────┘
+```
+
+## Building the Host
+
+Build the host binary:
+
+```bash
+cargo build --release --bin kona-host
+```
+
+Or using just:
+
+```bash
+just build-host
+```
+
+The binary will be available at `target/release/kona-host`.
+
+## Running the Host
+
+### Basic Usage
+
+```bash
+kona-host \
+  --l1-rpc-url https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY \
+  --l2-rpc-url https://opt-mainnet.g.alchemy.com/v2/YOUR_KEY \
+  --rollup-config-path ./rollup.json
+```
+
+### With Cannon (MIPS)
+
+Run the fault proof with Cannon:
+
+```bash
+# 1. Build client for cannon
+just build-cannon-client
+
+# 2. Start host and execute proof
+cannon run \
+  --input ./witness.json \
+  --oracle ./target/release/kona-host \
+  -- ./target/mips64/release/kona-client
+```
+
+### With Asterisc (RISC-V)
+
+Run the fault proof with Asterisc:
+
+```bash
+# 1. Build client for asterisc
+just build-asterisc-client
+
+# 2. Start host and execute proof
+asterisc run \
+  --input ./witness.json \
+  --oracle ./target/release/kona-host \
+  -- ./target/riscv64/release/kona-client
+```
+
+## Configuration
+
+### Command-Line Options
+
+**L1 RPC URL**
+```bash
+--l1-rpc-url <URL>
+```
+HTTP RPC endpoint for the L1 chain.
+
+**L2 RPC URL**
+```bash
+--l2-rpc-url <URL>
+```
+HTTP RPC endpoint for the L2 chain.
+
+**Rollup Config**
+```bash
+--rollup-config-path <PATH>
+```
+Path to the rollup configuration JSON file.
+
+**L1 Beacon URL**
+```bash
+--l1-beacon-url <URL>
+```
+Optional Beacon API endpoint for blob data.
+
+**Cache Directory**
+```bash
+--cache-dir <PATH>
+```
+Directory for caching preimages (default: `./preimage-cache`).
+
+**Log Level**
+```bash
+--log-level <LEVEL>
+```
+Logging verbosity: `trace`, `debug`, `info`, `warn`, `error` (default: `info`).
+
+### Environment Variables
+
+All CLI options can be set via environment variables:
+
+```bash
+export KONA_L1_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/KEY
+export KONA_L2_RPC_URL=https://opt-mainnet.g.alchemy.com/v2/KEY
+export KONA_ROLLUP_CONFIG_PATH=./rollup.json
+export RUST_LOG=debug
+
+kona-host
+```
+
+## Preimage Oracle ABI
+
+The host implements the PreimageOracle ABI for client communication:
+
+### Hint Channel
+
+The client sends hints to prefetch data:
+
+```rust
+// Client sends hint
+write_hint(b"l1-block-123456");
+
+// Host prefetches L1 block 123456
+```
+
+### Read Channel
+
+The client requests preimages:
+
+```rust
+// Client requests preimage
+let preimage = read_preimage(key);
+
+// Host fetches and returns the data
+```
+
+### Write Channel
+
+The client writes results:
+
+```rust
+// Client writes output
+write_output(result_data);
+
+// Host receives and validates
+```
+
+## Preimage Types
+
+The host serves different types of preimages:
+
+### L1 Block Preimages
+
+Ethereum L1 block data:
+
+```rust
+// Hint format: "l1-block-<number>"
+let hint = format!("l1-block-{}", block_number);
+write_hint(hint.as_bytes());
+
+// Request preimage
+let key = keccak256(rlp_encode(&block));
+let block_preimage = read_preimage(key);
+```
+
+### L2 Block Preimages
+
+OP Stack L2 block data:
+
+```rust
+// Hint format: "l2-block-<number>"
+let hint = format!("l2-block-{}", block_number);
+write_hint(hint.as_bytes());
+
+let key = keccak256(rlp_encode(&block));
+let block_preimage = read_preimage(key);
+```
+
+### Transaction Preimages
+
+Transaction data:
+
+```rust
+// Hint format: "tx-<hash>"
+let hint = format!("tx-{:x}", tx_hash);
+write_hint(hint.as_bytes());
+
+let key = keccak256(&tx_rlp);
+let tx_preimage = read_preimage(key);
+```
+
+### Blob Preimages (EIP-4844)
+
+Blob data for EIP-4844 transactions:
+
+```rust
+// Hint format: "blob-<commitment>"
+let hint = format!("blob-{:x}", blob_commitment);
+write_hint(hint.as_bytes());
+
+let key = keccak256(&blob_data);
+let blob_preimage = read_preimage(key);
+```
+
+### State Preimages
+
+MPT (Merkle Patricia Trie) nodes:
+
+```rust
+// Hint format: "state-<hash>"
+let hint = format!("state-{:x}", node_hash);
+write_hint(hint.as_bytes());
+
+let key = node_hash;
+let node_preimage = read_preimage(key);
+```
+
+## Caching
+
+The host implements intelligent caching:
+
+### LRU Cache
+
+Recently used preimages are cached in memory:
+
+```bash
+# Configure cache size
+kona-host --cache-size 1GB
+```
+
+### Disk Cache
+
+Persistent cache on disk:
+
+```bash
+# Set cache directory
+kona-host --cache-dir /var/cache/kona
+```
+
+### Cache Warming
+
+Pre-populate cache for known data:
+
+```bash
+# Warm cache with block range
+kona-host warm-cache \
+  --start-block 1000000 \
+  --end-block 1001000
+```
+
+## Performance Optimization
+
+### Concurrent Fetching
+
+The host fetches data concurrently:
+
+```bash
+# Configure concurrency
+kona-host --fetch-concurrency 10
+```
+
+### Request Batching
+
+Batch multiple RPC requests:
+
+```bash
+# Enable batch requests
+kona-host --enable-batching
+```
+
+### Prefetching
+
+Aggressive prefetching based on hints:
+
+```bash
+# Configure prefetch depth
+kona-host --prefetch-depth 5
+```
+
+## Monitoring
+
+### Metrics
+
+Enable Prometheus metrics:
+
+```bash
+kona-host --metrics --metrics-addr 0.0.0.0:9090
+```
+
+Available metrics:
+- `host_preimage_requests_total`: Total preimage requests
+- `host_cache_hits_total`: Cache hit count
+- `host_cache_misses_total`: Cache miss count
+- `host_fetch_duration_seconds`: Data fetch latency
+- `host_hint_processing_duration_seconds`: Hint processing time
+
+### Logging
+
+Detailed logging for debugging:
+
+```bash
+# Enable trace logging
+RUST_LOG=trace kona-host ...
+
+# Log to file
+kona-host ... 2>&1 | tee host.log
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Client can't connect to host**
+
+Check file descriptor configuration:
+```bash
+# Verify FDs are properly set up
+ls -la /proc/$(pidof kona-host)/fd/
+```
+
+**RPC timeout errors**
+
+Increase timeout:
+```bash
+kona-host --rpc-timeout 60s
+```
+
+**Cache fills up disk**
+
+Limit cache size:
+```bash
+kona-host --cache-size 10GB --cache-eviction-policy lru
+```
+
+### Debug Mode
+
+Run in debug mode for verbose output:
+
+```bash
+RUST_LOG=debug kona-host \
+  --l1-rpc-url $L1_RPC \
+  --l2-rpc-url $L2_RPC \
+  --rollup-config-path rollup.json
+```
+
+## Integration Examples
+
+### With op-program
+
+Use kona-host with op-program client:
+
+```bash
+cannon run \
+  --input ./input.json \
+  --oracle ./target/release/kona-host \
+  -- ./bin/op-program
+```
+
+### Custom Client
+
+Integrate with your custom client:
+
+```rust
+// In your client (inside FPVM)
+use kona_preimage::{HintWriter, PreimageOracle};
+
+// Write hint
+let mut hint_writer = HintWriter::new();
+hint_writer.write(b"l1-block-123456")?;
+
+// Read preimage
+let mut oracle = PreimageOracle::new();
+let preimage = oracle.get(key)?;
+```
+
+## Learn More
+
+- [Client Program](/sdk/fpp-dev/intro): Understanding the client side
+- [Preimage Oracle](/sdk/fpp-dev/io): Preimage Oracle ABI details
+- [FPVM Targets](/sdk/fpp-dev/targets): Supported fault proof VMs
+- [Prologue](/sdk/fpp-dev/prologue): Client initialization
+- [Execution](/sdk/fpp-dev/execution): Proof execution flow
+- [Epilogue](/sdk/fpp-dev/epilogue): Finalization
+
+## Binary Location
+
+The host binary source is located at:
+```
+bin/host/
+```
+
+Build with:
+```bash
+cargo build --release --bin kona-host
+```

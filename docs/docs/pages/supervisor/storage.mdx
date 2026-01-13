@@ -1,0 +1,348 @@
+# Supervisor Storage
+
+<a href="https://crates.io/crates/kona-supervisor-storage"><img src="https://img.shields.io/crates/v/kona-supervisor-storage.svg?label=kona-supervisor-storage" alt="kona-supervisor-storage crate" /></a>
+
+The `kona-supervisor-storage` crate provides the database storage layer for the Kona Supervisor, enabling persistent state management for the interop cluster.
+
+## Overview
+
+The storage layer is responsible for:
+- **Persisting chain state**: Store current and finalized heads for all supervised chains
+- **Indexing cross-chain messages**: Track cross-chain message execution and dependencies
+- **Managing chain metadata**: Store chain configurations and registry information
+- **Historical data**: Maintain historical state for validation and analysis
+
+## Architecture
+
+The storage layer uses **RocksDB** (via reth's database abstractions) for high-performance persistent storage.
+
+### Key-Value Store
+
+Data is organized into several namespaces:
+
+- **Chain Heads**: Current head blocks for each chain
+- **Finalized Heads**: Finalized blocks for each chain
+- **Cross-Chain Messages**: Pending and executed messages
+- **Chain Metadata**: Chain configurations and status
+- **Dependencies**: Cross-chain dependency graph
+
+## Storage Schema
+
+### Chain Head Storage
+
+```rust
+key: b"chain_head:<chain_id>"
+value: BlockInfo { number, hash, timestamp }
+```
+
+### Finalized Head Storage
+
+```rust
+key: b"finalized_head:<chain_id>"
+value: BlockInfo { number, hash, timestamp }
+```
+
+### Cross-Chain Message Storage
+
+```rust
+key: b"ccm:<source_chain>:<target_chain>:<message_id>"
+value: CrossChainMessage {
+    identifier,
+    source_chain_id,
+    target_chain_id,
+    payload,
+    status,
+    dependencies
+}
+```
+
+### Chain Metadata
+
+```rust
+key: b"chain_meta:<chain_id>"
+value: ChainMetadata {
+    chain_id,
+    name,
+    rpc_url,
+    rollup_config,
+    status
+}
+```
+
+## Usage
+
+### Initializing Storage
+
+```rust
+use kona_supervisor_storage::Storage;
+
+// Create storage instance
+let storage = Storage::new("/path/to/data")?;
+
+// Initialize database
+storage.init().await?;
+```
+
+### Storing Chain Head
+
+```rust
+use kona_supervisor_types::BlockInfo;
+
+let block_info = BlockInfo {
+    block_number: 123456,
+    block_hash: hash,
+    timestamp: 1704067200,
+};
+
+storage.put_chain_head(chain_id, &block_info).await?;
+```
+
+### Querying Chain Head
+
+```rust
+let head = storage.get_chain_head(chain_id).await?;
+println!("Current head: block {}", head.block_number);
+```
+
+### Storing Cross-Chain Messages
+
+```rust
+use kona_supervisor_types::CrossChainMessage;
+
+let message = CrossChainMessage {
+    identifier: msg_id,
+    source_chain_id: 10,
+    target_chain_id: 8453,
+    payload: payload_bytes,
+    status: MessageStatus::Pending,
+    dependencies: vec![],
+};
+
+storage.put_cross_chain_message(&message).await?;
+```
+
+### Querying Messages
+
+```rust
+// Get pending messages for a chain
+let pending = storage.get_pending_messages(target_chain_id).await?;
+
+// Get message by ID
+let message = storage.get_cross_chain_message(message_id).await?;
+```
+
+## Storage Configuration
+
+### Cache Size
+
+Configure the RocksDB cache size:
+
+```rust
+let storage = Storage::builder()
+    .path("/path/to/data")
+    .cache_size(4 * 1024 * 1024 * 1024) // 4GB
+    .build()?;
+```
+
+Or via command-line:
+```bash
+kona-supervisor --storage-cache-size 4GB
+```
+
+### Max Open Files
+
+Limit the number of open file descriptors:
+
+```rust
+let storage = Storage::builder()
+    .max_open_files(1000)
+    .build()?;
+```
+
+### Write Buffer
+
+Configure write buffer size for better write performance:
+
+```rust
+let storage = Storage::builder()
+    .write_buffer_size(256 * 1024 * 1024) // 256MB
+    .build()?;
+```
+
+## Performance Considerations
+
+### Batch Writes
+
+For better performance, use batch writes:
+
+```rust
+let mut batch = storage.batch();
+
+for (chain_id, head) in chain_heads {
+    batch.put_chain_head(chain_id, &head);
+}
+
+batch.commit().await?;
+```
+
+### Compaction
+
+RocksDB automatically compacts data. Manual compaction:
+
+```rust
+storage.compact().await?;
+```
+
+### Read Performance
+
+- **Cache**: Increase cache size for better read performance
+- **Bloom Filters**: Enabled by default for fast negative lookups
+- **Compression**: LZ4 compression reduces disk I/O
+
+## Backup and Recovery
+
+### Creating Backups
+
+```bash
+# Stop supervisor (or use consistent snapshot)
+kona-supervisor stop
+
+# Backup storage directory
+cp -r /var/lib/supervisor/db /backups/supervisor-$(date +%Y%m%d)
+
+# Restart supervisor
+kona-supervisor start
+```
+
+### Live Backups
+
+Create a snapshot without stopping:
+
+```rust
+storage.create_snapshot("/backups/snapshot").await?;
+```
+
+### Restoring from Backup
+
+```bash
+# Stop supervisor
+kona-supervisor stop
+
+# Restore backup
+rm -rf /var/lib/supervisor/db
+cp -r /backups/supervisor-20260108 /var/lib/supervisor/db
+
+# Start supervisor
+kona-supervisor start
+```
+
+## Storage Metrics
+
+The storage layer exposes metrics for monitoring:
+
+- `supervisor_storage_size_bytes`: Total storage size
+- `supervisor_storage_cache_hits`: Cache hit rate
+- `supervisor_storage_cache_misses`: Cache miss rate
+- `supervisor_storage_write_latency`: Write operation latency
+- `supervisor_storage_read_latency`: Read operation latency
+- `supervisor_storage_compaction_time`: Time spent in compaction
+
+Access via Prometheus:
+```bash
+curl http://localhost:9090/metrics | grep supervisor_storage
+```
+
+## Troubleshooting
+
+### Storage Corruption
+
+If storage becomes corrupted:
+
+```bash
+# Verify database
+kona-supervisor verify-db --data-dir /var/lib/supervisor
+
+# Repair if needed
+kona-supervisor repair-db --data-dir /var/lib/supervisor
+```
+
+### High Disk Usage
+
+Monitor and manage disk usage:
+
+```bash
+# Check storage size
+du -sh /var/lib/supervisor/db
+
+# Compact database
+kona-supervisor compact-db --data-dir /var/lib/supervisor
+
+# Prune old data (if available)
+kona-supervisor prune --before-block 100000
+```
+
+### Slow Queries
+
+If queries are slow:
+1. Increase cache size: `--storage-cache-size 8GB`
+2. Use SSD/NVMe storage
+3. Check system I/O: `iostat -x 1`
+4. Monitor metrics for bottlenecks
+
+## Data Migration
+
+When upgrading versions with schema changes:
+
+```bash
+# Backup current data
+cp -r /var/lib/supervisor/db /backups/pre-upgrade
+
+# Run migration
+kona-supervisor migrate --data-dir /var/lib/supervisor
+
+# Verify migration
+kona-supervisor verify-db --data-dir /var/lib/supervisor
+```
+
+## Database Layout
+
+Directory structure:
+
+```
+/var/lib/supervisor/db/
+├── CURRENT              # Current manifest file
+├── MANIFEST-000001      # Database manifest
+├── 000003.log          # Write-ahead log
+├── 000004.sst          # Sorted string table files
+├── 000005.sst
+├── OPTIONS-000001       # RocksDB options
+└── LOCK                # Lock file
+```
+
+## Advanced Configuration
+
+### Tuning for SSDs
+
+```rust
+let storage = Storage::builder()
+    .path("/var/lib/supervisor/db")
+    .enable_statistics(true)
+    .optimize_for_ssd()
+    .build()?;
+```
+
+### Tuning for HDDs
+
+```rust
+let storage = Storage::builder()
+    .path("/var/lib/supervisor/db")
+    .optimize_for_hdd()
+    .large_write_buffer(512 * 1024 * 1024) // 512MB
+    .build()?;
+```
+
+## Learn More
+
+- [Supervisor Overview](/supervisor/intro)
+- [Configuration](/supervisor/configuration)
+- [Metrics](/supervisor/metrics)

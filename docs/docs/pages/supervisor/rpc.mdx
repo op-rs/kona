@@ -1,0 +1,373 @@
+# Supervisor RPC API
+
+<a href="https://crates.io/crates/kona-supervisor-rpc"><img src="https://img.shields.io/crates/v/kona-supervisor-rpc.svg?label=kona-supervisor-rpc" alt="kona-supervisor-rpc crate" /></a>
+
+The `kona-supervisor-rpc` crate provides RPC server and client implementations for the Kona Supervisor.
+
+## RPC Methods
+
+The supervisor exposes several JSON-RPC methods for querying and managing the interop cluster.
+
+### Core Methods
+
+#### `supervisor_health`
+
+Check supervisor health status.
+
+**Parameters**: None
+
+**Returns**: Health status object
+
+**Example**:
+```bash
+curl -X POST http://localhost:8080 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "supervisor_health",
+    "params": [],
+    "id": 1
+  }'
+```
+
+**Response**:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "status": "healthy",
+    "chains": 3,
+    "uptime": 3600
+  }
+}
+```
+
+#### `supervisor_listChains`
+
+List all chains being supervised.
+
+**Parameters**: None
+
+**Returns**: Array of chain metadata
+
+**Example**:
+```bash
+curl -X POST http://localhost:8080 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "supervisor_listChains",
+    "params": [],
+    "id": 1
+  }'
+```
+
+**Response**:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": [
+    {
+      "chain_id": 10,
+      "name": "OP Mainnet",
+      "rpc_url": "http://localhost:9545",
+      "status": "synced"
+    },
+    {
+      "chain_id": 8453,
+      "name": "Base",
+      "rpc_url": "http://localhost:9546",
+      "status": "syncing"
+    }
+  ]
+}
+```
+
+#### `supervisor_getChainHead`
+
+Get the current head of a specific chain.
+
+**Parameters**:
+- `chain_id` (number): The chain ID to query
+
+**Returns**: Block information for the current head
+
+**Example**:
+```bash
+curl -X POST http://localhost:8080 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "supervisor_getChainHead",
+    "params": [10],
+    "id": 1
+  }'
+```
+
+**Response**:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "block_number": 123456789,
+    "block_hash": "0x1234...",
+    "timestamp": 1704067200
+  }
+}
+```
+
+#### `supervisor_getFinalizedHead`
+
+Get the finalized head of a specific chain.
+
+**Parameters**:
+- `chain_id` (number): The chain ID to query
+
+**Returns**: Finalized block information
+
+**Example**:
+```bash
+curl -X POST http://localhost:8080 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "supervisor_getFinalizedHead",
+    "params": [10],
+    "id": 1
+  }'
+```
+
+### Cross-Chain Methods
+
+#### `supervisor_validateCrossChainMessage`
+
+Validate a cross-chain message before execution.
+
+**Parameters**:
+- `source_chain_id` (number): Source chain ID
+- `target_chain_id` (number): Target chain ID
+- `message` (object): Cross-chain message to validate
+
+**Returns**: Validation result
+
+**Example**:
+```bash
+curl -X POST http://localhost:8080 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "supervisor_validateCrossChainMessage",
+    "params": [
+      10,
+      8453,
+      {
+        "identifier": "0x1234...",
+        "payload": "0xabcd..."
+      }
+    ],
+    "id": 1
+  }'
+```
+
+**Response**:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "valid": true,
+    "safe": true,
+    "dependencies_satisfied": true
+  }
+}
+```
+
+#### `supervisor_getCrossChainDependencies`
+
+Get cross-chain dependencies for a message.
+
+**Parameters**:
+- `chain_id` (number): Chain ID
+- `message_id` (string): Message identifier
+
+**Returns**: Array of dependency information
+
+### Admin Methods
+
+#### `supervisor_addChain`
+
+Add a new chain to the supervisor.
+
+**Parameters**:
+- `chain_config` (object): Chain configuration
+
+**Returns**: Success status
+
+**Requires**: Admin privileges
+
+**Example**:
+```bash
+curl -X POST http://localhost:8080 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <JWT_TOKEN>" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "supervisor_addChain",
+    "params": [{
+      "chain_id": 901,
+      "rpc_url": "http://localhost:9547",
+      "name": "New Chain"
+    }],
+    "id": 1
+  }'
+```
+
+#### `supervisor_removeChain`
+
+Remove a chain from supervision.
+
+**Parameters**:
+- `chain_id` (number): Chain ID to remove
+
+**Returns**: Success status
+
+**Requires**: Admin privileges
+
+#### `supervisor_updateChainConfig`
+
+Update configuration for an existing chain.
+
+**Parameters**:
+- `chain_id` (number): Chain ID
+- `config` (object): New configuration
+
+**Returns**: Success status
+
+**Requires**: Admin privileges
+
+## RPC Client
+
+The crate also provides a Rust client for interacting with the supervisor RPC:
+
+### Using the Client
+
+```rust
+use kona_supervisor_rpc::SupervisorClient;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create client
+    let client = SupervisorClient::new("http://localhost:8080").await?;
+
+    // Query supervisor health
+    let health = client.health().await?;
+    println!("Supervisor status: {:?}", health);
+
+    // List chains
+    let chains = client.list_chains().await?;
+    for chain in chains {
+        println!("Chain {}: {}", chain.chain_id, chain.name);
+    }
+
+    // Get chain head
+    let head = client.get_chain_head(10).await?;
+    println!("OP Mainnet head: {:?}", head);
+
+    Ok(())
+}
+```
+
+### With JWT Authentication
+
+```rust
+use kona_supervisor_rpc::{SupervisorClient, AuthMethod};
+
+let client = SupervisorClient::builder()
+    .url("http://localhost:8080")
+    .auth(AuthMethod::jwt_from_file("/path/to/jwt.hex")?)
+    .build()
+    .await?;
+```
+
+### WebSocket Client
+
+For real-time updates, use the WebSocket client:
+
+```rust
+use kona_supervisor_rpc::SupervisorWsClient;
+
+let ws_client = SupervisorWsClient::new("ws://localhost:8080").await?;
+
+// Subscribe to chain head updates
+let mut subscription = ws_client.subscribe_chain_head(10).await?;
+
+while let Some(head) = subscription.next().await {
+    println!("New head: {:?}", head);
+}
+```
+
+## Authentication
+
+### JWT Authentication
+
+Generate a JWT token:
+
+```bash
+# Using the shared secret
+echo -n '{"iat": '$(date +%s)'}' | \
+  openssl dgst -sha256 -hmac $(cat jwt.hex) -binary | \
+  base64
+```
+
+Include in requests:
+```bash
+curl -X POST http://localhost:8080 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{"jsonrpc": "2.0", "method": "supervisor_health", "params": [], "id": 1}'
+```
+
+## Error Codes
+
+Standard JSON-RPC error codes:
+
+| Code | Message | Description |
+|------|---------|-------------|
+| -32700 | Parse error | Invalid JSON |
+| -32600 | Invalid request | JSON-RPC request invalid |
+| -32601 | Method not found | Method doesn't exist |
+| -32602 | Invalid params | Invalid method parameters |
+| -32603 | Internal error | Internal JSON-RPC error |
+
+Custom supervisor error codes:
+
+| Code | Message | Description |
+|------|---------|-------------|
+| -32001 | Chain not found | Requested chain ID not found |
+| -32002 | Invalid chain config | Chain configuration invalid |
+| -32003 | Validation failed | Cross-chain validation failed |
+| -32004 | Unauthorized | Authentication required |
+
+## Rate Limiting
+
+The RPC server implements rate limiting:
+- Default: 100 requests per minute per IP
+- Configurable via `--rpc-rate-limit` flag
+
+## CORS Configuration
+
+Configure CORS for web applications:
+
+```bash
+kona-supervisor \
+  --rpc-cors-origins "http://localhost:3000,https://app.example.com"
+```
+
+## Learn More
+
+- [Supervisor Overview](/supervisor/intro)
+- [Configuration](/supervisor/configuration)
+- [Running the Supervisor](/supervisor/running)
