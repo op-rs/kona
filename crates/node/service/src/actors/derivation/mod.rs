@@ -1,14 +1,13 @@
 mod actor;
 pub use actor::{DerivationActor, DerivationError};
 
-mod delegate_actor;
-pub use delegate_actor::DelegateDerivationActor;
+mod delegated;
+pub use delegated::{
+    DelegateDerivationActor, DerivationDelegateClient, DerivationDelegateClientError,
+};
 
 mod engine_client;
 pub use engine_client::{DerivationEngineClient, QueuedDerivationEngineClient};
-
-mod delegate_client;
-pub use delegate_client::{DerivationDelegateClient, DerivationDelegateClientError};
 
 mod finalizer;
 pub(crate) use finalizer::L2Finalizer;

@@ -1,6 +1,6 @@
 use crate::{
     CancellableContext, DerivationActorRequest, DerivationEngineClient, NodeActor,
-    actors::derivation::DerivationDelegateClient,
+    actors::derivation::{DerivationDelegateClient, DerivationError},
 };
 use alloy_primitives::BlockHash;
 use async_trait::async_trait;
@@ -9,8 +9,6 @@ use kona_providers_alloy::AlloyChainProvider;
 use thiserror::Error;
 use tokio::{select, sync::mpsc, time};
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
-
-use super::actor::DerivationError;
 
 /// The [NodeActor] for the delegate derivation sub-routine.
 ///
