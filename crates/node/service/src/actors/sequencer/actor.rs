@@ -23,6 +23,7 @@ use kona_derive::{AttributesBuilder, PipelineErrorKind};
 use kona_engine::{InsertTaskError, SealTaskError, SynchronizeTaskError};
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
+use kona_rpc::AdminStatePersistence;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use std::{
     sync::Arc,
@@ -69,6 +70,8 @@ pub struct SequencerActor<
 {
     /// Receiver for admin API requests.
     pub admin_api_rx: mpsc::Receiver<SequencerAdminQuery>,
+    /// The admin state persistence handler.
+    pub admin_state_persistence: AdminStatePersistence,
     /// The attributes builder used for block building.
     pub attributes_builder: AttributesBuilder_,
     /// The cancellation token, shared between all tasks.

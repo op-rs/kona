@@ -6,6 +6,7 @@ use crate::{
 };
 use kona_derive::test_utils::TestAttributesBuilder;
 use kona_genesis::RollupConfig;
+use kona_rpc::AdminStatePersistence;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -23,6 +24,7 @@ pub(crate) fn test_actor() -> SequencerActor<
     let (_admin_api_tx, admin_api_rx) = mpsc::channel(20);
     SequencerActor {
         admin_api_rx,
+        admin_state_persistence: AdminStatePersistence::new(None),
         attributes_builder: TestAttributesBuilder { attributes: vec![] },
         cancellation_token: CancellationToken::new(),
         conductor: None,

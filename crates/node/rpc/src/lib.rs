@@ -12,6 +12,12 @@ extern crate tracing;
 mod admin;
 pub use admin::{AdminRpc, NetworkAdminQuery, RollupBoostAdminQuery};
 
+mod admin_state;
+pub use admin_state::{
+    AdminState, AdminStatePersistence, AdminStatePersistenceError, load_admin_state,
+    save_admin_state,
+};
+
 mod client;
 pub use client::{
     EngineRpcClient, RollupBoostAdminClient, SequencerAdminAPIClient, SequencerAdminAPIError,
