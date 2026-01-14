@@ -20,6 +20,18 @@ pub enum ConsolidateInput {
     BlockInfo(L2BlockInfo),
 }
 
+impl From<L2BlockInfo> for ConsolidateInput {
+    fn from(v: L2BlockInfo) -> Self {
+        ConsolidateInput::BlockInfo(v)
+    }
+}
+
+impl From<OpAttributesWithParent> for ConsolidateInput {
+    fn from(v: OpAttributesWithParent) -> Self {
+        ConsolidateInput::Attributes(Box::new(v))
+    }
+}
+
 impl ConsolidateInput {
     /// Returns the block number for this consolidation input.
     const fn l2_block_number(&self) -> u64 {

@@ -170,7 +170,7 @@ where
         }
 
         self.engine_client
-            .send_safe_l2_block(sync_status.safe_l2)
+            .send_safe_l2_signal(sync_status.safe_l2.into())
             .await
             .map_err(|e| DerivationError::Sender(Box::new(e)))?;
 
