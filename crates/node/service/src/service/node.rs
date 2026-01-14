@@ -77,7 +77,7 @@ pub struct RollupNode {
 /// It is not intended to be generic or reusable outside the
 /// RollupNode wiring logic.
 enum ConfiguredDerivationActor {
-    Delegate(DelegateDerivationActor<QueuedDerivationEngineClient>),
+    Delegate(Box<DelegateDerivationActor<QueuedDerivationEngineClient>>),
     Normal(Box<DerivationActor<QueuedDerivationEngineClient, OnlinePipeline>>),
 }
 
@@ -277,7 +277,7 @@ impl RollupNode {
                 self.l1_config.engine_provider.clone(),
                 DERIVATION_PROVIDER_CACHE_SIZE,
             );
-            ConfiguredDerivationActor::Delegate(DelegateDerivationActor::<_>::new(
+            ConfiguredDerivationActor::Delegate(Box::new(DelegateDerivationActor::<_>::new(
                 QueuedDerivationEngineClient {
                     engine_actor_request_tx: engine_actor_request_tx.clone(),
                 },
@@ -285,7 +285,7 @@ impl RollupNode {
                 derivation_actor_request_rx,
                 provider,
                 l1_provider,
-            ))
+            )))
         } else {
             ConfiguredDerivationActor::Normal(Box::new(DerivationActor::<_, OnlinePipeline>::new(
                 QueuedDerivationEngineClient {
