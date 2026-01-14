@@ -22,13 +22,13 @@ pub enum ConsolidateInput {
 
 impl From<L2BlockInfo> for ConsolidateInput {
     fn from(v: L2BlockInfo) -> Self {
-        ConsolidateInput::BlockInfo(v)
+        Self::BlockInfo(v)
     }
 }
 
 impl From<OpAttributesWithParent> for ConsolidateInput {
     fn from(v: OpAttributesWithParent) -> Self {
-        ConsolidateInput::Attributes(Box::new(v))
+        Self::Attributes(Box::new(v))
     }
 }
 
