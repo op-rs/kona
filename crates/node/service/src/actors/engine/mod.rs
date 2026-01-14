@@ -25,3 +25,9 @@ pub use engine_request_processor::{
 
 mod rpc_request_processor;
 pub use rpc_request_processor::{EngineRpcProcessor, EngineRpcRequestReceiver};
+
+mod unsafe_head_publisher;
+pub use unsafe_head_publisher::{UnsafeHeadPublisher, WatchUnsafeHeadPublisher};
+
+#[cfg(test)]
+pub use unsafe_head_publisher::MockUnsafeHeadPublisher;

@@ -7,7 +7,7 @@ use crate::{
     QueuedEngineDerivationClient, QueuedEngineRpcClient, QueuedL1WatcherDerivationClient,
     QueuedNetworkEngineClient, QueuedSequencerAdminAPIClient, QueuedSequencerEngineClient,
     RollupBoostAdminApiClient, RollupBoostHealthRpcClient, RpcActor, RpcContext, SequencerActor,
-    SequencerConfig,
+    SequencerConfig, WatchUnsafeHeadPublisher,
     actors::{BlockStream, NetworkInboundData, QueuedUnsafePayloadGossipClient},
 };
 use alloy_eips::BlockNumberOrTag;
@@ -193,6 +193,7 @@ impl RollupNode {
             EngineProcessor<
                 OpEngineClient<RootProvider, RootProvider<Optimism>>,
                 QueuedEngineDerivationClient,
+                WatchUnsafeHeadPublisher,
             >,
             EngineRpcProcessor<OpEngineClient<RootProvider, RootProvider<Optimism>>>,
         >,
@@ -208,12 +209,17 @@ impl RollupNode {
             format!("Engine client build failed: {e:?}")
         })?);
 
+        let unsafe_head_publisher = if self.mode().is_sequencer() {
+            Some(WatchUnsafeHeadPublisher::new(unsafe_head_tx))
+        } else {
+            None
+        };
         let engine_processor = EngineProcessor::new(
             engine_client.clone(),
             self.config.clone(),
             derivation_client,
             engine,
-            if self.mode().is_sequencer() { Some(unsafe_head_tx) } else { None },
+            unsafe_head_publisher,
         );
 
         let engine_rpc_processor = EngineRpcProcessor::new(
