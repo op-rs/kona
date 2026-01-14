@@ -188,7 +188,7 @@ where
     }
 
     async fn start_delegate_derivation(mut self) -> Result<(), DerivationError> {
-        info!(target: "derivation", "Starting derivation with delegation asdfasdfasdf");
+        info!(target: "derivation", "Starting derivation with delegation");
         let mut delegated_derivation_ticker =
             time::interval(Self::DERIVATION_DELEGATE_POLL_INTERVAL);
         delegated_derivation_ticker.set_missed_tick_behavior(time::MissedTickBehavior::Skip);
