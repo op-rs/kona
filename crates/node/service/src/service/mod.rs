@@ -4,7 +4,7 @@
 //! [`NodeActor`]: crate::NodeActor
 
 mod builder;
-pub use builder::{L1ConfigBuilder, RollupNodeBuilder};
+pub use builder::{DerivationDelegateConfig, L1ConfigBuilder, RollupNodeBuilder};
 
 mod mode;
 pub use mode::{InteropMode, NodeMode};

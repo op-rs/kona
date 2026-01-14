@@ -3,11 +3,11 @@ use crate::{
 };
 use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
-    BuildTask, ConsolidateTask, Engine, EngineClient, EngineTask, EngineTaskError,
-    EngineTaskErrorSeverity, FinalizeTask, InsertTask, SealTask,
+    BuildTask, ConsolidateInput, ConsolidateTask, Engine, EngineClient, EngineTask,
+    EngineTaskError, EngineTaskErrorSeverity, FinalizeTask, InsertTask, SealTask,
 };
 use kona_genesis::RollupConfig;
-use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
+use kona_protocol::L2BlockInfo;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::sync::Arc;
 use tokio::{
@@ -31,8 +31,8 @@ pub trait EngineRequestReceiver: Send + Sync {
 pub enum EngineProcessingRequest {
     /// Request to start building a block.
     Build(Box<BuildRequest>),
-    /// Request to process a derived L2 safe head.
-    ProcessDerivedL2Attributes(Box<OpAttributesWithParent>),
+    /// Request to process a Safe signal, which can be derived attributes or delegated block info.
+    ProcessSafeL2Signal(ConsolidateInput),
     /// Request to process the finalized L2 block with the provided block number.
     ProcessFinalizedL2BlockNumber(Box<u64>),
     /// Request to process a received unsafe L2 block.
@@ -254,12 +254,11 @@ where
                         )));
                         self.engine.enqueue(task);
                     }
-                    EngineProcessingRequest::ProcessDerivedL2Attributes(attributes) => {
+                    EngineProcessingRequest::ProcessSafeL2Signal(safe_signal) => {
                         let task = EngineTask::Consolidate(Box::new(ConsolidateTask::new(
                             self.client.clone(),
                             self.rollup.clone(),
-                            *attributes,
-                            true,
+                            safe_signal,
                         )));
                         self.engine.enqueue(task);
                     }

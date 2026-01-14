@@ -1,12 +1,13 @@
 //! Contains the [`RollupNode`] implementation.
 use crate::{
-    ConductorClient, DelayedL1OriginSelectorProvider, DerivationActor, EngineActor,
-    EngineActorRequest, EngineConfig, EngineProcessor, EngineRpcProcessor, InteropMode,
-    L1OriginSelector, L1WatcherActor, NetworkActor, NetworkBuilder, NetworkConfig, NodeActor,
-    NodeMode, QueuedDerivationEngineClient, QueuedEngineDerivationClient, QueuedEngineRpcClient,
-    QueuedL1WatcherDerivationClient, QueuedNetworkEngineClient, QueuedSequencerAdminAPIClient,
-    QueuedSequencerEngineClient, RollupBoostAdminApiClient, RollupBoostHealthRpcClient, RpcActor,
-    RpcContext, SequencerActor, SequencerConfig,
+    ConductorClient, DelayedL1OriginSelectorProvider, DelegateDerivationActor, DerivationActor,
+    DerivationDelegateClient, DerivationError, EngineActor, EngineActorRequest, EngineConfig,
+    EngineProcessor, EngineRpcProcessor, InteropMode, L1OriginSelector, L1WatcherActor,
+    NetworkActor, NetworkBuilder, NetworkConfig, NodeActor, NodeMode, QueuedDerivationEngineClient,
+    QueuedEngineDerivationClient, QueuedEngineRpcClient, QueuedL1WatcherDerivationClient,
+    QueuedNetworkEngineClient, QueuedSequencerAdminAPIClient, QueuedSequencerEngineClient,
+    RollupBoostAdminApiClient, RollupBoostHealthRpcClient, RpcActor, RpcContext, SequencerActor,
+    SequencerConfig,
     actors::{BlockStream, NetworkInboundData, QueuedUnsafePayloadGossipClient},
 };
 use alloy_eips::BlockNumberOrTag;
@@ -64,6 +65,39 @@ pub struct RollupNode {
     pub(crate) p2p_config: NetworkConfig,
     /// The [`SequencerConfig`] for the node.
     pub(crate) sequencer_config: SequencerConfig,
+    /// Optional derivation delegate provider.
+    pub(crate) derivation_delegate_provider: Option<DerivationDelegateClient>,
+}
+
+/// A RollupNode-level derivation actor wrapper.
+///
+/// This type selects the concrete derivation actor implementation
+/// based on RollupNode configuration.
+///
+/// It is not intended to be generic or reusable outside the
+/// RollupNode wiring logic.
+enum ConfiguredDerivationActor {
+    Delegate(DelegateDerivationActor<QueuedDerivationEngineClient>),
+    Normal(Box<DerivationActor<QueuedDerivationEngineClient, OnlinePipeline>>),
+}
+
+#[async_trait::async_trait]
+impl NodeActor for ConfiguredDerivationActor
+where
+    DelegateDerivationActor<QueuedDerivationEngineClient>:
+        NodeActor<StartData = (), Error = DerivationError>,
+    DerivationActor<QueuedDerivationEngineClient, OnlinePipeline>:
+        NodeActor<StartData = (), Error = DerivationError>,
+{
+    type StartData = ();
+    type Error = DerivationError;
+
+    async fn start(self, ctx: ()) -> Result<(), Self::Error> {
+        match self {
+            Self::Delegate(a) => a.start(ctx).await,
+            Self::Normal(a) => a.start(ctx).await,
+        }
+    }
 }
 
 impl RollupNode {
@@ -233,15 +267,35 @@ impl RollupNode {
             unsafe_head_tx,
         )?;
 
-        // Create the derivation actor.
-        let derivation = DerivationActor::<_, OnlinePipeline>::new(
-            QueuedDerivationEngineClient {
-                engine_actor_request_tx: engine_actor_request_tx.clone(),
-            },
-            cancellation.clone(),
-            derivation_actor_request_rx,
-            self.create_pipeline().await,
-        );
+        // Select the concrete derivation actor implementation based on
+        // RollupNode configuration.
+        let derivation: ConfiguredDerivationActor = if let Some(provider) =
+            self.derivation_delegate_provider.clone()
+        {
+            // L1 Provider for sanity checking Derivation Delegation
+            let l1_provider = AlloyChainProvider::new(
+                self.l1_config.engine_provider.clone(),
+                DERIVATION_PROVIDER_CACHE_SIZE,
+            );
+            ConfiguredDerivationActor::Delegate(DelegateDerivationActor::<_>::new(
+                QueuedDerivationEngineClient {
+                    engine_actor_request_tx: engine_actor_request_tx.clone(),
+                },
+                cancellation.clone(),
+                derivation_actor_request_rx,
+                provider,
+                l1_provider,
+            ))
+        } else {
+            ConfiguredDerivationActor::Normal(Box::new(DerivationActor::<_, OnlinePipeline>::new(
+                QueuedDerivationEngineClient {
+                    engine_actor_request_tx: engine_actor_request_tx.clone(),
+                },
+                cancellation.clone(),
+                derivation_actor_request_rx,
+                self.create_pipeline().await,
+            )))
+        };
 
         // Create the p2p actor.
         let (

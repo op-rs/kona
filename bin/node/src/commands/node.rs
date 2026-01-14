@@ -2,8 +2,8 @@
 
 use crate::{
     flags::{
-        BuilderClientArgs, GlobalArgs, L1ClientArgs, L2ClientArgs, P2PArgs, RollupBoostFlags,
-        RpcArgs, SequencerArgs,
+        BuilderClientArgs, DerivationDelegateArgs, GlobalArgs, L1ClientArgs, L2ClientArgs, P2PArgs,
+        RollupBoostFlags, RpcArgs, SequencerArgs,
     },
     metrics::{CliMetrics, init_rollup_config_metrics},
 };
@@ -98,6 +98,10 @@ pub struct NodeCommand {
     #[clap(flatten)]
     pub builder_client_args: BuilderClientArgs,
 
+    /// Optional derivation delegation client.
+    #[clap(flatten)]
+    pub derivation_delegate_args: DerivationDelegateArgs,
+
     /// Path to a custom L2 rollup configuration file
     /// (overrides the default rollup configuration from the registry)
     #[arg(long, visible_alias = "rollup-cfg", env = "KONA_NODE_ROLLUP_CONFIG")]
@@ -127,6 +131,7 @@ impl Default for NodeCommand {
             l1_rpc_args: L1ClientArgs::default(),
             l2_client_args: L2ClientArgs::default(),
             builder_client_args: BuilderClientArgs::default(),
+            derivation_delegate_args: DerivationDelegateArgs::default(),
             l2_config_file: None,
             l1_config_file: None,
             node_mode: NodeMode::Validator,
@@ -323,6 +328,7 @@ impl NodeCommand {
             rpc_config,
         )
         .with_sequencer_config(self.sequencer_flags.config())
+        .with_derivation_delegate_config(self.derivation_delegate_args.config())
         .build()
         .start()
         .await

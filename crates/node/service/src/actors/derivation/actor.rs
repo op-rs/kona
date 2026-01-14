@@ -32,6 +32,7 @@ where
     inbound_request_rx: mpsc::Receiver<DerivationActorRequest>,
     /// The Engine client used to interact with the engine.
     engine_client: DerivationEngineClient_,
+
     /// The derivation pipeline.
     pipeline: PipelineSignalReceiver,
     /// The state machine controlling when derivation can occur.
@@ -293,6 +294,7 @@ where
     type StartData = ();
 
     async fn start(mut self, _: Self::StartData) -> Result<(), Self::Error> {
+        info!(target: "derivation", "Starting derivation");
         loop {
             select! {
                 biased;

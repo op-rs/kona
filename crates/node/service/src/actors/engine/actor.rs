@@ -140,8 +140,8 @@ where
                         EngineActorRequest::BuildRequest(build_req) => {
                             send_engine_processing_request(EngineProcessingRequest::Build(build_req)).await?;
                         }
-                        EngineActorRequest::ProcessDerivedL2AttributesRequest(attributes) => {
-                            send_engine_processing_request(EngineProcessingRequest::ProcessDerivedL2Attributes(attributes)).await?;
+                        EngineActorRequest::ProcessSafeL2SignalRequest(signal) => {
+                            send_engine_processing_request(EngineProcessingRequest::ProcessSafeL2Signal(signal)).await?;
                         }
                         EngineActorRequest::ProcessFinalizedL2BlockNumberRequest(block_number) => {
                             send_engine_processing_request(EngineProcessingRequest::ProcessFinalizedL2BlockNumber(block_number)).await?;

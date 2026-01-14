@@ -1,5 +1,5 @@
 use alloy_rpc_types_engine::PayloadId;
-use kona_engine::{BuildTaskError, EngineQueries, SealTaskError};
+use kona_engine::{BuildTaskError, ConsolidateInput, EngineQueries, SealTaskError};
 use kona_protocol::OpAttributesWithParent;
 use kona_rpc::{RollupBoostAdminQuery, RollupBoostHealthQuery};
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
@@ -39,8 +39,9 @@ pub enum EngineClientError {
 pub enum EngineActorRequest {
     /// Request to build.
     BuildRequest(Box<BuildRequest>),
-    /// Request to consolidate based on the provided attributes.
-    ProcessDerivedL2AttributesRequest(Box<OpAttributesWithParent>),
+    /// Request to consolidate using a safe L2 signal from attributes or delegated safe-block
+    /// derivation
+    ProcessSafeL2SignalRequest(ConsolidateInput),
     /// Request to finalize the L2 block at the provided block number.
     ProcessFinalizedL2BlockNumberRequest(Box<u64>),
     /// Request to insert the provided unsafe block.

@@ -1,7 +1,8 @@
 use crate::{EngineActorRequest, EngineClientError, EngineClientResult, ResetRequest};
 use async_trait::async_trait;
 use derive_more::Constructor;
-use kona_protocol::OpAttributesWithParent;
+use kona_engine::ConsolidateInput;
+use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use std::fmt::Debug;
 use tokio::sync::mpsc;
 
@@ -22,6 +23,10 @@ pub trait DerivationEngineClient: Debug + Send + Sync {
     /// Sends a request to finalize the L2 block at the provided block number.
     /// Note: This does not wait for the engine to process it.
     async fn send_finalized_l2_block(&self, block_number: u64) -> EngineClientResult<()>;
+
+    /// Sends a safe L2 block for consolidation (Derivation Delegate mode).
+    /// Note: This does not wait for the engine to process it.
+    async fn send_safe_l2_block(&self, safe_l2: L2BlockInfo) -> EngineClientResult<()>;
 }
 
 /// Client to use to send messages to the Engine Actor's inbound channel.
@@ -58,7 +63,9 @@ impl DerivationEngineClient for QueuedDerivationEngineClient {
     ) -> EngineClientResult<()> {
         trace!(target: "derivation", ?attributes, "Sending derived attributes to engine.");
         self.engine_actor_request_tx
-            .send(EngineActorRequest::ProcessDerivedL2AttributesRequest(Box::new(attributes)))
+            .send(EngineActorRequest::ProcessSafeL2SignalRequest(ConsolidateInput::Attributes(
+                Box::new(attributes),
+            )))
             .await
             .map_err(|_| EngineClientError::RequestError("request channel closed.".to_string()))?;
 
@@ -69,6 +76,18 @@ impl DerivationEngineClient for QueuedDerivationEngineClient {
         trace!(target: "derivation", block_number, "Sending finalized L2 block number to engine.");
         self.engine_actor_request_tx
             .send(EngineActorRequest::ProcessFinalizedL2BlockNumberRequest(Box::new(block_number)))
+            .await
+            .map_err(|_| EngineClientError::RequestError("request channel closed.".to_string()))?;
+
+        Ok(())
+    }
+
+    async fn send_safe_l2_block(&self, safe_l2: L2BlockInfo) -> EngineClientResult<()> {
+        trace!(target: "derivation", %safe_l2, "Sending safe L2 block info to engine.");
+        self.engine_actor_request_tx
+            .send(EngineActorRequest::ProcessSafeL2SignalRequest(ConsolidateInput::BlockInfo(
+                safe_l2,
+            )))
             .await
             .map_err(|_| EngineClientError::RequestError("request channel closed.".to_string()))?;
 
