@@ -3,11 +3,12 @@
 use crate::fpvm_evm::FpvmOpEvmFactory;
 use alloc::sync::Arc;
 use alloy_consensus::Sealed;
+use alloy_evm::revm::{Inspector, database::State};
 use alloy_primitives::B256;
 use core::fmt::Debug;
 use kona_derive::{EthereumDataSource, PipelineErrorKind};
 use kona_driver::{Driver, DriverError};
-use kona_executor::{ExecutorError, TrieDBProvider};
+use kona_executor::{ExecutorError, InspectorFactory, TrieDB, TrieDBProvider};
 use kona_preimage::{CommsClient, HintWriterClient, PreimageKey, PreimageOracleClient};
 use kona_proof::{
     BootInfo, CachingOracle, HintType,
@@ -39,10 +40,25 @@ pub enum FaultProofProgramError {
 
 /// Executes the fault proof program with the given [PreimageOracleClient] and [HintWriterClient].
 #[inline]
-pub async fn run<P, H>(oracle_client: P, hint_client: H) -> Result<(), FaultProofProgramError>
+pub async fn run<P, H, IF>(
+    oracle_client: P,
+    hint_client: H,
+    inspector_factory: Option<IF>,
+) -> Result<(), FaultProofProgramError>
 where
     P: PreimageOracleClient + Send + Sync + Debug + Clone + 'static,
     H: HintWriterClient + Send + Sync + Debug + Clone + 'static,
+    IF: InspectorFactory + Clone + Send + Sync + Debug,
+    for<'a> IF::Inspector: Inspector<
+        <FpvmOpEvmFactory<H, P> as alloy_evm::EvmFactory>::Context<
+            &'a mut State<
+                &'a mut TrieDB<
+                    OracleL2ChainProvider<CachingOracle<P, H>>,
+                    OracleL2ChainProvider<CachingOracle<P, H>>,
+                >,
+            >,
+        >,
+    >,
 {
     const ORACLE_LRU_SIZE: usize = 1024;
 
@@ -130,6 +146,7 @@ where
         l2_provider,
         evm_factory,
         None,
+        inspector_factory,
     );
     let mut driver = Driver::new(cursor, executor, pipeline);
 

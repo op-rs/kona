@@ -2,7 +2,7 @@
 
 use super::StatelessL2Builder;
 use crate::{
-    ExecutorError, ExecutorResult, TrieDBProvider,
+    ExecutorError, ExecutorResult, InspectorFactory, TrieDBProvider,
     util::{
         decode_holocene_eip_1559_params_block_header, decode_jovian_eip_1559_params_block_header,
     },
@@ -23,11 +23,12 @@ use revm::{
     },
 };
 
-impl<P, H, Evm> StatelessL2Builder<'_, P, H, Evm>
+impl<P, H, Evm, IF> StatelessL2Builder<'_, P, H, Evm, IF>
 where
     P: TrieDBProvider,
     H: TrieHinter,
     Evm: EvmFactory,
+    IF: InspectorFactory,
 {
     /// Returns the active [`EvmEnv`] for the executor.
     pub(crate) fn evm_env(

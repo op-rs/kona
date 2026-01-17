@@ -44,7 +44,7 @@ where
 
 impl<'a, C, Evm> SuperchainConsolidator<'a, C, Evm>
 where
-    C: CommsClient + Debug + Send + Sync,
+    C: CommsClient + Debug + Send + Sync + 'static,
     Evm: EvmFactory<Spec = OpSpecId, BlockEnv = BlockEnv> + Send + Sync + Debug + Clone + 'static,
     <Evm as EvmFactory>::Tx:
         FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope> + OpTxEnv,
@@ -230,6 +230,7 @@ where
                 l2_provider.clone(),
                 l2_provider.clone(),
                 parent_header.seal_slow(),
+                None::<()>,
             );
 
             // Execute the block and take the new header. At this point, the block is guaranteed to

@@ -37,5 +37,5 @@ fn main() -> Result<(), String> {
             .expect("Failed to set tracing subscriber");
     }
 
-    kona_proof::block_on(kona_client::single::run(ORACLE_READER, HINT_WRITER))
+    kona_proof::block_on(kona_client::single::run(ORACLE_READER, HINT_WRITER, None::<()>))
 }

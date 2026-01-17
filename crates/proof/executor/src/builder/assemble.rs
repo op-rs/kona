@@ -2,7 +2,7 @@
 
 use super::StatelessL2Builder;
 use crate::{
-    ExecutorError, ExecutorResult, TrieDBError, TrieDBProvider,
+    ExecutorError, ExecutorResult, InspectorFactory, TrieDBError, TrieDBProvider,
     util::{encode_holocene_eip_1559_params, encode_jovian_eip_1559_params},
 };
 use alloc::vec::Vec;
@@ -18,11 +18,12 @@ use op_alloy_consensus::OpReceiptEnvelope;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use revm::{context::BlockEnv, database::BundleState};
 
-impl<P, H, Evm> StatelessL2Builder<'_, P, H, Evm>
+impl<P, H, Evm, IF> StatelessL2Builder<'_, P, H, Evm, IF>
 where
     P: TrieDBProvider,
     H: TrieHinter,
     Evm: EvmFactory,
+    IF: InspectorFactory,
 {
     /// Seals the block executed from the given [OpPayloadAttributes] and [BlockEnv], returning the
     /// computed [Header].
