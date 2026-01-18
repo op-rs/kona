@@ -9,9 +9,10 @@ use kona_interop::ManagedEvent;
 use serde::{Deserialize, Serialize};
 
 // todo:: Determine appropriate locations for these structs and move them accordingly.
-// todo:: Link these structs to the spec documentation after the related PR is merged.
 
 /// Represents a sealed block with its hash, number, and timestamp.
+///
+/// Spec: <https://specs.optimism.io/interop/managed-node.html#types>
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockSeal {
@@ -29,7 +30,10 @@ impl BlockSeal {
         Self { hash, number, timestamp }
     }
 }
+
 /// Output data for version 0 of the protocol.
+///
+/// Spec: <https://specs.optimism.io/interop/managed-node.html#types>
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct OutputV0 {
@@ -53,6 +57,9 @@ impl OutputV0 {
 }
 
 /// Represents the events structure sent by the node to the supervisor.
+///
+/// Used for ManagedEvent communication between supervisor and node.
+/// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/managed-node.md#node---supervisor>
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SubscriptionEvent {
     /// Represents the event data sent by the node
