@@ -21,7 +21,7 @@ pub trait NodeActor: Send + 'static {
     type Error: std::fmt::Debug;
     /// The type necessary to pass to the start function.
     /// This is the result of
-    type StartData: Sized;
+    type StartData;
 
     /// Starts the actor.
     async fn start(self, start_context: Self::StartData) -> Result<(), Self::Error>;
