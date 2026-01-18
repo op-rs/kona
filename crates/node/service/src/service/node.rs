@@ -20,7 +20,7 @@ use kona_providers_alloy::{
     AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, OnlineBlobProvider,
     OnlinePipeline,
 };
-use kona_rpc::RpcBuilder;
+use kona_rpc::{AdminStatePersistence, RpcBuilder};
 use op_alloy_network::Optimism;
 use std::{ops::Not as _, sync::Arc, time::Duration};
 use tokio::sync::{mpsc, watch};
@@ -367,15 +367,43 @@ impl RollupNode {
             let queued_gossip_client =
                 QueuedUnsafePayloadGossipClient::new(gossip_payload_tx.clone());
 
+            // Load persisted admin state if configured
+            let admin_persistence_path =
+                self.rpc_builder.as_ref().and_then(|b| b.admin_persistence.clone());
+            let admin_state_persistence = AdminStatePersistence::new(admin_persistence_path);
+
+            // Determine initial state from persisted state (if available) or CLI config
+            let (is_active, in_recovery_mode) = match admin_state_persistence.load() {
+                Ok(Some(state)) => {
+                    info!(target: "service", sequencer_active = state.sequencer_active, recovery_mode = state.recovery_mode, "Loaded persisted admin state");
+                    (state.sequencer_active, state.recovery_mode)
+                }
+                Ok(None) => {
+                    // No persisted state, use CLI config
+                    (
+                        self.sequencer_config.sequencer_stopped.not(),
+                        self.sequencer_config.sequencer_recovery_mode,
+                    )
+                }
+                Err(e) => {
+                    warn!(target: "service", err = ?e, "Failed to load persisted admin state, using CLI config");
+                    (
+                        self.sequencer_config.sequencer_stopped.not(),
+                        self.sequencer_config.sequencer_recovery_mode,
+                    )
+                }
+            };
+
             (
                 Some(SequencerActor {
                     admin_api_rx: sequencer_admin_api_rx,
+                    admin_state_persistence,
                     attributes_builder: self.create_attributes_builder(),
                     cancellation_token: cancellation.clone(),
                     conductor,
                     engine_client: sequencer_engine_client,
-                    is_active: self.sequencer_config.sequencer_stopped.not(),
-                    in_recovery_mode: self.sequencer_config.sequencer_recovery_mode,
+                    is_active,
+                    in_recovery_mode,
                     origin_selector: delayed_origin_selector,
                     rollup_config: self.config.clone(),
                     unsafe_payload_gossip_client: queued_gossip_client,

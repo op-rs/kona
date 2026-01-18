@@ -2,7 +2,7 @@ use super::SequencerActor;
 use crate::{Conductor, OriginSelector, SequencerEngineClient, UnsafePayloadGossipClient};
 use alloy_primitives::B256;
 use kona_derive::AttributesBuilder;
-use kona_rpc::SequencerAdminAPIError;
+use kona_rpc::{AdminState, SequencerAdminAPIError};
 use tokio::sync::oneshot;
 
 /// The query types to the sequencer actor for the admin api.
@@ -120,6 +120,7 @@ where
         info!(target: "sequencer", "Starting sequencer");
         self.is_active = true;
 
+        self.persist_admin_state();
         self.update_metrics();
 
         Ok(())
@@ -130,6 +131,7 @@ where
         info!(target: "sequencer", "Stopping sequencer");
         self.is_active = false;
 
+        self.persist_admin_state();
         self.update_metrics();
 
         self.engine_client.get_unsafe_head().await
@@ -148,6 +150,7 @@ where
         self.in_recovery_mode = is_active;
         info!(target: "sequencer", is_active, "Updated recovery mode");
 
+        self.persist_admin_state();
         self.update_metrics();
 
         Ok(())
@@ -179,5 +182,13 @@ where
             error!(target: "sequencer", err=?e, "Failed to reset engine forkchoice");
             SequencerAdminAPIError::RequestError(format!("Failed to reset engine: {e}"))
         })
+    }
+
+    /// Persists the current admin state to disk, if persistence is enabled.
+    fn persist_admin_state(&self) {
+        let state = AdminState::new(self.is_active, self.in_recovery_mode);
+        if let Err(e) = self.admin_state_persistence.save(&state) {
+            warn!(target: "sequencer", err=?e, "Failed to persist admin state");
+        }
     }
 }
