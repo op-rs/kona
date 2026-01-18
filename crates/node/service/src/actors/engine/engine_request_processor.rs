@@ -1,5 +1,6 @@
 use crate::{
-    BuildRequest, EngineClientError, EngineDerivationClient, EngineError, ResetRequest, SealRequest,
+    BuildRequest, EngineClientError, EngineDerivationClient, EngineError, ResetRequest,
+    SealRequest, UnsafeHeadPublisher,
 };
 use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
@@ -10,10 +11,7 @@ use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::sync::Arc;
-use tokio::{
-    sync::{mpsc, watch},
-    task::JoinHandle,
-};
+use tokio::{sync::mpsc, task::JoinHandle};
 
 /// Requires that the implementor handles [`EngineProcessingRequest`]s via the provided channel.
 /// Note: this exists to facilitate unit testing rather than consolidate multiple implementations
@@ -47,10 +45,11 @@ pub enum EngineProcessingRequest {
 /// this, it uses the [`Engine`] task queue to order Engine API  interactions based off of
 /// the [`Ord`] implementation of [`EngineTask`].
 #[derive(Debug)]
-pub struct EngineProcessor<EngineClient_, DerivationClient>
+pub struct EngineProcessor<EngineClient_, DerivationClient, UnsafeHeadPublisher_>
 where
     EngineClient_: EngineClient,
     DerivationClient: EngineDerivationClient,
+    UnsafeHeadPublisher_: UnsafeHeadPublisher,
 {
     /// The client used to send messages to the [`crate::DerivationActor`].
     derivation_client: DerivationClient,
@@ -58,12 +57,11 @@ where
     el_sync_complete: bool,
     /// The last safe head update sent.
     last_safe_head_sent: L2BlockInfo,
-    /// The [`RollupConfig`] .
-    /// A channel to use to relay the current unsafe head.
-    /// ## Note
+    /// The unsafe head publisher used to relay the current unsafe head.
+    ///
     /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
     /// mode.
-    unsafe_head_tx: Option<watch::Sender<L2BlockInfo>>,
+    unsafe_head_publisher: Option<UnsafeHeadPublisher_>,
 
     /// The [`RollupConfig`] used to build tasks.
     rollup: Arc<RollupConfig>,
@@ -73,10 +71,12 @@ where
     engine: Engine<EngineClient_>,
 }
 
-impl<EngineClient_, DerivationClient> EngineProcessor<EngineClient_, DerivationClient>
+impl<EngineClient_, DerivationClient, UnsafeHeadPublisher_>
+    EngineProcessor<EngineClient_, DerivationClient, UnsafeHeadPublisher_>
 where
     EngineClient_: EngineClient + 'static,
     DerivationClient: EngineDerivationClient + 'static,
+    UnsafeHeadPublisher_: UnsafeHeadPublisher + 'static,
 {
     /// Constructs a new [`EngineProcessor`] from the params.
     pub fn new(
@@ -84,7 +84,7 @@ where
         config: Arc<RollupConfig>,
         derivation_client: DerivationClient,
         engine: Engine<EngineClient_>,
-        unsafe_head_tx: Option<watch::Sender<L2BlockInfo>>,
+        unsafe_head_publisher: Option<UnsafeHeadPublisher_>,
     ) -> Self {
         Self {
             client,
@@ -93,7 +93,7 @@ where
             engine,
             last_safe_head_sent: L2BlockInfo::default(),
             rollup: config,
-            unsafe_head_tx,
+            unsafe_head_publisher,
         }
     }
 
@@ -211,11 +211,12 @@ where
     }
 }
 
-impl<EngineClient_, DerivationClient> EngineRequestReceiver
-    for EngineProcessor<EngineClient_, DerivationClient>
+impl<EngineClient_, DerivationClient, UnsafeHeadPublisher_> EngineRequestReceiver
+    for EngineProcessor<EngineClient_, DerivationClient, UnsafeHeadPublisher_>
 where
     EngineClient_: EngineClient + 'static,
     DerivationClient: EngineDerivationClient + 'static,
+    UnsafeHeadPublisher_: UnsafeHeadPublisher + 'static,
 {
     fn start(
         mut self,
@@ -229,12 +230,10 @@ where
                     |err| error!(target: "engine", ?err, "Failed to drain engine tasks"),
                 )?;
 
-                // If the unsafe head has updated, propagate it to the outbound channels.
-                if let Some(unsafe_head_tx) = self.unsafe_head_tx.as_ref() {
-                    unsafe_head_tx.send_if_modified(|val| {
-                        let new_head = self.engine.state().sync_state.unsafe_head();
-                        (*val != new_head).then(|| *val = new_head).is_some()
-                    });
+                // If the unsafe head has updated, propagate it via the publisher.
+                if let Some(publisher) = self.unsafe_head_publisher.as_ref() {
+                    let new_head = self.engine.state().sync_state.unsafe_head();
+                    publisher.publish_if_modified(new_head);
                 }
 
                 // Wait for the next processing request.

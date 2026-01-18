@@ -10,7 +10,8 @@ pub use engine::{
     BuildRequest, EngineActor, EngineActorRequest, EngineClientError, EngineClientResult,
     EngineConfig, EngineDerivationClient, EngineError, EngineProcessingRequest, EngineProcessor,
     EngineRequestReceiver, EngineRpcProcessor, EngineRpcRequest, EngineRpcRequestReceiver,
-    QueuedEngineDerivationClient, ResetRequest, SealRequest,
+    QueuedEngineDerivationClient, ResetRequest, SealRequest, UnsafeHeadPublisher,
+    WatchUnsafeHeadPublisher,
 };
 
 mod rpc;
@@ -50,6 +51,8 @@ pub use sequencer::{
     SequencerEngineClient,
 };
 
+#[cfg(test)]
+pub use engine::MockUnsafeHeadPublisher;
 #[cfg(test)]
 pub use network::MockUnsafePayloadGossipClient;
 #[cfg(test)]
