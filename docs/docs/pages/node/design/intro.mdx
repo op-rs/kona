@@ -1,21 +1,17 @@
 # Node Design Overview
 
-The entry-point for the `kona-node` is the [`RollupNodeService`][trait]
-trait which encapsulates the core wiring for the node. The default
-implementation of the trait [`start` method][start] handles connecting
-all the different components of the node, running each in a spawned
-thread. As such, each node component is considered an actor.
+The entry-point for the `kona-node` is the [`RollupNode`][node] struct,
+constructed via the [`RollupNodeBuilder`][builder]. The `RollupNode`
+encapsulates the core wiring for the node, connecting all the different
+components and running each in a spawned thread. As such, each node
+component is considered an actor.
 
-The [`RollupNodeService`][trait] abstracts individual actors through
-the [`NodeActor` trait][actor]. With the `NodeActor` trait, the
-`RollupNodeService` builds the actor and then starts it.
+Individual actors implement the [`NodeActor` trait][actor], which
+defines how the actor is started and what data it receives.
 
 Kona provides implementations for all `NodeActor`s required
-to run a `RollupNodeService`. Actors are defined in the
+to run a `RollupNode`. Actors are defined in the
 [actors][actors] module of the `kona-node-service` crate.
-
-The `kona-node` is an implementation of the `RollupNodeService`
-that lives in the [standard][standard] module.
 
 
 ### Actors
@@ -24,9 +20,8 @@ The architecture of `kona-node` is a web of actors that share
 state through message passing, using channels, rather than using
 shared memory.
 
-The [`RollupNodeService`][trait] defines the set of required
-actors using associated types. These are subject to change,
-but are currently defined as follows.
+The `RollupNode` spawns and orchestrates the following actors.
+These are subject to change, but are currently defined as follows.
 
 - **Derivation Actor**: Orchestrates the derivation pipeline,
   deriving L2 payload attributes from l1 blocks. Payload
@@ -71,8 +66,7 @@ but are currently defined as follows.
 
 [specs]: https://specs.optimism.io/protocol/rollup-node.html
 
-[standard]: https://github.com/op-rs/kona/blob/main/crates/node/service/src/service/standard/node.rs
+[node]: https://github.com/op-rs/kona/blob/main/crates/node/service/src/service/node.rs
+[builder]: https://github.com/op-rs/kona/blob/main/crates/node/service/src/service/builder.rs
 [actors]: https://github.com/op-rs/kona/tree/main/crates/node/service/src/actors
-[actor]: https://github.com/op-rs/kona/blob/main/crates/node/service/src/actors/traits.rs#L19
-[start]: https://github.com/op-rs/kona/blob/main/crates/node/service/src/service/core.rs#L161-L162
-[trait]: https://github.com/op-rs/kona/blob/main/crates/node/service/src/service/core.rs#L56
+[actor]: https://github.com/op-rs/kona/blob/main/crates/node/service/src/actors/traits.rs
