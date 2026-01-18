@@ -69,7 +69,7 @@ impl ChainDb {
     }
 }
 
-// todo: make sure all get method return DatabaseNotInitialised error if db is not initialised
+// todo: make sure all get methods return DatabaseNotInitialised error if db is not initialised
 impl DerivationStorageReader for ChainDb {
     fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError> {
         self.observe_call(Metrics::STORAGE_METHOD_DERIVED_TO_SOURCE, || {
@@ -178,7 +178,7 @@ impl DerivationStorageWriter for ChainDb {
     }
 }
 
-// todo: make sure all get method return DatabaseNotInitialised error if db is not initialised
+// todo: make sure all get methods return DatabaseNotInitialised error if db is not initialised
 impl LogStorageReader for ChainDb {
     fn get_latest_block(&self) -> Result<BlockInfo, StorageError> {
         self.observe_call(Metrics::STORAGE_METHOD_GET_LATEST_BLOCK, || {

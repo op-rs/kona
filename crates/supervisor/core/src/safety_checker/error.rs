@@ -31,7 +31,7 @@ pub enum CrossSafetyError {
     #[error("promotion to level {0} is not supported")]
     UnsupportedTargetLevel(SafetyLevel),
 
-    /// Indicates that error occurred while validating block
+    /// Indicates that an error occurred while validating block
     #[error(transparent)]
     ValidationError(#[from] ValidationError),
 }
@@ -40,7 +40,7 @@ pub enum CrossSafetyError {
 /// These errors indicate that the block must be invalidated.
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ValidationError {
-    /// Indicates that error occurred while validating interop config for the block messages
+    /// Indicates that an error occurred while validating interop config for the block messages
     #[error(transparent)]
     InteropValidationError(#[from] InteropValidationError),
 
@@ -75,7 +75,7 @@ pub enum ValidationError {
     /// Cyclic dependency detected involving the candidate block
     #[error("cyclic dependency detected while promoting block {block}")]
     CyclicDependency {
-        /// The candidate block which is creating cyclic dependency
+        /// The candidate block that is creating a cyclic dependency
         block: BlockInfo,
     },
 }
